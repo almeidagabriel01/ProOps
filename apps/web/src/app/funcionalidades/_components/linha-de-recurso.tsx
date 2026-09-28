@@ -81,9 +81,9 @@ export function LinhaDeRecurso({ recurso }: { recurso: Recurso }) {
             className="absolute left-[8.5px] top-[27px] z-10 h-[13px] w-[13px] rounded-full border-[2.5px] border-black bg-white transition-colors duration-200 group-open/recurso:bg-black dark:border-white dark:bg-neutral-950 dark:group-open/recurso:bg-white"
           />
           <div className="min-w-0 flex-1">
-            <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-              <Icone className="h-4 w-4 shrink-0 text-black/45 dark:text-white/45" aria-hidden />
-              <h3 className="text-[17px] font-semibold leading-snug text-black dark:text-white">
+            <div className="flex items-start gap-x-3">
+              <Icone className="mt-[4px] h-4 w-4 shrink-0 text-black/45 dark:text-white/45" aria-hidden />
+              <h3 className="min-w-0 text-[17px] font-semibold leading-snug text-black dark:text-white">
                 {recurso.titulo}
               </h3>
             </div>

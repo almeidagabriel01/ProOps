@@ -94,7 +94,8 @@ export const nicheLanding: NicheLandingConfig = {
     },
   },
   modulesSection: {
-    title: "Feito para quem instala e integra",
+    title: "Feito para quem",
+    titleHighlight: "instala e integra",
     subtitle:
       "A ProOps organiza a venda, a obra e o financeiro. A central de monitoramento continua no software que você já usa.",
   },

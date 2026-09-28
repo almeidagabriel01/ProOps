@@ -74,7 +74,8 @@ export const nicheLanding: NicheLandingConfig = {
     },
   },
   modulesSection: {
-    title: "Do ambiente medido ao orçamento aprovado",
+    title: "Do ambiente medido ao",
+    titleHighlight: "orçamento aprovado",
     subtitle:
       "Cada produto escolhe como é cobrado, e a proposta calcula o total a partir das medidas que a sua equipe tirou no local.",
   },

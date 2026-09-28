@@ -88,7 +88,8 @@ export const nicheLanding: NicheLandingConfig = {
     },
   },
   modulesSection: {
-    title: "Três modos de preço por medida",
+    title: "Três modos de preço",
+    titleHighlight: "por medida",
     subtitle:
       "Cada produto escolhe como é cobrado, e a proposta calcula o total a partir das medidas do vão.",
   },

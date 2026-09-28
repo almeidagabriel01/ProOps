@@ -43,7 +43,7 @@ export function Capitulos({ vitrines = {} }: CapitulosProps) {
           e o que entra como add-on.
         </p>
 
-        <div className="mt-14 lg:grid lg:grid-cols-[250px_minmax(0,1fr)] lg:gap-16">
+        <div className="mt-14 lg:grid lg:grid-cols-[280px_minmax(0,1fr)] lg:gap-16">
           <div className="lg:sticky lg:top-28 lg:self-start">
             <FiltroDeRecursos
               categorias={lista.map(({ categoria, recursos }) => ({

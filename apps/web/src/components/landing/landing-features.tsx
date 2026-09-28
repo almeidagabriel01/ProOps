@@ -63,7 +63,7 @@ function Destaques() {
               data-ativo={i === ativo ? "" : undefined}
               className="destaque relative border-t border-black/10 py-9 pl-6 dark:border-white/10 lg:motion-safe:flex lg:motion-safe:min-h-[58vh] lg:motion-safe:flex-col lg:motion-safe:justify-center"
             >
-              <span aria-hidden="true" className="destaque-barra absolute left-0 top-9 w-[3px] rounded-full bg-black dark:bg-white" />
+              <span aria-hidden="true" className="destaque-barra absolute left-0 top-9 w-px bg-black dark:bg-white" />
               <h3 className="destaque-titulo [font-family:var(--font-pdf-montserrat)] text-2xl font-bold leading-tight tracking-[-0.02em] md:text-[1.75rem]">
                 {destaque.titulo}
               </h3>
@@ -142,7 +142,6 @@ export function LandingFeatures() {
       <div className="mx-auto max-w-7xl px-6">
         <SectionHeading
           align="left"
-          eyebrow="Recursos da plataforma"
           title={
             <>
               Do orçamento ao recibo, <Accent>sem trocar de sistema</Accent>

@@ -101,7 +101,8 @@ export interface NicheLandingConfig {
   /** A proposta da tela do herói, no vocabulário do nicho. */
   propostaExemplo: PropostaDeExemplo;
   cena: { titulo: string; frase: string; dados: CenaDoNicho };
-  modulesSection: { title: string; subtitle: string };
+  /** `titleHighlight` fecha o título no itálico de acento, como nas outras seções. */
+  modulesSection: { title: string; titleHighlight: string; subtitle: string };
   modules: {
     icon: React.ComponentType<{ className?: string }>;
     title: string;

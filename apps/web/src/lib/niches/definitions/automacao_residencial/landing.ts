@@ -83,7 +83,8 @@ export const nicheLanding: NicheLandingConfig = {
     },
   },
   modulesSection: {
-    title: "Módulos específicos para automação",
+    title: "Módulos específicos para",
+    titleHighlight: "automação",
     subtitle:
       "A ProOps oferece módulos pensados para a realidade de integradores e empresas de AV.",
   },

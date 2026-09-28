@@ -55,7 +55,7 @@ export function TelaPropostaDoNicho({ proposta, vocabulario, className }: TelaPr
         </div>
         <div className="mk-mt-2 flex items-baseline justify-between">
           <span className="mk-t-2 mk-suave">Total da proposta</span>
-          <MockValor valor={calculada.total} className="mk-t-5 font-bold" data-mk="total" />
+          <MockValor valor={calculada.total} className="texto-acento mk-t-5 font-bold" data-mk="total" />
         </div>
       </CascaDoErp>
     </MockTela>

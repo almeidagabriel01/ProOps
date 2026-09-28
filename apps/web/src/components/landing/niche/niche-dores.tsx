@@ -22,7 +22,7 @@ export function NicheDores({ dores }: { dores: NicheLandingConfig["dores"] }) {
               key={dor.antes}
               className="vt-revela grid gap-4 border-t border-black/10 py-8 dark:border-white/10 md:grid-cols-2 md:gap-12"
             >
-              <p className="text-[17px] leading-relaxed text-black/45 dark:text-white/45">
+              <p className="text-[17px] leading-relaxed text-black/60 dark:text-white/60">
                 <span className="dor-riscado">{dor.antes}</span>
               </p>
               <p className="flex items-start gap-3 text-[17px] font-medium leading-relaxed text-black dark:text-white">

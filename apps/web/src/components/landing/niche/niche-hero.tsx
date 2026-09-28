@@ -2,9 +2,7 @@ import React from "react";
 
 import { JanelaDoErp } from "@/components/marketing/mocks/janela-do-erp";
 import { TelaPropostaDoNicho } from "@/components/marketing/mocks/telas/tela-proposta-do-nicho";
-import { calcularProposta } from "@/lib/landing/proposta-de-exemplo";
 import type { NicheVocabulary } from "@/lib/niches/vocabulary";
-import { formatCurrency } from "@/utils/format";
 
 import { NicheHeroCtas } from "./niche-hero-ctas";
 import type { NicheLandingConfig } from "./types";
@@ -24,7 +22,6 @@ interface NicheHeroProps {
  * é o bloco do LCP; a única ilha é a dos botões.
  */
 export function NicheHero({ hero, proposta, vocabulario }: NicheHeroProps) {
-  const total = calcularProposta(proposta).total;
   const atraso = (s: number, y = 18) => ({ "--hero-delay": `${s}s`, "--hero-y": `${y}px` }) as React.CSSProperties;
 
   return (
@@ -60,16 +57,6 @@ export function NicheHero({ hero, proposta, vocabulario }: NicheHeroProps) {
           <JanelaDoErp proporcao="16 / 12">
             <TelaPropostaDoNicho proposta={proposta} vocabulario={vocabulario} />
           </JanelaDoErp>
-          <div className="absolute -bottom-6 left-4 rounded-2xl border border-black/10 bg-white px-4 py-3 shadow-[0_20px_50px_-24px_rgba(0,0,0,0.4)] dark:border-white/12 dark:bg-neutral-900 sm:-left-6">
-            <span>
-              <span className="block text-[11px] font-semibold uppercase tracking-[0.08em] text-black/45 dark:text-white/45">
-                Calculado na proposta
-              </span>
-              <span className="texto-acento block [font-family:var(--font-pdf-montserrat)] text-xl font-bold tabular-nums">
-                {formatCurrency(total)}
-              </span>
-            </span>
-          </div>
         </div>
       </div>
     </section>

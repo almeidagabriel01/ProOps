@@ -144,7 +144,7 @@ export function FiltroDeRecursos({ categorias, planos }: FiltroDeRecursosProps) 
           ) : null}
         </div>
 
-        <div role="radiogroup" aria-label="Filtrar por plano" className="flex rounded-full border border-black/12 p-1 dark:border-white/15">
+        <div role="radiogroup" aria-label="Filtrar por plano" className="grid grid-cols-4 rounded-full border border-black/12 p-1 dark:border-white/15">
           {[{ tier: TODOS, nome: "Todos" }, ...planos].map((p) => {
             const selecionado = plano === p.tier;
             return (
@@ -155,7 +155,7 @@ export function FiltroDeRecursos({ categorias, planos }: FiltroDeRecursosProps) 
                 aria-checked={selecionado}
                 onClick={() => setPlano(p.tier)}
                 className={cn(
-                  "flex-1 rounded-full px-2 py-1.5 text-[12.5px] font-semibold transition-colors duration-200",
+                  "min-w-0 truncate rounded-full px-1.5 py-1.5 text-[12px] font-semibold transition-colors duration-200",
                   selecionado
                     ? "bg-black text-white dark:bg-white dark:text-black"
                     : "text-black/60 hover:text-black dark:text-white/60 dark:hover:text-white",
@@ -198,7 +198,7 @@ export function FiltroDeRecursos({ categorias, planos }: FiltroDeRecursosProps) 
                 <span
                   aria-hidden="true"
                   className={cn(
-                    "absolute left-0 top-1/2 hidden h-full w-[3px] -translate-y-1/2 origin-center rounded-full bg-black transition-transform duration-300 dark:bg-white lg:block",
+                    "absolute left-0 top-1/2 hidden h-full w-px -translate-y-1/2 origin-center bg-black transition-transform duration-300 dark:bg-white lg:block",
                     corrente ? "scale-y-100" : "scale-y-0",
                   )}
                 />
