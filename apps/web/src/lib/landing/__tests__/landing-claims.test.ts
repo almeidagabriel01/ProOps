@@ -74,6 +74,9 @@ const FORBIDDEN: { name: string; pattern: RegExp }[] = [
     pattern: /(?<!não )control(a|e|ar) (a casa|as luzes|a iluminação)/i,
   },
   { name: "cobertura calculada", pattern: /(?<!não )cobertura (calculada|autom[aá]tica)/i },
+  // Não há depoimento, logo nem número de clientes para publicar (PRODUCT.md).
+  { name: "prova social", pattern: /já usam a ProOps|junte-se a|milhares de|centenas de (empresas|clientes)/i },
+  { name: "velocidade não medida", pattern: /em (poucos )?segundos/i },
 ];
 
 /** Onde "Stripe" é verdade: a assinatura da própria ProOps. */

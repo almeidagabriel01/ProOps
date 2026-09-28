@@ -39,7 +39,7 @@ export function NichePlataforma() {
             return (
               <li
                 key={destaque.id}
-                className="vt-revela grid items-baseline gap-2 border-t border-black/10 py-6 dark:border-white/10 md:grid-cols-[minmax(0,0.9fr)_minmax(0,1.4fr)_minmax(0,15rem)] md:gap-10"
+                className="vt-revela grid items-baseline gap-2 border-t border-black/10 py-6 dark:border-white/10 md:grid-cols-[minmax(0,0.9fr)_minmax(0,1.4fr)_17rem] md:gap-10"
               >
                 <h3 className="[font-family:var(--font-pdf-montserrat)] text-lg font-bold leading-snug text-black dark:text-white md:text-xl">
                   {destaque.titulo}
@@ -47,8 +47,8 @@ export function NichePlataforma() {
                 <p className="text-[15px] leading-relaxed text-black/60 dark:text-white/60">
                   {destaque.frase}
                 </p>
-                <div className="flex items-center gap-5 md:justify-end">
-                  <span className="text-[13px] font-semibold text-black/75 dark:text-white/75">
+                <div className="grid grid-cols-[1fr_auto] items-baseline gap-5">
+                  <span className="whitespace-nowrap text-[13px] font-semibold text-black/75 dark:text-white/75">
                     {selo.rotulo}
                   </span>
                   <Link

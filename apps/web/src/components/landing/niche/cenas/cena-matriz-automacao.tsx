@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useId, useState } from "react";
+import React, { useEffect, useId, useRef, useState } from "react";
 
 import { calcularItem, somar } from "@/lib/landing/proposta-de-exemplo";
 import { cn } from "@/lib/utils";
@@ -71,6 +71,17 @@ export function CenaMatrizAutomacao({ dados }: { dados: Dados; modulos: readonly
     () => new Set(dados.inicial.map(([a, s]) => chave(a, s))),
   );
   const gradiente = useId();
+  const listaRef = useRef<HTMLDivElement>(null);
+  const [rola, setRola] = useState(false);
+
+  useEffect(() => {
+    const lista = listaRef.current;
+    const conteudo = lista?.firstElementChild;
+    if (!lista || !conteudo) return;
+    const medir = new ResizeObserver(() => setRola(lista.scrollHeight > lista.clientHeight + 1));
+    medir.observe(conteudo);
+    return () => medir.disconnect();
+  }, []);
 
   const alternar = (a: number, s: number) =>
     setLigadas((atual) => {
@@ -186,21 +197,29 @@ export function CenaMatrizAutomacao({ dados }: { dados: Dados; modulos: readonly
         </div>
       }
       proposta={
-        <div className="max-h-[19rem] overflow-y-auto">
-          {grupos.map((grupo) => (
-            <div key={grupo.nome}>
-              <div className="mt-2 flex items-baseline justify-between border-b border-black/10 pb-1 dark:border-white/12">
-                <span className="text-[13px] font-bold text-[var(--acento)]">{grupo.nome}</span>
-                <span className="text-[13px] font-semibold tabular-nums text-black/70 dark:text-white/70">{formatCurrency(grupo.subtotal)}</span>
+        <div
+          ref={listaRef}
+          className={cn(
+            "max-h-[22.5rem] overflow-y-auto",
+            rola && "[mask-image:linear-gradient(to_bottom,black_calc(100%-2.5rem),transparent)]",
+          )}
+        >
+          <div className={cn(rola && "pb-8")}>
+            {grupos.map((grupo) => (
+              <div key={grupo.nome}>
+                <div className="mt-2 flex items-baseline justify-between border-b border-black/10 pb-1 dark:border-white/12">
+                  <span className="text-[13px] font-bold text-[var(--acento)]">{grupo.nome}</span>
+                  <span className="text-[13px] font-semibold tabular-nums text-black/70 dark:text-white/70">{formatCurrency(grupo.subtotal)}</span>
+                </div>
+                {grupo.itens.map((item) => (
+                  <LinhaDaProposta key={item.descricao} {...item} />
+                ))}
               </div>
-              {grupo.itens.map((item) => (
-                <LinhaDaProposta key={item.descricao} {...item} />
-              ))}
-            </div>
-          ))}
-          {grupos.length === 0 ? (
-            <p className="py-6 text-center text-[13px] text-black/50 dark:text-white/50">Ligue um sistema em algum ambiente.</p>
-          ) : null}
+            ))}
+            {grupos.length === 0 ? (
+              <p className="py-6 text-center text-[13px] text-black/50 dark:text-white/50">Ligue um sistema em algum ambiente.</p>
+            ) : null}
+          </div>
         </div>
       }
       total={total}

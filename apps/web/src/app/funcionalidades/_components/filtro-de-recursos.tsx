@@ -144,7 +144,7 @@ export function FiltroDeRecursos({ categorias, planos }: FiltroDeRecursosProps) 
           ) : null}
         </div>
 
-        <div role="radiogroup" aria-label="Filtrar por plano" className="grid grid-cols-4 rounded-full border border-black/12 p-1 dark:border-white/15">
+        <div role="radiogroup" aria-label="Filtrar por plano" className="flex justify-between rounded-full border border-black/12 p-1 dark:border-white/15">
           {[{ tier: TODOS, nome: "Todos" }, ...planos].map((p) => {
             const selecionado = plano === p.tier;
             return (
@@ -155,7 +155,7 @@ export function FiltroDeRecursos({ categorias, planos }: FiltroDeRecursosProps) 
                 aria-checked={selecionado}
                 onClick={() => setPlano(p.tier)}
                 className={cn(
-                  "min-w-0 truncate rounded-full px-1.5 py-1.5 text-[12px] font-semibold transition-colors duration-200",
+                  "whitespace-nowrap rounded-full px-2 py-1.5 text-[12.5px] font-semibold transition-colors duration-200",
                   selecionado
                     ? "bg-black text-white dark:bg-white dark:text-black"
                     : "text-black/60 hover:text-black dark:text-white/60 dark:hover:text-white",

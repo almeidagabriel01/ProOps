@@ -471,6 +471,9 @@
 .adiado {
   content-visibility: auto;
   contain-intrinsic-size: auto 1000px;
+  /* `content-visibility` também contém a pintura, e a sombra longa das
+     telas codadas passaria da borda do bloco: ela seria cortada. */
+  overflow-clip-margin: 3rem;
 }
 .adiado-passo {
   contain-intrinsic-size: auto 520px;
@@ -621,13 +624,15 @@
 }
 
 /* O gráfico do fluxo de caixa se desenha da esquerda para a direita enquanto
-   entra na tela: revelação por recorte, guiada pela rolagem, sem JavaScript. */
+   entra na tela: revelação por recorte, guiada pela rolagem, sem JavaScript.
+   Termina logo depois de o gráfico caber inteiro na tela: quem para ali para
+   ler não pode encontrar a curva pela metade. */
 @supports (animation-timeline: view()) {
   @media (prefers-reduced-motion: no-preference) {
     .vitrine-fluxo [data-mk="grafico"] {
       animation: vitrine-grafico linear both;
       animation-timeline: view();
-      animation-range: entry 30% cover 55%;
+      animation-range: entry 40% contain 15%;
     }
   }
 }

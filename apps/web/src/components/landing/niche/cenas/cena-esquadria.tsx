@@ -126,7 +126,7 @@ export function CenaEsquadria({ dados, modulos }: { dados: Dados; modulos: reado
           />
         </g>
       ))}
-      <text x={meio} y={TOPO + h / 2} textAnchor="middle" dominantBaseline="middle" className="fill-current text-[14px] font-bold tabular-nums" opacity={destaque("vidro")} style={{ transition: "opacity 0.3s ease" }}>
+      <text x={folhaEsq.x + folhaEsq.w / 2} y={TOPO + h / 2} textAnchor="middle" dominantBaseline="middle" className="fill-current text-[14px] font-bold tabular-nums" opacity={destaque("vidro")} style={{ transition: "opacity 0.3s ease" }}>
         {itens.vidro.quantidade.toLocaleString("pt-BR", { maximumFractionDigits: 2 })} m²
       </text>
 

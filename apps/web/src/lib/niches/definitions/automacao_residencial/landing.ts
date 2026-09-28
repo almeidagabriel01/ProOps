@@ -90,36 +90,36 @@ export const nicheLanding: NicheLandingConfig = {
   },
   modules: [
     {
-      icon: Package,
-      title: "Catálogo de produtos",
+      icon: Layers,
+      title: "Soluções por ambiente",
       description:
-        "Sensores, câmeras, painéis de controle e centrais de automação com fotos e especificações técnicas.",
+        "A proposta se monta cômodo por cômodo: em cada ambiente entram as soluções (iluminação, áudio, Wi-Fi), e cada solução traz os produtos do seu catálogo.",
       bullets: [
-        "Equipamentos com especificações técnicas e fotos",
-        "Fichas de produto exportadas no PDF da proposta",
-        "Adição direta a qualquer proposta em segundos",
+        "Subtotal por ambiente e por solução",
+        "Linha no formato 2x R$ 480,00",
+        "Duplicar a partir de uma proposta antiga",
       ],
     },
     {
-      icon: Layers,
-      title: "Sistemas e ambientes",
+      icon: Package,
+      title: "Catálogo por unidade",
       description:
-        "Monte soluções completas por cômodo: iluminação, climatização, segurança e entretenimento, organizados por ambiente.",
+        "Centrais, módulos, sensores e câmeras ao lado dos serviços de instalação e programação, cada item com custo, preço de venda e estoque.",
       bullets: [
-        "Soluções por ambiente: iluminação, segurança, climatização",
-        "Templates reutilizáveis por tipo de projeto",
-        "Visão consolidada de itens e valores por cômodo",
+        "Produto e serviço no mesmo catálogo",
+        "Estoque contado por unidade",
+        "Importação por planilha .xlsx ou .csv",
       ],
     },
     {
       icon: FileText,
-      title: "Propostas com PDF profissional",
+      title: "PDF separado por ambiente",
       description:
-        "Gere propostas técnicas e comerciais em PDF com capa personalizada, lista de itens, valores e condições de pagamento.",
+        "O documento segue a organização da proposta, com o cabeçalho de cada cômodo, e sai pelo WhatsApp ou pelo e-mail da sua empresa.",
       bullets: [
-        "Capa personalizada com logotipo e cores da empresa",
-        "Lista de itens com preços e condições negociadas",
-        "Geração de PDF e envio ao cliente em segundos",
+        "Cabeçalho de cada ambiente",
+        "Capa com o logotipo da empresa",
+        "Mensagem e link prontos no seu WhatsApp",
       ],
     },
   ],
@@ -148,7 +148,7 @@ export const nicheLanding: NicheLandingConfig = {
   cta: {
     title: "Venda o projeto inteiro, cômodo por cômodo",
     subtitle:
-      "Junte-se a integradores que já usam a ProOps para fechar mais projetos com propostas profissionais.",
+      "Crie a conta grátis e navegue a demonstração de automação antes de assinar.",
     crossLink: {
       label: "Ver também: ERP para Persianas e Toldos",
       href: NICHE_REGISTRY.cortinas.landingPath,
