@@ -91,7 +91,7 @@ export const nicheLanding: NicheLandingConfig = {
         "Manutenção preventiva e monitoramento terceirizado como lançamento recorrente no financeiro.",
       bullets: [
         "Recorrência mensal no financeiro",
-        "Cobrança por PIX, boleto ou cartão no plano com pagamento online",
+        "Cobrança por Pix ou boleto no link, com o pagamento online",
         "Nota fiscal de serviço no plano com o módulo fiscal",
       ],
     },
