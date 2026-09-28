@@ -37,6 +37,13 @@ const LEAD_OPTIONS = [
 const HORIZON_OPTIONS = [7, 14, 21, 30, 60];
 
 /**
+ * Nome, duração e lixeira. O cabeçalho usa a mesma grade, senão o rótulo da
+ * duração não fica em cima da coluna dela. A coluna da lixeira existe sempre,
+ * mesmo vazia, para a largura não mudar ao remover o penúltimo tipo.
+ */
+const visitTypeGrid = "sm:grid sm:grid-cols-[minmax(0,1fr)_9rem_2.5rem]";
+
+/**
  * Expediente do link de agendamento: dias, horário, antecedência, até quando e
  * os tipos de visita. O cliente só vê o que está livre nesse expediente,
  * descontando a Agenda.
@@ -246,14 +253,13 @@ export function BookingSettingsCard({ readOnly = false, demoDefaults, onLoadingC
         <div className="space-y-2">
           {/* Os dois rótulos em cima das colunas; no celular cada linha
               empilha, e a duração ganha o rótulo dela. */}
-          <div className="flex gap-2">
-            <Label className="sm:flex-1">Tipos de visita</Label>
-            <Label className="hidden w-28 sm:block">Tempo de duração</Label>
-            {!readOnly && settings.visitTypes.length > 1 && <span className="hidden w-10 sm:block" aria-hidden="true" />}
+          <div className={cn("gap-2", visitTypeGrid)}>
+            <Label>Tipos de visita</Label>
+            <Label className="hidden whitespace-nowrap sm:block">Tempo de duração</Label>
           </div>
           <ul className="space-y-2">
             {settings.visitTypes.map((type, index) => (
-              <li key={type.id || index} className="flex flex-col gap-2 sm:flex-row sm:items-center">
+              <li key={type.id || index} className={cn("flex flex-col gap-2 sm:items-center", visitTypeGrid)}>
                 <Input
                   aria-label={`Nome do tipo de visita ${index + 1}`}
                   value={type.label}
@@ -264,10 +270,9 @@ export function BookingSettingsCard({ readOnly = false, demoDefaults, onLoadingC
                       visitTypes: settings.visitTypes.map((t, i) => (i === index ? { ...t, label: e.target.value } : t)),
                     })
                   }
-                  className="sm:flex-1"
                 />
-                <div className="flex items-center gap-2">
-                  <span className="text-sm text-muted-foreground sm:hidden">Tempo de duração</span>
+                <div className="flex items-center gap-2 sm:contents">
+                  <span className="shrink-0 text-sm text-muted-foreground sm:hidden">Tempo de duração</span>
                   <Select
                     aria-label={`Tempo de duração do tipo de visita ${index + 1}`}
                     value={String(type.durationMin)}
@@ -280,7 +285,6 @@ export function BookingSettingsCard({ readOnly = false, demoDefaults, onLoadingC
                       })
                     }
                     disableSort
-                    className="w-28"
                   >
                     {DURATIONS.map((d) => (
                       <option key={d} value={d}>
