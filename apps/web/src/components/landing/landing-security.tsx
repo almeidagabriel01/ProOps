@@ -240,7 +240,6 @@ function MobileShield() {
  */
 export function LandingSecurity() {
   const reduce = useReducedMotion();
-  const draw = !reduce;
   const trackRef = useRef<HTMLDivElement>(null);
   // Drive the scroll progress from GSAP ScrollTrigger instead of Framer's
   // useScroll. The page runs Lenis (smooth scroll) + GSAP pins (hero/feature),
@@ -287,7 +286,10 @@ export function LandingSecurity() {
   const sealOpacity = useTransform(scrollYProgress, [0.86, 0.96], [0, 1]);
   const hintOpacity = useTransform(scrollYProgress, [0, 0.05], [1, 0]);
 
-  const Emblem = (
+  // O emblema animado é o da versão pinada; a estática desenha o mesmo, parado.
+  // Decidir pelo `reduce` aqui mudaria atributos de estilo entre o HTML do
+  // servidor e o do cliente.
+  const emblema = (draw: boolean) => (
     <div className="relative aspect-square w-full max-w-[24rem] [@media(max-height:860px)]:max-w-[19rem] [@media(max-height:740px)]:max-w-[15rem]">
       <svg viewBox="0 0 200 200" fill="none" className="absolute inset-0 h-full w-full">
         {PILLARS.map((pillar, i) => (
@@ -358,17 +360,15 @@ export function LandingSecurity() {
             ))}
           </div>
         </div>
-        <div className="flex justify-center">{Emblem}</div>
+        <div className="flex justify-center">{emblema(false)}</div>
       </div>
     </section>
   );
 
-  if (reduce) return staticView;
-
   // Mobile (com movimento): escudo animado simples + lista de pilares — o
   // emblema de camadas do desktop só faz sentido dirigido pelo scroll.
   const mobileView = (
-    <section className="border-t border-black/10 bg-white px-6 py-20 dark:border-white/10 dark:bg-neutral-950 md:hidden">
+    <section className="border-t border-black/10 bg-white px-6 py-20 dark:border-white/10 dark:bg-neutral-950 md:hidden motion-reduce:hidden">
       <SectionHeading
         align="left"
         eyebrow="Segurança & privacidade"
@@ -397,16 +397,25 @@ export function LandingSecurity() {
     </section>
   );
 
-  // ---- Scrollytelling (desktop ≥768px) ----
+  // ---- Scrollytelling (desktop ≥768px, sem pedido de menos movimento) ----
+  // A versão é escolhida no CSS, e não com `reduce` no render: o servidor não
+  // sabe a preferência de movimento do visitante, e escolher a árvore no
+  // JavaScript fazia o HTML do servidor divergir do cliente (erro de
+  // hidratação, e a seção inteira redesenhada no primeiro acesso).
   return (
     <>
+      {/* Menos movimento, em qualquer largura: estática */}
+      <div className="hidden motion-reduce:block" data-seguranca-versao="estatica">
+        {staticView}
+      </div>
+
       {/* Mobile: escudo animado + pilares — evita o scrollytelling 320vh quebrar */}
       {mobileView}
 
       {/* Desktop: scrollytelling pinado — intacto */}
       <section
         ref={trackRef}
-        className="relative hidden border-t border-black/10 bg-white dark:border-white/10 dark:bg-neutral-950 md:block"
+        className="relative hidden border-t border-black/10 bg-white dark:border-white/10 dark:bg-neutral-950 md:motion-safe:block"
         style={{ height: "320vh" }}
       >
         <div className="sticky top-0 h-screen overflow-hidden">
@@ -438,7 +447,7 @@ export function LandingSecurity() {
                   pillar={pillar}
                   index={i}
                   progress={scrollYProgress}
-                  draw={draw}
+                  draw
                   dense
                 />
               ))}
@@ -446,7 +455,7 @@ export function LandingSecurity() {
           </div>
 
           {/* emblema de camadas */}
-          <div className="flex justify-center">{Emblem}</div>
+          <div className="flex justify-center">{emblema(true)}</div>
         </div>
 
         {/* dica de scroll */}

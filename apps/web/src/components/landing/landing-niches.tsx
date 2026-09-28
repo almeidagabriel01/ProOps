@@ -278,7 +278,7 @@ export function LandingNiches() {
         <div>
           <p className="mb-4 inline-flex items-center gap-2.5 text-xs font-semibold uppercase tracking-[0.18em] text-black/55 dark:text-white/60">
             <span className="h-px w-6 bg-black/30 dark:bg-white/45" />
-            Dois pacotes prontos, e o seu
+            Pacotes prontos, e o seu
           </p>
           <h2 className="[font-family:var(--font-pdf-montserrat)] text-4xl font-bold tracking-tight text-black dark:text-white md:text-5xl">
             Feito para o seu <Accent>nicho</Accent>
@@ -292,16 +292,18 @@ export function LandingNiches() {
     </section>
   );
 
-  if (reduce) return staticView;
-
-  // ---- Scroll horizontal (desktop ≥768px) ----
+  // ---- Scroll horizontal (desktop ≥768px, sem pedido de menos movimento) ----
+  // Qual das duas aparece é decidido no CSS, e não com `reduce` no render: o
+  // servidor não sabe a preferência de movimento do visitante, e escolher a
+  // árvore no JavaScript fazia o HTML do servidor divergir do cliente (erro de
+  // hidratação, e a seção inteira redesenhada no primeiro acesso).
   return (
     <>
-      {/* Mobile: stack vertical estático — evita o scroll horizontal pinado quebrar */}
-      <div className="md:hidden">{staticView}</div>
+      {/* Stack vertical estático: celular, e qualquer largura com menos movimento */}
+      <div className="md:motion-safe:hidden" data-nichos-versao="empilhada">{staticView}</div>
 
-      {/* Desktop: galeria horizontal pinada — intacta */}
-      <div className="hidden md:block">
+      {/* Galeria horizontal pinada */}
+      <div className="hidden md:motion-safe:block" data-nichos-versao="galeria">
       <section
         ref={trackRef}
         className="relative border-t border-black/10 bg-white dark:border-white/10 dark:bg-neutral-950"

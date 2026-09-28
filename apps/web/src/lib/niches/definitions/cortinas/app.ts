@@ -23,10 +23,10 @@ export const nicheConfig: NicheConfig = {
   pageAvailability: {
     solutions: false,
     ambientes: true,
-    // Projetos de instalação: nos dois nichos, com etapas padrão próprias
+    // Projetos de instalação: em todos os nichos, com etapas padrão próprias
     // (Medição, Produção, Instalação, Entrega).
     projects: true,
-    // Tarefas: iguais nos dois nichos.
+    // Tarefas: iguais em todos os nichos.
     tasks: true,
   },
   solutionsPage: solutionsPageFor(vocabulary, "environment", {
