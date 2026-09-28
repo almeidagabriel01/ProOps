@@ -23,6 +23,7 @@ const DEMO = 'demo';
 // Uma demonstração por nicho: a de persianas e toldos tem o próprio tenant.
 const DEMO_CORTINAS = 'demo-cortinas';
 const DEMO_SEGURANCA = 'demo-seguranca';
+const DEMO_VIDRACARIA = 'demo-vidracaria';
 const DEMO_COLLECTIONS = [
   'products',
   'services',
@@ -73,6 +74,7 @@ beforeEach(async () => {
     await seedDoc(coll, `demo-${coll}`, { tenantId: DEMO, name: 'Demo item' });
     await seedDoc(coll, `demo-cortinas-${coll}`, { tenantId: DEMO_CORTINAS, name: 'Demo item' });
     await seedDoc(coll, `demo-seguranca-${coll}`, { tenantId: DEMO_SEGURANCA, name: 'Demo item' });
+    await seedDoc(coll, `demo-vidracaria-${coll}`, { tenantId: DEMO_VIDRACARIA, name: 'Demo item' });
     await seedDoc(coll, `other-${coll}`, { tenantId: 'tenant-paid', name: 'Real item' });
   }
 });
@@ -119,6 +121,7 @@ describe('demo dataset read access', () => {
     for (const coll of DEMO_COLLECTIONS) {
       await assertSucceeds(getDoc(doc(freeDb(), coll, `demo-cortinas-${coll}`)));
       await assertSucceeds(getDoc(doc(freeDb(), coll, `demo-seguranca-${coll}`)));
+      await assertSucceeds(getDoc(doc(freeDb(), coll, `demo-vidracaria-${coll}`)));
     }
   });
 
