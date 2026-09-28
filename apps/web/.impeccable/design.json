@@ -1,0 +1,178 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-09-28T00:00:00Z",
+  "title": "Design System: ProOps, superfícies de venda do ERP",
+  "extensions": {
+    "colorMeta": {
+      "ink": { "role": "primary", "displayName": "Tinta de Prancheta", "canonical": "#000000", "tonalRamp": ["#000000", "#0a0a0a", "#171717", "#262626", "#404040", "#737373", "#d4d4d4", "#fafafa"] },
+      "ink-muted": { "role": "neutral", "displayName": "Tinta Suave", "canonical": "rgb(0 0 0 / 0.6)", "tonalRamp": ["rgb(0 0 0 / 0.9)", "rgb(0 0 0 / 0.75)", "rgb(0 0 0 / 0.6)", "rgb(0 0 0 / 0.45)", "rgb(0 0 0 / 0.4)", "rgb(0 0 0 / 0.15)", "rgb(0 0 0 / 0.1)", "rgb(0 0 0 / 0.025)"] },
+      "ink-faint": { "role": "neutral", "displayName": "Tinta Tênue", "canonical": "rgb(0 0 0 / 0.45)" },
+      "hairline": { "role": "neutral", "displayName": "Filete", "canonical": "rgb(0 0 0 / 0.1)" },
+      "paper": { "role": "neutral", "displayName": "Papel", "canonical": "#ffffff", "tonalRamp": ["#0a0a0a", "#262626", "#525252", "#a3a3a3", "#d4d4d4", "#e5e5e5", "#f5f5f5", "#ffffff"] },
+      "night": { "role": "neutral", "displayName": "Noite Neutra", "canonical": "#0a0a0a", "tonalRamp": ["#070707", "#0a0a0a", "#111113", "#171717", "#19191c", "#232327", "#262626", "#404040"] },
+      "night-deep": { "role": "neutral", "displayName": "Noite Funda", "canonical": "#070707" },
+      "night-raised": { "role": "neutral", "displayName": "Noite Elevada", "canonical": "#171717" },
+      "ink-on-night": { "role": "neutral", "displayName": "Branco Giz", "canonical": "#ffffff" },
+      "ink-on-night-muted": { "role": "neutral", "displayName": "Giz Suave", "canonical": "rgb(255 255 255 / 0.6)" },
+      "hairline-night": { "role": "neutral", "displayName": "Filete Noturno", "canonical": "rgb(255 255 255 / 0.1)" },
+      "frame-chrome": { "role": "neutral", "displayName": "Cromo de Janela", "canonical": "#f5f5f5" },
+      "mock-surface": { "role": "neutral", "displayName": "Superfície da Réplica", "canonical": "#f5f5f4" },
+      "mock-surface-2": { "role": "neutral", "displayName": "Superfície da Réplica 2", "canonical": "#ececea" },
+      "mock-night": { "role": "neutral", "displayName": "Noite da Réplica", "canonical": "#111113" },
+      "signal-positive": { "role": "neutral", "displayName": "Pago", "canonical": "#15803d", "tonalRamp": ["#052e16", "#14532d", "#166534", "#15803d", "#16a34a", "#4ade80", "#bbf7d0", "#f0fdf4"] },
+      "signal-attention": { "role": "neutral", "displayName": "Pendente", "canonical": "#b45309", "tonalRamp": ["#451a03", "#78350f", "#92400e", "#b45309", "#d97706", "#fbbf24", "#fde68a", "#fffbeb"] },
+      "niche-automacao-claro": { "role": "secondary", "displayName": "Índigo de Automação", "canonical": "#4f46e5", "tonalRamp": ["#1e1b4b", "#312e81", "#3730a3", "#4338ca", "#4f46e5", "#818cf8", "#a5b4fc", "#e0e7ff"] },
+      "niche-automacao-escuro": { "role": "secondary", "displayName": "Índigo de Automação (escuro)", "canonical": "#a5b4fc" },
+      "niche-cortinas-claro": { "role": "secondary", "displayName": "Framboesa de Persiana", "canonical": "#be185d", "tonalRamp": ["#500724", "#831843", "#9d174d", "#be185d", "#ec4899", "#f9a8d4", "#fbcfe8", "#fce7f3"] },
+      "niche-cortinas-escuro": { "role": "secondary", "displayName": "Framboesa de Persiana (escuro)", "canonical": "#f9a8d4" },
+      "niche-seguranca-claro": { "role": "secondary", "displayName": "Vermelho de Alarme", "canonical": "#dc2626", "tonalRamp": ["#450a0a", "#7f1d1d", "#991b1b", "#b91c1c", "#dc2626", "#f87171", "#fecaca", "#fee2e2"] },
+      "niche-seguranca-escuro": { "role": "secondary", "displayName": "Vermelho de Alarme (escuro)", "canonical": "#f87171" },
+      "niche-vidracaria-claro": { "role": "secondary", "displayName": "Ciano de Vidro", "canonical": "#0e7490", "tonalRamp": ["#083344", "#164e63", "#155e75", "#0e7490", "#06b6d4", "#67e8f9", "#a5f3fc", "#cffafe"] },
+      "niche-vidracaria-escuro": { "role": "secondary", "displayName": "Ciano de Vidro (escuro)", "canonical": "#67e8f9" },
+      "niche-marcenaria-claro": { "role": "secondary", "displayName": "Nogueira", "canonical": "#8a5a2b", "tonalRamp": ["#2e1d0d", "#4a2f16", "#6b4420", "#8a5a2b", "#a9763f", "#d6a574", "#e8c9a4", "#f6ead9"] },
+      "niche-marcenaria-escuro": { "role": "secondary", "displayName": "Nogueira (escuro)", "canonical": "#d6a574" }
+    },
+    "typographyMeta": {
+      "display": { "displayName": "Display", "purpose": "Só o h1 do herói. 2.6rem no celular, 3.75rem de sm, 4.6rem de lg (4.25rem no nicho)." },
+      "closing": { "displayName": "Fecho", "purpose": "A frase grande e centralizada do fecho da página. 2.25rem no celular, 3.75rem de md." },
+      "headline": { "displayName": "Título de seção", "purpose": "Título de seção, à esquerda, até 48rem. 2.1rem no celular, 3rem de md." },
+      "title": { "displayName": "Título de capítulo", "purpose": "Capítulo de /funcionalidades (1.5rem a 1.85rem) e etapa de nicho (1.125rem)." },
+      "accent": { "displayName": "Palavra em itálico", "purpose": "Uma palavra por título, pelo componente Accent; no nicho, veste o acento." },
+      "lead": { "displayName": "Parágrafo de abertura", "purpose": "Parágrafo do herói e da seção, tinta a 60%, até 42rem." },
+      "body": { "displayName": "Corpo", "purpose": "Resumo e detalhe de recurso, tinta a 60%." },
+      "item-title": { "displayName": "Nome de item", "purpose": "Nome de recurso, dor ou módulo numa linha de lista." },
+      "label": { "displayName": "Rótulo", "purpose": "Selo de plano, contagem, rótulo dentro de painel. Números tabulares." },
+      "button": { "displayName": "Botão", "purpose": "Rótulo do botão em pílula e do link de ação secundária." },
+      "mock": { "displayName": "Réplica", "purpose": "Tipo das telas codadas, em múltiplos de --u (escala mk-t-1 a mk-t-6)." }
+    },
+    "shadows": [
+      { "name": "janela", "value": "0 24px 60px -32px rgba(0,0,0,0.28)", "purpose": "Moldura de navegador com tela codada, tema claro." },
+      { "name": "janela-escuro", "value": "0 40px 110px -40px rgba(0,0,0,0.85)", "purpose": "Moldura de navegador, tema escuro." },
+      { "name": "painel", "value": "0 20px 50px -30px rgba(0,0,0,0.3)", "purpose": "Painel de instrumento das cenas de nicho, tema claro." },
+      { "name": "painel-escuro", "value": "0 30px 70px -30px rgba(0,0,0,0.8)", "purpose": "Painel de instrumento, tema escuro." },
+      { "name": "paleta", "value": "0 30px 80px -40px rgba(0,0,0,0.4)", "purpose": "FAQ em forma de paleta de busca, com backdrop-filter blur(24px) sobre papel a 80%." },
+      { "name": "botao", "value": "0 8px 30px rgba(0,0,0,0.16)", "purpose": "Botão principal em pílula." },
+      { "name": "alca", "value": "0 4px 12px -4px rgba(0,0,0,0.35)", "purpose": "Alça do controle de medida." }
+    ],
+    "motion": [
+      { "name": "ease-entrada", "value": "cubic-bezier(0.22, 1, 0.36, 1)", "purpose": "Entradas, revelações, abertura de linha, troca de camada do palco." },
+      { "name": "ease-traco", "value": "cubic-bezier(0.65, 0, 0.35, 1)", "purpose": "Traços que se desenham (mapa, cotas, assinatura) e a tinta que sobe no botão." },
+      { "name": "ease-linha-sobe", "value": "cubic-bezier(0.16, 1, 0.3, 1)", "purpose": "Linha de título que sobe de dentro de uma máscara (hero-rise-line)." },
+      { "name": "dur-cor", "value": "0.3s", "purpose": "Troca de cor e opacidade de estado." },
+      { "name": "dur-tinta", "value": "0.55s", "purpose": "Tinta do botão e abertura de conteúdo." },
+      { "name": "dur-entrada-heroi", "value": "0.6s", "purpose": "hero-enter: sobe 16px a 22px e aparece, escalonado de 0.1s em 0.1s, por keyframe CSS sem esperar hidratação." },
+      { "name": "dur-mapa", "value": "1.1s", "purpose": "Tronco do mapa de linhas; linhas com 60ms por coluna, estações com 40ms por linha." },
+      { "name": "scroll-revela", "value": "animation-timeline: view(); animation-range: entry 0% entry 55%", "purpose": "vt-revela: sobe 18px ao entrar, só onde o navegador suporta e o movimento é permitido." }
+    ],
+    "breakpoints": [
+      { "name": "sm", "value": "640px" },
+      { "name": "md", "value": "768px" },
+      { "name": "lg", "value": "1024px" },
+      { "name": "tela-baixa", "value": "(min-width: 768px) and (max-height: 800px)" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Botão principal",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Pílula preta em que a tinta branca sobe com linha d'água ondulada no hover, sem deslocar o botão. Uma por bloco de ação.",
+      "html": "<a class=\"ds-btn\" href=\"#\"><span class=\"ds-btn-tinta\" aria-hidden=\"true\"><svg viewBox=\"0 0 120 12\" preserveAspectRatio=\"none\"><path d=\"M0 12 V6 Q15 0 30 6 T60 6 T90 6 T120 6 V12 Z\" fill=\"currentColor\"/></svg></span><span class=\"ds-btn-rotulo\">Começar agora <svg class=\"ds-btn-seta\" width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M5 12h14\"/><path d=\"m12 5 7 7-7 7\"/></svg></span></a>",
+      "css": ".ds-btn { position: relative; display: inline-flex; align-items: center; justify-content: center; overflow: hidden; padding: 12px 28px; border-radius: 9999px; background: #000; color: #fff; font: 600 14px/1.25 ui-sans-serif, system-ui, sans-serif; text-decoration: none; box-shadow: 0 8px 30px rgba(0,0,0,0.16); transition: color 0.3s, transform 0.3s; } .ds-btn:hover { color: #000; } .ds-btn:active { transform: scale(0.98); } .ds-btn:focus-visible { outline: none; box-shadow: 0 0 0 2px #fff, 0 0 0 4px rgba(0,0,0,0.3); } .ds-btn-tinta { position: absolute; inset: 0; z-index: 1; background: #fff; color: #fff; transform: translateY(calc(100% + 12px)); transition: transform 0.55s cubic-bezier(0.65, 0, 0.35, 1); pointer-events: none; } .ds-btn-tinta svg { position: absolute; left: 0; right: 0; top: -9px; width: 100%; height: 10px; display: block; } .ds-btn:hover .ds-btn-tinta { transform: translateY(0); } .ds-btn-rotulo { position: relative; z-index: 2; display: inline-flex; align-items: center; gap: 8px; } .ds-btn-seta { transition: transform 0.3s ease-out; } .ds-btn:hover .ds-btn-seta { transform: translateX(4px); }"
+    },
+    {
+      "name": "Link de ação secundária",
+      "kind": "button",
+      "refersTo": "button-link",
+      "description": "Texto com sublinhado de 2px que se desenha da esquerda. Sempre ao lado do botão principal.",
+      "html": "<a class=\"ds-link\" href=\"#\">Marcar uma demonstração<span class=\"ds-link-barra\" aria-hidden=\"true\"></span></a>",
+      "css": ".ds-link { position: relative; display: inline-flex; color: #000; font: 600 14px/1.25 ui-sans-serif, system-ui, sans-serif; text-decoration: none; } .ds-link-barra { position: absolute; left: 0; bottom: -4px; height: 2px; width: 100%; background: currentColor; transform: scaleX(0); transform-origin: left center; transition: transform 0.4s cubic-bezier(0.65, 0, 0.35, 1); } .ds-link:hover .ds-link-barra, .ds-link:focus-visible .ds-link-barra { transform: scaleX(1); } .ds-link:focus-visible { outline: 2px solid rgba(0,0,0,0.3); outline-offset: 4px; }"
+    },
+    {
+      "name": "Selo de plano",
+      "kind": "chip",
+      "refersTo": "chip-plan-seal",
+      "description": "O plano que libera o recurso, em pílula com filete, com o complemento de add-on ao lado.",
+      "html": "<span class=\"ds-selos\"><span class=\"ds-selo\">A partir do Pro</span><span class=\"ds-selo-addon\">Add-on no Starter</span></span>",
+      "css": ".ds-selos { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; font-family: ui-sans-serif, system-ui, sans-serif; font-variant-numeric: tabular-nums; } .ds-selo { border: 1px solid rgba(0,0,0,0.12); border-radius: 9999px; padding: 4px 10px; font-size: 11.5px; font-weight: 600; line-height: 1; color: rgba(0,0,0,0.75); } .ds-selo-addon { font-size: 11px; font-weight: 500; line-height: 1; color: rgba(0,0,0,0.45); }"
+    },
+    {
+      "name": "Filtro segmentado de plano",
+      "kind": "chip",
+      "refersTo": "segmented-filter",
+      "description": "Grupo de rádio em pílula; o segmento escolhido é preenchido de tinta.",
+      "html": "<div class=\"ds-seg\" role=\"radiogroup\" aria-label=\"Filtrar por plano\"><button role=\"radio\" aria-checked=\"true\">Todos</button><button role=\"radio\" aria-checked=\"false\">Starter</button><button role=\"radio\" aria-checked=\"false\">Pro</button><button role=\"radio\" aria-checked=\"false\">Enterprise</button></div>",
+      "css": ".ds-seg { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); max-width: 320px; padding: 4px; border: 1px solid rgba(0,0,0,0.12); border-radius: 9999px; background: #fff; } .ds-seg button { min-width: 0; padding: 6px; border: 0; border-radius: 9999px; background: transparent; color: rgba(0,0,0,0.6); font: 600 12px/1 ui-sans-serif, system-ui, sans-serif; cursor: pointer; transition: color 0.2s, background-color 0.2s; } .ds-seg button:hover { color: #000; } .ds-seg button[aria-checked=\"true\"] { background: #000; color: #fff; } .ds-seg button:focus-visible { outline: 2px solid rgba(0,0,0,0.3); outline-offset: 2px; }"
+    },
+    {
+      "name": "Busca de recursos",
+      "kind": "input",
+      "refersTo": "input-search",
+      "description": "Campo em pílula de 44px com lupa; o foco só escurece o filete.",
+      "html": "<label class=\"ds-busca\"><svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><circle cx=\"11\" cy=\"11\" r=\"8\"/><path d=\"m21 21-4.3-4.3\"/></svg><input type=\"search\" placeholder=\"Buscar um recurso\"></label>",
+      "css": ".ds-busca { position: relative; display: block; max-width: 320px; } .ds-busca svg { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: rgba(0,0,0,0.4); pointer-events: none; } .ds-busca input { width: 100%; height: 44px; padding: 0 40px; border: 1px solid rgba(0,0,0,0.12); border-radius: 9999px; background: #fff; color: #000; font: 400 14px/1 ui-sans-serif, system-ui, sans-serif; outline: none; transition: border-color 0.2s; } .ds-busca input::placeholder { color: rgba(0,0,0,0.4); } .ds-busca input:focus { border-color: rgba(0,0,0,0.4); }"
+    },
+    {
+      "name": "Moldura de navegador",
+      "kind": "card",
+      "refersTo": "browser-frame",
+      "description": "Janela com cromo, três pontos e o endereço do ERP, que emoldura a tela codada.",
+      "html": "<div class=\"ds-janela\"><div class=\"ds-janela-cromo\" aria-hidden=\"true\"><span class=\"ds-janela-pontos\"><i></i><i></i><i></i></span><span class=\"ds-janela-end\">erp.proops.com.br</span><span style=\"width:42px\"></span></div><div class=\"ds-janela-tela\"><strong>Proposta 0018926SP</strong><span>Total R$ 48.320,00</span></div></div>",
+      "css": ".ds-janela { max-width: 420px; overflow: hidden; border: 1px solid rgba(0,0,0,0.1); border-radius: 12px; background: #f5f5f5; box-shadow: 0 24px 60px -32px rgba(0,0,0,0.28); } .ds-janela-cromo { display: flex; align-items: center; gap: 12px; padding: 10px 14px; border-bottom: 1px solid rgba(0,0,0,0.1); background: rgba(0,0,0,0.03); } .ds-janela-pontos { display: flex; gap: 6px; } .ds-janela-pontos i { display: block; width: 10px; height: 10px; border-radius: 9999px; background: rgba(0,0,0,0.15); } .ds-janela-end { flex: 1; padding: 4px 10px; border-radius: 6px; background: rgba(0,0,0,0.04); color: rgba(0,0,0,0.4); text-align: center; font: 400 10px/1.2 ui-monospace, monospace; } .ds-janela-tela { display: flex; justify-content: space-between; align-items: baseline; aspect-ratio: 16 / 10.5; padding: 20px; background: #fff; color: #0a0a0a; font: 400 13px/1.35 Inter, ui-sans-serif, sans-serif; font-variant-numeric: tabular-nums; }"
+    },
+    {
+      "name": "Painel de instrumento",
+      "kind": "card",
+      "refersTo": "instrument-panel",
+      "description": "O painel ao lado da cena de nicho: rótulo, linhas da proposta e total em Montserrat.",
+      "html": "<div class=\"ds-painel\"><p class=\"ds-painel-rotulo\">Proposta</p><div class=\"ds-painel-linha\"><span>Persiana rolô 2,40 x 1,80 m</span><span>R$ 1.296,00</span></div><div class=\"ds-painel-total\"><span>Total</span><strong>R$ 1.296,00</strong></div></div>",
+      "css": ".ds-painel { max-width: 320px; padding: 16px; border: 1px solid rgba(0,0,0,0.1); border-radius: 16px; background: #fff; box-shadow: 0 20px 50px -30px rgba(0,0,0,0.3); font-family: ui-sans-serif, system-ui, sans-serif; font-variant-numeric: tabular-nums; } .ds-painel-rotulo { margin: 0 0 4px; font-size: 11px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: rgba(0,0,0,0.45); } .ds-painel-linha { display: flex; justify-content: space-between; gap: 12px; padding: 8px 0; border-bottom: 1px solid rgba(0,0,0,0.1); font-size: 13px; color: rgba(0,0,0,0.75); } .ds-painel-total { display: flex; justify-content: space-between; align-items: baseline; margin-top: 12px; font-size: 13px; color: rgba(0,0,0,0.55); } .ds-painel-total strong { font-family: Montserrat, sans-serif; font-size: 30px; font-weight: 700; letter-spacing: -0.02em; color: #000; }"
+    },
+    {
+      "name": "Linha de recurso (estação)",
+      "kind": "custom",
+      "refersTo": "feature-row",
+      "description": "Um recurso como estação na linha do capítulo, em details nativo; aberta, a estação se preenche.",
+      "html": "<ul class=\"ds-linha\"><li><details class=\"ds-recurso\"><summary><span class=\"ds-estacao\" aria-hidden=\"true\"></span><span class=\"ds-recurso-texto\"><strong>Aceite online da proposta</strong><span>O cliente aceita pelo link com nome e CPF ou CNPJ.</span></span><span class=\"ds-recurso-selo\">A partir do Pro</span></summary><p class=\"ds-recurso-corpo\">A proposta aprovada gera parcelas, obra e comissão.</p></details></li></ul>",
+      "css": ".ds-linha { position: relative; max-width: 640px; margin: 0; padding: 0; list-style: none; font-family: ui-sans-serif, system-ui, sans-serif; } .ds-linha::before { content: ''; position: absolute; left: 13px; top: 0; bottom: 20px; width: 3px; border-radius: 3px; background: #0a0a0a; } .ds-recurso summary { position: relative; display: flex; align-items: flex-start; gap: 16px; padding: 20px 12px 20px 44px; border-radius: 12px; list-style: none; cursor: pointer; outline: none; transition: background-color 0.2s; } .ds-recurso summary::-webkit-details-marker { display: none; } .ds-recurso summary:hover { background: rgba(0,0,0,0.025); } .ds-recurso summary:focus-visible { background: rgba(0,0,0,0.03); box-shadow: 0 0 0 2px rgba(0,0,0,0.3); } .ds-estacao { position: absolute; left: 8.5px; top: 27px; z-index: 1; width: 13px; height: 13px; border: 2.5px solid #000; border-radius: 9999px; background: #fff; transition: background-color 0.2s; } .ds-recurso[open] .ds-estacao { background: #000; } .ds-recurso-texto { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; } .ds-recurso-texto strong { font-size: 17px; font-weight: 600; line-height: 1.375; color: #000; } .ds-recurso-texto span { font-size: 15px; line-height: 1.625; color: rgba(0,0,0,0.6); } .ds-recurso-selo { flex-shrink: 0; border: 1px solid rgba(0,0,0,0.12); border-radius: 9999px; padding: 4px 10px; font-size: 11.5px; font-weight: 600; line-height: 1; color: rgba(0,0,0,0.75); } .ds-recurso-corpo { margin: 0; padding: 0 12px 24px 44px; font-size: 15px; line-height: 1.625; color: rgba(0,0,0,0.7); }"
+    }
+  ],
+  "narrative": {
+    "northStar": "A Prancheta de Linhas",
+    "overview": "A página é uma prancheta: papel branco de dia, noite neutra quase preta no tema escuro, e tudo o que se desenha nela é traço. Filete de 1px separa seções, a linha de 3px liga estações como num mapa de metrô, a cota com batentes mede o vão do nicho. Nada é ilustração decorativa; o que ocupa o espaço de imagem é o próprio ERP, redesenhado em HTML dentro de uma moldura de navegador ou de celular, com números reais do motor de preço.\n\nA tipografia faz o contraste que a cor não faz. Montserrat em peso 700, apertada, carrega o título; uma única palavra dele cai em Playfair Display itálico, a palavra que sustenta a promessa (\"recibo\", \"contador\", \"todas\"). O corpo é neutro, em tinta a 60%, com medida curta. A cor só aparece numa landing de nicho, e mesmo ali como tinta de prancheta: a palavra do título, o ponto de prova, o trilho das etapas, a alça do controle de medida.\n\nO movimento conta a história em vez de enfeitar: a linha se desenha, a estação acende, a parcela vira \"Pago\". Todo estado é escrito no fim da história, e a animação parte dele só quando o navegador e a preferência de movimento permitem.",
+    "keyCharacteristics": [
+      "Mono por padrão; cor por nicho entra só pela raiz `data-acento`.",
+      "Título Montserrat 700 com uma palavra em Playfair itálico.",
+      "Filete de 1px e linha de 3px como únicos elementos gráficos recorrentes.",
+      "Telas do ERP codadas, dimensionadas pela largura da própria tela.",
+      "Números tabulares em todo lugar que mostra valor, contagem ou medida.",
+      "Estado final no HTML; movimento é camada opcional."
+    ],
+    "rules": [
+      { "name": "The Mono Page Rule", "body": "A home e `/funcionalidades` são preto e branco, sem exceção. Cor só existe numa página com `data-acento`, e ali só em cinco lugares: a palavra em itálico do herói, os pontos de prova, o trilho e os anéis das etapas, o controle de medida e o `--mk-acento` das telas codadas.", "section": "colors" },
+      { "name": "The Opacity Ladder Rule", "body": "Texto secundário é tinta em opacidade, não cinza novo: 100% para título, 75% para valor em destaque, 60% para parágrafo, 45% para rótulo, 40% para contagem, 10% a 15% para filete. No escuro, a mesma escada sobre o branco.", "section": "colors" },
+      { "name": "The One Italic Word Rule", "body": "Todo título é Montserrat 700 com no máximo uma palavra ou expressão curta em Playfair itálico peso 500 (o componente `Accent`). A palavra é a que carrega a promessa, e na landing de nicho ela veste o acento.", "section": "typography" },
+      { "name": "The Tabular Figures Rule", "body": "Valor, contagem, medida e número de etapa usam `tabular-nums`; as réplicas ligam `\"tnum\"` na raiz.", "section": "typography" },
+      { "name": "The Physical Object Rule", "body": "Sombra só em objeto que existe fora da tela (janela, celular, painel, botão). Seção, linha de lista, selo e título nunca têm sombra.", "section": "elevation" }
+    ],
+    "dos": [
+      "**Do** escrever todo título em Montserrat 700 com tracking negativo e, no máximo, uma palavra em Playfair itálico 500 pelo `Accent`.",
+      "**Do** separar seções com filete de 1px a 10% de tinta e respiro de 96px (128px de `md`).",
+      "**Do** mostrar o produto com telas codadas dentro de `JanelaDoErp` ou do celular, medidas em `--u`, com números do motor de preço.",
+      "**Do** escrever o estado final no HTML e no CSS, e animar a partir dele; sob `prefers-reduced-motion` a cena mostra o fim da história (a parcela já paga, o traço inteiro).",
+      "**Do** usar `cubic-bezier(0.22, 1, 0.36, 1)` para entradas e revelações, `cubic-bezier(0.65, 0, 0.35, 1)` para traços que se desenham e para a tinta do botão.",
+      "**Do** colocar o acento de nicho só pela raiz `data-acento` e ler `--acento` a partir dela; nenhum componente recebe cor por prop.",
+      "**Do** escrever \"a ProOps\", sempre no feminino, e pontuar com vírgula, dois-pontos e ponto e vírgula."
+    ],
+    "donts": [
+      "**Don't** pôr kicker, eyebrow ou rótulo em caixa alta acima de um título de seção; o título abre a seção sozinho.",
+      "**Don't** montar grade de cards com ícone, título e texto; recurso, dor e módulo são linhas em lista.",
+      "**Don't** usar cor na home ou em `/funcionalidades`, nem mais de um acento numa landing de nicho.",
+      "**Don't** usar travessão (U+2014) como pontuação em nenhum texto que vira tela.",
+      "**Don't** usar foto de banco, ilustração de pessoas ou mockup em imagem raster no lugar da tela codada.",
+      "**Don't** dar sombra a seção, linha de lista, selo ou título.",
+      "**Don't** usar os verdes e âmbar de sinal fora das telas codadas.",
+      "**Don't** medir dentro de uma réplica em px; tudo nela é múltiplo de `--u`."
+    ]
+  }
+}
