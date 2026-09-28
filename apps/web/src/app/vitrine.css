@@ -461,6 +461,9 @@
 .capitulo {
   --tinta: #0a0a0a;
 }
+.dark .capitulo {
+  --tinta: #fafafa;
+}
 
 /* Abaixo da dobra, fora de vista: o navegador não calcula estilo nem layout
    do que ainda não chegou perto da tela. /funcionalidades tem ~4 mil
@@ -475,11 +478,12 @@
      telas codadas passaria da borda do bloco: ela seria cortada. */
   overflow-clip-margin: 3rem;
 }
+/* Os passos da jornada estática: no celular eles vêm logo abaixo do herói e
+   eram boa parte do TBT da página. A sombra do celular (`DeviceFrame`) desce
+   ~140px, então a margem de recorte é maior aqui. */
 .adiado-passo {
   contain-intrinsic-size: auto 520px;
-}
-.dark .capitulo {
-  --tinta: #fafafa;
+  overflow-clip-margin: 9rem;
 }
 
 /* Linha que só entra no plano filtrado como add-on: o selo de add-on é que
