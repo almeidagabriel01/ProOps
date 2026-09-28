@@ -66,7 +66,7 @@ async function seedTenant() {
 }
 
 describe("tenants: nicho no cadastro", () => {
-  test.each(["automacao_residencial", "cortinas", "seguranca_eletronica", "vidracaria_esquadrias"])("aceita o nicho %s", async (niche) => {
+  test.each(["automacao_residencial", "cortinas", "seguranca_eletronica", "vidracaria_esquadrias", "marcenaria"])("aceita o nicho %s", async (niche) => {
     await assertSucceeds(setDoc(doc(signupDb(), "tenants", "tenant_uid-novo"), signupTenant(niche)));
   });
 

@@ -58,6 +58,13 @@ export const NICHE_REGISTRY = {
     productImageLimit: 3,
     defaultVisitType: { id: "medicao", label: "Medição", durationMin: 60 },
   },
+  marcenaria: {
+    label: "Marcenaria e Móveis Planejados",
+    landingPath: "/marcenaria",
+    demoTenantId: "demo-marcenaria",
+    productImageLimit: 3,
+    defaultVisitType: { id: "medicao", label: "Medição", durationMin: 60 },
+  },
 } satisfies Record<string, WebNicheEntry>;
 
 export type TenantNicheId = keyof typeof NICHE_REGISTRY;

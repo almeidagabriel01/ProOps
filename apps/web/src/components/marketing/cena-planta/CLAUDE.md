@@ -55,10 +55,11 @@ nenhum, e o chip que está voando continua voando.
 
 O que muda entre nichos é SÓ o rótulo: cômodos, preços, cortinas e a conta são
 os mesmos, porque a tese da seção é exatamente essa (muda o catálogo e as
-palavras, não a base). Todo nicho pronto do produto tem aba, ligada pelo campo
-`nicho` de `NICHOS`; `marcenaria` não tem esse campo porque não é um nicho
-configurado, é o exemplo de um nicho novo, e a nota embaixo das abas diz isso.
-Aba nova precisa da sua linha em `[data-nicho="x"] [data-rotulo-de="x"]` no
+palavras, não a base). Cada aba é um nicho pronto do produto, ligada pelo campo
+`nicho` de `NICHOS` (obrigatório): a cena não mostra nicho de exemplo, porque
+prometer na landing um pacote que a pessoa não acha no cadastro é pior do que
+não mostrar. No celular as abas são uma fita de uma linha que rola de lado, e
+por isso cabem quantas forem. Aba nova precisa da sua linha em `[data-nicho="x"] [data-rotulo-de="x"]` no
 `globals.css`, senão a proposta fica em branco. Os dois casos reprovam em
 `__tests__/cena-planta.test.ts`.
 

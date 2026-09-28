@@ -193,19 +193,17 @@ export const ITENS: readonly Item[] = [
  * os cômodos, os preços e as cortinas que descem são os mesmos, e a cena não
  * precisa ser remontada quando alguém troca de aba.
  *
- * Todo nicho pronto do produto tem aba aqui, ligada pelo campo `nicho`
+ * Cada aba é um nicho pronto do produto, ligado pelo campo `nicho`
  * (`__tests__/cena-planta.test.ts` reprova se um nicho do registro ficar de
- * fora). `marcenaria` não tem `nicho` de propósito, e é o ponto todo: ela não é
- * um nicho configurado hoje, é o exemplo de um nicho NOVO, adaptado para a
- * operação de quem chega. Quem vende projeto e não se vê entre os pacotes
- * prontos precisa se ver na página antes de acreditar na frase.
+ * fora). A cena não mostra nicho de exemplo: prometer na landing um pacote que
+ * a pessoa não encontra no cadastro seria pior do que não mostrar.
  */
 export type NichoDaCena = "automacao" | "cortinas" | "seguranca" | "vidracaria" | "marcenaria";
 
 export interface Nicho {
   id: NichoDaCena;
-  /** O nicho do produto que esta aba mostra; ausente no exemplo sob medida. */
-  nicho?: TenantNicheId;
+  /** O nicho do produto que esta aba mostra. */
+  nicho: TenantNicheId;
   /** O que a aba mostra. */
   rotulo: string;
   /** Uma linha, debaixo da cena. */
@@ -273,8 +271,9 @@ export const NICHOS: readonly Nicho[] = [
   },
   {
     id: "marcenaria",
-    rotulo: "Marcenaria",
-    nota: "Um nicho novo: a ProOps configura catálogo, campos e etapas para ele.",
+    nicho: "marcenaria",
+    rotulo: "Marcenaria e móveis planejados",
+    nota: "Orçamento por metro linear e por m², do projeto à montagem: pacote pronto também.",
     rotulos: [
       "Armário planejado",
       "Cabeceira ripada",

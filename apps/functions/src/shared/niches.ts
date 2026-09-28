@@ -153,6 +153,39 @@ export const NICHE_REGISTRY = {
     ],
     aiLabel: "vidraçaria e esquadrias de alumínio (vidro temperado, box, sacadas, janelas, portas, espelhos e fechamentos)",
   },
+  marcenaria: {
+    demoTenantId: "demo-marcenaria",
+    productImageLimit: 3,
+    defaultVisitType: { id: "medicao", label: "Medição", durationMin: 60 },
+    stageTemplate: [
+      {
+        name: "Medição",
+        checklist: [
+          "Medir paredes, pé-direito e vãos",
+          "Marcar pontos elétricos e hidráulicos",
+          "Fotografar o ambiente",
+        ],
+      },
+      {
+        name: "Projeto",
+        checklist: ["Desenhar o projeto do ambiente", "Aprovar projeto, cores e acabamentos com o cliente"],
+      },
+      {
+        name: "Produção",
+        checklist: ["Cortar e fitar as chapas", "Furar e pré-montar os módulos", "Separar ferragens e acessórios"],
+      },
+      {
+        name: "Montagem",
+        checklist: [
+          "Montar e fixar os módulos",
+          "Instalar ferragens, puxadores e iluminação",
+          "Regular portas e gavetas",
+        ],
+      },
+      { name: "Entrega", checklist: ["Limpar e vistoriar com o cliente", "Registrar fotos finais"] },
+    ],
+    aiLabel: "móveis planejados e marcenaria sob medida (cozinhas, dormitórios, closets, painéis e armários)",
+  },
 } satisfies Record<string, NicheRegistryEntry>;
 
 export type TenantNicheId = keyof typeof NICHE_REGISTRY;

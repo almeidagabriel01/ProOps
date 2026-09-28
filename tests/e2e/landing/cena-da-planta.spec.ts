@@ -127,7 +127,7 @@ test.describe("LANDING-CENA-01: o nicho do exemplo", () => {
     await expect(rotulo("automacao")).toBeVisible();
     await expect(rotulo("marcenaria")).toBeHidden();
 
-    await abas.getByRole("button", { name: "Marcenaria" }).click();
+    await abas.getByRole("button", { name: "Marcenaria e móveis planejados" }).click();
     await expect(rotulo("marcenaria")).toBeVisible();
     await expect(rotulo("marcenaria")).toHaveText("Armário planejado");
     await expect(rotulo("automacao")).toBeHidden();

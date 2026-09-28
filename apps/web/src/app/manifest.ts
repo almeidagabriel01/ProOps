@@ -5,7 +5,7 @@ export default function manifest(): MetadataRoute.Manifest {
     name: "ProOps - ERP para gestão de serviços",
     short_name: "ProOps",
     description:
-      "ERP completo que adapta-se ao seu nicho: automação residencial, persianas e toldos, segurança eletrônica, vidraçaria e esquadrias e mais.",
+      "ERP completo que adapta-se ao seu nicho: automação residencial; persianas e toldos; segurança eletrônica; vidraçaria e esquadrias; marcenaria e móveis planejados; e mais.",
     start_url: "/",
     display: "standalone",
     background_color: "#ffffff",
