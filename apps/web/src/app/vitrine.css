@@ -1,0 +1,147 @@
+/* ────────────────────────────────────────────────────────────────────────────
+   Vitrine: o CSS das superfícies de venda do ERP que nasceram depois da home
+   (a página /funcionalidades, os destaques de "Recursos" e as landings de
+   nicho). Separado do globals.css, que já passa de duas mil linhas, e importado
+   por ele logo depois do Tailwind, para as utilidades daqui entrarem na mesma
+   varredura.
+
+   Três blocos, nesta ordem: as telas codadas (`.mock-tela`), o acento por
+   nicho (`[data-acento]`) e as revelações dirigidas pelo scroll sem JavaScript.
+   Todo loop daqui está no bloco de movimento reduzido no fim do arquivo e é
+   pausável por `.anim-paused`.
+   ──────────────────────────────────────────────────────────────────────────── */
+
+/* ── Telas codadas ────────────────────────────────────────────────────────────
+
+   Réplicas do ERP em HTML, para poderem ser animadas. A regra de tamanho é a
+   mesma de `app/aplicativo/_components/telas/pecas.tsx`: tudo é medido contra a
+   LARGURA da própria tela (`cqw`), então a mesma réplica sai certa numa moldura
+   de navegador de 640px e num celular de 260px.
+
+   A diferença é a unidade `--u`: uma tela de desktop mede em 1cqw, uma de
+   celular em 1,85cqw. Com isso a MESMA escala de tipo e espaço (`mk-t-*`,
+   `mk-p-*`) serve às duas, e a tela de celular não sai com letra de formiga.
+
+   A paleta é própria e escrita em variáveis, para as réplicas combinarem entre
+   si e com a página, no claro e no escuro. `--mk-acento` herda o acento do
+   nicho quando a tela está dentro de uma landing de nicho, e cai para a tinta
+   da página em qualquer outro lugar: a home e /funcionalidades são mono. */
+/* A caixa é o container; a tela, o filho que mede contra ele. Separados porque
+   `cqw` num elemento resolve contra o container ACIMA dele: na mesma div, a
+   fonte base da tela era medida contra a janela e saía com 46px. */
+.mock-caixa {
+  container-type: inline-size;
+}
+.mock-tela {
+  /* A réplica de desktop representa uma tela de ~1100px desenhada menor; com
+     1cqw a letra saía maior que a do próprio ERP. */
+  --u: 0.8cqw;
+  --mk-bg: #ffffff;
+  --mk-sup: #f5f5f4;
+  --mk-sup-2: #ececea;
+  --mk-linha: rgb(10 10 10 / 0.09);
+  --mk-texto: #0a0a0a;
+  --mk-suave: rgb(10 10 10 / 0.58);
+  --mk-tenue: rgb(10 10 10 / 0.38);
+  --mk-acento: var(--acento, #0a0a0a);
+  --mk-acento-tinta: #ffffff;
+  --mk-positivo: #15803d;
+  --mk-atencao: #b45309;
+  background: var(--mk-bg);
+  color: var(--mk-texto);
+  font-family: var(--font-pdf-inter), ui-sans-serif, system-ui, sans-serif;
+  font-size: calc(var(--u) * 2.4);
+  line-height: 1.35;
+  font-feature-settings: "tnum" 1, "cv11" 1;
+}
+.dark .mock-tela {
+  --mk-bg: #111113;
+  --mk-sup: #19191c;
+  --mk-sup-2: #232327;
+  --mk-linha: rgb(255 255 255 / 0.09);
+  --mk-texto: #f5f5f5;
+  --mk-suave: rgb(245 245 245 / 0.62);
+  --mk-tenue: rgb(245 245 245 / 0.4);
+  --mk-acento: var(--acento, #f5f5f5);
+  --mk-acento-tinta: #0a0a0a;
+  --mk-positivo: #4ade80;
+  --mk-atencao: #fbbf24;
+}
+.mock-tela[data-escala="celular"] {
+  --u: 1.85cqw;
+}
+
+/* Escala de tipo das réplicas. Números, não nomes de cargo: a réplica imita
+   uma tela, e o que importa é o tamanho relativo, não o papel semântico. */
+.mk-t-1 { font-size: calc(var(--u) * 1.8); line-height: 1.3; }
+.mk-t-2 { font-size: calc(var(--u) * 2.1); line-height: 1.35; }
+.mk-t-3 { font-size: calc(var(--u) * 2.4); line-height: 1.35; }
+.mk-t-4 { font-size: calc(var(--u) * 2.9); line-height: 1.25; }
+.mk-t-5 { font-size: calc(var(--u) * 3.8); line-height: 1.15; letter-spacing: -0.02em; }
+.mk-t-6 { font-size: calc(var(--u) * 5.2); line-height: 1.05; letter-spacing: -0.03em; }
+
+/* Espaço e raio na mesma unidade. `mk-p-3` é 3 unidades da tela. */
+@utility mk-p-* {
+  padding: calc(var(--u) * --value(number));
+}
+@utility mk-px-* {
+  padding-inline: calc(var(--u) * --value(number));
+}
+@utility mk-py-* {
+  padding-block: calc(var(--u) * --value(number));
+}
+@utility mk-gap-* {
+  gap: calc(var(--u) * --value(number));
+}
+@utility mk-mt-* {
+  margin-top: calc(var(--u) * --value(number));
+}
+@utility mk-rounded-* {
+  border-radius: calc(var(--u) * --value(number));
+}
+@utility mk-size-* {
+  width: calc(var(--u) * --value(number));
+  height: calc(var(--u) * --value(number));
+}
+@utility mk-h-* {
+  height: calc(var(--u) * --value(number));
+}
+@utility mk-w-* {
+  width: calc(var(--u) * --value(number));
+}
+
+.mk-linha {
+  border-color: var(--mk-linha);
+}
+.mk-sup {
+  background: var(--mk-sup);
+}
+.mk-suave {
+  color: var(--mk-suave);
+}
+.mk-tenue {
+  color: var(--mk-tenue);
+}
+.mk-acento {
+  color: var(--mk-acento);
+}
+.mk-fundo-acento {
+  background: var(--mk-acento);
+  color: var(--mk-acento-tinta);
+}
+
+/* Traço de SVG que se desenha: `pathLength="1"` no elemento e o GSAP anima o
+   `stroke-dashoffset` de 1 para 0. Escrito no estado FINAL (offset 0), como
+   toda cena da casa: sem JavaScript, ou com movimento reduzido, o traço está
+   inteiro. */
+.mk-traco {
+  stroke-dasharray: 1;
+  stroke-dashoffset: 0;
+}
+
+/* ── Movimento reduzido ───────────────────────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  .mk-traco {
+    stroke-dashoffset: 0 !important;
+  }
+}
