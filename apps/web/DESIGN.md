@@ -167,22 +167,22 @@ components:
 
 # Design System: ProOps, superfícies de venda do ERP
 
-Escopo: este registro descreve as superfícies de MARKETING do ERP (a landing em `erp.proops.com.br`, `/funcionalidades` e as landings de nicho). A interface autenticada do ERP usa os tokens do shadcn em `src/app/globals.css` (`--background`, `--primary` e companhia, azulados) e fica fora daqui. O site institucional e a landing do aplicativo têm mundo próprio e também ficam fora.
+Escopo: este registro descreve as superfícies de MARKETING do ERP (a landing em `erp.proops.com.br`, `/funcionalidades` com as páginas de cada funcionalidade, e as landings de nicho). A interface autenticada do ERP usa os tokens do shadcn em `src/app/globals.css` (`--background`, `--primary` e companhia, azulados) e fica fora daqui. O site institucional e a landing do aplicativo têm mundo próprio e também ficam fora.
 
 ## Overview
 
 **Creative North Star: "A Prancheta de Linhas"**
 
-A página é uma prancheta: papel branco de dia, noite neutra quase preta no tema escuro, e tudo o que se desenha nela é traço. Filete de 1px separa seções, a linha de 3px liga estações como num mapa de metrô, a cota com batentes mede o vão do nicho. Nada é ilustração decorativa; o que ocupa o espaço de imagem é o próprio ERP, redesenhado em HTML dentro de uma moldura de navegador ou de celular, com números reais do motor de preço.
+A página é uma prancheta: papel branco de dia, noite neutra quase preta no tema escuro, e tudo o que se desenha nela é traço. Filete de 1px separa seções e as linhas de uma lista, a cota com batentes mede o vão do nicho. Nada é ilustração decorativa; o que ocupa o espaço de imagem é o próprio ERP, redesenhado em HTML dentro de uma moldura de navegador ou de celular, com números reais do motor de preço.
 
 A tipografia faz o contraste que a cor não faz. Montserrat em peso 700, apertada, carrega o título; uma única palavra dele cai em Playfair Display itálico, a palavra que sustenta a promessa ("recibo", "contador", "todas"). O corpo é neutro, em tinta a 60%, com medida curta. A cor só aparece numa landing de nicho, e mesmo ali como tinta de prancheta: a palavra do título, o ponto de prova, o trilho das etapas, a alça do controle de medida.
 
-O movimento conta a história em vez de enfeitar: a linha se desenha, a estação acende, a parcela vira "Pago". Todo estado é escrito no fim da história, e a animação parte dele só quando o navegador e a preferência de movimento permitem.
+O movimento conta a história em vez de enfeitar: a cota se desenha, a assinatura corre, a parcela vira "Pago". Todo estado é escrito no fim da história, e a animação parte dele só quando o navegador e a preferência de movimento permitem.
 
 **Key Characteristics:**
 - Mono por padrão; cor por nicho entra só pela raiz `data-acento`.
 - Título Montserrat 700 com uma palavra em Playfair itálico.
-- Filete de 1px e linha de 3px como únicos elementos gráficos recorrentes.
+- Filete de 1px como único elemento gráfico recorrente; o conteúdo vem em linhas de lista, não em cards.
 - Telas do ERP codadas, dimensionadas pela largura da própria tela.
 - Números tabulares em todo lugar que mostra valor, contagem ou medida.
 - Estado final no HTML; movimento é camada opcional.
@@ -192,7 +192,7 @@ O movimento conta a história em vez de enfeitar: a linha se desenha, a estaçã
 Uma prancheta em preto e branco com tinta em opacidades fixas, e uma cor por nicho que só a landing daquele nicho usa.
 
 ### Primary
-- **Tinta de Prancheta** (ink): título, texto forte, preenchimento do botão principal, estação ativa, linha do mapa. No tema escuro o papel dela passa ao **Branco Giz** (ink-on-night).
+- **Tinta de Prancheta** (ink): título, texto forte, preenchimento do botão principal, ícone e seta da linha em hover. No tema escuro o papel dela passa ao **Branco Giz** (ink-on-night).
 
 ### Secondary (por nicho, uma por página)
 Cada landing de nicho escreve `--acento-claro` e `--acento-escuro` na raiz e o CSS entrega `--acento`, que troca com o tema. Os valores moram em `src/lib/niches/definitions/<id>/landing.ts`, com teste de contraste.
@@ -234,7 +234,7 @@ Derivados, sempre por `color-mix` a partir do acento: `--acento-suave` (12%, ane
 - **Display** (700, 2.6rem no celular, 3.75rem de `sm`, 4.6rem de `lg`, 1.02, -0.035em): só o `h1` do herói. No nicho o topo é 4.25rem.
 - **Closing** (700, 2.25rem no celular, 3.75rem de `md`, 1.05, -0.03em): a frase grande do fecho, centralizada.
 - **Headline** (700, 2.1rem no celular, 3rem de `md`, 1.06, -0.025em): título de seção, alinhado à esquerda, `max-width` de 48rem.
-- **Title** (700, 1.5rem a 1.85rem, -0.02em): título de capítulo em `/funcionalidades`; 1.125rem para a etapa do nicho.
+- **Title** (700, 1.25rem a 1.875rem, -0.02em): grupo e funcionalidade na lista de `/funcionalidades`, passo e recurso na página de cada uma; 1.125rem para a etapa do nicho.
 - **Item title** (600, 17px, 1.375): o nome de um recurso ou de uma dor.
 - **Lead** (400, 1.125rem, 1.625, tinta a 60%): o parágrafo do herói e da seção, até 42rem (cerca de 65ch).
 - **Body** (400, 15px, 1.625, tinta a 60%): resumo e detalhe de recurso, até 42rem.
@@ -250,11 +250,11 @@ Derivados, sempre por `color-mix` a partir do acento: `--acento-suave` (12%, ane
 
 Contêiner único de 1280px (`max-w-7xl`) com respiro lateral de 16px, 24px de `sm` para cima. A seção padrão tem 96px de altura de respiro vertical, 128px de `md`, e se separa da anterior por um filete de 1px no topo; não há faixas de fundo alternadas entre seções da vitrine. O herói desce 128px (160px de `md`) para passar da barra fixa.
 
-Grades assimétricas em vez de colunas iguais: `/funcionalidades` abre com título e texto em 1.25fr / 0.75fr alinhados pela base, e o mapa de linhas ocupa a largura inteira logo abaixo; o nicho abre em 0.95fr / 1.05fr, título e ações à esquerda, a proposta na moldura à direita. Os capítulos têm um trilho de 280px fixo (`sticky`, 112px do topo) com busca, filtro de plano e índice, e a lista ao lado.
+Grades assimétricas em vez de colunas iguais: `/funcionalidades` abre com o título na largura e, abaixo, o texto à esquerda e os atalhos dos grupos à direita; cada grupo põe o título numa coluna de 15rem fixa (`sticky`, 112px do topo) e a lista ao lado. A página de uma funcionalidade abre como o nicho, em 0.95fr / 1.05fr: título, texto e ações à esquerda, a tela à direita. Passos e recursos incluídos são linhas em colunas de larguras diferentes, nunca cards lado a lado.
 
 Ritmo interno: título a parágrafo 20px, parágrafo a ações 28px, cabeçalho de seção ao conteúdo 56px a 64px. Texto alinhado à esquerda em toda seção; centralizado só no fecho e no FAQ.
 
-No celular o trilho de capítulos vira uma fileira de pílulas que rola na horizontal, o selo de plano desce para baixo do texto do recurso, a linha do mapa passa a ligar um terminal ao próximo na vertical e a jornada estática empilha. Breakpoints: `sm` 640px, `md` 768px, `lg` 1024px, mais `tela-baixa` (de `md` para cima com até 800px de altura).
+No celular o título do grupo sobe para cima da lista, a explicação e o selo descem para baixo do nome da funcionalidade, e a tela da página de funcionalidade desce para baixo do texto. Breakpoints: `sm` 640px, `md` 768px, `lg` 1024px, mais `tela-baixa` (de `md` para cima com até 800px de altura).
 
 ## Elevation & Depth
 
@@ -272,7 +272,7 @@ A página é plana; a profundidade é reservada a objetos que representam coisas
 
 ## Shapes
 
-Três famílias de forma. Controle interativo é pílula (botão, selo de plano, filtro segmentado, campo de busca, índice no celular). Objeto contido tem canto de 12px (moldura de navegador, linha de recurso no hover) ou 16px (painel de instrumento, paleta do FAQ). O desenho é círculo e traço: estação de 13px com anel de 2.5px, vazia e preenchida quando aberta; anel de etapa de 16px com borda de 3px no acento; linha de metrô de 3px com ponta arredondada; filete de 1px; cota técnica de 1.2 de traço com batentes nas pontas. Dentro das réplicas, o raio é medido em `--u` (`mk-rounded-*`), nunca em px.
+Três famílias de forma. Controle interativo é pílula (botão, seletor de modo, atalho de grupo, campo de busca do FAQ). Objeto contido tem canto de 12px (moldura de navegador, anel de foco da linha) ou 16px (painel de instrumento, paleta do FAQ). O desenho é círculo e traço: anel de etapa de 16px com borda de 3px no acento; filete de 1px; cota técnica de 1.2 de traço com batentes nas pontas. Dentro das réplicas, o raio é medido em `--u` (`mk-rounded-*`), nunca em px.
 
 ## Components
 
@@ -285,8 +285,9 @@ Tinta que sobe: o botão não se desloca; a cor enche de baixo para cima com uma
 - **Link:** texto sem caixa, com sublinhado de 2px que se desenha da esquerda em 0.4s. É sempre a ação secundária ao lado da principal ("Marcar uma demonstração", "Falar com a gente").
 
 ### Chips
-- **Selo de plano:** pílula com filete de 12%, 11.5px semibold, tinta a 75%; o complemento de add-on vai ao lado em 11px, tinta a 45%. Quando o filtro está num plano em que o recurso só entra por add-on, o selo principal cai para 40% e o de add-on passa à frente.
-- **Filtro segmentado:** pílula com filete e 4px de respiro; o segmento escolhido é preenchido de tinta com texto invertido, os outros ficam em tinta a 60%. No nicho, o seletor de modo tem uma pílula preenchida que desliza em 0.3s.
+- **Selo de plano:** texto de 13px semibold, tinta a 70%, na coluna da direita da linha; o complemento de add-on vai logo abaixo, tinta a 55%. Derivado do catálogo de planos, nunca escrito à mão.
+- **Atalho de grupo:** pílula com filete de 12%, 14px, tinta a 70%; no hover a borda e o texto vão à tinta cheia.
+- **Seletor de modo (nicho):** pílula com filete e 4px de respiro; uma pílula preenchida desliza em 0.3s até o modo escolhido, com o texto invertido.
 
 ### Cards / Containers
 - **Moldura de navegador:** canto de 12px, filete, barra de cromo com três pontos e o endereço `erp.proops.com.br` em mono de 10px; sombra Janela.
@@ -299,14 +300,15 @@ Tinta que sobe: o botão não se desloca; a cor enche de baixo para cima com uma
 - **Controle de medida:** um `<input type="range">` nativo com trilho de 4px pintado no acento até `--pct` e alça de 22px com anel de 3px no acento; cresce a 118% ao arrastar.
 
 ### Navigation
-- **Índice de capítulos:** no desktop, lista vertical com um fio de 1px à esquerda que cresce do centro no item corrente, contagem tabular à direita; no celular, pílulas roláveis, a corrente preenchida de tinta.
-- **Estações que passam:** o fecho abre com uma faixa lenta com o nome de cada recurso, cada um precedido de um anel de 10px, como o painel de uma linha.
+- **Atalhos de grupo:** no topo de `/funcionalidades`, âncoras em pílula para Vender, Entregar, Receber e Gerir a empresa.
+- **Nomes que passam:** o fecho da lista abre com uma faixa lenta com o nome de cada funcionalidade, cada um precedido de um anel de 10px.
+- **Volta à lista:** a página de uma funcionalidade abre com "Todas as funcionalidades" e fecha com "Continue por aqui", as linhas de outras funcionalidades.
 
-### Signature: Mapa de linhas
-O topo de `/funcionalidades`: as categorias são linhas verticais de 3px pendendo de um tronco horizontal, os recursos são estações. Desenhado por keyframe de CSS porque está acima da dobra: o tronco corre em 1.1s, cada linha desce a partir do terminal dela com 60ms de escalonamento por coluna, as estações acendem com 40ms por linha. No hover de uma linha, as outras caem para 22%. A mesma linha continua nos capítulos, passando pelo terminal e pelas estações de cada recurso.
+### Signature: Linha de funcionalidade
+A lista de `/funcionalidades`: ícone a 45%, nome em Montserrat 700, a explicação de uma linha, o selo de plano e a seta. O nome é o link e cobre a linha inteira com um `::after`, então o clique vale em qualquer ponto e o leitor de tela anuncia só o nome. No hover o fundo tinge 2,5%, o ícone e a seta vão à tinta cheia e a seta anda 4px. Entra pela revelação guiada pela rolagem.
 
-### Signature: Linha de recurso
-Um `<details>` nativo: estação à esquerda sobre a linha do capítulo, ícone a 45%, nome, resumo, selo à direita e chevron. Aberto, a estação se preenche, a altura anima com `interpolate-size` onde existe, e aparecem os detalhes com traço de 8px no lugar do marcador, e os pares "No ERP", "Limite" e "Nos segmentos".
+### Signature: Página de funcionalidade
+O que a funcionalidade resolve e a tela dela lado a lado; depois "Como funciona" em três linhas numeradas (o número em Montserrat a 25% de tinta), "O que vem incluído" com cada recurso do catálogo em três colunas (nome e onde fica no ERP; resumo e detalhes com traço de 12px no lugar do marcador; plano, add-on, limite e exemplo aberto) e "Continue por aqui". Uma só página gerada para todas (`[slug]`), com a tela escolhida por um `Record` que não compila se faltar uma.
 
 ### Signature: Tela codada
 A réplica do ERP em HTML (`.mock-tela` dentro de `.mock-caixa`): tipo, espaço e raio em múltiplos de `--u`, que vale 0.8cqw na tela de desktop e 1.85cqw na de celular, então a mesma réplica cabe numa janela de 640px e num celular de 260px. Paleta própria nos dois temas; `--mk-acento` herda o acento do nicho e cai para a tinta fora dele.

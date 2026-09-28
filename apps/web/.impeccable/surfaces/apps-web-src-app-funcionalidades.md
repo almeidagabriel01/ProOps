@@ -21,14 +21,18 @@ OWN-WORLD: papel branco e noite neutro-950, filete de 1px, Montserrat pesada com
 Playfair itálico, números tabulares, telas do ERP desenhadas em código dentro de moldura de navegador
 ou celular; nos nichos, traço técnico (cotas, hachura, vista em elevação) no acento do nicho.
 
-STORY: o visitante vê a proposta virar obra, parcela e recibo, entende que é uma base só, encontra o
-recurso que procura com o plano que o libera, e cria a conta ou marca a demonstração.
+STORY: o visitante acha na lista a funcionalidade que procura, lê em uma linha o que ela faz e o
+plano que a libera, abre a página dela para ver como funciona, a tela e o que vem incluído, e cria
+a conta ou marca a demonstração. Os destaques da home e dos nichos levam às mesmas páginas.
 
-FIRST VIEWPORT: /funcionalidades abre com o título à esquerda e o mapa de linhas (categorias como
-linhas, recursos como estações) ocupando a largura, CTA "Começar agora" visível; nicho abre em duas
-colunas, título e CTA à esquerda, a proposta do nicho em moldura de navegador à direita.
+FIRST VIEWPORT: /funcionalidades abre com o título, uma frase e os atalhos dos quatro grupos, e a
+lista começa logo abaixo; a página de uma funcionalidade e o nicho abrem em duas colunas, título e
+CTA à esquerda, a tela (do ERP ou do link do cliente) em moldura à direita.
 
-FORM: mapa de linhas de metrô (Vignelli) na página de funcionalidades, palco sticky com telas na home,
-instrumento de medição interativo em cada nicho. Direção fixada pelo plano aprovado pelo usuário; sem sorteio.
+FORM: lista em linhas agrupadas pela ordem da venda em /funcionalidades e uma página por
+funcionalidade com a tela ao lado, palco sticky com telas na home, instrumento de medição
+interativo em cada nicho. O mapa de metrô e a jornada animada da primeira versão saíram em
+2026-09-28, a pedido do usuário: a página contava a história e ficou difícil de entender, e o
+que se queria era uma lista direta com uma página para cada item.
 
 FINISH: unreviewed and undocumented is unfinished; this build ends with the finish review, the verdict, DESIGN.md, and every shipping raster carrying its provenance

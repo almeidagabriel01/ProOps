@@ -146,21 +146,18 @@ URL across the **13 animated public routes** (`/`, `/automacao-residencial`, `/d
   relatório sem reprovar. **Assim que houver três execuções do CI, aperte para `error`** no
   teto que os números pedirem. O CLS delas continua `error`: esse foi medido e deu 0.
 - **`/funcionalidades` e as quatro landings de nicho novas ficam no teto genérico de 800**, sem
-  entrada própria. `/funcionalidades` chegou a medir **~850** (831 e 871 em duas medianas de 3,
-  com `/decoracao` em 216 na mesma rodada): o custo não era script, era o primeiro estilo e
-  layout de ~4 mil elementos (52 recursos, as telas codadas dos capítulos, a jornada). A
-  correção foi `content-visibility: auto` nos capítulos e nos passos da jornada estática
-  (classes `.adiado` e `.adiado-passo` em `app/vitrine.css`), que caiu para **449** (mediana
-  de 5) contra 247 da calibração (2026-09-28, local, Lighthouse ligado ao Chromium do Playwright porque o
-  chrome-launcher falha com EPERM ao apagar o diretório temporário no Windows). As quatro
-  landings de nicho mediram entre 282 e 337. **Não suba o teto de uma página grande antes de
-  olhar o `dom-size`:** se o `mainthread-work-breakdown` mostra "Other" e "Style & Layout"
-  à frente de "Script Evaluation", o problema é tamanho de DOM fora da tela, não JavaScript.
-  Tirar os passos da jornada do adiamento devolve a página a ~820: no celular eles vêm logo
-  abaixo do herói. Só que `content-visibility` também contém a PINTURA, e a sombra longa do
-  `DeviceFrame` saía cortada numa reta; por isso `.adiado-passo` tem `overflow-clip-margin`
-  de 9rem. Bloco adiado novo com sombra larga precisa da mesma margem, conferida numa
-  captura de rolagem real (um `fullPage` não pinta o que foi pulado).
+  entrada própria. As landings de nicho mediram entre 282 e 337 (2026-09-28, local, Lighthouse
+  ligado ao Chromium do Playwright porque o chrome-launcher falha com EPERM ao apagar o
+  diretório temporário no Windows). A primeira versão de `/funcionalidades`, uma página longa
+  com os 52 recursos, as telas dos capítulos e uma jornada animada, mediu **~850** (contra 216
+  da `/decoracao` na mesma rodada) e só coube no teto com `content-visibility: auto`. Ela
+  virou uma lista curta com uma página por funcionalidade no mesmo dia, e o adiamento saiu
+  junto. Duas lições ficam: **não suba o teto de uma página grande antes de olhar o
+  `dom-size`** (se o `mainthread-work-breakdown` mostra "Other" e "Style & Layout" à frente de
+  "Script Evaluation", o custo é DOM fora da tela, não JavaScript), e `content-visibility`
+  também contém a PINTURA: sombra longa, como a do `DeviceFrame`, sai cortada numa reta sem
+  `overflow-clip-margin`, o que só aparece numa captura de rolagem real (um `fullPage` não
+  pinta o que foi pulado).
 - Duas das sub-páginas, e não todas, porque cada URL custa 3 corridas reais (~2 min de
   runner por URL). São as duas mais pesadas (contadores scrubados, faixa de retratos,
   ledger e a cena fixada), então uma regressão no kit de cenas aparece nelas primeiro.
@@ -207,7 +204,8 @@ de verdade (e, em `canonical-do-sitemap.spec.ts`, que toda URL de cada sitemap r
 200 e se declara canônica no HTML servido; em `aplicativo-notebook.spec.ts`, que os palcos parados da landing do app
 cabem sob a barra fixa em telas de notebook de 1024 a 1440), `tests/e2e/institucional/` cobre a navegação do site da empresa (cortina,
 âncoras e o caminho de `prefers-reduced-motion`), e `mobile/superficies-layout.spec.ts`
-cobre as sete páginas de marketing a 393px.
+cobre as páginas de marketing a 393px (inclusive as landings de nicho e cada página de
+`/funcionalidades/<slug>`, as duas listas derivadas dos registros).
 
 `mobile/landing-do-app-layout.spec.ts` cobre a landing do app no que o resto da
 pasta não olha: a ALTURA, o gesto de toque e texto que é RECORTADO em vez de
