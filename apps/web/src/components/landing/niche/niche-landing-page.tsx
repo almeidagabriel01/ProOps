@@ -5,7 +5,7 @@ import dynamic from "next/dynamic";
 // LandingHeroAssemble → hero-dashboard-demo → Recharts, which webpack then can't
 // tree-shake out, dragging ~100KB of charts the niche pages never use into their
 // chunk. Importing the source files directly keeps that off these routes.
-import { useLandingPage } from "@/components/landing/use-landing-page";
+import { useLandingSession } from "@/components/landing/use-landing-session";
 import { LandingNavbar } from "@/components/landing/landing-navbar";
 import { NicheHero } from "./niche-hero";
 import { NICHE_LANDING_CONFIG } from "@/lib/landing/niches.config";
@@ -30,7 +30,7 @@ interface NicheLandingPageProps {
 
 export function NicheLandingPage({ slug }: NicheLandingPageProps) {
   const config = NICHE_LANDING_CONFIG[slug];
-  const { currentUser, isAuthLoading, handleSignOut } = useLandingPage();
+  const { currentUser, isAuthLoading, handleSignOut } = useLandingSession();
 
   return (
     <div className="min-h-screen overflow-x-clip bg-white text-black selection:bg-black selection:text-white dark:bg-neutral-950 dark:text-neutral-100 dark:selection:bg-white dark:selection:text-black">

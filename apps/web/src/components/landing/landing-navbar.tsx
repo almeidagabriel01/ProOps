@@ -21,7 +21,7 @@ import {
   useSpring,
   useTransform,
 } from "motion/react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import type { User } from "@/types";
 import { AnimatedThemeToggler } from "@/components/ui/animated-theme-toggler";
 import { ProOpsLogo } from "@/components/branding/proops-logo";
@@ -39,6 +39,7 @@ import { useHeaderPresentation } from "@/hooks/useHeaderPresentation";
 import { getUserColor, getInitials } from "@/lib/avatar-utils";
 import { LandingButton } from "./_shared/landing-button";
 import { scrollToOffset } from "@/lib/landing/smooth-scroll";
+import { anchorHref, isLandingAnchor } from "@/lib/landing/anchor-href";
 
 interface LandingNavbarProps {
   currentUser: User | null;
@@ -46,10 +47,13 @@ interface LandingNavbarProps {
   isAuthLoading?: boolean;
 }
 
+// "Módulos" e "Recursos" levavam à mesma seção. O lugar dele é da página que
+// lista tudo o que o ERP faz; a âncora `#modulos` continua viva para links
+// antigos de fora.
 const navLinks = [
   { href: "#showcase", label: "Plataforma" },
-  { href: "#modulos", label: "Módulos" },
   { href: "#recursos", label: "Recursos" },
+  { href: "/funcionalidades", label: "Funcionalidades" },
   { href: "#pricing", label: "Planos" },
 ];
 
@@ -64,6 +68,7 @@ export function LandingNavbar({ currentUser, onSignOut, isAuthLoading = false }:
   const rightGroupRef = useRef<HTMLDivElement>(null);
   const [spread, setSpread] = useState({ left: 280, right: 280 });
   const router = useRouter();
+  const pathname = usePathname();
   const prefersReducedMotion = useReducedMotion();
   const { companyName, logoUrl, avatarSeed, isTenantLoading, isCompanyLoading } =
     useHeaderPresentation();
@@ -91,10 +96,15 @@ export function LandingNavbar({ currentUser, onSignOut, isAuthLoading = false }:
   const rightX = useTransform(progress, [0, 1], [spread.right, 0]);
 
   const scrollToAnchor = (href: string, closeMobile = false) => {
-    if (!href.startsWith("#")) return;
+    if (!isLandingAnchor(href)) return;
 
     const target = document.querySelector<HTMLElement>(href);
-    if (!target) return;
+    if (!target) {
+      // Fora da home a seção não existe: vai até ela em vez de não fazer nada.
+      if (closeMobile) setMobileOpen(false);
+      router.push(anchorHref(href, pathname));
+      return;
+    }
 
     const navHeight = navRef.current?.offsetHeight ?? 64;
     const top =
@@ -114,7 +124,12 @@ export function LandingNavbar({ currentUser, onSignOut, isAuthLoading = false }:
     href: string,
     closeMobile = false,
   ) => {
-    if (!href.startsWith("#")) return;
+    // Só a âncora da própria página é interceptada (o Lenis precisa conduzir a
+    // rolagem). Link de rota, e âncora de outra página, navegam normalmente.
+    if (!isLandingAnchor(href) || !document.querySelector(href)) {
+      if (closeMobile) setMobileOpen(false);
+      return;
+    }
 
     event.preventDefault();
     scrollToAnchor(href, closeMobile);
@@ -199,12 +214,13 @@ export function LandingNavbar({ currentUser, onSignOut, isAuthLoading = false }:
             {navLinks.map((link) => (
               <Link
                 key={link.href}
-                href={link.href}
+                href={anchorHref(link.href, pathname)}
                 onClick={(event) => handleAnchorClick(event, link.href)}
-                className="group relative rounded-full px-3.5 py-1.5 text-[13px] font-medium text-black/65 transition-colors duration-200 hover:bg-black/[0.03] hover:text-black dark:text-white/65 dark:hover:bg-white/[0.06] dark:hover:text-white"
+                aria-current={pathname === link.href ? "page" : undefined}
+                className="group relative rounded-full px-3.5 py-1.5 text-[13px] font-medium text-black/65 transition-colors duration-200 hover:bg-black/[0.03] hover:text-black aria-[current=page]:text-black dark:text-white/65 dark:hover:bg-white/[0.06] dark:hover:text-white dark:aria-[current=page]:text-white"
               >
                 {link.label}
-                <span className="absolute bottom-0 left-1/2 h-[2px] w-0 -translate-x-1/2 rounded-full bg-black transition-all duration-200 group-hover:w-3/5 dark:bg-white" />
+                <span className="absolute bottom-0 left-1/2 h-[2px] w-0 -translate-x-1/2 rounded-full bg-black transition-all duration-200 group-hover:w-3/5 group-aria-[current=page]:w-3/5 dark:bg-white" />
               </Link>
             ))}
           </motion.nav>
@@ -418,8 +434,9 @@ export function LandingNavbar({ currentUser, onSignOut, isAuthLoading = false }:
                   transition={{ delay: i * 0.06, duration: 0.3 }}
                 >
                   <Link
-                    href={link.href}
+                    href={anchorHref(link.href, pathname)}
                     onClick={(event) => handleAnchorClick(event, link.href, true)}
+                    aria-current={pathname === link.href ? "page" : undefined}
                     className="text-2xl font-semibold text-black transition-colors hover:text-black/70 dark:text-white dark:hover:text-white/70"
                   >
                     {link.label}

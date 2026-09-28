@@ -129,8 +129,7 @@ export function LandingFeatures() {
       id="recursos"
       className="relative border-t border-black/10 bg-white py-28 dark:border-white/10 dark:bg-neutral-950"
     >
-      {/* âncoras herdadas (navbar/footer) da antiga seção Módulos */}
-      <span id="showcase" aria-hidden className="absolute -top-24" />
+      {/* âncora herdada da antiga seção Módulos: links de fora ainda a usam */}
       <span id="modulos" aria-hidden className="absolute -top-24" />
 
       <div className="mx-auto grid max-w-7xl gap-12 px-6 lg:grid-cols-[0.85fr_1.15fr] lg:gap-20">
