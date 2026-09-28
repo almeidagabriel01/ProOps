@@ -11,7 +11,7 @@ import { Select } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "@/lib/toast";
 import { cn } from "@/lib/utils";
-import { WEEKDAY_OPTIONS, formatMinutes } from "@/lib/booking/booking-format";
+import { WEEKDAY_OPTIONS, formatDuration, formatMinutes } from "@/lib/booking/booking-format";
 import { BookingService, type BookingSettings } from "@/services/booking-service";
 import { BookingCardSkeleton } from "./settings-skeleton";
 import { BookingExceptionsEditor } from "./booking-exceptions-editor";
@@ -35,13 +35,6 @@ const LEAD_OPTIONS = [
   { value: 48, label: "2 dias antes" },
 ];
 const HORIZON_OPTIONS = [7, 14, 21, 30, 60];
-
-function durationLabel(minutes: number): string {
-  if (minutes < 60) return `${minutes} min`;
-  const hours = Math.floor(minutes / 60);
-  const rest = minutes % 60;
-  return rest ? `${hours}h${rest}` : `${hours}h`;
-}
 
 /**
  * Expediente do link de agendamento: dias, horário, antecedência, até quando e
@@ -291,7 +284,7 @@ export function BookingSettingsCard({ readOnly = false, demoDefaults, onLoadingC
                   >
                     {DURATIONS.map((d) => (
                       <option key={d} value={d}>
-                        {durationLabel(d)}
+                        {formatDuration(d)}
                       </option>
                     ))}
                   </Select>

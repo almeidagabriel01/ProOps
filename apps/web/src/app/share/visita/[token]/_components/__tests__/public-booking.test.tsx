@@ -37,7 +37,8 @@ function makeView() {
       visita_tecnica: [
         { date: "2026-09-28", starts: [540, 600] },
         { date: "2026-09-29", starts: [] },
-        { date: "2026-09-30", starts: [660] },
+        { date: "2026-09-30", starts: [660, 840] },
+        { date: "2026-10-02", starts: [540] },
       ],
       orcamento: [],
     },
@@ -54,6 +55,7 @@ beforeEach(() => {
 
 async function pickTenOClock() {
   await userEvent.click(await screen.findByRole("button", { name: "10:00" }));
+  await userEvent.click(screen.getByRole("button", { name: /Continuar/ }));
   await userEvent.type(screen.getByLabelText("Nome"), "Carla");
   await userEvent.type(screen.getByLabelText("Telefone (WhatsApp)"), "11988887777");
 }
@@ -63,9 +65,10 @@ describe("link público de agendamento", () => {
     render(<PublicBooking token="tok12345" />);
     expect(await screen.findByText("Casa Viva")).toBeInTheDocument();
     expect(m.view).toHaveBeenCalledWith("tok12345");
-    // Dia sem horário não aparece.
-    expect(screen.queryByRole("button", { name: "ter 29/09" })).toBeNull();
-    expect(screen.getByRole("button", { name: "qua 30/09" })).toBeInTheDocument();
+    // Dia sem horário fica apagado no calendário, sem botão.
+    expect(screen.getByText("setembro de 2026")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "terça-feira, 29 de setembro" })).toBeNull();
+    expect(screen.getByRole("button", { name: "quarta-feira, 30 de setembro" })).toBeInTheDocument();
 
     await pickTenOClock();
     await userEvent.click(screen.getByRole("button", { name: "Pedir a visita" }));
@@ -91,6 +94,7 @@ describe("link público de agendamento", () => {
   it("o telefone ganha a máscara enquanto a pessoa digita", async () => {
     render(<PublicBooking token="tok12345" />);
     await userEvent.click(await screen.findByRole("button", { name: "10:00" }));
+    await userEvent.click(screen.getByRole("button", { name: /Continuar/ }));
     const phone = screen.getByLabelText("Telefone (WhatsApp)");
     await userEvent.type(phone, "1133334444");
     expect(phone).toHaveValue("(11) 3333-4444");
@@ -99,22 +103,48 @@ describe("link público de agendamento", () => {
     expect(phone).toHaveValue("(11) 98888-7777");
   });
 
-  it("trocar de dia mostra os horários daquele dia", async () => {
+  it("trocar de dia mostra os horários daquele dia, separados por período", async () => {
     render(<PublicBooking token="tok12345" />);
-    await userEvent.click(await screen.findByRole("button", { name: "qua 30/09" }));
-    expect(screen.getByRole("button", { name: "11:00" })).toBeInTheDocument();
+    await userEvent.click(await screen.findByRole("button", { name: "quarta-feira, 30 de setembro" }));
+    expect(screen.getByRole("group", { name: "Manhã" })).toHaveTextContent("11:00");
+    expect(screen.getByRole("group", { name: "Tarde" })).toHaveTextContent("14:00");
     expect(screen.queryByRole("button", { name: "10:00" })).toBeNull();
+  });
+
+  it("anda de mês só dentro do horizonte com horário livre", async () => {
+    render(<PublicBooking token="tok12345" />);
+    await screen.findByText("setembro de 2026");
+    expect(screen.getByRole("button", { name: "Mês anterior" })).toBeDisabled();
+    await userEvent.click(screen.getByRole("button", { name: "Próximo mês" }));
+    expect(screen.getByText("outubro de 2026")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Próximo mês" })).toBeDisabled();
+    await userEvent.click(screen.getByRole("button", { name: "sexta-feira, 2 de outubro" }));
+    expect(screen.getByRole("button", { name: "09:00" })).toBeInTheDocument();
+  });
+
+  it("só segue para os dados depois de escolher o horário, e volta sem perder a escolha", async () => {
+    render(<PublicBooking token="tok12345" />);
+    await screen.findByText("setembro de 2026");
+    expect(screen.queryByRole("button", { name: /Continuar/ })).toBeNull();
+    await pickTenOClock();
+    expect(screen.getByLabelText("Nome")).toHaveValue("Carla");
+    await userEvent.click(screen.getByRole("button", { name: "Trocar horário" }));
+    expect(screen.getByRole("button", { name: "10:00" })).toHaveAttribute("aria-pressed", "true");
+    await userEvent.click(screen.getByRole("button", { name: /Continuar/ }));
+    // O que já foi digitado continua lá.
+    expect(screen.getByLabelText("Nome")).toHaveValue("Carla");
   });
 
   it("tipo de visita sem horário livre diz para falar com a empresa", async () => {
     render(<PublicBooking token="tok12345" />);
-    await userEvent.click(await screen.findByRole("button", { name: "Orçamento rápido" }));
+    await userEvent.click(await screen.findByRole("button", { name: /Orçamento rápido/ }));
     expect(screen.getByText(/Não há horário livre nos próximos dias/)).toBeInTheDocument();
   });
 
   it("não envia sem nome e telefone com DDD", async () => {
     render(<PublicBooking token="tok12345" />);
     await userEvent.click(await screen.findByRole("button", { name: "10:00" }));
+    await userEvent.click(screen.getByRole("button", { name: /Continuar/ }));
     await userEvent.type(screen.getByLabelText("Nome"), "Carla");
     await userEvent.type(screen.getByLabelText("Telefone (WhatsApp)"), "98887777");
     await userEvent.click(screen.getByRole("button", { name: "Pedir a visita" }));
@@ -131,6 +161,9 @@ describe("link público de agendamento", () => {
     expect(await screen.findByRole("alert")).toHaveTextContent("Esse horário acabou de ser ocupado");
     await waitFor(() => expect(m.view).toHaveBeenCalledTimes(2));
     expect(screen.queryByText("Pedido enviado")).toBeNull();
+    // Volta para o calendário, sem horário escolhido.
+    expect(screen.queryByLabelText("Nome")).toBeNull();
+    expect(screen.getByRole("button", { name: "10:00" })).toHaveAttribute("aria-pressed", "false");
   });
 
   it("com captcha ligado e sem token, não envia", async () => {
@@ -156,6 +189,7 @@ describe("link público de agendamento", () => {
   it("a isca de robô fica fora da árvore acessível", async () => {
     render(<PublicBooking token="tok12345" />);
     await userEvent.click(await screen.findByRole("button", { name: "10:00" }));
+    await userEvent.click(screen.getByRole("button", { name: /Continuar/ }));
     expect(screen.queryByRole("textbox", { name: "Site" })).toBeNull();
   });
 

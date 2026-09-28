@@ -168,8 +168,22 @@ depois de enviar.
 - Mora sob `/share` e não em `/visita` de propósito: herda a árvore sem
   sessão do `providers.tsx`, o `noindex` e a exceção do redirect do apex, que
   uma rota nova precisaria repetir em quatro lugares.
-- Só dia com horário livre aparece. Um 409 (alguém pegou o horário no meio do
-  caminho) recarrega os horários e pede outro.
+- **Dois passos num cartão só**: "Dia e horário" (calendário do mês, em grade
+  de domingo a sábado, e os horários do dia separados em Manhã, Tarde e Noite)
+  e "Seus dados" (o formulário, com "Trocar horário" que volta sem perder o que
+  foi digitado). A coluna da esquerda tem a empresa, o tipo de visita com a
+  duração, a escolha feita e o "Como funciona" (só a partir de `lg`). O
+  calendário substituiu uma faixa de dias com rolagem lateral.
+- Só dia com horário livre é botão; os outros ficam apagados e fora do
+  teclado. As setas de mês param no primeiro e no último mês com horário. As
+  exceções da empresa chegam aqui só como horário que falta: a visão pública
+  não as devolve.
+- Um 409 (alguém pegou o horário no meio do caminho) volta para o calendário,
+  recarrega os horários e pede outro.
+- **Cor da empresa em variáveis CSS** no contêiner: `--brand` e `--brand-fg`
+  para o que é preenchido, e `--brand-line` (`useThemeAdjustedColor`) para
+  borda, anel e os tons feitos com `color-mix`. Uma empresa de cor branca ou
+  preta continua com o dia e o horário escolhidos visíveis nos dois temas.
 - Captcha pelo `lib/captcha.ts` (interativo) e um campo isca `website`, fora da
   árvore acessível, que o backend usa para responder "ok" a robô sem gravar.
 - O botão de envio usa `brandButtonStyle`, como os outros daqui.
