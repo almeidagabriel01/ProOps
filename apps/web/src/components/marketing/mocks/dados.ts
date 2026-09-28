@@ -1,4 +1,5 @@
 import { buildProposalCodePreview } from "@/lib/proposal-numbering";
+import type { StageTemplate } from "@/lib/niches/registry";
 
 import { parcelar } from "./geometria";
 
@@ -47,3 +48,25 @@ export const CENARIOS_DEMO = {
   realista: [42, 46, 45, 50, 54, 55, 59, 62, 61, 66, 69, 72],
   otimista: [42, 48, 49, 56, 61, 64, 70, 75, 76, 83, 88, 93],
 } as const;
+
+export type EstadoDaEtapaDemo = "feita" | "atual" | "proxima";
+
+export interface EtapaDemo {
+  nome: string;
+  estado: EstadoDaEtapaDemo;
+  checklist: readonly string[];
+}
+
+/**
+ * As etapas de uma obra de exemplo a partir do modelo REAL do nicho
+ * (`NICHE_REGISTRY[n].stageTemplate`, espelho do backend): as anteriores a
+ * `atual` feitas, a `atual` em andamento, o resto por vir.
+ */
+export function etapasDaObra(modelo: readonly StageTemplate[], atual = 1): EtapaDemo[] {
+  const indice = Math.min(Math.max(atual, 0), modelo.length - 1);
+  return modelo.map((etapa, i) => ({
+    nome: etapa.name,
+    checklist: etapa.checklist,
+    estado: i < indice ? "feita" : i === indice ? "atual" : "proxima",
+  }));
+}

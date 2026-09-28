@@ -27,6 +27,7 @@ export const PUBLIC_MARKETING_ROUTES = [
   "/",
   // As landings dos nichos vêm do registro: um nicho novo fica público sozinho.
   ...NICHE_LANDING_PATHS,
+  "/funcionalidades",
   "/contato",
   "/agendar",
   // The two host-routed sites. `proops.com.br/` and `app.proops.com.br/` are

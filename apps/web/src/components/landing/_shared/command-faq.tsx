@@ -10,7 +10,8 @@ import type { FAQ } from "./faq-data";
 interface CommandFaqProps {
   items: readonly FAQ[];
   id?: string;
-  eyebrow?: string;
+  /** `null` tira a sobrancelha (as superfícies novas não usam). */
+  eyebrow?: string | null;
   title?: React.ReactNode;
   description?: string;
 }
@@ -78,7 +79,7 @@ export function CommandFaq({
     >
       <div className="mx-auto max-w-2xl">
         <SectionHeading
-          eyebrow={eyebrow}
+          eyebrow={eyebrow ?? undefined}
           title={title}
           description={description}
           className="mb-12"

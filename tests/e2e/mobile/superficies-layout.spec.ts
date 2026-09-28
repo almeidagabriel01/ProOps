@@ -41,6 +41,7 @@ const PAGINAS = [
   { nome: "manifesto", url: `http://localhost:${PORTA}/manifesto` },
   { nome: "produtos", url: `http://localhost:${PORTA}/produtos` },
   { nome: "fale-conosco", url: `http://localhost:${PORTA}/fale-conosco` },
+  { nome: "funcionalidades", url: `http://localhost:${PORTA}/funcionalidades` },
 ];
 
 for (const pagina of PAGINAS) {

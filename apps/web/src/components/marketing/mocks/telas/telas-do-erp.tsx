@@ -25,7 +25,7 @@ import {
   MockValor,
 } from "../pecas";
 import { CascaDoErp } from "./comum";
-import type { EtapaDaTela } from "./telas-do-cliente";
+import { checklistDaEtapa, type EtapaDaTela } from "./telas-do-cliente";
 
 /**
  * O ERP por dentro, em tamanho de desktop: as telas que a EMPRESA usa. Cada uma
@@ -270,21 +270,19 @@ export function TelaObraInterna({ etapas, className }: TelaDoErpProps & { etapas
         <MockEtapas etapas={etapas} />
         <div className="mk-gap-2 mk-mt-3 grid grid-cols-[1.3fr_1fr]">
           <MockBloco titulo="Checklist da etapa">
-            {["Pontos conferidos", "Equipamentos instalados", "Teste com o cliente", "Fotos da entrega"].map(
-              (item, i) => (
-                <div key={item} data-mk="check" className="mk-gap-1.5 mk-py-0.5 mk-t-2 flex items-center">
-                  <span
-                    className={cn(
-                      "mk-size-2.5 mk-rounded-0.5 grid place-items-center border",
-                      i < 2 ? "mk-fundo-acento border-transparent" : "mk-linha",
-                    )}
-                  >
-                    {i < 2 ? <Check className="mk-size-2" aria-hidden strokeWidth={3} /> : null}
-                  </span>
-                  <span className={i < 2 ? "" : "mk-suave"}>{item}</span>
-                </div>
-              ),
-            )}
+            {checklistDaEtapa(etapas).map(({ item, feito }) => (
+              <div key={item} data-mk="check" className="mk-gap-1.5 mk-py-0.5 mk-t-2 flex items-start">
+                <span
+                  className={cn(
+                    "mk-size-2.5 mk-rounded-0.5 mt-[0.15em] grid shrink-0 place-items-center border",
+                    feito ? "mk-fundo-acento border-transparent" : "mk-linha",
+                  )}
+                >
+                  {feito ? <Check className="mk-size-2" aria-hidden strokeWidth={3} /> : null}
+                </span>
+                <span className={feito ? "" : "mk-suave"}>{item}</span>
+              </div>
+            ))}
           </MockBloco>
           <div className="mk-gap-2 flex flex-col">
             <MockBloco titulo="Responsável">

@@ -50,6 +50,7 @@ const ROTAS: Record<Surface, SitemapRoute[]> = {
       changeFrequency: "monthly" as const,
       priority: 0.9,
     })),
+    { path: "/funcionalidades", changeFrequency: "monthly", priority: 0.9 },
     { path: "/contato", changeFrequency: "yearly", priority: 0.5 },
     { path: "/agendar", changeFrequency: "yearly", priority: 0.5 },
   ],

@@ -40,6 +40,7 @@ const PAGINAS = [
   "/aplicativo",
   "/decoracao",
   "/automacao-residencial",
+  "/funcionalidades",
   "/login",
   "/register",
   "/forgot-password",

@@ -1,4 +1,5 @@
 import { test, expect, type Page } from "@playwright/test";
+import { coletaErrosDeHidratacao } from "../helpers/erros-de-hidratacao";
 
 /**
  * Duas seções da landing têm uma versão animada e uma estática: a galeria de
@@ -15,18 +16,6 @@ import { test, expect, type Page } from "@playwright/test";
 const NICHOS_EMPILHADA = '[data-nichos-versao="empilhada"]';
 const NICHOS_GALERIA = '[data-nichos-versao="galeria"]';
 const SEGURANCA_ESTATICA = '[data-seguranca-versao="estatica"]';
-
-function coletaErrosDeHidratacao(page: Page): string[] {
-  const erros: string[] = [];
-  const ehHidratacao = (texto: string) => /hydrat|#418|#423|#425/i.test(texto);
-  page.on("pageerror", (e) => {
-    if (ehHidratacao(e.message)) erros.push(e.message.slice(0, 200));
-  });
-  page.on("console", (msg) => {
-    if (msg.type() === "error" && ehHidratacao(msg.text())) erros.push(msg.text().slice(0, 200));
-  });
-  return erros;
-}
 
 async function abreLanding(page: Page) {
   await page.goto("/");

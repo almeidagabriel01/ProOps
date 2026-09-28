@@ -124,6 +124,14 @@ export function TelaRecibo({ className }: TelaDoClienteProps) {
 export interface EtapaDaTela {
   nome: string;
   estado: EstadoDaEtapa;
+  checklist?: readonly string[];
+}
+
+/** O checklist da etapa em andamento, com os primeiros itens já marcados. */
+export function checklistDaEtapa(etapas: readonly EtapaDaTela[]): { item: string; feito: boolean }[] {
+  const atual = etapas.find((e) => e.estado === "atual") ?? etapas[etapas.length - 1];
+  const itens = atual?.checklist ?? [];
+  return itens.map((item, i) => ({ item, feito: i < Math.max(1, itens.length - 1) }));
 }
 
 /** `/share/project/[token]`: a obra, etapa por etapa, e o aceite da entrega. */
@@ -140,17 +148,17 @@ export function TelaEntregaObra({ etapas, className }: TelaDoClienteProps & { et
         </div>
         <MockEtapas etapas={etapas} />
         <MockBloco titulo="Checklist">
-          {["Pontos conferidos", "Equipamentos instalados", "Teste com o cliente"].map((item, i) => (
-            <div key={item} className="mk-gap-1.5 mk-py-0.5 mk-t-2 flex items-center" data-mk="check">
+          {checklistDaEtapa(etapas).map(({ item, feito }) => (
+            <div key={item} className="mk-gap-1.5 mk-py-0.5 mk-t-2 flex items-start" data-mk="check">
               <span
                 className={cn(
-                  "mk-size-3 mk-rounded-0.5 grid place-items-center border",
-                  i < 2 ? "mk-fundo-acento border-transparent" : "mk-linha",
+                  "mk-size-3 mk-rounded-0.5 mt-[0.1em] grid shrink-0 place-items-center border",
+                  feito ? "mk-fundo-acento border-transparent" : "mk-linha",
                 )}
               >
-                {i < 2 ? <Check className="mk-size-2" aria-hidden strokeWidth={3} /> : null}
+                {feito ? <Check className="mk-size-2" aria-hidden strokeWidth={3} /> : null}
               </span>
-              <span className={i < 2 ? "" : "mk-suave"}>{item}</span>
+              <span className={feito ? "" : "mk-suave"}>{item}</span>
             </div>
           ))}
         </MockBloco>
