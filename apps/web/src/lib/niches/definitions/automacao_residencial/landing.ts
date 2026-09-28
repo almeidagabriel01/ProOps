@@ -1,58 +1,87 @@
-import { FileText, Kanban, DollarSign, Package, MessageCircle, CalendarDays, Layers, Cpu } from "lucide-react";
+import { FileText, Package, Layers, Cpu } from "lucide-react";
 import type { NicheLandingConfig } from "@/components/landing/niche/types";
+import type { ProdutoDeExemplo } from "@/lib/landing/proposta-de-exemplo";
 import { NICHE_REGISTRY } from "../../registry";
 import { signupHrefForNiche } from "../../niche-ids";
+
+/** Produtos de exemplo, com preço fictício, calculados pelo motor de preço real. */
+const ILUMINACAO: ProdutoDeExemplo = { price: 320, markup: 60, pricingModel: { mode: "standard" } };
+const AUDIO: ProdutoDeExemplo = { price: 890, markup: 55, pricingModel: { mode: "standard" } };
+const WIFI: ProdutoDeExemplo = { price: 620, markup: 50, pricingModel: { mode: "standard" } };
+const MOTOR_PERSIANA: ProdutoDeExemplo = { price: 690, markup: 45, pricingModel: { mode: "standard" } };
 
 /** Texto da landing do nicho. */
 export const nicheLanding: NicheLandingConfig = {
   slug: "automacao_residencial",
+  acento: { claro: "#4f46e5", escuro: "#a5b4fc" },
   hero: {
-    eyebrow: "",
     title: "ERP para",
     titleHighlight: "Automação Residencial",
     subtitle:
       "A ProOps tem um pacote pronto para integradores e empresas de automação residencial: gestão de propostas, CRM, financeiro e agenda integrados em um só lugar.",
     primaryCta: { label: "Começar agora", href: signupHrefForNiche("automacao_residencial") },
     secondaryCta: { label: "Fazer login", href: "/login" },
+    provas: ["Soluções por ambiente", "PDF com a sua marca", "Da infraestrutura à entrega"],
   },
-  features: [
+  dores: [
     {
-      icon: FileText,
-      title: "Propostas com PDF profissional",
-      description:
-        "Monte propostas detalhadas com lista de produtos, preços, prazo e condições de pagamento. Gere PDF com sua marca e envie direto ao cliente.",
+      antes: "Projeto por cômodo montado numa planilha que só você entende.",
+      depois: "Soluções prontas por ambiente, reaproveitadas de proposta em proposta.",
     },
     {
-      icon: Kanban,
-      title: "CRM Kanban para projetos",
-      description:
-        "Acompanhe cada oportunidade em quadro Kanban visual. Saiba exatamente em qual etapa cada projeto está e nunca perca um follow-up.",
+      antes: "PDF refeito no editor de texto a cada mudança do cliente.",
+      depois: "O PDF sai com a sua marca, e o cliente pede os ajustes pelo link.",
     },
     {
-      icon: DollarSign,
-      title: "Financeiro integrado",
-      description:
-        "Ao aprovar uma proposta, as parcelas são criadas automaticamente no financeiro. Controle o fluxo de caixa sem planilhas.",
-    },
-    {
-      icon: Package,
-      title: "Catálogo de produtos",
-      description:
-        "Cadastre painéis, centrais, sensores e câmeras com fotos e preços. Adicione a propostas em segundos.",
-    },
-    {
-      icon: MessageCircle,
-      title: "WhatsApp integrado",
-      description:
-        "Notifique clientes pelo WhatsApp quando a proposta é enviada ou aprovada. Comunicação profissional sem sair da plataforma.",
-    },
-    {
-      icon: CalendarDays,
-      title: "Agenda e calendário",
-      description:
-        "Organize visitas técnicas, instalações e reuniões com integração ao Google Calendar para sua equipe.",
+      antes: "Programação e entrega combinadas por mensagem, sem registro.",
+      depois: "Infraestrutura, instalação, configuração e entrega com checklist e fotos.",
     },
   ],
+  propostaExemplo: {
+    titulo: "Automação do apartamento 1204",
+    cliente: "Ana Moreira",
+    grupos: [
+      {
+        nome: "Iluminação",
+        itens: [
+          { descricao: "Sala: módulo de iluminação", produto: ILUMINACAO, quantidade: 3 },
+          { descricao: "Quarto: módulo de iluminação", produto: ILUMINACAO, quantidade: 2 },
+        ],
+      },
+      {
+        nome: "Áudio",
+        itens: [{ descricao: "Sala: caixas de som embutidas (par)", produto: AUDIO, quantidade: 1 }],
+      },
+      {
+        nome: "Wi-Fi",
+        itens: [{ descricao: "Pontos de acesso mesh", produto: WIFI, quantidade: 3 }],
+      },
+    ],
+  },
+  cena: {
+    titulo: "Ambiente por ambiente, sistema por sistema",
+    frase: "Ligue os sistemas em cada cômodo: a planta mostra onde, e a proposta se agrupa sozinha.",
+    dados: {
+      tipo: "matriz-automacao",
+      ambientes: [
+        { nome: "Sala", x: 2, y: 2, w: 58, h: 40 },
+        { nome: "Quarto", x: 62, y: 2, w: 36, h: 40 },
+        { nome: "Cozinha", x: 2, y: 44, w: 96, h: 24 },
+      ],
+      sistemas: [
+        { nome: "Iluminação", glifo: "luz", item: { descricao: "Módulo de iluminação", produto: ILUMINACAO, quantidade: 2 } },
+        { nome: "Áudio", glifo: "som", item: { descricao: "Caixas de som embutidas (par)", produto: AUDIO, quantidade: 1 } },
+        { nome: "Wi-Fi", glifo: "rede", item: { descricao: "Ponto de acesso mesh", produto: WIFI, quantidade: 1 } },
+        { nome: "Persianas", glifo: "persiana", item: { descricao: "Motor para persiana", produto: MOTOR_PERSIANA, quantidade: 1 } },
+      ],
+      inicial: [
+        [0, 0],
+        [0, 1],
+        [1, 0],
+        [2, 2],
+      ],
+    },
+  },
   modulesSection: {
     title: "Módulos específicos para automação",
     subtitle:

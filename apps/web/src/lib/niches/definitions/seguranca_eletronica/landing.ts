@@ -1,13 +1,54 @@
-import { FileText, Package, CalendarDays, Layers, CreditCard, Camera, ShieldCheck, Repeat } from "lucide-react";
-import type { NicheLandingConfig } from "@/components/landing/niche/types";
+import { Layers, ShieldCheck, Repeat } from "lucide-react";
+import type { CenaDoNicho, NicheLandingConfig } from "@/components/landing/niche/types";
 import { NICHE_REGISTRY } from "../../registry";
 import { signupHrefForNiche } from "../../niche-ids";
+
+/**
+ * Os sistemas de exemplo, com preço fictício: a mesma lista abastece a planta
+ * da cena e a proposta da tela do herói.
+ */
+const SISTEMAS: Extract<CenaDoNicho, { tipo: "planta-seguranca" }>["sistemas"] = [
+  {
+    nome: "CFTV",
+    dispositivos: [
+      { tipo: "camera", x: 6, y: 6, angulo: 40 },
+      { tipo: "camera", x: 94, y: 6, angulo: 140 },
+      { tipo: "camera", x: 8, y: 50, angulo: 20 },
+      { tipo: "camera", x: 92, y: 50, angulo: 160 },
+    ],
+    itens: [
+      { descricao: "Câmera bullet Full HD", produto: { price: 280, markup: 60, pricingModel: { mode: "standard" } }, quantidade: 4 },
+      { descricao: "Gravador de 8 canais", produto: { price: 890, markup: 40, pricingModel: { mode: "standard" } }, quantidade: 1 },
+      { descricao: "Instalação do CFTV", produto: { price: 1200, markup: 0, pricingModel: { mode: "standard" } }, quantidade: 1 },
+    ],
+  },
+  {
+    nome: "Alarme",
+    dispositivos: [
+      { tipo: "sensor", x: 30, y: 12 },
+      { tipo: "sensor", x: 70, y: 12 },
+      { tipo: "sensor", x: 50, y: 38 },
+    ],
+    itens: [
+      { descricao: "Central de alarme", produto: { price: 520, markup: 50, pricingModel: { mode: "standard" } }, quantidade: 1 },
+      { descricao: "Sensor infravermelho", produto: { price: 65, markup: 70, pricingModel: { mode: "standard" } }, quantidade: 6 },
+    ],
+  },
+  {
+    nome: "Controle de acesso",
+    dispositivos: [{ tipo: "leitor", x: 17, y: 60 }],
+    itens: [
+      { descricao: "Leitor facial", produto: { price: 1450, markup: 40, pricingModel: { mode: "standard" } }, quantidade: 1 },
+      { descricao: "Fechadura eletroímã", produto: { price: 380, markup: 50, pricingModel: { mode: "standard" } }, quantidade: 1 },
+    ],
+  },
+];
 
 /** Texto da landing do nicho. */
 export const nicheLanding: NicheLandingConfig = {
   slug: "seguranca_eletronica",
+  acento: { claro: "#dc2626", escuro: "#f87171" },
   hero: {
-    eyebrow: "",
     title: "ERP para",
     titleHighlight: "Segurança Eletrônica",
     subtitle:
@@ -17,45 +58,41 @@ export const nicheLanding: NicheLandingConfig = {
       href: signupHrefForNiche("seguranca_eletronica"),
     },
     secondaryCta: { label: "Fazer login", href: "/login" },
+    provas: ["Sistemas por área", "Contrato mensal recorrente", "Do levantamento à entrega"],
   },
-  features: [
+  dores: [
     {
-      icon: Camera,
-      title: "Proposta por sistema e área",
-      description:
-        "Monte kits de CFTV, alarme e controle de acesso uma vez e adicione o sistema inteiro à proposta, área por área.",
+      antes: "Kit de câmeras montado do zero a cada orçamento.",
+      depois: "Sistemas prontos, com produto e mão de obra juntos, reaproveitados em toda proposta.",
     },
     {
-      icon: Package,
-      title: "Catálogo de equipamentos",
-      description:
-        "Câmeras, gravadores, sensores, centrais e leitores com preço, markup e estoque, prontos para entrar na proposta.",
+      antes: "Mensalidade de monitoramento lembrada de cabeça todo mês.",
+      depois: "O contrato mensal entra como lançamento recorrente no financeiro.",
     },
     {
-      icon: CalendarDays,
-      title: "Da vistoria à entrega",
-      description:
-        "Marque a vistoria técnica na agenda e acompanhe a obra por etapas: levantamento, infraestrutura, instalação, configuração e entrega.",
-    },
-    {
-      icon: Repeat,
-      title: "Mensalidades no financeiro",
-      description:
-        "Lance contratos de manutenção e monitoramento como recorrência no financeiro, junto das parcelas da instalação.",
-    },
-    {
-      icon: FileText,
-      title: "PDF profissional",
-      description:
-        "Proposta em PDF com a sua marca, os sistemas separados e o subtotal de cada um.",
-    },
-    {
-      icon: CreditCard,
-      title: "Financeiro integrado",
-      description:
-        "Ao aprovar um orçamento, entradas e parcelas são criadas automaticamente no financeiro. Controle entradas e saídas sem planilhas.",
+      antes: "Vistoria, instalação e senhas entregues sem registro nenhum.",
+      depois: "Levantamento, instalação, configuração e entrega com checklist e fotos.",
     },
   ],
+  propostaExemplo: {
+    titulo: "CFTV, alarme e acesso do Condomínio Jardim",
+    cliente: "Condomínio Jardim",
+    grupos: SISTEMAS.map((sistema) => ({ nome: sistema.nome, itens: sistema.itens })),
+  },
+  cena: {
+    titulo: "Cada área coberta, cada mês cobrado",
+    frase: "Ligue os sistemas na planta: cada um entra na proposta com os itens dele, e o contrato mensal vira recorrência.",
+    dados: {
+      tipo: "planta-seguranca",
+      areas: [
+        { nome: "Perímetro", x: 0, y: 0, w: 100, h: 70 },
+        { nome: "Portaria", x: 4, y: 46, w: 26, h: 20 },
+        { nome: "Garagem", x: 34, y: 46, w: 62, h: 20 },
+      ],
+      sistemas: SISTEMAS,
+      mensalidade: { descricao: "Monitoramento e manutenção preventiva", valor: 189 },
+    },
+  },
   modulesSection: {
     title: "Feito para quem instala e integra",
     subtitle:

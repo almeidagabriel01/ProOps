@@ -1,58 +1,78 @@
-import { MessageCircle, CalendarDays, Ruler, Layers, Palette, CreditCard, LayoutGrid, Package } from "lucide-react";
+import { Ruler, LayoutGrid, Package } from "lucide-react";
 import type { NicheLandingConfig } from "@/components/landing/niche/types";
+import type { ProdutoDeExemplo } from "@/lib/landing/proposta-de-exemplo";
 import { NICHE_REGISTRY } from "../../registry";
 import { signupHrefForNiche } from "../../niche-ids";
+
+/** Produtos de exemplo, com preço fictício, calculados pelo motor de preço real. */
+const ROUPEIRO: ProdutoDeExemplo = { price: 780, markup: 45, pricingModel: { mode: "curtain_meter" } };
+const ARMARIO_LINEAR: ProdutoDeExemplo = { price: 1150, markup: 45, pricingModel: { mode: "curtain_width" } };
+const AEREO: ProdutoDeExemplo = { price: 820, markup: 45, pricingModel: { mode: "curtain_width" } };
+const PUXADOR: ProdutoDeExemplo = { price: 38, markup: 60, pricingModel: { mode: "standard" } };
+const MONTAGEM: ProdutoDeExemplo = { price: 850, markup: 0, pricingModel: { mode: "standard" } };
 
 /** Texto da landing do nicho. */
 export const nicheLanding: NicheLandingConfig = {
   slug: "marcenaria",
+  acento: { claro: "#8a5a2b", escuro: "#d6a574" },
   hero: {
-    eyebrow: "",
     title: "ERP para",
     titleHighlight: "Marcenaria e Móveis Planejados",
     subtitle:
       "A ProOps tem um pacote pronto para marcenarias e lojas de móveis planejados: orçamento por m² ou por metro linear, proposta por ambiente, agenda de medição, obra do projeto à montagem, CRM e financeiro integrados.",
     primaryCta: { label: "Começar agora", href: signupHrefForNiche("marcenaria") },
     secondaryCta: { label: "Fazer login", href: "/login" },
+    provas: ["Por m², metro linear e unidade", "Proposta por ambiente", "Da medição à montagem"],
   },
-  features: [
+  dores: [
     {
-      icon: Ruler,
-      title: "Orçamento por medida",
-      description:
-        "Informe as medidas do móvel e o total sai na hora: por m² de frente, por metro linear de armário ou por unidade, com o markup de cada produto.",
+      antes: "Valor do projeto passado à mão do programa de desenho para a proposta.",
+      depois: "Cada peça entra com a medida dela, e o preço sai da regra do produto.",
     },
     {
-      icon: Layers,
-      title: "Proposta por ambiente",
-      description:
-        "Cozinha, dormitório, closet: cada ambiente com os móveis padrão já definidos. Monte a proposta escolhendo os ambientes e ajuste as medidas.",
+      antes: "Metro linear da cozinha numa planilha, m² do roupeiro em outra.",
+      depois: "Por m², por metro linear e por unidade na mesma proposta.",
     },
     {
-      icon: Palette,
-      title: "Catálogo com fotos",
-      description:
-        "Cadastre módulos, painéis, ferragens e acabamentos com até três fotos por produto. As fotos aparecem no PDF da proposta.",
-    },
-    {
-      icon: CalendarDays,
-      title: "Do projeto à montagem",
-      description:
-        "Marque a medição na agenda e acompanhe cada obra por etapas: medição, projeto, produção, montagem e entrega.",
-    },
-    {
-      icon: CreditCard,
-      title: "Financeiro integrado",
-      description:
-        "Ao aprovar um orçamento, a entrada e as parcelas são criadas automaticamente no financeiro. Controle entradas e saídas sem planilhas.",
-    },
-    {
-      icon: MessageCircle,
-      title: "WhatsApp integrado",
-      description:
-        "Envie a proposta pelo WhatsApp direto da plataforma e acompanhe quando o cliente abre e aceita.",
+      antes: "Produção e montagem acompanhadas pelo telefone, peça por peça.",
+      depois: "Medição, projeto, produção, montagem e entrega com checklist e fotos.",
     },
   ],
+  propostaExemplo: {
+    titulo: "Cozinha e dormitório planejados",
+    cliente: "Júlia Prado",
+    grupos: [
+      {
+        nome: "Cozinha",
+        itens: [
+          { descricao: "Armário inferior com bancada", produto: ARMARIO_LINEAR, medidas: { largura: 3.2 } },
+          { descricao: "Armário aéreo", produto: AEREO, medidas: { largura: 2.6 } },
+          { descricao: "Puxador perfil em alumínio", produto: PUXADOR, quantidade: 10 },
+        ],
+      },
+      {
+        nome: "Dormitório",
+        itens: [
+          { descricao: "Roupeiro de correr em MDF", produto: ROUPEIRO, medidas: { largura: 2.4, altura: 2.6 } },
+          { descricao: "Painel de TV", produto: ROUPEIRO, medidas: { largura: 1.8, altura: 1.2 } },
+        ],
+      },
+      {
+        nome: "Closet",
+        itens: [{ descricao: "Montagem no local", produto: MONTAGEM, quantidade: 1 }],
+      },
+    ],
+  },
+  cena: {
+    titulo: "Do módulo ao orçamento",
+    frase: "Mude as medidas do ambiente e veja cada peça entrar na proposta com a sua regra de preço.",
+    dados: {
+      tipo: "modulo-planejado",
+      roupeiro: { descricao: "Roupeiro em MDF, frente", produto: ROUPEIRO, largura: 2.4, altura: 2.6 },
+      bancada: { descricao: "Armário inferior com bancada", produto: ARMARIO_LINEAR, largura: 3.2 },
+      puxadores: { descricao: "Puxador perfil em alumínio", produto: PUXADOR, quantidade: 8 },
+    },
+  },
   modulesSection: {
     title: "Do ambiente medido ao orçamento aprovado",
     subtitle:
@@ -62,6 +82,7 @@ export const nicheLanding: NicheLandingConfig = {
     {
       icon: Ruler,
       title: "Por m²",
+      modo: "curtain_meter",
       description:
         "Largura x altura x preço do m². Para armários, painéis, portas e roupeiros cobrados pela área de frente.",
       bullets: ["Largura e altura em metros", "Mais de uma peça no mesmo ambiente", "Markup configurável por produto"],
@@ -69,6 +90,7 @@ export const nicheLanding: NicheLandingConfig = {
     {
       icon: LayoutGrid,
       title: "Por metro linear",
+      modo: "curtain_width",
       description:
         "Preço por metro, multiplicado pela largura. Para armários de cozinha, bancadas, rodapés e prateleiras.",
       bullets: ["Largura em metros", "Várias peças no mesmo ambiente", "Custo e markup próprios"],
@@ -76,6 +98,7 @@ export const nicheLanding: NicheLandingConfig = {
     {
       icon: Package,
       title: "Por unidade",
+      modo: "standard",
       description:
         "Ferragens, puxadores, iluminação e a montagem como item fechado, ao lado dos móveis cobrados por medida.",
       bullets: ["Kit e acessório por peça", "Serviço de montagem na mesma proposta", "Estoque controlado no catálogo"],

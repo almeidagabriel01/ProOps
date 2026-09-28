@@ -1,58 +1,92 @@
-import { MessageCircle, CalendarDays, Ruler, Layers, Palette, CreditCard, ArrowUpDown, LayoutGrid } from "lucide-react";
+import { Ruler, Layers, ArrowUpDown, LayoutGrid } from "lucide-react";
 import type { NicheLandingConfig } from "@/components/landing/niche/types";
+import type { ProdutoDeExemplo } from "@/lib/landing/proposta-de-exemplo";
 import { NICHE_REGISTRY } from "../../registry";
 import { signupHrefForNiche } from "../../niche-ids";
+
+/** Produtos de exemplo, com preço fictício, calculados pelo motor de preço real. */
+const PERSIANA_ROLO: ProdutoDeExemplo = { price: 145, markup: 60, pricingModel: { mode: "curtain_meter" } };
+const CORTINA_WAVE: ProdutoDeExemplo = {
+  price: 0,
+  markup: 0,
+  pricingModel: {
+    mode: "curtain_height",
+    tiers: [
+      { id: "ate-1-8", maxHeight: 1.8, basePrice: 120, markup: 70 },
+      { id: "ate-2-6", maxHeight: 2.6, basePrice: 160, markup: 70 },
+      { id: "ate-3-2", maxHeight: 3.2, basePrice: 210, markup: 70 },
+    ],
+  },
+};
+const BANDO: ProdutoDeExemplo = { price: 110, markup: 60, pricingModel: { mode: "curtain_width" } };
+const TOLDO: ProdutoDeExemplo = { price: 480, markup: 55, pricingModel: { mode: "curtain_width" } };
+const MOTOR: ProdutoDeExemplo = { price: 690, markup: 35, pricingModel: { mode: "standard" } };
 
 /** Texto da landing do nicho. */
 export const nicheLanding: NicheLandingConfig = {
   slug: "cortinas",
+  acento: { claro: "#be185d", escuro: "#f9a8d4" },
   hero: {
-    eyebrow: "",
     title: "ERP para",
     titleHighlight: "Persianas e Toldos",
     subtitle:
       "A ProOps tem um pacote pronto para empresas de persianas, cortinas, toldos e pergolados: proposta por ambiente com preço por medida, catálogo com fotos, obra, CRM e financeiro integrados.",
     primaryCta: { label: "Começar agora", href: signupHrefForNiche("cortinas") },
     secondaryCta: { label: "Fazer login", href: "/login" },
+    provas: ["Preço por m², faixa de altura e largura", "Proposta por ambiente", "Da medição à entrega"],
   },
-  features: [
+  dores: [
     {
-      icon: Ruler,
-      title: "Preço por medida",
-      description:
-        "Cobre por metro quadrado, por metro de largura ou por faixa de altura. Informe as medidas do vão e o total sai na hora, com o markup do produto.",
+      antes: "Medida anotada no papel e a conta feita na calculadora, vão por vão.",
+      depois: "Largura e altura entram na proposta, e o preço sai da regra do produto.",
     },
     {
-      icon: Layers,
-      title: "Proposta por ambiente",
-      description:
-        "Sala, suíte, varanda: cada ambiente com os produtos padrão já definidos. Monte a proposta escolhendo os ambientes e ajuste as medidas.",
+      antes: "A tabela de faixas de altura numa planilha à parte, sempre desatualizada.",
+      depois: "A faixa de cada cortina escolhida na própria linha da proposta.",
     },
     {
-      icon: Palette,
-      title: "Catálogo com fotos",
-      description:
-        "Cadastre tecidos, lonas, motores e acessórios com até três fotos por produto. As fotos aparecem no PDF da proposta.",
-    },
-    {
-      icon: CreditCard,
-      title: "Financeiro integrado",
-      description:
-        "Ao aprovar um orçamento, entradas e parcelas são criadas automaticamente no financeiro. Controle entradas e saídas sem planilhas.",
-    },
-    {
-      icon: MessageCircle,
-      title: "WhatsApp integrado",
-      description:
-        "Envie propostas e notificações pelo WhatsApp diretamente da plataforma. Comunique-se de forma profissional com cada cliente.",
-    },
-    {
-      icon: CalendarDays,
-      title: "Da medição à entrega",
-      description:
-        "Marque a medição técnica na agenda e acompanhe cada obra por etapas: medição, produção, instalação e entrega.",
+      antes: "Instalação marcada de cabeça, sem saber o que já chegou da fábrica.",
+      depois: "Medição, produção, instalação e entrega com checklist e fotos.",
     },
   ],
+  propostaExemplo: {
+    titulo: "Persianas e toldo da residência Duarte",
+    cliente: "Marina Duarte",
+    grupos: [
+      {
+        nome: "Sala",
+        itens: [
+          { descricao: "Cortina wave em linho", produto: CORTINA_WAVE, medidas: { largura: 3.2, faixaId: "ate-2-6" } },
+          { descricao: "Persiana rolô tela solar", produto: PERSIANA_ROLO, medidas: { largura: 2.4, altura: 1.8 } },
+        ],
+      },
+      {
+        nome: "Quarto",
+        itens: [
+          { descricao: "Persiana rolô blackout", produto: PERSIANA_ROLO, medidas: { largura: 1.8, altura: 1.6 } },
+          { descricao: "Motor com controle", produto: MOTOR, quantidade: 1 },
+        ],
+      },
+      {
+        nome: "Varanda",
+        itens: [{ descricao: "Toldo retrátil em lona", produto: TOLDO, medidas: { largura: 4.2 } }],
+      },
+    ],
+  },
+  cena: {
+    titulo: "O vão que vira preço",
+    frase: "Arraste as medidas e troque o modo de cobrança: o total é o que a proposta calcularia.",
+    dados: {
+      tipo: "vao-persiana",
+      largura: 2.4,
+      altura: 1.8,
+      produtos: {
+        curtain_meter: { descricao: "Persiana rolô blackout", produto: PERSIANA_ROLO },
+        curtain_height: { descricao: "Cortina wave em linho", produto: CORTINA_WAVE },
+        curtain_width: { descricao: "Bandô com trilho", produto: BANDO },
+      },
+    },
+  },
   modulesSection: {
     title: "Três modos de preço por medida",
     subtitle:
@@ -62,6 +96,7 @@ export const nicheLanding: NicheLandingConfig = {
     {
       icon: Ruler,
       title: "Por área (m²)",
+      modo: "curtain_meter",
       description:
         "Largura x altura do vão x número de painéis x preço por m². Para persianas rolô, romanas e painéis.",
       bullets: [
@@ -73,6 +108,7 @@ export const nicheLanding: NicheLandingConfig = {
     {
       icon: ArrowUpDown,
       title: "Por faixa de altura",
+      modo: "curtain_height",
       description:
         "Tabela de preço por faixa de altura, multiplicada pela largura. Para cortinas de trilho e persianas cujo custo muda com o tamanho.",
       bullets: [
@@ -84,6 +120,7 @@ export const nicheLanding: NicheLandingConfig = {
     {
       icon: LayoutGrid,
       title: "Por metro de largura",
+      modo: "curtain_width",
       description:
         "Preço por metro linear, multiplicado pela largura e pelo número de peças. Para toldos, trilhos e bandôs.",
       bullets: [
