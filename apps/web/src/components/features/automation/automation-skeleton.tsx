@@ -7,7 +7,7 @@ export function AutomationSkeleton() {
           <div className="h-10 w-10 rounded-xl bg-muted" />
           <div className="h-8 w-48 rounded bg-muted" />
         </div>
-        <div className="h-5 w-96 rounded bg-muted ml-12" />
+        <div className="h-5 w-96 max-w-[calc(100%-3rem)] rounded bg-muted ml-12" />
       </div>
 
       {/* Tabs + New Button */}

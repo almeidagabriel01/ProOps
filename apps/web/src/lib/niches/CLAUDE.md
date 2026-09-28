@@ -46,7 +46,10 @@ Cada passo diz o que o cobra. Nenhum passo depende de lembrar.
    `NICHOS_PRONTOS` derivam do registro sozinhos.
 6. **Marketing em prosa**: citar o nicho no `app/manifest.ts`, nas keywords de
    `app/layout.tsx` e no FAQ de `components/landing/_shared/faq-data.ts`.
-   Cobra: `__tests__/niche-marketing-mentions.test.ts`.
+   Cobra: `__tests__/niche-marketing-mentions.test.ts`. E uma aba na cena da
+   planta da landing (`components/marketing/cena-planta/dados.ts`, com os seis
+   rótulos no vocabulário do nicho, mais a linha do nicho no `globals.css`).
+   Cobra: `components/marketing/cena-planta/__tests__/cena-planta.test.ts`.
 
 Nicho que cobra por medida (m², metro linear, faixa de altura) usa os modos que
 já existem (`pricing.dimensionModes`) e troca o nome deles em

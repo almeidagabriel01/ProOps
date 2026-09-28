@@ -5,6 +5,7 @@ import { SemHidratar } from "@/components/marketing/_shared/sem-hidratar";
 import {
   COMODOS,
   ITENS,
+  NICHOS,
   NICHO_PADRAO,
   PAGAMENTO,
   PROPOSTA,
@@ -33,11 +34,9 @@ const RESUMO = `Exemplo ilustrativo: numa casa de ${COMODOS.length} ambientes, $
   PAGAMENTO.entrada,
 )} e ${PAGAMENTO.parcelas.length} parcelas de ${formataReais(
   PAGAMENTO.parcelas[0],
-)}. O mesmo projeto é mostrado no vocabulário de ${
-  nichoPorId("automacao").rotulo.toLowerCase()
-}, de ${nichoPorId("cortinas").rotulo.toLowerCase()} e de ${nichoPorId(
-  "marcenaria",
-).rotulo.toLowerCase()}, que é um nicho configurado sob medida.`;
+)}. O mesmo projeto é mostrado no vocabulário de ${NICHOS.filter((n) => n.nicho)
+  .map((n) => n.rotulo.toLowerCase())
+  .join(", de ")} e de ${nichoPorId("marcenaria").rotulo.toLowerCase()}, que é um nicho configurado sob medida.`;
 
 /**
  * A cena da planta: do ambiente especificado ao dinheiro lançado no financeiro.

@@ -4,7 +4,7 @@ export function KanbanSkeleton() {
       {/* Header: Title + Description */}
       <div className="space-y-2">
         <div className="h-9 w-32 rounded bg-muted" />
-        <div className="h-4 w-96 rounded bg-muted" />
+        <div className="h-4 w-96 max-w-full rounded bg-muted" />
       </div>
 
       {/* Tabs */}

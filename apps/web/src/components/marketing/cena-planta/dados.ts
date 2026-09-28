@@ -1,3 +1,4 @@
+import type { TenantNicheId } from "@/lib/niches/registry";
 import { buildProposalCodePreview } from "@/lib/proposal-numbering";
 
 /**
@@ -185,22 +186,26 @@ export const ITENS: readonly Item[] = [
 ];
 
 /**
- * O MESMO projeto, escrito no vocabulário de três negócios diferentes.
+ * O MESMO projeto, escrito no vocabulário de negócios diferentes.
  *
  * É a tese da página em forma de cena: o que muda de um nicho para o outro é o
  * catálogo e as palavras, e não a base. Por isso o nicho troca só os RÓTULOS:
  * os cômodos, os preços e as cortinas que descem são os mesmos, e a cena não
  * precisa ser remontada quando alguém troca de aba.
  *
- * `marcenaria` está aqui de propósito, e é o ponto todo: ela não é um dos
- * nichos configurados hoje (`lib/niches/registry.ts`), é o exemplo de um nicho
- * NOVO, adaptado para a operação de quem chega. Quem vende projeto e não vende
- * automação nem cortina precisa se ver na página antes de acreditar na frase.
+ * Todo nicho pronto do produto tem aba aqui, ligada pelo campo `nicho`
+ * (`__tests__/cena-planta.test.ts` reprova se um nicho do registro ficar de
+ * fora). `marcenaria` não tem `nicho` de propósito, e é o ponto todo: ela não é
+ * um nicho configurado hoje, é o exemplo de um nicho NOVO, adaptado para a
+ * operação de quem chega. Quem vende projeto e não se vê entre os pacotes
+ * prontos precisa se ver na página antes de acreditar na frase.
  */
-export type NichoDaCena = "automacao" | "cortinas" | "marcenaria";
+export type NichoDaCena = "automacao" | "cortinas" | "seguranca" | "marcenaria";
 
 export interface Nicho {
   id: NichoDaCena;
+  /** O nicho do produto que esta aba mostra; ausente no exemplo sob medida. */
+  nicho?: TenantNicheId;
   /** O que a aba mostra. */
   rotulo: string;
   /** Uma linha, debaixo da cena. */
@@ -212,6 +217,7 @@ export interface Nicho {
 export const NICHOS: readonly Nicho[] = [
   {
     id: "automacao",
+    nicho: "automacao_residencial",
     rotulo: "Automação residencial",
     nota: "Catálogo, ambientes e proposta técnica: o pacote que já vem pronto.",
     rotulos: [
@@ -225,6 +231,7 @@ export const NICHOS: readonly Nicho[] = [
   },
   {
     id: "cortinas",
+    nicho: "cortinas",
     rotulo: "Persianas e toldos",
     nota: "Preço por medida, proposta por ambiente: outro pacote pronto.",
     rotulos: [
@@ -234,6 +241,20 @@ export const NICHOS: readonly Nicho[] = [
       "Cortina de linho, trilho suíço",
       "Persiana romana",
       "Pergolado com cobertura retrátil",
+    ],
+  },
+  {
+    id: "seguranca",
+    nicho: "seguranca_eletronica",
+    rotulo: "Segurança eletrônica",
+    nota: "Câmeras, alarme e acesso por área, da vistoria à entrega: também já vem pronto.",
+    rotulos: [
+      "CFTV com 4 câmeras e gravador",
+      "Sensores de abertura nas janelas",
+      "Alarme monitorado com 8 zonas",
+      "Controle de acesso biométrico",
+      "Sensor de fumaça e gás",
+      "Câmeras externas com visão noturna",
     ],
   },
   {
