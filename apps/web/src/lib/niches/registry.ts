@@ -19,6 +19,11 @@ export interface VisitType {
   durationMin: number;
 }
 
+export interface StageTemplate {
+  name: string;
+  checklist: readonly string[];
+}
+
 export interface WebNicheEntry {
   /** Nome do nicho na interface. */
   label: string;
@@ -27,6 +32,12 @@ export interface WebNicheEntry {
   demoTenantId: string;
   productImageLimit: number;
   defaultVisitType: VisitType;
+  /**
+   * Etapas com que a obra nasce, com o checklist de cada uma. Espelho do
+   * backend: as landings mostram as etapas REAIS do nicho, nunca uma lista
+   * escrita à parte.
+   */
+  stageTemplate: readonly StageTemplate[];
 }
 
 export const NICHE_REGISTRY = {
@@ -36,6 +47,12 @@ export const NICHE_REGISTRY = {
     demoTenantId: "demo",
     productImageLimit: 1,
     defaultVisitType: { id: "visita_tecnica", label: "Visita técnica", durationMin: 60 },
+    stageTemplate: [
+      { name: "Infraestrutura", checklist: ["Conferir tubulação e caixas", "Passar cabeamento", "Montar o quadro/rack"] },
+      { name: "Instalação", checklist: ["Instalar os equipamentos", "Ligar e identificar os circuitos"] },
+      { name: "Configuração", checklist: ["Programar cenas e automações", "Configurar o aplicativo", "Testar ambiente por ambiente"] },
+      { name: "Entrega", checklist: ["Treinar o cliente", "Limpar e organizar a obra", "Registrar fotos finais"] },
+    ],
   },
   cortinas: {
     label: "Persianas e Toldos",
@@ -43,6 +60,12 @@ export const NICHE_REGISTRY = {
     demoTenantId: "demo-cortinas",
     productImageLimit: 3,
     defaultVisitType: { id: "medicao", label: "Medição", durationMin: 60 },
+    stageTemplate: [
+      { name: "Medição", checklist: ["Medir vãos e altura", "Conferir a alvenaria e o ponto elétrico", "Confirmar tecido, lona e acionamento"] },
+      { name: "Produção", checklist: ["Enviar pedido", "Conferir peças recebidas"] },
+      { name: "Instalação", checklist: ["Fixar trilhos, suportes e braços", "Instalar persianas, cortinas e toldos", "Regular e testar o acionamento"] },
+      { name: "Entrega", checklist: ["Orientar o cliente", "Registrar fotos finais"] },
+    ],
   },
   seguranca_eletronica: {
     label: "Segurança Eletrônica",
@@ -50,6 +73,13 @@ export const NICHE_REGISTRY = {
     demoTenantId: "demo-seguranca",
     productImageLimit: 1,
     defaultVisitType: { id: "vistoria_tecnica", label: "Vistoria técnica", durationMin: 60 },
+    stageTemplate: [
+      { name: "Levantamento", checklist: ["Mapear os pontos de câmera e sensores", "Definir a rota dos cabos e a energia", "Confirmar o local do gravador e da central"] },
+      { name: "Infraestrutura", checklist: ["Passar tubulação e cabeamento", "Montar o rack ou a caixa do gravador"] },
+      { name: "Instalação", checklist: ["Instalar câmeras, sensores e central", "Instalar fechaduras, leitores e cerca, se houver"] },
+      { name: "Configuração", checklist: ["Configurar gravação e acesso remoto no aplicativo", "Cadastrar zonas, usuários e biometrias", "Testar cada ponto"] },
+      { name: "Entrega", checklist: ["Treinar o cliente", "Entregar senhas e o termo de entrega", "Registrar fotos finais"] },
+    ],
   },
   vidracaria_esquadrias: {
     label: "Vidraçaria e Esquadrias",
@@ -57,6 +87,12 @@ export const NICHE_REGISTRY = {
     demoTenantId: "demo-vidracaria",
     productImageLimit: 3,
     defaultVisitType: { id: "medicao", label: "Medição", durationMin: 60 },
+    stageTemplate: [
+      { name: "Medição", checklist: ["Medir os vãos no local", "Conferir prumo, nível e esquadro", "Confirmar vidro, perfil e acabamento"] },
+      { name: "Produção", checklist: ["Enviar vidros para a têmpera", "Cortar e montar os perfis", "Conferir as peças recebidas"] },
+      { name: "Instalação", checklist: ["Instalar esquadrias e vidros", "Vedar e regular portas e janelas"] },
+      { name: "Entrega", checklist: ["Limpar os vidros", "Orientar o cliente", "Registrar fotos finais"] },
+    ],
   },
   marcenaria: {
     label: "Marcenaria e Móveis Planejados",
@@ -64,6 +100,13 @@ export const NICHE_REGISTRY = {
     demoTenantId: "demo-marcenaria",
     productImageLimit: 3,
     defaultVisitType: { id: "medicao", label: "Medição", durationMin: 60 },
+    stageTemplate: [
+      { name: "Medição", checklist: ["Medir paredes, pé-direito e vãos", "Marcar pontos elétricos e hidráulicos", "Fotografar o ambiente"] },
+      { name: "Projeto", checklist: ["Desenhar o projeto do ambiente", "Aprovar projeto, cores e acabamentos com o cliente"] },
+      { name: "Produção", checklist: ["Cortar e fitar as chapas", "Furar e pré-montar os módulos", "Separar ferragens e acessórios"] },
+      { name: "Montagem", checklist: ["Montar e fixar os módulos", "Instalar ferragens, puxadores e iluminação", "Regular portas e gavetas"] },
+      { name: "Entrega", checklist: ["Limpar e vistoriar com o cliente", "Registrar fotos finais"] },
+    ],
   },
 } satisfies Record<string, WebNicheEntry>;
 

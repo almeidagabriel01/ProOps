@@ -40,6 +40,7 @@ describe("registro de nichos: front, backend e rules iguais", () => {
     expect(f.demoTenantId).toBe(b.demoTenantId);
     expect(f.productImageLimit).toBe(b.productImageLimit);
     expect(f.defaultVisitType).toEqual(b.defaultVisitType);
+    expect(f.stageTemplate).toEqual(b.stageTemplate);
   });
 
   it("as rules aceitam no cadastro exatamente os nichos do registro", () => {
