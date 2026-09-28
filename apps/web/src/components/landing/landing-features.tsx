@@ -1,187 +1,172 @@
 "use client";
 
-import React, { useRef } from "react";
-import gsap from "gsap";
-import { ScrollTrigger } from "gsap/dist/ScrollTrigger";
-import { useGSAP } from "@gsap/react";
-import {
-  ArrowUpRight,
-  Bot,
-  FileSpreadsheet,
-  Layers,
-  Package,
-  ShieldCheck,
-  Users,
-} from "lucide-react";
+import React, { useEffect, useRef, useState } from "react";
+import Link from "next/link";
+import { ArrowRight, ArrowUpRight } from "lucide-react";
+
+import { HidratarPerto } from "@/components/marketing/_shared/hidratar-perto";
+import { etapasDaObra } from "@/components/marketing/mocks/dados";
+import { CATALOGO, CATEGORIAS, DESTAQUES, recurso, seloDoPlano } from "@/lib/landing/funcionalidades";
+import { DEFAULT_NICHE, NICHE_REGISTRY } from "@/lib/niches/registry";
+import { cn } from "@/lib/utils";
+
+import { LandingButton } from "./_shared/landing-button";
 import { Accent, SectionHeading } from "./_shared/section-heading";
+import { CenaDoDestaque } from "./recursos/palco-dos-destaques";
 
-if (typeof window !== "undefined") {
-  gsap.registerPlugin(ScrollTrigger);
-}
-
-type Feature = {
-  icon: React.ComponentType<{ className?: string }>;
-  title: string;
-  description: string;
-};
-
-const FEATURES: Feature[] = [
-  {
-    icon: Bot,
-    title: "WhatsApp integrado",
-    description:
-      "Consulte propostas, financeiro e documentos pelo WhatsApp. A Lia responde sobre o seu negócio em segundos.",
-  },
-  {
-    icon: Users,
-    title: "Clientes e fornecedores",
-    description:
-      "Base única de contatos com cadastro completo para vendas, pós-venda e operação financeira.",
-  },
-  {
-    icon: Package,
-    title: "Catálogo comercial",
-    description:
-      "Produtos e serviços com preço, margem e estoque, prontos para usar nas propostas.",
-  },
-  {
-    icon: ShieldCheck,
-    title: "Equipe e permissões",
-    description:
-      "Controle de acesso por módulo e ação para delegar tarefas com segurança operacional.",
-  },
-  {
-    icon: Layers,
-    title: "Soluções e ambientes",
-    description:
-      "Templates de soluções com ambientes e itens padrão para acelerar propostas complexas.",
-  },
-  {
-    icon: FileSpreadsheet,
-    title: "Planilhas personalizadas",
-    description:
-      "Crie planilhas internas por empresa para organizar dados de operação fora do fluxo padrão.",
-  },
-];
+const ETAPAS = etapasDaObra(NICHE_REGISTRY[DEFAULT_NICHE].stageTemplate, 1);
 
 /**
- * Recursos — formato editorial de "ledger" (lista dividida por hairlines), sem
- * cards. Layout assimétrico: heading sticky à esquerda, lista de capacidades à
- * direita com índice, ícone e reveal em stagger. Hospeda as âncoras `#modulos` e
- * `#showcase` (a antiga seção Módulos foi removida) além do `#recursos`.
+ * Os cinco destaques, lado a lado com o palco.
+ *
+ * No desktop com movimento, a lista rola e o palco fica: a linha que passa
+ * pelo meio da tela vira a ativa, abre os detalhes e troca a cena do palco.
+ * O único JavaScript é um IntersectionObserver que escreve o índice ativo; a
+ * troca de cena e a entrada de cada uma são CSS.
+ *
+ * No celular, ou com movimento reduzido, não há palco: cada destaque traz a
+ * própria cena embaixo dele, com os detalhes abertos. As duas formas estão no
+ * HTML e o CSS escolhe (`lg:motion-safe`), a regra da casa para hidratar igual
+ * em qualquer preferência.
  */
-export function LandingFeatures() {
-  const containerRef = useRef<HTMLElement>(null);
+function Destaques() {
+  const [ativo, setAtivo] = useState(0);
+  const linhas = useRef<(HTMLLIElement | null)[]>([]);
 
-  useGSAP(
-    () => {
-      const section = containerRef.current;
-      if (!section) return;
-
-      section
-        .querySelectorAll<HTMLElement>(".features-heading")
-        .forEach((item) => {
-          gsap.fromTo(
-            item,
-            { y: 22, opacity: 0, autoAlpha: 0 },
-            {
-              y: 0,
-              opacity: 1,
-              autoAlpha: 1,
-              ease: "none",
-              scrollTrigger: {
-                trigger: item,
-                start: "top 94%",
-                end: "top 64%",
-                scrub: true,
-                invalidateOnRefresh: true,
-              },
-            },
-          );
-        });
-
-      gsap.utils.toArray<HTMLElement>(".feature-row").forEach((row, i) => {
-        gsap.fromTo(
-          row,
-          { y: 24, opacity: 0, autoAlpha: 0 },
-          {
-            y: 0,
-            opacity: 1,
-            autoAlpha: 1,
-            duration: 0.6,
-            delay: i * 0.05,
-            ease: "power3.out",
-            scrollTrigger: {
-              trigger: row,
-              start: "top 92%",
-              invalidateOnRefresh: true,
-            },
-          },
-        );
-      });
-    },
-    { scope: containerRef },
-  );
+  useEffect(() => {
+    const observador = new IntersectionObserver(
+      (entradas) => {
+        for (const entrada of entradas) {
+          if (!entrada.isIntersecting) continue;
+          const indice = linhas.current.indexOf(entrada.target as HTMLLIElement);
+          if (indice >= 0) setAtivo(indice);
+        }
+      },
+      { rootMargin: "-48% 0px -48% 0px" },
+    );
+    linhas.current.forEach((el) => el && observador.observe(el));
+    return () => observador.disconnect();
+  }, []);
 
   return (
+    <div className="destaques mt-16 grid gap-14 lg:mt-20 lg:grid-cols-[0.92fr_1.08fr] lg:gap-16">
+      <ol className="relative">
+        {DESTAQUES.map((destaque, i) => {
+          const principal = recurso(destaque.principal);
+          const selo = seloDoPlano(principal.requisito);
+          return (
+            <li
+              key={destaque.id}
+              ref={(el) => {
+                linhas.current[i] = el;
+              }}
+              data-ativo={i === ativo ? "" : undefined}
+              className="destaque relative border-t border-black/10 py-9 pl-6 dark:border-white/10 lg:motion-safe:flex lg:motion-safe:min-h-[58vh] lg:motion-safe:flex-col lg:motion-safe:justify-center"
+            >
+              <span aria-hidden="true" className="destaque-barra absolute left-0 top-9 w-[3px] rounded-full bg-black dark:bg-white" />
+              <h3 className="destaque-titulo [font-family:var(--font-pdf-montserrat)] text-2xl font-bold leading-tight tracking-[-0.02em] md:text-[1.75rem]">
+                {destaque.titulo}
+              </h3>
+              <p className="mt-3 max-w-lg text-[15px] leading-relaxed text-black/60 dark:text-white/60 md:text-base">
+                {destaque.frase}
+              </p>
+              <div className="destaque-corpo">
+                <div>
+                  <ul className="mt-5 flex max-w-lg flex-wrap gap-2">
+                    {destaque.recursos.map((id) => (
+                      <li
+                        key={id}
+                        className="rounded-full border border-black/12 px-3 py-1 text-[13px] text-black/70 dark:border-white/15 dark:text-white/70"
+                      >
+                        {recurso(id).titulo}
+                      </li>
+                    ))}
+                  </ul>
+                  <div className="mt-5 flex flex-wrap items-center gap-x-5 gap-y-2 text-[13px]">
+                    <span className="font-semibold text-black dark:text-white">{selo.rotulo}</span>
+                    {selo.rotuloAddon ? (
+                      <span className="text-black/50 dark:text-white/50">{selo.rotuloAddon}</span>
+                    ) : null}
+                    <Link
+                      href={`/funcionalidades#${destaque.ancora}`}
+                      className="inline-flex items-center gap-1 font-semibold text-black underline decoration-black/25 underline-offset-4 transition-colors hover:decoration-black dark:text-white dark:decoration-white/30 dark:hover:decoration-white"
+                    >
+                      Ver no mapa
+                      <ArrowUpRight className="h-3.5 w-3.5" aria-hidden />
+                    </Link>
+                  </div>
+                </div>
+              </div>
+              {/* A cena de cada destaque, para quem não tem o palco. */}
+              <div aria-hidden="true" className="mt-8 aspect-[4/3.2] lg:motion-safe:hidden">
+                <div className="destaque-camada h-full" data-ativo="">
+                  <CenaDoDestaque id={destaque.id} etapas={ETAPAS} />
+                </div>
+              </div>
+            </li>
+          );
+        })}
+      </ol>
+
+      <div aria-hidden="true" className="hidden lg:motion-safe:block">
+        <div className="sticky top-[calc(50vh-17rem)] aspect-[4/3.4]">
+          {DESTAQUES.map((destaque, i) => (
+            <div
+              key={destaque.id}
+              data-ativo={i === ativo ? "" : undefined}
+              className={cn("destaque-camada destaque-camada-palco absolute inset-0")}
+            >
+              <CenaDoDestaque id={destaque.id} etapas={ETAPAS} />
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * "Recursos da plataforma": os cinco recursos que explicam por que alguém
+ * troca de sistema, e o caminho para a lista inteira em `/funcionalidades`.
+ * Hospeda as âncoras `#recursos` e `#modulos` (a antiga seção Módulos).
+ */
+export function LandingFeatures() {
+  return (
     <section
-      ref={containerRef}
       id="recursos"
       className="relative border-t border-black/10 bg-white py-28 dark:border-white/10 dark:bg-neutral-950"
     >
       {/* âncora herdada da antiga seção Módulos: links de fora ainda a usam */}
       <span id="modulos" aria-hidden className="absolute -top-24" />
 
-      <div className="mx-auto grid max-w-7xl gap-12 px-6 lg:grid-cols-[0.85fr_1.15fr] lg:gap-20">
-        <div className="lg:sticky lg:top-28 lg:self-start">
-          <SectionHeading
-            align="left"
-            eyebrow="Recursos da plataforma"
-            title={
-              <>
-                Tudo que você precisa para <Accent>operar</Accent>
-              </>
-            }
-            description="Os recursos que sustentam o dia a dia, do primeiro contato ao pós-venda, em uma base única e conectada."
-            className="features-heading"
-          />
-        </div>
+      <div className="mx-auto max-w-7xl px-6">
+        <SectionHeading
+          align="left"
+          eyebrow="Recursos da plataforma"
+          title={
+            <>
+              Do orçamento ao recibo, <Accent>sem trocar de sistema</Accent>
+            </>
+          }
+          description="Cinco coisas que a ProOps faz e uma planilha não faz. O resto está no mapa completo."
+        />
 
-        <div className="border-b border-black/10 dark:border-white/10">
-          {FEATURES.map((feature, index) => {
-            const Icon = feature.icon;
-            return (
-              <div
-                key={feature.title}
-                className="feature-row group relative flex items-start gap-5 border-t border-black/10 py-7 pl-6 pr-4 transition-colors duration-300 hover:bg-black/[0.025] dark:border-white/10 dark:hover:bg-white/[0.04] sm:gap-6"
-              >
-                {/* barra de acento que cresce no hover */}
-                <span
-                  aria-hidden
-                  className="absolute left-0 top-1/2 h-0 w-[3px] -translate-y-1/2 rounded-full bg-black transition-all duration-300 ease-out group-hover:h-[56%] dark:bg-white"
-                />
+        <HidratarPerto>
+          <Destaques />
+        </HidratarPerto>
 
-                <span className="mt-1.5 hidden w-7 shrink-0 text-sm font-semibold tabular-nums text-black/30 transition-colors duration-300 group-hover:text-black/70 dark:text-white/30 dark:group-hover:text-white/70 sm:block">
-                  {String(index + 1).padStart(2, "0")}
-                </span>
-
-                <span className="mt-0.5 grid h-12 w-12 shrink-0 place-items-center rounded-xl border border-black/10 bg-black/[0.03] text-black transition-all duration-300 group-hover:-translate-y-0.5 group-hover:scale-[1.04] group-hover:border-transparent group-hover:bg-black group-hover:text-white group-hover:shadow-[0_10px_24px_-10px_rgba(0,0,0,0.5)] dark:border-white/12 dark:bg-white/[0.06] dark:text-white dark:group-hover:bg-white dark:group-hover:text-black dark:group-hover:shadow-[0_10px_24px_-10px_rgba(0,0,0,0.8)]">
-                  <Icon className="h-5 w-5" />
-                </span>
-
-                <div className="flex-1 transition-transform duration-300 group-hover:translate-x-0.5">
-                  <h3 className="text-lg font-semibold text-black dark:text-white md:text-xl">
-                    {feature.title}
-                  </h3>
-                  <p className="mt-1.5 max-w-xl text-sm leading-relaxed text-black/60 dark:text-white/65 md:text-[15px]">
-                    {feature.description}
-                  </p>
-                </div>
-
-                <ArrowUpRight className="mt-2 h-5 w-5 shrink-0 -translate-x-1 text-black/40 opacity-0 transition-all duration-300 group-hover:translate-x-0 group-hover:opacity-100 dark:text-white/40" />
-              </div>
-            );
-          })}
+        <div className="mt-16 flex flex-col items-start gap-4 border-t border-black/10 pt-10 dark:border-white/10 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-[15px] text-black/60 dark:text-white/60">
+            {CATALOGO.length} recursos em {CATEGORIAS.length} áreas, cada um com o plano que o libera.
+          </p>
+          <LandingButton
+            href="/funcionalidades"
+            variant="solid"
+            size="md"
+            trailingIcon={<ArrowRight className="h-4 w-4" />}
+          >
+            Ver todas as funcionalidades
+          </LandingButton>
         </div>
       </div>
     </section>

@@ -416,6 +416,170 @@
   opacity: 1;
 }
 
+/* ── Os destaques de "Recursos" (home) ────────────────────────────────────────
+
+   Por padrão tudo aberto e parado: é a forma do celular e do movimento
+   reduzido. No desktop com movimento, só a linha ativa abre, e o palco ao lado
+   troca de camada. Cada camada toca a própria entrada quando ganha
+   `data-ativo`: uma animação de CSS começa quando a regra passa a valer, então
+   ativar a camada de novo toca a entrada de novo. */
+.destaque {
+  --tinta-destaque: #0a0a0a;
+}
+.dark .destaque {
+  --tinta-destaque: #fafafa;
+}
+.destaque-titulo {
+  color: var(--tinta-destaque);
+}
+.destaque-barra {
+  height: calc(100% - 4.5rem);
+}
+.destaque-corpo {
+  display: grid;
+  grid-template-rows: 1fr;
+}
+.destaque-corpo > * {
+  min-height: 0;
+  overflow: hidden;
+}
+@media (min-width: 1024px) and (prefers-reduced-motion: no-preference) {
+  .destaque-titulo {
+    color: color-mix(in oklab, var(--tinta-destaque) 32%, transparent);
+    transition: color 0.35s ease;
+  }
+  .destaque[data-ativo] .destaque-titulo {
+    color: var(--tinta-destaque);
+  }
+  .destaque-barra {
+    height: 0;
+    transition: height 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+  .destaque[data-ativo] .destaque-barra {
+    height: calc(100% - 4.5rem);
+  }
+  .destaque-corpo {
+    grid-template-rows: 0fr;
+    opacity: 0;
+    transition:
+      grid-template-rows 0.55s cubic-bezier(0.22, 1, 0.36, 1),
+      opacity 0.35s ease;
+  }
+  .destaque[data-ativo] .destaque-corpo {
+    grid-template-rows: 1fr;
+    opacity: 1;
+  }
+}
+
+.destaque-camada-palco {
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(28px) scale(0.98);
+  filter: blur(8px);
+  transition:
+    opacity 0.4s ease,
+    transform 0.7s cubic-bezier(0.22, 1, 0.36, 1),
+    filter 0.5s ease,
+    visibility 0s linear 0.7s;
+}
+.destaque-camada-palco[data-ativo] {
+  opacity: 1;
+  visibility: visible;
+  transform: none;
+  filter: none;
+  transition:
+    opacity 0.45s ease 0.1s,
+    transform 0.8s cubic-bezier(0.22, 1, 0.36, 1) 0.1s,
+    filter 0.5s ease 0.1s,
+    visibility 0s;
+}
+
+/* Proposta: o aviso de "abriu" chega e a assinatura se desenha. */
+.destaque-camada[data-ativo] [data-mk="aviso"] {
+  animation: destaque-aviso 0.7s cubic-bezier(0.22, 1, 0.36, 1) 0.55s both;
+}
+.destaque-camada[data-ativo] [data-mk="assinatura"] {
+  animation: destaque-traco 1.2s cubic-bezier(0.65, 0, 0.35, 1) 0.35s both;
+}
+/* Pós-venda: os três celulares saem da pilha e abrem em leque. */
+.destaque-leque-esq,
+.destaque-leque-dir {
+  transition: transform 0.9s cubic-bezier(0.22, 1, 0.36, 1) 0.15s;
+}
+.destaque-leque-centro {
+  z-index: 2;
+}
+.destaque-camada[data-ativo] .destaque-leque-esq {
+  transform: translateX(-66%) translateY(5%) rotate(-9deg);
+}
+.destaque-camada[data-ativo] .destaque-leque-dir {
+  transform: translateX(66%) translateY(5%) rotate(9deg);
+}
+/* Financeiro: o gráfico corre da esquerda para a direita. */
+.destaque-camada[data-ativo] [data-mk="grafico"] {
+  animation: vitrine-grafico 1.3s cubic-bezier(0.65, 0, 0.35, 1) 0.3s both;
+}
+/* Obra: as etapas enchem em sequência. */
+.destaque-camada[data-ativo] [data-mk="etapa"] > span:first-child {
+  transform-origin: left center;
+  animation: destaque-etapa 0.6s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.destaque-camada[data-ativo] [data-mk="etapa"]:nth-child(1) > span:first-child { animation-delay: 0.3s; }
+.destaque-camada[data-ativo] [data-mk="etapa"]:nth-child(2) > span:first-child { animation-delay: 0.45s; }
+.destaque-camada[data-ativo] [data-mk="etapa"]:nth-child(3) > span:first-child { animation-delay: 0.6s; }
+.destaque-camada[data-ativo] [data-mk="etapa"]:nth-child(4) > span:first-child { animation-delay: 0.75s; }
+.destaque-camada[data-ativo] [data-mk="etapa"]:nth-child(5) > span:first-child { animation-delay: 0.9s; }
+/* Lia: pedido, confirmação, a parcela vira "Pago" e ela responde. */
+.destaque-camada[data-ativo] [data-mk="pedido"] {
+  animation: destaque-surge 0.5s cubic-bezier(0.22, 1, 0.36, 1) 0.3s both;
+}
+.destaque-camada[data-ativo] [data-mk="confirmacao"] {
+  animation: destaque-surge 0.5s cubic-bezier(0.22, 1, 0.36, 1) 0.95s both;
+}
+.destaque-camada[data-ativo] [data-mk="status-aberto"] {
+  animation: destaque-some 0.2s ease 1.75s both;
+}
+.destaque-camada[data-ativo] [data-mk="status-pago"] {
+  animation: destaque-surge 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) 1.75s both;
+}
+.destaque-camada[data-ativo] [data-mk="resposta"] {
+  animation: destaque-surge 0.5s cubic-bezier(0.22, 1, 0.36, 1) 2.05s both;
+}
+@keyframes destaque-aviso {
+  from {
+    opacity: 0;
+    transform: translate(24px, -10px) scale(0.96);
+  }
+}
+@keyframes destaque-traco {
+  from {
+    stroke-dashoffset: 1;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+@keyframes destaque-etapa {
+  from {
+    transform: scaleX(0);
+  }
+}
+@keyframes destaque-surge {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes destaque-some {
+  to {
+    opacity: 0;
+  }
+}
+
 /* ── Movimento reduzido ───────────────────────────────────────────────────── */
 @media (prefers-reduced-motion: reduce) {
   .mk-traco {
@@ -433,6 +597,21 @@
   .jornada-frase,
   .jornada-ponto {
     transition: none;
+  }
+  .destaque-camada [data-mk] {
+    animation: none !important;
+  }
+  .destaque-camada-palco,
+  .destaque-leque-esq,
+  .destaque-leque-dir {
+    transition: none;
+  }
+  /* A cena da Lia parada mostra o fim da história: a parcela já paga. */
+  .destaque-camada [data-mk="status-aberto"] {
+    opacity: 0;
+  }
+  .destaque-camada [data-mk="status-pago"] {
+    opacity: 1;
   }
   /* Regra própria: um pseudo-elemento que o navegador não conhece invalida a
      lista de seletores INTEIRA em que ele estiver. */
