@@ -128,6 +128,31 @@ export const NICHE_REGISTRY = {
   ],
     aiLabel: "segurança eletrônica (CFTV, alarme, controle de acesso, cerca elétrica e portaria)",
   },
+  vidracaria_esquadrias: {
+    demoTenantId: "demo-vidracaria",
+    productImageLimit: 3,
+    defaultVisitType: { id: "medicao", label: "Medição", durationMin: 60 },
+    stageTemplate: [
+      {
+        name: "Medição",
+        checklist: [
+          "Medir os vãos no local",
+          "Conferir prumo, nível e esquadro",
+          "Confirmar vidro, perfil e acabamento",
+        ],
+      },
+      {
+        name: "Produção",
+        checklist: ["Enviar vidros para a têmpera", "Cortar e montar os perfis", "Conferir as peças recebidas"],
+      },
+      {
+        name: "Instalação",
+        checklist: ["Instalar esquadrias e vidros", "Vedar e regular portas e janelas"],
+      },
+      { name: "Entrega", checklist: ["Limpar os vidros", "Orientar o cliente", "Registrar fotos finais"] },
+    ],
+    aiLabel: "vidraçaria e esquadrias de alumínio (vidro temperado, box, sacadas, janelas, portas, espelhos e fechamentos)",
+  },
 } satisfies Record<string, NicheRegistryEntry>;
 
 export type TenantNicheId = keyof typeof NICHE_REGISTRY;

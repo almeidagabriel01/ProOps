@@ -27,6 +27,14 @@ describe.each(Object.entries(ENUMERATIONS))("%s", (_file, text) => {
 });
 
 describe("contagem de nichos por extenso", () => {
+  // A seção "O seu segmento" disse "dois segmentos que já vêm prontos" com três
+  // no ar, e ninguém percebeu porque o texto mora no JSX.
+  it("a seção de segmentos do site da empresa não conta os pacotes prontos", () => {
+    expect(read("app/(empresa)/institucional/_components/institucional-segmento.tsx")).not.toMatch(
+      /\b(dois|duas|três|quatro|cinco|seis) (segmentos|pacotes|nichos)\b/i,
+    );
+  });
+
   it("o herói do site da empresa não conta os segmentos prontos", () => {
     expect(HEROI_RAIZ.lead).not.toMatch(/\b(dois|duas|três|quatro|cinco) segmentos\b/i);
   });

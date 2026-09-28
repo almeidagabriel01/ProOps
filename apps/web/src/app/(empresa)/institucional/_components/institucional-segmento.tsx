@@ -8,7 +8,7 @@ import { Magnetic } from "@/components/marketing/_shared/magnetic";
 import { NICHOS_PRONTOS, O_QUE_SE_CONFIGURA } from "../_content/institucional-copy";
 
 /**
- * "O seu segmento": a seção que impede a página de parecer de dois nichos.
+ * "O seu segmento": a seção que impede a página de parecer feita só para os nichos prontos.
  *
  * A ProOps nasceu numa empresa de automação residencial, e o site contava essa
  * origem em três lugares. Quem vende outro tipo de projeto lia a origem como
@@ -16,7 +16,7 @@ import { NICHOS_PRONTOS, O_QUE_SE_CONFIGURA } from "../_content/institucional-co
  * perda: não é objeção, é um mal-entendido.
  *
  * Por isso a seção separa as duas coisas com todas as letras: o que já vem
- * pronto (dois pacotes) e o que é configurado (o resto). E lista o que muda de
+ * pronto (os pacotes do registro de nichos) e o que é configurado (o resto). E lista o que muda de
  * um segmento para o outro, porque "a gente adapta" sozinho não é promessa
  * verificável; catálogo, campos, etapas e unidade de medida são.
  */
@@ -31,7 +31,7 @@ export function InstitucionalSegmento() {
               A ProOps não é de um nicho. É de quem <Realce>vende projeto</Realce>.
             </>
           }
-          descricao="O ERP nasceu dentro de uma empresa de automação residencial porque foi ali que o problema apareceu na nossa frente. A origem não virou fronteira: hoje são dois segmentos que já vêm prontos, e qualquer outro é configurado na mesma base, com o catálogo e as palavras do negócio de quem chega."
+          descricao="O ERP nasceu dentro de uma empresa de automação residencial porque foi ali que o problema apareceu na nossa frente. A origem não virou fronteira: os segmentos mais comuns já vêm prontos, e qualquer outro é configurado na mesma base, com o catálogo e as palavras do negócio de quem chega."
           className="mb-14"
         />
 

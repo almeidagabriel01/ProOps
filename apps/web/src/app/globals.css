@@ -1887,6 +1887,7 @@ html[data-heroi="espera"] .regua-desenha {
 [data-nicho="automacao"] [data-rotulo-de="automacao"],
 [data-nicho="cortinas"] [data-rotulo-de="cortinas"],
 [data-nicho="seguranca"] [data-rotulo-de="seguranca"],
+[data-nicho="vidracaria"] [data-rotulo-de="vidracaria"],
 [data-nicho="marcenaria"] [data-rotulo-de="marcenaria"] {
   display: block;
 }

@@ -4,6 +4,7 @@ import type { InventoryDefinition, NicheConfig, SolutionsPageDefinition } from "
 import { nicheConfig as automacaoResidencial } from "./definitions/automacao_residencial/app";
 import { nicheConfig as cortinas } from "./definitions/cortinas/app";
 import { nicheConfig as segurancaEletronica } from "./definitions/seguranca_eletronica/app";
+import { nicheConfig as vidracariaEsquadrias } from "./definitions/vidracaria_esquadrias/app";
 
 export * from "./config-types";
 
@@ -16,6 +17,7 @@ export const NICHE_CONFIGS: Record<TenantNiche, NicheConfig> = {
   automacao_residencial: automacaoResidencial,
   cortinas: cortinas,
   seguranca_eletronica: segurancaEletronica,
+  vidracaria_esquadrias: vidracariaEsquadrias,
 };
 
 /** Nicho desconhecido (ou vindo de um doc antigo) é tratado como automação. */
