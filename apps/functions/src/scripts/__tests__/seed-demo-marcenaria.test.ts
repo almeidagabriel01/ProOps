@@ -1,5 +1,5 @@
 /**
- * A demonstração de móveis planejados: tudo no tenant `demo-moveis`,
+ * A demonstração de marcenaria e móveis planejados: tudo no tenant `demo-marcenaria`,
  * com IDs próprios, armário e painel por m², cozinha por metro linear,
  * ferragem e iluminação por unidade, e
  * propostas por ambiente com o total igual à soma das linhas.
@@ -22,8 +22,8 @@ import { DEMO_TENANT_IDS } from "../../shared/demo-tenant";
 import { seedDemo } from "../demo/seed";
 import { DEMO_DATASETS } from "../demo/datasets";
 
-const TENANT_ID = DEMO_TENANT_IDS.moveis_planejados;
-const seed = () => seedDemo(DEMO_DATASETS.moveis_planejados);
+const TENANT_ID = DEMO_TENANT_IDS.marcenaria;
+const seed = () => seedDemo(DEMO_DATASETS.marcenaria);
 
 type Written = { path: string; data: Record<string, unknown> };
 const written = (): Written[] =>
@@ -34,12 +34,12 @@ beforeEach(() => {
   commit.mockClear();
 });
 
-describe("demonstração de móveis planejados", () => {
+describe("demonstração de marcenaria e móveis planejados", () => {
   it("é o tenant de demonstração do nicho", async () => {
-    expect(TENANT_ID).toBe("demo-moveis");
+    expect(TENANT_ID).toBe("demo-marcenaria");
     await seed();
     const tenant = written().find((w) => w.path === `tenants/${TENANT_ID}`);
-    expect(tenant?.data).toMatchObject({ niche: "moveis_planejados", isDemo: true });
+    expect(tenant?.data).toMatchObject({ niche: "marcenaria", isDemo: true });
     expect(commit).toHaveBeenCalledTimes(1);
   });
 
@@ -49,7 +49,7 @@ describe("demonstração de móveis planejados", () => {
       if (w.path.startsWith("tenants/")) continue;
       expect(w.data.tenantId).toBe(TENANT_ID);
       const id = w.path.split("/")[1];
-      expect(id.startsWith("demo_mov_") || id.startsWith("proposal_demo_mov_") || id === TENANT_ID).toBe(true);
+      expect(id.startsWith("demo_marc_") || id.startsWith("proposal_demo_marc_") || id === TENANT_ID).toBe(true);
     }
   });
 
@@ -63,17 +63,17 @@ describe("demonstração de móveis planejados", () => {
 
   it("a cozinha sai do metro linear: 3,2 m a R$ 1.200/m com 50% de markup", async () => {
     await seed();
-    const proposal = written().find((w) => w.path === "proposals/demo_mov_prop_1");
+    const proposal = written().find((w) => w.path === "proposals/demo_marc_prop_1");
     const lines = proposal?.data.products as Array<{ productId: string; total: number }>;
-    const cozinha = lines.filter((l) => l.productId === "demo_mov_prod_cozinha").map((l) => l.total);
+    const cozinha = lines.filter((l) => l.productId === "demo_marc_prod_cozinha").map((l) => l.total);
     expect(cozinha).toContain(5760);
   });
 
   it("o roupeiro sai da área de frente: 2,8 x 2,6 m a R$ 850/m² com 60% de markup", async () => {
     await seed();
-    const proposal = written().find((w) => w.path === "proposals/demo_mov_prop_1");
+    const proposal = written().find((w) => w.path === "proposals/demo_marc_prop_1");
     const lines = proposal?.data.products as Array<{ productId: string; total: number }>;
-    const armario = lines.filter((l) => l.productId === "demo_mov_prod_armario").map((l) => l.total);
+    const armario = lines.filter((l) => l.productId === "demo_marc_prod_armario").map((l) => l.total);
     expect(armario).toContain(9900.8);
   });
 
@@ -96,7 +96,7 @@ describe("demonstração de móveis planejados", () => {
 
   it("a obra de exemplo segue as etapas do nicho, da medição à entrega, com projeto e montagem", async () => {
     await seed();
-    const project = written().find((w) => w.path === "projects/proposal_demo_mov_prop_1");
+    const project = written().find((w) => w.path === "projects/proposal_demo_marc_prop_1");
     const stages = (project?.data.stages as Array<{ name: string }>).map((s) => s.name);
     expect(stages).toEqual(["Medição", "Projeto", "Produção", "Montagem", "Entrega"]);
   });

@@ -79,7 +79,7 @@ export const PRANCHAS: Record<SegmentoId, Prancha> = {
     lugar: { x: 63, y: 19, largura: 18, giro: 3 },
   },
 
-  moveis: {
+  marcenaria: {
     tracos: [
       "M6 4H94V62H6Z",
       "M6 24H94",

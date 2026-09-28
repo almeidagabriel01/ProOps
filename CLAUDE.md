@@ -33,7 +33,7 @@ tem default seguro; todas falham em silêncio.
    qual checklist; se não entra, por quê (o motivo vai para
    `ROUTES_WITHOUT_OWN_STEP`).
 6. **Nichos:** como fica em cada nicho de `TenantNiche` (hoje
-   `automacao_residencial`, `cortinas`, `seguranca_eletronica`, `vidracaria_esquadrias` e `moveis_planejados`)? Aparece em todos? Algum texto ou
+   `automacao_residencial`, `cortinas`, `seguranca_eletronica`, `vidracaria_esquadrias` e `marcenaria`)? Aparece em todos? Algum texto ou
    rótulo muda? Algum comportamento muda (catálogo por unidade ou por metro,
    fluxo da proposta, PDF)? Pergunte pelo tipo, não por uma lista decorada: um
    nicho novo não pode ficar de fora.
@@ -214,7 +214,7 @@ virada do apex, com o checklist de consoles e o que ela custa em SEO e em
 sessão, está em `.claude/rules/virada-dos-dominios.md`.
 
 ### Multi-Niche Support
-Niches: `automacao_residencial` | `cortinas` | `seguranca_eletronica` | `vidracaria_esquadrias` | `moveis_planejados` (`cortinas` is shown as "Persianas e Toldos": the id is persisted and never
+Niches: `automacao_residencial` | `cortinas` | `seguranca_eletronica` | `vidracaria_esquadrias` | `marcenaria` (`cortinas` is shown as "Persianas e Toldos": the id is persisted and never
 renamed, only the label changes). Logic in `apps/web/src/lib/niches/`. The tenant doc stores
 the id in `niche`. The source is `NICHE_REGISTRY` in `apps/functions/src/shared/niches.ts` (pure, no
 imports: demo tenant, image limit, visit type, stage template, AI label); the front mirrors the fields it

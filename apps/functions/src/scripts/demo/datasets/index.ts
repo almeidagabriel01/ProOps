@@ -4,7 +4,7 @@ import { automacaoResidencialDemo } from "./automacao_residencial";
 import { cortinasDemo } from "./cortinas";
 import { segurancaEletronicaDemo } from "./seguranca_eletronica";
 import { vidracariaEsquadriasDemo } from "./vidracaria_esquadrias";
-import { moveisPlanejadosDemo } from "./moveis_planejados";
+import { marcenariaDemo } from "./marcenaria";
 
 /**
  * A demonstração de cada nicho. O `Record` faz o compilador cobrar o dataset
@@ -16,5 +16,5 @@ export const DEMO_DATASETS: Record<TenantNicheId, DemoDataset> = {
   cortinas: cortinasDemo,
   seguranca_eletronica: segurancaEletronicaDemo,
   vidracaria_esquadrias: vidracariaEsquadriasDemo,
-  moveis_planejados: moveisPlanejadosDemo,
+  marcenaria: marcenariaDemo,
 };

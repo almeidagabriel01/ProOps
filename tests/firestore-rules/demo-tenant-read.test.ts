@@ -24,7 +24,7 @@ const DEMO = 'demo';
 const DEMO_CORTINAS = 'demo-cortinas';
 const DEMO_SEGURANCA = 'demo-seguranca';
 const DEMO_VIDRACARIA = 'demo-vidracaria';
-const DEMO_MOVEIS = 'demo-moveis';
+const DEMO_MARCENARIA = 'demo-marcenaria';
 const DEMO_COLLECTIONS = [
   'products',
   'services',
@@ -76,7 +76,7 @@ beforeEach(async () => {
     await seedDoc(coll, `demo-cortinas-${coll}`, { tenantId: DEMO_CORTINAS, name: 'Demo item' });
     await seedDoc(coll, `demo-seguranca-${coll}`, { tenantId: DEMO_SEGURANCA, name: 'Demo item' });
     await seedDoc(coll, `demo-vidracaria-${coll}`, { tenantId: DEMO_VIDRACARIA, name: 'Demo item' });
-    await seedDoc(coll, `demo-moveis-${coll}`, { tenantId: DEMO_MOVEIS, name: 'Demo item' });
+    await seedDoc(coll, `demo-marcenaria-${coll}`, { tenantId: DEMO_MARCENARIA, name: 'Demo item' });
     await seedDoc(coll, `other-${coll}`, { tenantId: 'tenant-paid', name: 'Real item' });
   }
 });
@@ -124,7 +124,7 @@ describe('demo dataset read access', () => {
       await assertSucceeds(getDoc(doc(freeDb(), coll, `demo-cortinas-${coll}`)));
       await assertSucceeds(getDoc(doc(freeDb(), coll, `demo-seguranca-${coll}`)));
       await assertSucceeds(getDoc(doc(freeDb(), coll, `demo-vidracaria-${coll}`)));
-      await assertSucceeds(getDoc(doc(freeDb(), coll, `demo-moveis-${coll}`)));
+      await assertSucceeds(getDoc(doc(freeDb(), coll, `demo-marcenaria-${coll}`)));
     }
   });
 

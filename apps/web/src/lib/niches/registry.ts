@@ -58,10 +58,10 @@ export const NICHE_REGISTRY = {
     productImageLimit: 3,
     defaultVisitType: { id: "medicao", label: "Medição", durationMin: 60 },
   },
-  moveis_planejados: {
-    label: "Móveis Planejados",
-    landingPath: "/moveis-planejados",
-    demoTenantId: "demo-moveis",
+  marcenaria: {
+    label: "Marcenaria e Móveis Planejados",
+    landingPath: "/marcenaria",
+    demoTenantId: "demo-marcenaria",
     productImageLimit: 3,
     defaultVisitType: { id: "medicao", label: "Medição", durationMin: 60 },
   },

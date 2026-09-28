@@ -24,8 +24,8 @@ const inventory: InventoryDefinition = {
 /** Configuração de tela do nicho. */
 export const nicheConfig: NicheConfig = {
   vocabulary,
-  id: "moveis_planejados",
-  label: NICHE_REGISTRY.moveis_planejados.label,
+  id: "marcenaria",
+  label: NICHE_REGISTRY.marcenaria.label,
   analyticsColor: "#a16207",
   seoAudience: "marcenarias e lojas de móveis planejados",
   pageAvailability: {
@@ -82,20 +82,20 @@ export const nicheConfig: NicheConfig = {
   demoAttention: {
     items: [
       {
-        id: "demo_mov_prop_3",
+        id: "demo_marc_prop_3",
         title: "Casa do Marcos: projeto completo",
         clientName: "Cliente de exemplo",
         reason: "acceptance",
         detail: "Aceite do cliente a confirmar",
-        href: "/proposals/demo_mov_prop_3/view",
+        href: "/proposals/demo_marc_prop_3/view",
       },
       {
-        id: "demo_mov_prop_2",
+        id: "demo_marc_prop_2",
         title: "Closet da suíte",
         clientName: "Cliente de exemplo",
         reason: "expiring",
         detail: "Vence em 3 dias",
-        href: "/proposals/demo_mov_prop_2/view",
+        href: "/proposals/demo_marc_prop_2/view",
       },
     ],
     counts: { acceptance: 1, change_request: 0, expiring: 1, stale: 0 },
@@ -103,6 +103,6 @@ export const nicheConfig: NicheConfig = {
   },
   onboardingStepDescriptions: {},
   booking: {
-    defaultVisitType: NICHE_REGISTRY.moveis_planejados.defaultVisitType,
+    defaultVisitType: NICHE_REGISTRY.marcenaria.defaultVisitType,
   },
 };

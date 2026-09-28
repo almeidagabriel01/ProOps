@@ -5,14 +5,14 @@ import { signupHrefForNiche } from "../../niche-ids";
 
 /** Texto da landing do nicho. */
 export const nicheLanding: NicheLandingConfig = {
-  slug: "moveis_planejados",
+  slug: "marcenaria",
   hero: {
     eyebrow: "",
     title: "ERP para",
-    titleHighlight: "Móveis Planejados",
+    titleHighlight: "Marcenaria e Móveis Planejados",
     subtitle:
       "A ProOps tem um pacote pronto para marcenarias e lojas de móveis planejados: orçamento por m² ou por metro linear, proposta por ambiente, agenda de medição, obra do projeto à montagem, CRM e financeiro integrados.",
-    primaryCta: { label: "Começar agora", href: signupHrefForNiche("moveis_planejados") },
+    primaryCta: { label: "Começar agora", href: signupHrefForNiche("marcenaria") },
     secondaryCta: { label: "Fazer login", href: "/login" },
   },
   features: [
@@ -85,7 +85,7 @@ export const nicheLanding: NicheLandingConfig = {
     {
       question: "A ProOps funciona para marcenaria e loja de móveis planejados?",
       answer:
-        "Sim. O pacote de móveis planejados já vem com orçamento por m² e por metro linear, proposta por ambiente e etapas de obra da medição à montagem.",
+        "Sim. O pacote de marcenaria e móveis planejados já vem com orçamento por m² e por metro linear, proposta por ambiente e etapas de obra da medição à montagem.",
     },
     {
       question: "A ProOps desenha o projeto 3D ou o plano de corte?",
@@ -100,7 +100,7 @@ export const nicheLanding: NicheLandingConfig = {
     {
       question: "Qual o custo para começar?",
       answer:
-        "Você cria uma conta gratuita e navega a ProOps em modo demonstração, com dados de exemplo de móveis planejados, antes de assinar.",
+        "Você cria uma conta gratuita e navega a ProOps em modo demonstração, com dados de exemplo de marcenaria, antes de assinar.",
     },
   ],
   cta: {
@@ -112,25 +112,25 @@ export const nicheLanding: NicheLandingConfig = {
     },
   },
   seo: {
-    metadataTitle: "ERP para Móveis Planejados: orçamento por medida e gestão",
+    metadataTitle: "ERP para Marcenaria e Móveis Planejados: orçamento por medida e gestão",
     metadataDescription:
       "ProOps para marcenarias e lojas de móveis planejados: orçamento por m² e por metro linear, proposta por ambiente, obra, CRM e financeiro.",
-    breadcrumb: "Móveis Planejados",
+    breadcrumb: "Marcenaria e Móveis Planejados",
     keywords: [
       "sistema para marcenaria",
-      "ERP móveis planejados",
+      "ERP marcenaria e móveis planejados",
       "orçamento de móveis planejados",
       "software para marcenaria",
       "sistema gestão marcenaria",
     ],
-    ogTitle: "ERP para Móveis Planejados | ProOps",
+    ogTitle: "ERP para Marcenaria e Móveis Planejados | ProOps",
     ogDescription:
       "Orçamento por medida, proposta por ambiente, obra, CRM e financeiro para marcenarias e lojas de móveis planejados.",
   },
   gallery: {
     icon: LayoutGrid,
     eyebrow: "Pacote pronto",
-    title: "Móveis Planejados",
+    title: "Marcenaria e Móveis Planejados",
     description:
       "Orçamento por m² e por metro linear, proposta por ambiente e obra do projeto à montagem.",
     features: ["Orçamento por medida", "Proposta por ambiente", "Obra do projeto à montagem"],

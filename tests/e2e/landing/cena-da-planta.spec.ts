@@ -125,17 +125,17 @@ test.describe("LANDING-CENA-01: o nicho do exemplo", () => {
 
     await rolaAte(page, "proposta");
     await expect(rotulo("automacao")).toBeVisible();
-    await expect(rotulo("moveis")).toBeHidden();
+    await expect(rotulo("marcenaria")).toBeHidden();
 
-    await abas.getByRole("button", { name: "Móveis planejados" }).click();
-    await expect(rotulo("moveis")).toBeVisible();
-    await expect(rotulo("moveis")).toHaveText("Armário planejado");
+    await abas.getByRole("button", { name: "Marcenaria e móveis planejados" }).click();
+    await expect(rotulo("marcenaria")).toBeVisible();
+    await expect(rotulo("marcenaria")).toHaveText("Armário planejado");
     await expect(rotulo("automacao")).toBeHidden();
 
     await abas.getByRole("button", { name: "Segurança eletrônica" }).click();
     await expect(rotulo("seguranca")).toBeVisible();
     await expect(rotulo("seguranca")).toHaveText("CFTV com 4 câmeras e gravador");
-    await expect(rotulo("moveis")).toBeHidden();
+    await expect(rotulo("marcenaria")).toBeHidden();
 
     await abas.getByRole("button", { name: "Persianas e toldos" }).click();
     await expect(rotulo("cortinas")).toHaveText("Cortina blackout, trilho motorizado");

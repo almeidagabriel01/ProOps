@@ -23,7 +23,7 @@ responder, eu pergunto antes de codar (ver `.claude/rules/access-control.md`):
 11. **Onboarding:** a tela entra no tutorial? Em qual capítulo? Se não entra,
     por quê (o motivo vai para `ROUTES_WITHOUT_OWN_STEP`)?
 12. **Nichos:** como fica em cada nicho de `TenantNiche` (hoje
-    `automacao_residencial`, `cortinas`, `seguranca_eletronica`, `vidracaria_esquadrias` e `moveis_planejados`)? Algum texto, rótulo ou comportamento
+    `automacao_residencial`, `cortinas`, `seguranca_eletronica`, `vidracaria_esquadrias` e `marcenaria`)? Algum texto, rótulo ou comportamento
     muda?
 
 Com essas respostas, vou seguir este fluxo:

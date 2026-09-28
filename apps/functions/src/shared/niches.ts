@@ -153,8 +153,8 @@ export const NICHE_REGISTRY = {
     ],
     aiLabel: "vidraçaria e esquadrias de alumínio (vidro temperado, box, sacadas, janelas, portas, espelhos e fechamentos)",
   },
-  moveis_planejados: {
-    demoTenantId: "demo-moveis",
+  marcenaria: {
+    demoTenantId: "demo-marcenaria",
     productImageLimit: 3,
     defaultVisitType: { id: "medicao", label: "Medição", durationMin: 60 },
     stageTemplate: [

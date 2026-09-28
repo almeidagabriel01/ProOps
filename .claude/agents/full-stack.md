@@ -52,7 +52,7 @@ Antes de qualquer mudança estrutural, pergunte:
 - Existe cliente ativo que pode ser afetado imediatamente?
 - A mudança é retrocompatível (campo novo vs. campo renomeado)?
 - A feature envolve billing/Stripe? → Revisão manual obrigatória antes de deploy
-- A feature é niche-specific (`automacao_residencial` | `cortinas` | `seguranca_eletronica` | `vidracaria_esquadrias` | `moveis_planejados`)? → Verificar rendering condicional
+- A feature é niche-specific (`automacao_residencial` | `cortinas` | `seguranca_eletronica` | `vidracaria_esquadrias` | `marcenaria`)? → Verificar rendering condicional
 
 ## Multi-niche awareness
 O sistema suporta múltiplos nichos via `tenantNiche` no documento do tenant.
