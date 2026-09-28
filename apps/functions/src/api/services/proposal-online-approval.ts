@@ -201,6 +201,47 @@ export function isChangeRequestOpen(request: unknown): boolean {
   );
 }
 
+/** Um pedido de mudanças como o cliente o vê: sem IP, navegador nem quem resolveu. */
+export interface PublicChangeRequest {
+  name: string | null;
+  message: string;
+  requestedAt: string;
+  status: "open" | "resolved";
+  resolvedAt: string | null;
+}
+
+export const MAX_PUBLIC_CHANGE_REQUESTS = 50;
+
+/**
+ * Todos os pedidos de mudanças da proposta, do mais novo para o mais antigo: o
+ * atual (`clientChangeRequest`) e os que ele substituiu
+ * (`clientChangeRequestHistory`). Só o atual pode estar aberto: um pedido novo
+ * só entra quando o anterior foi resolvido. Pedido repetido (o mesmo
+ * `requestedAt` nos dois campos) aparece uma vez.
+ */
+export function publicChangeRequestHistory(current: unknown, history: unknown): PublicChangeRequest[] {
+  const all = [current, ...(Array.isArray(history) ? history : [])];
+  const seen = new Set<string>();
+  const out: PublicChangeRequest[] = [];
+  for (const raw of all) {
+    if (!raw || typeof raw !== "object") continue;
+    const request = raw as Partial<ClientChangeRequest>;
+    if (typeof request.message !== "string" || typeof request.requestedAt !== "string") continue;
+    if (seen.has(request.requestedAt)) continue;
+    seen.add(request.requestedAt);
+    out.push({
+      name: typeof request.name === "string" && request.name ? request.name : null,
+      message: request.message,
+      requestedAt: request.requestedAt,
+      status: raw === current && isChangeRequestOpen(raw) ? "open" : "resolved",
+      resolvedAt: typeof request.resolvedAt === "string" ? request.resolvedAt : null,
+    });
+  }
+  return out
+    .sort((a, b) => b.requestedAt.localeCompare(a.requestedAt))
+    .slice(0, MAX_PUBLIC_CHANGE_REQUESTS);
+}
+
 /**
  * O pedido de mudanças ABERTO se resolve quando a empresa salva a proposta com
  * conteúdo diferente (atendeu), aprova ou fecha sem aprovação.

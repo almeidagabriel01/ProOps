@@ -4,6 +4,16 @@ import { callApi, callPublicApi } from "@/lib/api-client";
 import { ShareLinkResponse } from "@/types/shared-proposal";
 import { Proposal } from "@/types/proposal";
 
+/** Um pedido de mudanças como o cliente o vê no link. */
+export interface SharedChangeRequest {
+  name: string | null;
+  message: string;
+  requestedAt: string;
+  /** "open": a empresa está revisando. */
+  status: "open" | "resolved";
+  resolvedAt: string | null;
+}
+
 /** Estado do aceite online devolvido pelo link público. */
 export interface OnlineApprovalState {
   canApprove: boolean;
@@ -16,6 +26,11 @@ export interface OnlineApprovalState {
   canRequestChanges: boolean;
   /** Pedido de mudanças ainda aberto: a empresa está revisando. */
   changeRequest: { requestedAt: string } | null;
+  /**
+   * Todos os pedidos de mudanças, do mais novo para o mais antigo. Ausente
+   * quando o backend ainda não o devolve.
+   */
+  changeRequests?: SharedChangeRequest[];
   /** Aprovada e com algo a pagar online ("Pagar entrada" ou "Pagar parcela"). */
   payment: { label: string } | null;
 }

@@ -9,14 +9,14 @@
 import "@testing-library/jest-dom/vitest";
 import * as React from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 const svc = vi.hoisted(() => ({ accept: vi.fn(), requestChanges: vi.fn(), paymentLink: vi.fn() }));
 vi.mock("@/services/shared-proposal-service", () => ({ SharedProposalService: svc }));
 
 import { ProposalResponsePanel } from "../proposal-response-panel";
-import type { OnlineApprovalState } from "@/services/shared-proposal-service";
+import type { OnlineApprovalState, SharedChangeRequest } from "@/services/shared-proposal-service";
 
 const OPEN: OnlineApprovalState = {
   canApprove: true,
@@ -27,6 +27,22 @@ const OPEN: OnlineApprovalState = {
   canRequestChanges: true,
   changeRequest: null,
   payment: null,
+};
+
+const OPEN_REQUEST: SharedChangeRequest = {
+  name: "Maria",
+  message: "Faltou a cortina da sala",
+  requestedAt: "2026-09-26T13:00:00.000Z",
+  status: "open",
+  resolvedAt: null,
+};
+
+const RESOLVED: SharedChangeRequest = {
+  name: null,
+  message: "Trocar o motor",
+  requestedAt: "2026-09-20T13:00:00.000Z",
+  status: "resolved",
+  resolvedAt: "2026-09-22T13:00:00.000Z",
 };
 
 function renderPanel(
@@ -111,8 +127,31 @@ describe("ProposalResponsePanel", () => {
       expect.objectContaining({
         canRequestChanges: false,
         changeRequest: { requestedAt: "2026-09-26T10:00:00.000Z" },
+        changeRequests: [
+          {
+            name: null,
+            message: "curto demais, o prazo era 30 dias",
+            requestedAt: "2026-09-26T10:00:00.000Z",
+            status: "open",
+            resolvedAt: null,
+          },
+        ],
       }),
     );
+  });
+
+  it("pedido novo entra no topo do histórico que já existia", async () => {
+    svc.requestChanges.mockResolvedValue({ requestedAt: "2026-09-28T10:00:00.000Z" });
+    const { onStateChange } = renderPanel({ ...OPEN, changeRequests: [RESOLVED] });
+    await userEvent.click(screen.getByRole("button", { name: /solicitar mudanças/i }));
+    await userEvent.type(screen.getByLabelText(/o que precisa mudar/i), "Faltou a persiana do escritório");
+    await userEvent.click(screen.getByRole("button", { name: /enviar pedido/i }));
+    await screen.findByText("Pedido enviado");
+    const next = onStateChange.mock.calls[0][0] as OnlineApprovalState;
+    expect(next.changeRequests?.map((r) => r.requestedAt)).toEqual([
+      "2026-09-28T10:00:00.000Z",
+      RESOLVED.requestedAt,
+    ]);
   });
 
   it("pedido aberto: avisa que a empresa está revisando e ainda deixa aceitar", () => {
@@ -155,6 +194,35 @@ describe("ProposalResponsePanel", () => {
       "end",
     );
     expect(container).toBeEmptyDOMElement();
+  });
+
+  it("com pedidos, o botão do histórico abre todos com o status", async () => {
+    renderPanel({
+      ...OPEN,
+      canRequestChanges: false,
+      changeRequest: { requestedAt: OPEN_REQUEST.requestedAt },
+      changeRequests: [OPEN_REQUEST, RESOLVED],
+    });
+    await userEvent.click(screen.getByRole("button", { name: "Histórico de solicitações (2)" }));
+    const dialog = await screen.findByRole("dialog", { name: "Histórico de solicitações" });
+    const items = within(dialog).getAllByRole("listitem");
+    expect(items).toHaveLength(2);
+    expect(items[0]).toHaveTextContent("Em análise");
+    expect(items[0]).toHaveTextContent("Faltou a cortina da sala");
+    expect(items[0]).toHaveTextContent("por Maria");
+    expect(items[1]).toHaveTextContent("Resolvida");
+    expect(items[1]).toHaveTextContent("Resolvida em 22/09/2026");
+    expect(items[1]).toHaveTextContent("Trocar o motor");
+  });
+
+  it("só pedidos resolvidos: o painel aparece no topo com o histórico, mesmo sem ação", () => {
+    renderPanel({ ...OPEN, canApprove: false, canRequestChanges: false, changeRequests: [RESOLVED] });
+    expect(screen.getByRole("button", { name: "Histórico de solicitações (1)" })).toBeInTheDocument();
+  });
+
+  it("sem pedido, ou backend sem o histórico: sem botão", () => {
+    renderPanel({ ...OPEN, changeRequests: [] });
+    expect(screen.queryByRole("button", { name: /histórico de solicitações/i })).toBeNull();
   });
 
   it("plano sem aceite online não mostra nada", () => {

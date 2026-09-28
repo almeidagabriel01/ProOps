@@ -432,6 +432,36 @@ describe("estado do link: pedido de mudanças e pagamento", () => {
     });
   });
 
+  it("devolve o histórico de pedidos ao cliente, sem IP", async () => {
+    const state = await resolveOnlineApprovalState(
+      "t1",
+      {
+        ...BASE,
+        clientChangeRequest: openRequest({ ip: "200.1.2.3", name: "Maria" }),
+        clientChangeRequestHistory: [
+          openRequest({
+            requestedAt: "2026-09-20T10:00:00.000Z",
+            message: "Trocar o motor",
+            status: "resolved",
+            resolvedAt: "2026-09-21T10:00:00.000Z",
+            resolvedBy: "uid-equipe",
+          }),
+        ],
+      },
+      "p1",
+    );
+    expect(state.changeRequests).toEqual([
+      { name: "Maria", message: "Faltou a cortina da sala", requestedAt: "2026-09-26T10:00:00.000Z", status: "open", resolvedAt: null },
+      { name: null, message: "Trocar o motor", requestedAt: "2026-09-20T10:00:00.000Z", status: "resolved", resolvedAt: "2026-09-21T10:00:00.000Z" },
+    ]);
+    expect(JSON.stringify(state)).not.toContain("200.1.2.3");
+    expect(JSON.stringify(state)).not.toContain("uid-equipe");
+  });
+
+  it("sem pedido: histórico vazio", async () => {
+    expect((await resolveOnlineApprovalState("t1", BASE, "p1")).changeRequests).toEqual([]);
+  });
+
   it("aprovada com entrada em aberto e pagamento online: botão de pagar a entrada", async () => {
     mocks.isStatusApproved.mockResolvedValue(true);
     transactionDocs = [

@@ -151,6 +151,15 @@ alguém da equipe.
   diferente, aprova ou recusa; ou pelo "Marcar como resolvido"
   (`POST /v1/proposals/:id/change-request/resolve`). Com o pedido aberto, o
   cliente ainda pode aceitar, mas não abre outro pedido.
+- **Histórico dos pedidos para o cliente:** o estado do link traz
+  `changeRequests` (o atual e os de `clientChangeRequestHistory`, do mais novo
+  ao mais antigo, montados por `publicChangeRequestHistory`), só com nome,
+  mensagem, data e status (`open` | `resolved`, com a data da resolução); IP,
+  navegador e quem resolveu nunca saem. Com pelo menos um pedido, o painel mostra
+  "Histórico de solicitações (N)", que abre o modal com cada pedido e o selo "Em
+  análise" ou "Resolvida", e o painel do topo aparece mesmo sem outra ação. Um
+  pedido recém-enviado entra no topo da lista sem recarregar. O campo é opcional
+  no tipo do front: com backend antigo o botão só não aparece.
 - **Ao vivo no ERP:** `hooks/use-client-responses.ts` escuta, em tempo real,
   só as propostas com aceite pendente ou pedido aberto (duas consultas por
   igualdade). A lista, o quadro e a visualização leem dele, então o selo e o
