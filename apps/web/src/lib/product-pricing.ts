@@ -1,5 +1,9 @@
-"use client";
-
+/**
+ * Preço de produto por medida. Módulo puro, sem "use client": as landings de
+ * nicho calculam os totais de exemplo com estas mesmas funções no servidor, e
+ * a diretiva transformaria cada uma em referência de cliente, que o servidor
+ * não pode chamar.
+ */
 export type ProductPricingMode =
   | "standard"
   | "curtain_meter"
