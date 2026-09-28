@@ -60,13 +60,12 @@ export function NicheHero({ hero, proposta, vocabulario }: NicheHeroProps) {
           <JanelaDoErp proporcao="16 / 12">
             <TelaPropostaDoNicho proposta={proposta} vocabulario={vocabulario} />
           </JanelaDoErp>
-          <div className="absolute -bottom-6 left-4 flex items-center gap-3 rounded-2xl border border-black/10 bg-white px-4 py-3 shadow-[0_20px_50px_-24px_rgba(0,0,0,0.4)] dark:border-white/12 dark:bg-neutral-900 sm:-left-6">
-            <span aria-hidden="true" className="h-9 w-1 rounded-full bg-[var(--acento)]" />
+          <div className="absolute -bottom-6 left-4 rounded-2xl border border-black/10 bg-white px-4 py-3 shadow-[0_20px_50px_-24px_rgba(0,0,0,0.4)] dark:border-white/12 dark:bg-neutral-900 sm:-left-6">
             <span>
               <span className="block text-[11px] font-semibold uppercase tracking-[0.08em] text-black/45 dark:text-white/45">
                 Calculado na proposta
               </span>
-              <span className="block [font-family:var(--font-pdf-montserrat)] text-xl font-bold tabular-nums text-black dark:text-white">
+              <span className="texto-acento block [font-family:var(--font-pdf-montserrat)] text-xl font-bold tabular-nums">
                 {formatCurrency(total)}
               </span>
             </span>

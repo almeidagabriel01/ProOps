@@ -156,7 +156,7 @@ export const nicheLanding: NicheLandingConfig = {
     },
   ],
   cta: {
-    title: "Sua empresa de segurança eletrônica merece um sistema profissional",
+    title: "Do levantamento ao contrato mensal",
     subtitle: "Propostas claras, obra organizada e financeiro em dia, em um só lugar.",
     crossLink: {
       label: "Ver também: ERP para Automação Residencial",

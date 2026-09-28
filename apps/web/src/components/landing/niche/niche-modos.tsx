@@ -8,9 +8,10 @@ interface NicheModosProps {
 }
 
 /**
- * Os módulos do nicho como uma ficha técnica: três colunas separadas por
- * filete, sem card em volta. Nos nichos com preço por medida, cada coluna é um
- * modo de cobrança (o mesmo que dá nome às abas da cena acima).
+ * Os módulos do nicho como linhas de uma ficha técnica: o nome à esquerda, o
+ * que ele faz no meio, os detalhes à direita. Linhas e não colunas iguais: a
+ * leitura é de especificação, uma por vez. Nos nichos com preço por medida,
+ * cada linha é um modo de cobrança (o mesmo que dá nome às abas da cena).
  */
 export function NicheModos({ secao, modulos }: NicheModosProps) {
   return (
@@ -22,20 +23,20 @@ export function NicheModos({ secao, modulos }: NicheModosProps) {
         <p className="mt-5 max-w-2xl text-base leading-relaxed text-black/60 dark:text-white/60 md:text-lg">
           {secao.subtitle}
         </p>
-        <div className="mt-14 grid border-y border-black/10 dark:border-white/10 md:grid-cols-3">
+        <div className="mt-14 border-b border-black/10 dark:border-white/10">
           {modulos.map((modulo) => {
             const Icone = modulo.icon;
             return (
               <article
                 key={modulo.title}
-                className="vt-revela border-black/10 py-10 first:border-t-0 dark:border-white/10 max-md:border-t md:border-l md:px-8 md:first:border-l-0 md:first:pl-0"
+                className="vt-revela grid gap-4 border-t border-black/10 py-9 dark:border-white/10 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.2fr)_minmax(0,1fr)] lg:gap-12"
               >
-                <Icone className="h-6 w-6 text-[var(--acento)]" aria-hidden />
-                <h3 className="mt-5 [font-family:var(--font-pdf-montserrat)] text-xl font-bold text-black dark:text-white">
+                <h3 className="flex items-center gap-3 [font-family:var(--font-pdf-montserrat)] text-xl font-bold text-black dark:text-white md:text-2xl">
+                  <Icone className="h-6 w-6 shrink-0 text-[var(--acento)]" aria-hidden />
                   {modulo.title}
                 </h3>
-                <p className="mt-3 text-[15px] leading-relaxed text-black/60 dark:text-white/60">{modulo.description}</p>
-                <ul className="mt-5 space-y-2 border-t border-black/10 pt-5 dark:border-white/10">
+                <p className="text-[15px] leading-relaxed text-black/60 dark:text-white/60 md:text-base">{modulo.description}</p>
+                <ul className="space-y-2">
                   {modulo.bullets.map((bullet) => (
                     <li key={bullet} className="flex gap-2.5 text-[14px] text-black/75 dark:text-white/75">
                       <span aria-hidden="true" className="mt-[0.55em] h-px w-3 shrink-0 bg-[var(--acento)]" />

@@ -153,7 +153,7 @@ export const nicheLanding: NicheLandingConfig = {
     },
   ],
   cta: {
-    title: "Sua empresa de persianas e toldos merece um sistema profissional",
+    title: "Da medição do vão ao toldo instalado",
     subtitle:
       "Propostas por medida, obra organizada e financeiro em dia, em um só lugar.",
     crossLink: {

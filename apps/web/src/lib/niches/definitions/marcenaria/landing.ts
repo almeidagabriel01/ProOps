@@ -127,7 +127,7 @@ export const nicheLanding: NicheLandingConfig = {
     },
   ],
   cta: {
-    title: "Sua marcenaria merece um sistema profissional",
+    title: "Da parede medida ao móvel montado",
     subtitle: "Orçamentos por medida, obra organizada e financeiro em dia, em um só lugar.",
     crossLink: {
       label: "Ver também: ERP para Vidraçaria e Esquadrias",

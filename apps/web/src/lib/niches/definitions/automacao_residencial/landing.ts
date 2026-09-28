@@ -145,7 +145,7 @@ export const nicheLanding: NicheLandingConfig = {
     },
   ],
   cta: {
-    title: "Profissionalize sua empresa de automação residencial",
+    title: "Venda o projeto inteiro, cômodo por cômodo",
     subtitle:
       "Junte-se a integradores que já usam a ProOps para fechar mais projetos com propostas profissionais.",
     crossLink: {

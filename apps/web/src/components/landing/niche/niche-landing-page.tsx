@@ -39,6 +39,8 @@ export function NicheLandingPage({ slug }: NicheLandingPageProps) {
   const registro = NICHE_REGISTRY[slug];
   const vocabulario = NICHE_CONFIGS[slug].vocabulary;
   const modulosDaCena = config.modules.map(({ title, modo }) => ({ title, modo }));
+  const palavrasDoFecho = config.cta.title.split(" ");
+  const ultimaDoFecho = palavrasDoFecho.pop();
 
   return (
     <div
@@ -68,7 +70,11 @@ export function NicheLandingPage({ slug }: NicheLandingPageProps) {
           description={`Sobre a ProOps para ${registro.label.toLowerCase()}.`}
         />
         <FechoCta
-          titulo={config.cta.title}
+          titulo={
+            <>
+              {palavrasDoFecho.join(" ")} <Accent>{ultimaDoFecho}</Accent>.
+            </>
+          }
           frase={config.cta.subtitle}
           primario={{ rotulo: "Criar conta", href: config.hero.primaryCta.href }}
           secundario={{ rotulo: config.cta.crossLink.label, href: config.cta.crossLink.href }}

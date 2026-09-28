@@ -349,19 +349,19 @@ function PalcoAnimado({ etapas }: { etapas: readonly EtapaDemo[] }) {
  */
 function JornadaEstatica({ etapas }: { etapas: readonly EtapaDemo[] }) {
   return (
-    <ol className="mx-auto flex max-w-xl flex-col gap-16 px-4 sm:px-6">
+    <ol className="mx-auto flex max-w-xl flex-col gap-16 px-4 sm:px-6 md:max-w-6xl md:gap-24">
       {PASSOS.map((passo, i) => {
         const celular = passo.foco === "cliente" && passo.cliente;
         return (
-          <li key={passo.titulo} className="vt-revela">
-            <p className="text-xs font-semibold uppercase tracking-[0.12em] text-black/40 dark:text-white/40">
-              {i + 1} de {PASSOS.length}
-            </p>
-            <h3 className="mt-1 [font-family:var(--font-pdf-montserrat)] text-2xl font-bold tracking-[-0.02em] text-black dark:text-white">
-              {passo.titulo}
-            </h3>
-            <p className="mt-2 text-[15px] leading-relaxed text-black/60 dark:text-white/60">{passo.frase}</p>
-            <div className="mt-6">
+          <li key={passo.titulo} className="vt-revela md:grid md:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)] md:items-center md:gap-14">
+            <div>
+              <h3 className="[font-family:var(--font-pdf-montserrat)] text-2xl font-bold tracking-[-0.02em] text-black dark:text-white md:text-3xl">
+                <span className="mr-2 tabular-nums text-black/30 dark:text-white/30">{i + 1}.</span>
+                {passo.titulo}
+              </h3>
+              <p className="mt-2 text-[15px] leading-relaxed text-black/60 dark:text-white/60 md:text-base">{passo.frase}</p>
+            </div>
+            <div className="mt-6 md:mt-0">
               {celular ? (
                 <DeviceFrame className="mx-auto w-[62%] max-w-[260px]">
                   <div className="absolute inset-0">
@@ -377,7 +377,7 @@ function JornadaEstatica({ etapas }: { etapas: readonly EtapaDemo[] }) {
           </li>
         );
       })}
-      <li className="flex justify-center">
+      <li className="flex justify-center pb-4">
         <FichaDaVenda estatico passo={PASSOS.length - 1} />
       </li>
     </ol>

@@ -142,7 +142,7 @@ export const nicheLanding: NicheLandingConfig = {
     },
   ],
   cta: {
-    title: "Sua vidraçaria merece um sistema profissional",
+    title: "Do vão medido ao vidro instalado",
     subtitle: "Orçamentos por medida, obra organizada e financeiro em dia, em um só lugar.",
     crossLink: {
       label: "Ver também: ERP para Persianas e Toldos",
