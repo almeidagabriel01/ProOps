@@ -6,9 +6,9 @@ export function ProductsEmptySkeleton() {
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <div className="space-y-2">
+        <div className="min-w-0 space-y-2">
           <Skeleton className="h-9 w-48" />
-          <Skeleton className="h-4 w-96" />
+          <Skeleton className="h-4 w-96 max-w-full" />
         </div>
         <Skeleton className="h-10 w-40" />
       </div>
