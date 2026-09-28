@@ -22,6 +22,7 @@ import {
   defaultBookingSettings,
   formatMinutes,
   formatShortDate,
+  normalizeExceptions,
   visitTypeId,
   weekdayOf,
   type BookingRequestInput,
@@ -81,6 +82,14 @@ export async function saveBookingSettings(
     leadHours: number;
     horizonDays: number;
     visitTypes: Array<{ id?: string; label: string; durationMin: number }>;
+    exceptions?: Array<{
+      id?: string;
+      date: string;
+      allDay: boolean;
+      startMin?: number | null;
+      endMin?: number | null;
+      note?: string | null;
+    }>;
   },
   uid: string,
 ): Promise<BookingSettings> {
@@ -95,6 +104,8 @@ export async function saveBookingSettings(
     ...current,
     ...input,
     visitTypes,
+    // Sem o campo (tela antiga), as exceções gravadas ficam como estão.
+    exceptions: normalizeExceptions(input.exceptions ?? current.exceptions ?? [], Date.now()),
     publicToken:
       current.publicToken ?? (input.enabled ? randomBytes(12).toString("base64url") : null),
     ownerUserId: uid,

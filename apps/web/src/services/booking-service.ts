@@ -8,6 +8,18 @@ export interface VisitType {
   durationMin: number;
 }
 
+/** Dia (ou faixa) sem atendimento, em horário de Brasília. */
+export interface BookingException {
+  id: string;
+  /** "YYYY-MM-DD" */
+  date: string;
+  allDay: boolean;
+  startMin: number | null;
+  endMin: number | null;
+  /** Só para a empresa; o cliente nunca vê. */
+  note: string | null;
+}
+
 export interface BookingSettings {
   enabled: boolean;
   publicToken: string | null;
@@ -17,6 +29,8 @@ export interface BookingSettings {
   leadHours: number;
   horizonDays: number;
   visitTypes: VisitType[];
+  /** Ausente quando o backend ainda não conhece exceções. */
+  exceptions?: BookingException[];
 }
 
 export interface BookingRequest {
@@ -75,6 +89,20 @@ export const BookingService = {
       leadHours: input.leadHours,
       horizonDays: input.horizonDays,
       visitTypes: input.visitTypes.map((t) => ({ id: t.id || undefined, label: t.label, durationMin: t.durationMin })),
+      // Só quando o GET devolveu o campo: o schema do backend é estrito, e um
+      // backend publicado antes das exceções recusaria o salvamento com 400.
+      ...(input.exceptions
+        ? {
+            exceptions: input.exceptions.map((e) => ({
+              id: e.id || undefined,
+              date: e.date,
+              allDay: e.allDay,
+              startMin: e.allDay ? null : e.startMin,
+              endMin: e.allDay ? null : e.endMin,
+              note: e.note?.trim() || null,
+            })),
+          }
+        : {}),
     });
     return response.settings;
   },

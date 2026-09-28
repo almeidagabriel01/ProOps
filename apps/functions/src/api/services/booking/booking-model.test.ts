@@ -3,8 +3,10 @@ import {
   brazilDate,
   brazilToUtcMs,
   busyFromCalendarEvent,
+  busyFromExceptions,
   computeAvailableSlots,
   defaultVisitTypes,
+  normalizeExceptions,
   visitTypeId,
   weekdayOf,
 } from "./booking-model";
@@ -139,5 +141,84 @@ describe("tipos de visita", () => {
   it("id a partir do nome, sem repetir", () => {
     expect(visitTypeId("Visita Técnica", new Set())).toBe("visita_tecnica");
     expect(visitTypeId("Visita Técnica", new Set(["visita_tecnica"]))).toBe("visita_tecnica_2");
+  });
+});
+
+describe("exceções do expediente", () => {
+  // Segunda 28/09 e terça 29/09 de 2026; expediente das 09:00 às 12:00.
+  const settings = { ...base, horizonDays: 7 };
+  const slotsOn = (date: string, exceptions: Parameters<typeof busyFromExceptions>[0]) =>
+    computeAvailableSlots({ settings: { ...settings, exceptions }, durationMin: 60, busy: [], nowMs: NOW }).find(
+      (d) => d.date === date,
+    )?.starts ?? [];
+
+  it("dia inteiro sem atendimento some da lista", () => {
+    expect(slotsOn("2026-09-28", [])).toEqual([540, 600, 660]);
+    expect(
+      slotsOn("2026-09-28", [{ id: "a", date: "2026-09-28", allDay: true, startMin: null, endMin: null, note: "Feriado" }]),
+    ).toEqual([]);
+    // O dia seguinte continua aberto.
+    expect(
+      slotsOn("2026-09-29", [{ id: "a", date: "2026-09-28", allDay: true, startMin: null, endMin: null, note: null }]),
+    ).toEqual([540, 600, 660]);
+  });
+
+  it("faixa derruba só os horários que ela toca", () => {
+    expect(
+      slotsOn("2026-09-28", [{ id: "a", date: "2026-09-28", allDay: false, startMin: 600, endMin: 630, note: null }]),
+    ).toEqual([540, 660]);
+  });
+
+  it("dia inteiro vale em Brasília, de 00:00 às 24:00", () => {
+    expect(busyFromExceptions([{ id: "a", date: "2026-09-28", allDay: true, startMin: null, endMin: null, note: null }])).toEqual([
+      { startMs: Date.parse("2026-09-28T03:00:00.000Z"), endMs: Date.parse("2026-09-29T03:00:00.000Z") },
+    ]);
+  });
+
+  it("ao salvar: tira as que passaram, ordena e dá id estável", () => {
+    const result = normalizeExceptions(
+      [
+        { date: "2026-10-02", allDay: false, startMin: 600, endMin: 660, note: "  Médico " },
+        { date: "2026-09-20", allDay: true },
+        { id: "fer", date: "2026-10-01", allDay: true, startMin: 540, endMin: 600, note: "" },
+      ],
+      NOW,
+    );
+    expect(result).toEqual([
+      { id: "fer", date: "2026-10-01", allDay: true, startMin: null, endMin: null, note: null },
+      { id: "exc_20261002_600", date: "2026-10-02", allDay: false, startMin: 600, endMin: 660, note: "Médico" },
+    ]);
+  });
+
+  it("a exceção de hoje ainda vale", () => {
+    expect(normalizeExceptions([{ date: "2026-09-25", allDay: true }], NOW)).toHaveLength(1);
+  });
+
+  it("schema: faixa precisa de início antes do fim, e o campo é opcional", () => {
+    const valid = {
+      enabled: true,
+      days: [1],
+      startMin: 540,
+      endMin: 720,
+      leadHours: 0,
+      horizonDays: 7,
+      visitTypes: [{ label: "Visita", durationMin: 60 }],
+    };
+    expect(BookingSettingsInputSchema.safeParse(valid).success).toBe(true);
+    expect(
+      BookingSettingsInputSchema.safeParse({
+        ...valid,
+        exceptions: [{ date: "2026-10-01", allDay: false, startMin: 660, endMin: 600 }],
+      }).success,
+    ).toBe(false);
+    expect(
+      BookingSettingsInputSchema.safeParse({
+        ...valid,
+        exceptions: [{ date: "2026-10-01", allDay: true }, { date: "2026-10-02", allDay: false, startMin: 600, endMin: 660, note: "Médico" }],
+      }).success,
+    ).toBe(true);
+    expect(
+      BookingSettingsInputSchema.safeParse({ ...valid, exceptions: [{ date: "01/10/2026", allDay: true }] }).success,
+    ).toBe(false);
   });
 });

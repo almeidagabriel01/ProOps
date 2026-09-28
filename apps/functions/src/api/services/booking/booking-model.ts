@@ -35,10 +35,30 @@ export interface BookingSettings {
   /** Até quantos dias à frente o link mostra horários. */
   horizonDays: number;
   visitTypes: VisitType[];
+  /**
+   * Dias ou faixas em que a empresa não atende (feriado, férias, um compromisso
+   * fora da Agenda). O link não oferece horário que encoste neles.
+   */
+  exceptions: BookingException[];
   /** Dono dos eventos criados na Agenda (quem configurou). */
   ownerUserId: string | null;
   updatedAt: string | null;
 }
+
+/** Um dia (ou uma faixa de um dia) sem atendimento, em horário de Brasília. */
+export interface BookingException {
+  id: string;
+  /** "YYYY-MM-DD" */
+  date: string;
+  allDay: boolean;
+  /** Minutos do dia; null quando é o dia inteiro. */
+  startMin: number | null;
+  endMin: number | null;
+  /** Só para a empresa (feriado, férias...). O cliente nunca vê. */
+  note: string | null;
+}
+
+export const MAX_BOOKING_EXCEPTIONS = 100;
 
 export type BookingRequestStatus = "pending" | "confirmed" | "declined";
 
@@ -62,6 +82,7 @@ export function defaultBookingSettings(niche: unknown): BookingSettings {
     leadHours: 24,
     horizonDays: 21,
     visitTypes: defaultVisitTypes(niche),
+    exceptions: [],
     ownerUserId: null,
     updatedAt: null,
   };
@@ -98,6 +119,32 @@ export const BookingSettingsInputSchema = z
       )
       .min(1, "Cadastre pelo menos um tipo de visita.")
       .max(5),
+    // Opcional: a tela publicada antes das exceções não manda o campo.
+    exceptions: z
+      .array(
+        z
+          .object({
+            id: z.string().trim().max(40).optional(),
+            date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Data da exceção inválida."),
+            allDay: z.boolean(),
+            startMin: minuteOfDay.nullable().optional(),
+            endMin: minuteOfDay.nullable().optional(),
+            note: z.string().trim().max(80).nullable().optional(),
+          })
+          .strict()
+          .refine(
+            (e) =>
+              e.allDay ||
+              (typeof e.startMin === "number" &&
+                typeof e.endMin === "number" &&
+                e.endMin > e.startMin &&
+                e.startMin % 15 === 0 &&
+                e.endMin % 15 === 0),
+            { message: "Na exceção por horário, o fim precisa ser depois do início." },
+          ),
+      )
+      .max(MAX_BOOKING_EXCEPTIONS, "São no máximo 100 exceções.")
+      .optional(),
   })
   .strict()
   .refine((v) => v.endMin > v.startMin, {
@@ -172,6 +219,44 @@ export interface BusyInterval {
   endMs: number;
 }
 
+/** O que cada exceção ocupa: o dia inteiro ou a faixa, em Brasília. */
+export function busyFromExceptions(exceptions: BookingException[] | undefined): BusyInterval[] {
+  return (exceptions ?? []).map((e) =>
+    e.allDay || e.startMin === null || e.endMin === null
+      ? { startMs: brazilToUtcMs(e.date, 0), endMs: brazilToUtcMs(e.date, 24 * 60) }
+      : { startMs: brazilToUtcMs(e.date, e.startMin), endMs: brazilToUtcMs(e.date, e.endMin) },
+  );
+}
+
+/**
+ * As exceções a guardar: sem as que já passaram, em ordem de data e hora, com
+ * id estável. Faixa de "dia inteiro" perde os horários.
+ */
+export function normalizeExceptions(
+  input: Array<{ id?: string; date: string; allDay: boolean; startMin?: number | null; endMin?: number | null; note?: string | null }>,
+  nowMs: number,
+): BookingException[] {
+  const today = brazilDate(nowMs);
+  const taken = new Set<string>();
+  return input
+    .filter((e) => e.date >= today)
+    .map((e) => ({
+      id: e.id?.trim() || "",
+      date: e.date,
+      allDay: e.allDay,
+      startMin: e.allDay ? null : (e.startMin ?? null),
+      endMin: e.allDay ? null : (e.endMin ?? null),
+      note: e.note?.trim() || null,
+    }))
+    .sort((a, b) => a.date.localeCompare(b.date) || (a.startMin ?? -1) - (b.startMin ?? -1))
+    .map((e) => {
+      let id = e.id && !taken.has(e.id) ? e.id : `exc_${e.date.replace(/-/g, "")}_${e.startMin ?? "dia"}`;
+      for (let n = 2; taken.has(id); n++) id = `exc_${e.date.replace(/-/g, "")}_${e.startMin ?? "dia"}_${n}`;
+      taken.add(id);
+      return { ...e, id };
+    });
+}
+
 export interface DaySlots {
   date: string;
   starts: number[];
@@ -183,12 +268,16 @@ export interface DaySlots {
  * inteira cabe no expediente e não encosta em nenhum compromisso.
  */
 export function computeAvailableSlots(params: {
-  settings: Pick<BookingSettings, "days" | "startMin" | "endMin" | "leadHours" | "horizonDays">;
+  settings: Pick<BookingSettings, "days" | "startMin" | "endMin" | "leadHours" | "horizonDays"> & {
+    exceptions?: BookingException[];
+  };
   durationMin: number;
   busy: BusyInterval[];
   nowMs: number;
 }): DaySlots[] {
-  const { settings, durationMin, busy, nowMs } = params;
+  const { settings, durationMin, nowMs } = params;
+  // As exceções da empresa ocupam como um compromisso da Agenda.
+  const busy = [...params.busy, ...busyFromExceptions(settings.exceptions)];
   const earliestMs = nowMs + settings.leadHours * 3_600_000;
   const open = new Set(settings.days);
   const today = brazilDate(nowMs);

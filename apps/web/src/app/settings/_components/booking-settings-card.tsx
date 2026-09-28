@@ -14,6 +14,7 @@ import { cn } from "@/lib/utils";
 import { WEEKDAY_OPTIONS, formatMinutes } from "@/lib/booking/booking-format";
 import { BookingService, type BookingSettings } from "@/services/booking-service";
 import { BookingCardSkeleton } from "./settings-skeleton";
+import { BookingExceptionsEditor } from "./booking-exceptions-editor";
 
 interface BookingSettingsCardProps {
   /** Conta de demonstração: mostra o padrão, sem link e sem salvar. */
@@ -250,7 +251,13 @@ export function BookingSettingsCard({ readOnly = false, demoDefaults, onLoadingC
         </div>
 
         <div className="space-y-2">
-          <Label>Tipos de visita</Label>
+          {/* Os dois rótulos em cima das colunas; no celular cada linha
+              empilha, e a duração ganha o rótulo dela. */}
+          <div className="flex gap-2">
+            <Label className="sm:flex-1">Tipos de visita</Label>
+            <Label className="hidden w-28 sm:block">Tempo de duração</Label>
+            {!readOnly && settings.visitTypes.length > 1 && <span className="hidden w-10 sm:block" aria-hidden="true" />}
+          </div>
           <ul className="space-y-2">
             {settings.visitTypes.map((type, index) => (
               <li key={type.id || index} className="flex flex-col gap-2 sm:flex-row sm:items-center">
@@ -266,9 +273,10 @@ export function BookingSettingsCard({ readOnly = false, demoDefaults, onLoadingC
                   }
                   className="sm:flex-1"
                 />
-                <div className="flex gap-2">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-muted-foreground sm:hidden">Tempo de duração</span>
                   <Select
-                    aria-label={`Duração do tipo de visita ${index + 1}`}
+                    aria-label={`Tempo de duração do tipo de visita ${index + 1}`}
                     value={String(type.durationMin)}
                     disabled={readOnly}
                     onChange={(e) =>
@@ -314,6 +322,16 @@ export function BookingSettingsCard({ readOnly = false, demoDefaults, onLoadingC
             </Button>
           )}
         </div>
+
+        {settings.exceptions && (
+          <BookingExceptionsEditor
+            exceptions={settings.exceptions}
+            onChange={(exceptions) => update({ exceptions })}
+            readOnly={readOnly}
+            startMin={settings.startMin}
+            endMin={settings.endMin}
+          />
+        )}
 
         {!readOnly && (
           <div className="flex justify-end">

@@ -40,6 +40,25 @@ export function shortDayLabel(date: string): { weekday: string; day: string } {
   return { weekday: WEEKDAYS_SHORT[weekdayOf(date)], day: `${d}/${m}` };
 }
 
+/** Hoje em Brasília ("YYYY-MM-DD"), o dia que vale para o link. */
+export function todayInBrazil(nowMs: number = Date.now()): string {
+  return new Date(nowMs - 3 * 60 * 60 * 1000).toISOString().slice(0, 10);
+}
+
+/** "sex, 02/10, dia inteiro" ou "sex, 02/10, das 10:00 às 11:00". */
+export function describeException(exception: {
+  date: string;
+  allDay: boolean;
+  startMin: number | null;
+  endMin: number | null;
+}): string {
+  const { weekday, day } = shortDayLabel(exception.date);
+  if (exception.allDay || exception.startMin === null || exception.endMin === null) {
+    return `${weekday}, ${day}, dia inteiro`;
+  }
+  return `${weekday}, ${day}, das ${formatMinutes(exception.startMin)} às ${formatMinutes(exception.endMin)}`;
+}
+
 export const WEEKDAY_OPTIONS = [
   { value: 1, label: "Seg" },
   { value: 2, label: "Ter" },
@@ -64,5 +83,6 @@ export function demoBookingSettings(visitType: { id: string; label: string; dura
     leadHours: 24,
     horizonDays: 21,
     visitTypes: [visitType],
+    exceptions: [],
   };
 }

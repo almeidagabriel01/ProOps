@@ -64,6 +64,51 @@ describe("link de agendamento nas configurações", () => {
     );
   });
 
+  it("a duração tem rótulo próprio, como os tipos de visita", async () => {
+    render(<BookingSettingsCard />);
+    await screen.findByText("Tipos de visita");
+    expect(screen.getAllByText("Tempo de duração").length).toBeGreaterThan(0);
+    expect(screen.getByLabelText("Tempo de duração do tipo de visita 1")).toBeInTheDocument();
+  });
+
+  it("acrescenta uma exceção por horário e salva a faixa", async () => {
+    m.get.mockResolvedValue({ ...SETTINGS, exceptions: [] });
+    render(<BookingSettingsCard />);
+    expect(await screen.findByText(/Nenhuma exceção/)).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole("button", { name: "Adicionar exceção" }));
+    await userEvent.click(screen.getByRole("switch", { name: "Dia inteiro" }));
+    await userEvent.type(screen.getByLabelText("Motivo (só você vê)"), "Treinamento");
+    await userEvent.click(screen.getByRole("button", { name: "Salvar" }));
+
+    await waitFor(() =>
+      expect(m.save).toHaveBeenCalledWith(
+        expect.objectContaining({
+          exceptions: [expect.objectContaining({ allDay: false, startMin: 540, endMin: 660, note: "Treinamento" })],
+        }),
+      ),
+    );
+  });
+
+  it("remove a exceção gravada", async () => {
+    m.get.mockResolvedValue({
+      ...SETTINGS,
+      exceptions: [{ id: "exc_20301012_dia", date: "2030-10-12", allDay: true, startMin: null, endMin: null, note: null }],
+    });
+    render(<BookingSettingsCard />);
+    await userEvent.click(await screen.findByRole("button", { name: /Remover a exceção de .*dia inteiro/ }));
+    expect(screen.getByText(/Nenhuma exceção/)).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Salvar" }));
+    await waitFor(() => expect(m.save).toHaveBeenCalledWith(expect.objectContaining({ exceptions: [] })));
+  });
+
+  it("backend sem exceções: o editor não aparece", async () => {
+    render(<BookingSettingsCard />);
+    await screen.findByText("Tipos de visita");
+    expect(screen.queryByText("Exceções")).toBeNull();
+    expect(screen.queryByRole("button", { name: "Adicionar exceção" })).toBeNull();
+  });
+
   it("na demonstração mostra o padrão sem chamar a API e sem salvar", () => {
     render(
       <BookingSettingsCard
@@ -76,5 +121,8 @@ describe("link de agendamento nas configurações", () => {
     expect(screen.getByDisplayValue("Medição")).toBeDisabled();
     expect(screen.getByRole("switch")).toBeDisabled();
     expect(screen.queryByRole("button", { name: "Salvar" })).toBeNull();
+    // A demonstração mostra o editor de exceções vazio, sem o botão de acrescentar.
+    expect(screen.getByText(/Nenhuma exceção/)).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Adicionar exceção" })).toBeNull();
   });
 });
