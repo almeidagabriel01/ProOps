@@ -334,3 +334,4 @@ Detailed documentation per module lives in CLAUDE.md files within each folder:
 - Google Drive (entrega da proposta): `apps/functions/src/api/services/drive/CLAUDE.md`
 - Backend middleware: `apps/functions/src/api/middleware/CLAUDE.md`
 - CI/CD, GitHub Secrets, workflows: `.claude/rules/ci-cd.md`
+- Prints do ERP para as páginas de venda (emuladores próprios, roteiro): `tests/capturas-do-erp/CLAUDE.md`
