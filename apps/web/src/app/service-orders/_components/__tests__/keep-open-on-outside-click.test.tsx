@@ -70,7 +70,6 @@ describe("janelas da assistência técnica", () => {
       "components/features/field-service/equipment-form-dialog.tsx",
       "components/features/field-service/project-equipment-dialog.tsx",
       "components/features/field-service/service-order-form-dialog.tsx",
-      "components/features/field-service/contract-form-dialog.tsx",
       "app/contracts/_components/activate-contract-dialog.tsx",
     ];
     for (const file of files) {

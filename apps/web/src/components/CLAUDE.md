@@ -53,8 +53,14 @@ components/
 - **A lista do `Select` do ERP abre num portal fora da janela**, e a trava de
   rolagem do Radix (que escuta no `document`) cancelava a roda do mouse nela.
   A lista para a propagação de `wheel` e `touchmove` e rola normalmente.
-  Guard dos dois: `tests/e2e/field-service/service-contracts.spec.ts`
-  (CONTRATO-02, em duas alturas de tela).
+  Guards: `tests/e2e/field-service/service-contracts.spec.ts` (UI-01, a
+  janela alta da Nova OS em duas alturas de tela) e
+  `ui/__tests__/select-wheel-in-dialog.test.tsx` (a roda não chega ao
+  `document`).
+- **Cadastro longo é página em etapas, não janela.** Janela que rola por dentro
+  é o último recurso: o contrato de manutenção começou como janela e virou
+  `/contracts/new` e `/contracts/[id]/edit` com `StepWizard`, no padrão do
+  novo lançamento.
 - Para adicionar novo componente do registry: `npx shadcn@latest add [componente]`
 - Componentes disponíveis incluem: button, card, dialog, alert-dialog, badge, checkbox, avatar, command-palette, e muitos outros
 

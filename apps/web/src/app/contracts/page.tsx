@@ -9,7 +9,6 @@ import { UpgradeRequired } from "@/components/ui/upgrade-required";
 import { EmptyState } from "@/components/shared/empty-state";
 import { SelectTenantState } from "@/components/shared/select-tenant-state";
 import { PageViewSwitcher } from "@/components/layout/page-view-switcher";
-import { ContractFormDialog } from "@/components/features/field-service/contract-form-dialog";
 import { useTenant } from "@/providers/tenant-provider";
 import { useAuth } from "@/providers/auth-provider";
 import { usePlanLimits } from "@/hooks/usePlanLimits";
@@ -30,7 +29,6 @@ export default function ContractsPage() {
   const allowed = hasFieldService || user?.role === "superadmin";
   const { contracts, loading, error } = useServiceContracts(tenant?.id, allowed);
   const [filter, setFilter] = React.useState<ContractFilter>("active");
-  const [newOpen, setNewOpen] = React.useState(false);
 
   if (!user) return null;
   if (user.role === "superadmin" && !tenant) {
@@ -65,7 +63,7 @@ export default function ContractsPage() {
           <PageViewSwitcher className="mt-3" />
         </div>
         {canOpen && (
-          <Button onClick={() => setNewOpen(true)}>
+          <Button onClick={() => router.push("/contracts/new")}>
             <Plus className="mr-2 h-4 w-4" />
             Novo contrato
           </Button>
@@ -101,7 +99,7 @@ export default function ContractsPage() {
           }
           action={
             contracts.length === 0 && canOpen ? (
-              <Button onClick={() => setNewOpen(true)}>
+              <Button onClick={() => router.push("/contracts/new")}>
                 <Plus className="mr-2 h-4 w-4" />
                 Novo contrato
               </Button>
@@ -115,12 +113,6 @@ export default function ContractsPage() {
           ))}
         </div>
       )}
-
-      <ContractFormDialog
-        open={newOpen}
-        onOpenChange={setNewOpen}
-        onSaved={(id) => router.push(`/contracts/${id}`)}
-      />
     </div>
   );
 }

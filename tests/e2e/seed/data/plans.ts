@@ -1,5 +1,6 @@
 import type { Auth } from "firebase-admin/auth";
 import type { Firestore } from "firebase-admin/firestore";
+import { buildSearchTokens } from "../../../../apps/functions/src/lib/search-tokens";
 
 /**
  * Um tenant MASTER por tier, para medir o gate de MODULO por plano.
@@ -224,6 +225,8 @@ export async function seedPlanTenants(
     email: "loja.centro@example.com",
     phone: "(11) 3333-4444",
     types: ["cliente"],
+    // Sem os tokens a busca do ClientSelect (por índice) não acha o contato.
+    searchTokens: buildSearchTokens("Loja Centro", "loja.centro@example.com", "(11) 3333-4444"),
     createdAt: new Date("2024-01-01T00:00:00Z").toISOString(),
     updatedAt: new Date("2024-01-01T00:00:00Z").toISOString(),
   });

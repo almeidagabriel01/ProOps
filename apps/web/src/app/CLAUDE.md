@@ -113,7 +113,8 @@ A **assistência técnica** são três telas do grupo Assistência da dock:
 atendimento pelo celular em `/service-orders/[id]/executar`, passo a passo até
 a assinatura), `/equipment` (o parque instalado, também como aba
 "Equipamentos" na ficha do contato, carregada sob demanda) e `/contracts`
-(os contratos de manutenção: a receita recorrente no topo, o detalhe
+(os contratos de manutenção: a receita recorrente no topo, o cadastro em
+etapas em `/contracts/new` e `/contracts/[id]/edit`, o detalhe
 `/contracts/[id]` com ativar, suspender, retomar e encerrar, as mensalidades
 lançadas com o link de pagamento de cada uma e as visitas que o contrato
 abriu). A lista e o

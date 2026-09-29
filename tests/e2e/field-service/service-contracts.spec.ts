@@ -102,21 +102,63 @@ test.describe("CONTRATO-01: do rascunho à primeira mensalidade", () => {
   });
 });
 
-test.describe("CONTRATO-02: a janela de Novo contrato cabe na tela", () => {
+async function loginContracts(page: import("@playwright/test").Page) {
+  await interceptFirebaseRequests(page);
+  const loginPage = new LoginPage(page);
+  await loginPage.goto();
+  await loginPage.login(PLAN_CONTRACTS.email, PLAN_PASSWORD);
+  await page.waitForURL(/dashboard/, { timeout: 30_000 });
+}
+
+test.describe("CONTRATO-02: novo contrato é uma página em etapas", () => {
+  test("cria o contrato pela interface, sem janela rolando por dentro", async ({ page }) => {
+    await page.setViewportSize({ width: 1366, height: 600 });
+    await loginContracts(page);
+
+    await page.goto("/contracts");
+    await page.getByRole("button", { name: "Novo contrato" }).first().click();
+    await page.waitForURL(/\/contracts\/new$/);
+    await expect(page.getByRole("dialog")).toHaveCount(0);
+
+    // Avançar vazio mostra o que falta, sem sair da etapa.
+    await page.getByRole("button", { name: "Próximo" }).click();
+    await expect(page.getByText("Escolha o cliente.")).toBeVisible();
+    await expect(page.getByText("Inclua ao menos um item na mensalidade.")).toBeVisible();
+
+    const client = page.getByPlaceholder("Digite ou selecione um cliente...");
+    await client.fill("Loja");
+    await page.getByText("Clientes cadastrados").waitFor({ state: "visible", timeout: 8000 });
+    await page.locator("div, li").filter({ hasText: "Loja Centro" }).filter({ hasNot: page.locator("input") }).last().click();
+
+    const title = `Suporte mensal (UI ${Date.now()})`;
+    await page.locator("#contractTitle").fill(title);
+    await page.getByRole("button", { name: "Item avulso" }).click();
+    await page.getByRole("button", { name: "Próximo" }).click();
+
+    // Cobrança: a carteira padrão já vem escolhida.
+    await expect(page.getByText("Dia do vencimento")).toBeVisible();
+    await page.getByRole("button", { name: "Próximo" }).click();
+
+    await expect(page.getByText("Visitas preventivas")).toBeVisible();
+    await page.getByRole("button", { name: "Criar contrato" }).click();
+
+    await page.waitForURL(/\/contracts\/(?!new)[^/]+$/, { timeout: 20_000 });
+    await expect(page.getByRole("heading", { name: title })).toBeVisible();
+    await expect(page.getByText("Rascunho", { exact: true }).first()).toBeVisible();
+  });
+});
+
+test.describe("UI-01: janela alta cabe na tela", () => {
   for (const viewport of [
     { width: 1280, height: 720 },
     { width: 1366, height: 600 },
   ]) {
-    test(`${viewport.width}x${viewport.height}: rola por dentro até o Salvar, e a lista do vencimento rola com a roda`, async ({ page }) => {
+    test(`${viewport.width}x${viewport.height}: a Nova OS rola por dentro até o Abrir OS`, async ({ page }) => {
       await page.setViewportSize(viewport);
-      await interceptFirebaseRequests(page);
-      const loginPage = new LoginPage(page);
-      await loginPage.goto();
-      await loginPage.login(PLAN_CONTRACTS.email, PLAN_PASSWORD);
-      await page.waitForURL(/dashboard/, { timeout: 30_000 });
+      await loginContracts(page);
 
-      await page.goto("/contracts");
-      await page.getByRole("button", { name: "Novo contrato" }).first().click();
+      await page.goto("/service-orders");
+      await page.getByRole("button", { name: "Nova OS" }).first().click();
       const dialog = page.getByRole("dialog");
       await expect(dialog).toBeVisible();
 
@@ -125,24 +167,9 @@ test.describe("CONTRATO-02: a janela de Novo contrato cabe na tela", () => {
       expect(box.y).toBeGreaterThanOrEqual(0);
       expect(box.y + box.height).toBeLessThanOrEqual(viewport.height);
 
-      const save = dialog.getByRole("button", { name: "Salvar" });
+      const save = dialog.getByRole("button", { name: "Abrir OS" });
       await save.scrollIntoViewIfNeeded();
       await expect(save).toBeInViewport();
-
-      // A lista do dia do vencimento abre num portal fora da janela, e a
-      // trava de rolagem da janela engolia a roda do mouse.
-      const dayField = dialog.locator("#contractBillingDay").locator("xpath=..");
-      await dayField.scrollIntoViewIfNeeded();
-      await dayField.click();
-      // O texto da opção fica num <span> do portal; o <option> do select
-      // nativo escondido também tem o texto, por isso a busca pelo span.
-      const option = page.locator("span", { hasText: /^Todo dia 1$/ });
-      await expect(option).toBeVisible();
-      const list = option.locator("xpath=../..");
-      const before = await list.evaluate((el) => el.scrollTop);
-      await option.hover();
-      await page.mouse.wheel(0, 400);
-      await expect.poll(() => list.evaluate((el) => el.scrollTop)).toBeGreaterThan(before);
     });
   }
 });

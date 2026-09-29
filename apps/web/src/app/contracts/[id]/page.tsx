@@ -21,7 +21,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { UpgradeRequired } from "@/components/ui/upgrade-required";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { EmptyState } from "@/components/shared/empty-state";
-import { ContractFormDialog } from "@/components/features/field-service/contract-form-dialog";
 import { useTenant } from "@/providers/tenant-provider";
 import { useAuth } from "@/providers/auth-provider";
 import { usePlanLimits } from "@/hooks/usePlanLimits";
@@ -62,7 +61,6 @@ export default function ContractDetailPage() {
   const [loading, setLoading] = React.useState(true);
   const [charges, setCharges] = React.useState<ContractCharge[] | null>(null);
   const [visits, setVisits] = React.useState<ServiceOrder[] | null>(null);
-  const [editOpen, setEditOpen] = React.useState(false);
   const [activateOpen, setActivateOpen] = React.useState(false);
   const [confirm, setConfirm] = React.useState<"suspend" | "end" | "delete" | null>(null);
   const [busy, setBusy] = React.useState(false);
@@ -207,7 +205,7 @@ export default function ContractDetailPage() {
               </Button>
             )}
             {contract.status !== "ended" && (
-              <Button variant="outline" onClick={() => setEditOpen(true)}>
+              <Button variant="outline" onClick={() => router.push(`/contracts/${contract.id}/edit`)}>
                 <Pencil className="mr-2 h-4 w-4" />
                 Editar
               </Button>
@@ -355,7 +353,6 @@ export default function ContractDetailPage() {
         </CardContent>
       </Card>
 
-      <ContractFormDialog open={editOpen} onOpenChange={setEditOpen} contract={contract} onSaved={() => undefined} />
       <ActivateContractDialog open={activateOpen} onOpenChange={setActivateOpen} contract={contract} />
 
       <ConfirmDialog

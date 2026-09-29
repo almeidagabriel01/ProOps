@@ -1,20 +1,12 @@
 "use client";
 
 import * as React from "react";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
+import { useRouter } from "next/navigation";
+import { FileSignature, Receipt, Wrench } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { DatePicker } from "@/components/ui/date-picker";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Loader } from "@/components/ui/loader";
 import { Select } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
@@ -24,7 +16,9 @@ import { useTenant } from "@/providers/tenant-provider";
 import { useCurrentNicheConfig } from "@/hooks/useCurrentNicheConfig";
 import { usePlanLimits } from "@/hooks/usePlanLimits";
 import { toast } from "@/lib/toast";
-import { keepOpenOnOutsideClick } from "@/lib/field-service/service-orders";
+import { FormContainer, FormHeader } from "@/components/ui/form-components";
+import { FormStepCard } from "@/components/ui/form-step-card";
+import { StepNavigation, StepWizard } from "@/components/ui/step-wizard";
 import {
   BILLING_DAYS,
   CONTRACT_TYPE_LABELS,
@@ -42,12 +36,16 @@ import type {
   ServiceOrderItem,
 } from "@/types/field-service";
 
-interface ContractFormDialogProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
+interface ContractFormProps {
+  /** Ausente: contrato novo. */
   contract?: ServiceContract | null;
-  onSaved: (id: string) => void;
 }
+
+const STEPS = [
+  { id: "contract", title: "Contrato", description: "Cliente e itens", icon: FileSignature },
+  { id: "billing", title: "Cobrança", description: "Vencimento e carteira", icon: Receipt },
+  { id: "visits", title: "Visitas", description: "Preventivas e equipamentos", icon: Wrench },
+];
 
 interface FormState {
   clientId: string;
@@ -109,8 +107,12 @@ function initialState(
  * O contrato de manutenção: o que se cobra todo mês, em que dia, em qual
  * carteira, e as visitas preventivas que ele promete. Nasce rascunho; a
  * cobrança começa ao ativar, na tela do contrato.
+ *
+ * Página em etapas, e não janela: com os itens, a cobrança e as visitas, o
+ * formulário passava da altura da tela e a janela precisava rolar por dentro.
  */
-export function ContractFormDialog({ open, onOpenChange, contract, onSaved }: ContractFormDialogProps) {
+export function ContractForm({ contract }: ContractFormProps) {
+  const router = useRouter();
   const { tenant } = useTenant();
   const niche = useCurrentNicheConfig();
   const { hasFiscal } = usePlanLimits();
@@ -125,11 +127,7 @@ export function ContractFormDialog({ open, onOpenChange, contract, onSaved }: Co
   const [technicians, setTechnicians] = React.useState<{ id: string; name: string }[]>([]);
 
   React.useEffect(() => {
-    if (open) setForm(initialState(contract, defaults));
-  }, [open, contract, defaults]);
-
-  React.useEffect(() => {
-    if (!open || !tenant?.id) return;
+    if (!tenant?.id) return;
     WalletService.getWallets(tenant.id)
       .then((list) => {
         const active = list.filter((w) => w.status !== "archived");
@@ -140,10 +138,10 @@ export function ContractFormDialog({ open, onOpenChange, contract, onSaved }: Co
     FieldService.listTechnicians()
       .then(({ technicians: list }) => setTechnicians(list))
       .catch(() => setTechnicians([]));
-  }, [open, tenant?.id]);
+  }, [tenant?.id]);
 
   React.useEffect(() => {
-    if (!open || !tenant?.id || !form.clientId) {
+    if (!tenant?.id || !form.clientId) {
       setEquipment([]);
       return;
     }
@@ -154,16 +152,30 @@ export function ContractFormDialog({ open, onOpenChange, contract, onSaved }: Co
     return () => {
       cancelled = true;
     };
-  }, [open, tenant?.id, form.clientId]);
+  }, [tenant?.id, form.clientId]);
 
   const set = <K extends keyof FormState>(key: K, value: FormState[K]) => setForm((f) => ({ ...f, [key]: value }));
   const clientLocked = Boolean(contract && contract.status !== "draft");
-  const valid =
-    Boolean(form.clientId) && form.title.trim().length >= 2 && form.items.length > 0 && Boolean(form.wallet);
+  const [errors, setErrors] = React.useState<Partial<Record<"client" | "title" | "items" | "wallet", string>>>({});
+  const back = () => router.push(contract ? `/contracts/${contract.id}` : "/contracts");
 
-  const submit = async (event: React.FormEvent) => {
-    event.preventDefault();
-    if (!valid) return;
+  const validateContract = (): boolean => {
+    const next: typeof errors = {};
+    if (!form.clientId) next.client = "Escolha o cliente.";
+    if (form.title.trim().length < 2) next.title = "Dê um nome ao contrato.";
+    if (form.items.length === 0) next.items = "Inclua ao menos um item na mensalidade.";
+    setErrors(next);
+    return Object.keys(next).length === 0;
+  };
+
+  const validateBilling = (): boolean => {
+    if (form.wallet) return true;
+    setErrors((e) => ({ ...e, wallet: "Escolha a carteira que recebe a mensalidade." }));
+    return false;
+  };
+
+  const submit = async () => {
+    if (!validateContract() || !validateBilling()) return;
     setSaving(true);
     const input: ServiceContractInput = {
       clientId: form.clientId,
@@ -192,13 +204,11 @@ export function ContractFormDialog({ open, onOpenChange, contract, onSaved }: Co
         const { clientId, ...rest } = input;
         await FieldService.updateContract(contract.id, clientLocked ? rest : { clientId, ...rest });
         toast.success("Contrato atualizado.");
-        onOpenChange(false);
-        onSaved(contract.id);
+        router.push(`/contracts/${contract.id}`);
       } else {
         const created = await FieldService.createContract(input);
         toast.success(`Contrato ${created.code} criado como rascunho.`);
-        onOpenChange(false);
-        onSaved(created.id);
+        router.push(`/contracts/${created.id}`);
       }
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Erro ao salvar o contrato.");
@@ -208,17 +218,17 @@ export function ContractFormDialog({ open, onOpenChange, contract, onSaved }: Co
   };
 
   return (
-    <Dialog open={open} onOpenChange={(next) => !saving && onOpenChange(next)}>
-      <DialogContent className="sm:max-w-4xl" onInteractOutside={keepOpenOnOutsideClick}>
-        <DialogHeader>
-          <DialogTitle>{contract ? `Editar ${contract.code}` : "Novo contrato"}</DialogTitle>
-          <DialogDescription>
-            A mensalidade que o cliente paga todo mês e as visitas que o contrato garante. A cobrança começa quando
-            você ativar o contrato.
-          </DialogDescription>
-        </DialogHeader>
+    <FormContainer>
+      <FormHeader
+        title={contract ? `Editar ${contract.code}` : "Novo contrato"}
+        subtitle="A mensalidade que o cliente paga todo mês e as visitas que o contrato garante. A cobrança começa quando você ativar o contrato."
+        icon={FileSignature}
+        onBack={back}
+      />
 
-        <form onSubmit={submit} className="space-y-6">
+      <StepWizard steps={STEPS} allowClickAhead={Boolean(contract)}>
+        <FormStepCard>
+          <div className="space-y-6">
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2 sm:col-span-2">
               <Label>Cliente</Label>
@@ -235,6 +245,7 @@ export function ContractFormDialog({ open, onOpenChange, contract, onSaved }: Co
                   }))
                 }
               />
+              {errors.client && <p className="text-xs text-destructive">{errors.client}</p>}
             </div>
             <div className="space-y-2">
               <Label htmlFor="contractTitle">Nome do contrato</Label>
@@ -246,6 +257,7 @@ export function ContractFormDialog({ open, onOpenChange, contract, onSaved }: Co
                 maxLength={160}
                 disabled={saving}
               />
+              {errors.title && <p className="text-xs text-destructive">{errors.title}</p>}
             </div>
             <div className="space-y-2">
               <Label htmlFor="contractType">Tipo</Label>
@@ -276,8 +288,15 @@ export function ContractFormDialog({ open, onOpenChange, contract, onSaved }: Co
               totalLabel="Mensalidade"
               totalSuffix="/mês"
             />
+            {errors.items && <p className="text-xs text-destructive">{errors.items}</p>}
           </div>
 
+          </div>
+          <StepNavigation onBeforeNext={validateContract} />
+        </FormStepCard>
+
+        <FormStepCard>
+          <div className="space-y-6">
           <div className="grid gap-4 sm:grid-cols-3">
             <div className="space-y-2">
               <Label htmlFor="contractBillingDay">Dia do vencimento</Label>
@@ -309,6 +328,7 @@ export function ContractFormDialog({ open, onOpenChange, contract, onSaved }: Co
                   </option>
                 ))}
               </Select>
+              {errors.wallet && <p className="text-xs text-destructive">{errors.wallet}</p>}
             </div>
             <div className="space-y-2">
               <Label htmlFor="contractEndDate">Fim do contrato (opcional)</Label>
@@ -341,6 +361,12 @@ export function ContractFormDialog({ open, onOpenChange, contract, onSaved }: Co
             />
           </div>
 
+          </div>
+          <StepNavigation onBeforeNext={validateBilling} />
+        </FormStepCard>
+
+        <FormStepCard>
+          <div className="space-y-6">
           <div className="space-y-4 rounded-xl border p-4">
             <div className="flex items-center justify-between gap-3">
               <div className="space-y-1">
@@ -452,17 +478,14 @@ export function ContractFormDialog({ open, onOpenChange, contract, onSaved }: Co
             />
           </div>
 
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={saving}>
-              Cancelar
-            </Button>
-            <Button type="submit" disabled={saving || !valid}>
-              {saving && <Loader size="sm" variant="button" className="mr-2" />}
-              Salvar
-            </Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
+          </div>
+          <StepNavigation
+            onSubmit={() => void submit()}
+            isSubmitting={saving}
+            submitLabel={contract ? "Salvar alterações" : "Criar contrato"}
+          />
+        </FormStepCard>
+      </StepWizard>
+    </FormContainer>
   );
 }
