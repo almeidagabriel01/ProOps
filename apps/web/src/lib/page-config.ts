@@ -217,6 +217,25 @@ export const PAGE_CONFIG: Record<string, PageConfig> = {
     requiresAuth: true,
     requiredPermission: "view",
   },
+  // Metas de vendas, visão do grupo Financeiro. O portão (plano e
+  // administrador) fica dentro da tela: sem requiredPermission e sem
+  // masterOnly, senão o membro que abrir pela URL levaria /403 em vez de ler
+  // que o progresso dele está no Dashboard.
+  "/goals": {
+    pageId: "goals",
+    slug: "/goals",
+    name: "Metas de vendas",
+    module: "financial",
+    requiresAuth: true,
+  },
+  // Link de agendamento, visão do grupo Agenda: mesmo portão das metas.
+  "/booking": {
+    pageId: "booking",
+    slug: "/booking",
+    name: "Link de agendamento",
+    module: "calendar",
+    requiresAuth: true,
+  },
   // Visão do grupo Financeiro: alcançada pelo seletor no cabeçalho das telas
   // irmãs. O gate da navegação vem de filterChildren, este é o da URL direta.
   "/wallets": {
@@ -267,24 +286,6 @@ export const PAGE_CONFIG: Record<string, PageConfig> = {
     pageId: "settings-proposals",
     slug: "/settings/proposals",
     name: "Propostas",
-    module: "settings",
-    requiresAuth: true,
-  },
-  // Metas: o portão (plano e administrador) fica dentro da tela, como na
-  // numeração. Sem requiredPermission, senão o membro levaria /403.
-  "/settings/goals": {
-    pageId: "settings-goals",
-    slug: "/settings/goals",
-    name: "Metas de vendas",
-    module: "settings",
-    requiresAuth: true,
-  },
-  // Link de agendamento: mesmo portão das metas (plano e administrador dentro
-  // da tela), sem requiredPermission.
-  "/settings/booking": {
-    pageId: "settings-booking",
-    slug: "/settings/booking",
-    name: "Link de agendamento",
     module: "settings",
     requiresAuth: true,
   },

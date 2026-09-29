@@ -9,6 +9,9 @@ const PROD_PROJECT_ID = "erp-softcode-prod";
 const TEST_PROJECT_ID = "demo-proops-test";
 const LOCAL_UPSTREAM = `http://127.0.0.1:5001/${DEV_PROJECT_ID}/${FUNCTIONS_REGION}/api`;
 const LOCAL_TEST_UPSTREAM = `http://127.0.0.1:5001/${TEST_PROJECT_ID}/${FUNCTIONS_REGION}/api`;
+// O emulador das capturas do ERP (`tests/capturas-do-erp`): o mesmo projeto de
+// teste numa porta própria, para não disputar a 5001 com o `dev:backend`.
+const LOCAL_CAPTURAS_UPSTREAM = `http://127.0.0.1:5011/${TEST_PROJECT_ID}/${FUNCTIONS_REGION}/api`;
 const DEV_UPSTREAM = `https://${FUNCTIONS_REGION}-${DEV_PROJECT_ID}.cloudfunctions.net/api`;
 const PROD_UPSTREAM = `https://${FUNCTIONS_REGION}-${PROD_PROJECT_ID}.cloudfunctions.net/api`;
 // Every hostname that must be served by the PRODUCTION Firebase project.
@@ -29,6 +32,7 @@ const PRODUCTION_HOSTS = new Set([
 const ALLOWED_UPSTREAMS = new Set([
   LOCAL_UPSTREAM,
   LOCAL_TEST_UPSTREAM,
+  LOCAL_CAPTURAS_UPSTREAM,
   DEV_UPSTREAM,
   PROD_UPSTREAM,
 ]);

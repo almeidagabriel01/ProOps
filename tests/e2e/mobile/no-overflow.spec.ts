@@ -32,6 +32,14 @@ const ROUTES = [
   "/dre",
   "/cash-flow",
   "/calendar",
+  // Tarefas, Projetos e a central de notificações têm filtro em abas com
+  // contador, que passava da largura do celular em Tarefas.
+  "/tasks",
+  "/projects",
+  "/notifications",
+  // Metas e Link de agendamento saíram de Configurações para os grupos.
+  "/goals",
+  "/booking",
   "/spreadsheets",
   "/automation",
   "/crm",

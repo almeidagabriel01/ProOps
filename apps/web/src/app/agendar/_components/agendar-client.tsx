@@ -6,7 +6,7 @@ import { AnimatePresence, m as motion } from "motion/react";
 // stack (Recharts via hero-dashboard-demo) is not pulled into this route's chunk.
 import { LandingNavbar } from "@/components/landing/landing-navbar";
 import { LandingFooter } from "@/components/landing/landing-footer";
-import { useLandingPage } from "@/components/landing/use-landing-page";
+import { useLandingSession } from "@/components/landing/use-landing-session";
 import { useReducedMotion } from "@/components/landing/_shared/use-reduced-motion";
 import {
   DemoBookingService,
@@ -62,7 +62,7 @@ function RisingTitle({ lines, reduce }: { lines: string[]; reduce: boolean }) {
 
 export function AgendarClient() {
   const reduce = useReducedMotion();
-  const { currentUser, isAuthLoading, handleSignOut } = useLandingPage();
+  const { currentUser, isAuthLoading, handleSignOut } = useLandingSession();
 
   const initial = useMemo(() => nowSaoPaulo(), []);
   const [todayStr] = useState(initial.dateStr);

@@ -2,18 +2,30 @@
 
 import React from "react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { m as motion } from "motion/react";
 import { Instagram } from "lucide-react";
 import { ProOpsLogo } from "@/components/branding/proops-logo";
 import { INSTAGRAM_HREF, WHATSAPP_HREF } from "./_shared/whatsapp";
 import { WhatsAppGlyph } from "./_shared/whatsapp-glyph";
 import { LandingButton } from "./_shared/landing-button";
+import { anchorHref } from "@/lib/landing/anchor-href";
+import { NICHE_REGISTRY, TENANT_NICHES } from "@/lib/niches/registry";
+
+const PRODUTO = [
+  { href: "#showcase", label: "Plataforma" },
+  { href: "#recursos", label: "Funcionalidades" },
+  { href: "/funcionalidades", label: "Todas as funcionalidades" },
+  { href: "#pricing", label: "Planos" },
+];
 
 export function LandingFooter() {
+  const pathname = usePathname();
+
   return (
     <footer className="border-t border-black/10 bg-white pb-10 pt-16 dark:border-white/10 dark:bg-neutral-950">
       <div className="mx-auto max-w-7xl px-6">
-        <div className="mb-14 grid grid-cols-2 gap-10 md:grid-cols-4">
+        <div className="mb-14 grid grid-cols-2 gap-10 md:grid-cols-5">
           <motion.div
             className="col-span-2"
             initial={{ opacity: 0, y: 20 }}
@@ -85,21 +97,33 @@ export function LandingFooter() {
               Produto
             </h4>
             <ul className="space-y-3 text-sm">
-              <li>
-                <LandingButton href="#showcase" variant="link" tone="muted">
-                  Plataforma
-                </LandingButton>
-              </li>
-              <li>
-                <LandingButton href="#modulos" variant="link" tone="muted">
-                  Módulos
-                </LandingButton>
-              </li>
-              <li>
-                <LandingButton href="#recursos" variant="link" tone="muted">
-                  Recursos
-                </LandingButton>
-              </li>
+              {PRODUTO.map((link) => (
+                <li key={link.href}>
+                  <LandingButton href={anchorHref(link.href, pathname)} variant="link" tone="muted">
+                    {link.label}
+                  </LandingButton>
+                </li>
+              ))}
+            </ul>
+          </motion.div>
+
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: false, amount: 0.2 }}
+            transition={{ duration: 0.5, delay: 0.12, ease: [0.22, 1, 0.36, 1] }}
+          >
+            <h4 className="mb-4 font-semibold text-black dark:text-white">
+              Segmentos
+            </h4>
+            <ul className="space-y-3 text-sm">
+              {TENANT_NICHES.map((niche) => (
+                <li key={niche}>
+                  <LandingButton href={NICHE_REGISTRY[niche].landingPath} variant="link" tone="muted">
+                    {NICHE_REGISTRY[niche].label}
+                  </LandingButton>
+                </li>
+              ))}
             </ul>
           </motion.div>
 

@@ -1,6 +1,6 @@
 import { Skeleton } from "@/components/ui/skeleton";
 
-/** Agenda carregando: cabeçalho, barra de navegação e a grade do mês. */
+/** Calendário carregando: cabeçalho com o seletor da Agenda, barra de navegação e a grade do mês. */
 export function CalendarSkeleton() {
   return (
     <div
@@ -12,6 +12,7 @@ export function CalendarSkeleton() {
           <div className="space-y-2">
             <Skeleton className="h-8 w-64 max-w-full" />
             <Skeleton className="h-4 w-80 max-w-full" />
+            <Skeleton className="mt-3 h-9 w-72 max-w-full rounded-full" />
           </div>
           <div className="flex flex-wrap gap-2">
             {Array.from({ length: 4 }).map((_, i) => (

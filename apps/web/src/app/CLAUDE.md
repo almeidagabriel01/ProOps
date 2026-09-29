@@ -22,14 +22,34 @@ Segmentos de rota: proposals, contacts, products, transactions, calendar, crm, d
 ## Rotas existentes
 ```
 403, admin, agendar, ambientes, aplicativo, api, auth,
-automacao-residencial, automation, calendar, cash-flow, checkout-success,
+automacao-residencial, automation, booking, calendar, cash-flow, checkout-success,
 commissions, contacts, contato, cookies, crm, dashboard, data-deletion, dre,
-decoracao, fale-conosco, forgot-password, institucional, invoices, login,
+decoracao, fale-conosco, forgot-password, funcionalidades, goals, institucional, invoices, login,
 manifesto, notifications, privacy, products, produtos, profile, projects, proposals,
 register, reset,
 services, settings, share, sobre, solutions, spreadsheets, subscribe,
 subscription-blocked, tasks, team, terms, transactions, verify, wallets
 ```
+
+`funcionalidades` é a página pública com todas as funcionalidades do ERP, em
+cards com o print de verdade de cada tela, e `funcionalidades/[slug]` é a
+página de cada uma (estática, gerada da mesma lista; slug fora dela é 404), com
+o print no topo. Na home, "Funcionalidades" da navbar rola até "Recursos da
+plataforma" (`#recursos`), que cita as cinco principais e leva a esta página.
+Os prints moram em `public/capturas/`, declarados em `lib/landing/capturas.ts`,
+e são refeitos por `tests/capturas-do-erp`. Tudo sai do catálogo em
+`lib/landing/funcionalidades/`: os recursos (o detalhe), as funcionalidades que
+os reúnem (`funcionalidades.ts`, uma página cada, com os slugs em `slugs.ts`, que
+o sitemap também lê) e os cinco destaques da home, que abrem essas páginas. Todo
+recurso pertence a exatamente uma funcionalidade (teste do catálogo). O plano de
+cada recurso é um selo DERIVADO de `DEFAULT_PLANS` e dos add-ons
+(`selo-do-plano.ts`), com paridade testada contra o `PLAN_CATALOG` do backend.
+Nunca escreva o nome de um plano num recurso: declare a chave de `PlanFeatures`
+que o libera. Recurso novo no ERP entra no catálogo e numa funcionalidade, e o
+teste do selo reprova se uma capacidade vendável não aparecer em nenhum recurso.
+Funcionalidade nova precisa de um print em `CAPTURAS_DAS_FUNCIONALIDADES`
+(um `Record` por slug, que não compila sem ele) e de uma entrada no roteiro de
+`tests/capturas-do-erp/capturas.spec.ts`.
 
 `sobre`, `manifesto`, `produtos` e `fale-conosco` são as páginas do
 **site da empresa** e vivem no route group `(empresa)/`, que não entra na URL.
@@ -45,9 +65,9 @@ recebe sai do catálogo (`lib/notifications/catalog.ts`, espelho do backend com
 teste de paridade). Regras no `apps/functions/src/api/services/CLAUDE.md`.
 
 `tasks` são as **tarefas**: o "a fazer" com responsável, prazo e @menção, em
-todos os planos, com `pageId` próprio (`tasks`) e ícone próprio na dock, ao
-lado do Calendário. A tarefa é DA PESSOA: o membro lê as que criou, as dele e as em que
-foi citado (`audienceUids`, que as rules leem); dono e administradores leem
+todos os planos, com `pageId` próprio (`tasks`), visão do grupo Agenda da
+dock, junto do Calendário e do Link de agendamento. A tarefa é DA PESSOA: o
+membro lê as que criou, as dele e as em que foi citado (`audienceUids`, que as rules leem); dono e administradores leem
 todas (`useTaskReader`). Coleção própria `tasks`, e não as atividades do CRM,
 porque o histórico do lead é da equipe e as rules não liberariam uma lista que
 misturasse os dois; por isso o tipo "Tarefa" saiu da criação de atividade, e o
@@ -58,11 +78,35 @@ e no Dashboard ("Minhas tarefas de hoje").
 A menção vale pelo que continua escrito (`mentionedUids`): apagar "@Nome"
 desfaz. A leitura é sem `orderBy`, então não precisa de índice composto.
 
-O **link de agendamento** tem duas pontas: a configuração em
-`/settings/booking` e a página do cliente em `/share/visita/[token]`. O pedido
-entra na Agenda (`calendar`) como "a confirmar" (status `pending`), e a Agenda
-ganha o botão "Pedidos de visita" para confirmar ou recusar. Detalhes em
-`settings/CLAUDE.md` e `share/CLAUDE.md`.
+O **link de agendamento** tem duas pontas: a configuração em `/booking` (visão
+do grupo Agenda da dock, ao lado de Calendário e Tarefas) e a página do cliente
+em `/share/visita/[token]`. O pedido entra no Calendário (`calendar`) como "a
+confirmar" (status `pending`), e o Calendário ganha o botão "Pedidos de visita"
+para confirmar ou recusar. A configuração cobre o expediente (dias, horário,
+antecedência, horizonte), os tipos de visita com a duração, as exceções (dias
+ou faixas sem atendimento, com motivo que só a empresa vê; o editor só aparece
+quando o GET devolve `exceptions`) e o link para copiar. É do master (o membro
+vê "Acesso Restrito"; a conta free vê o padrão do nicho, só para ler, sem
+chamar a API). Detalhes da página pública em `share/CLAUDE.md`.
+
+As **metas de vendas** ficam em `/goals`, visão do grupo Financeiro: a meta do
+mês da empresa e de cada pessoa da equipe, definida pelo master (o membro vê
+"Acesso Restrito" e acompanha a dele no Dashboard). Na proposta o campo se
+chama "Responsável pela venda", e não "Vendedor", porque "vendedor" já é o
+parceiro da comissão. Ao lado da meta de cada pessoa a tela mostra o que ela
+já vendeu no mês (`GET /v1/sales-goals/progress`), com a porcentagem calculada
+sobre a meta que está sendo digitada; se essa leitura falhar, a tela continua
+servindo para definir as metas.
+
+As duas são telas de módulo, na largura toda, com as ações (mês e salvar nas
+metas; ligar e salvar no link) à direita do título, e o conteúdo em cards:
+Empresa e Equipe nas metas; Link, Expediente, Tipos de visita e Exceções no
+agendamento.
+
+As duas telas moravam em Configurações até 2026-09-28; os endereços antigos
+(`/settings/goals`, `/settings/booking`) só redirecionam. O portão de plano e
+de administrador continua dentro da tela, e não em `page-config.ts`, para o
+membro que abrir pela URL ler o motivo em vez de cair em `/403`.
 
 O **portal do cliente** também tem duas pontas: o botão "Portal do cliente"
 na ficha do contato (`/contacts/[id]`, ao lado das abas) e a página pública em

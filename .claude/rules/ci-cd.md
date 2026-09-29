@@ -64,15 +64,16 @@ Runs on PRs and Merge Queue events:
 - `e2e-mobile` — Playwright no projeto `mobile-chrome` (Pixel 5, 393x851, `hasTouch`), **em 2 shards** (`--shard=N/2`). Roda **em paralelo** com `e2e`, não depende dele. Cobre `tests/e2e/mobile/**` + `smoke.spec.ts`.
 - `e2e-financial`: Playwright em `tests/e2e/financial`, **2 shards**, em paralelo com `e2e`. Artefatos `playwright-report-financial-shard<N>-<run>`.
 - `performance` — Core Web Vitals + API baseline. Roda **em paralelo** com o E2E: sobe os próprios emuladores e não usa nada dele.
-- `lighthouse` — throttled-mobile Lighthouse perf budget on a production build, **dividido em 3 shards paralelos** (3 URLs cada). Runs **in parallel with E2E**, not after: it builds its own production server and depends on nothing from the E2E jobs. Gating it behind E2E added ~8 min of wall clock to every run for no benefit — Actions minutes are free on this public repo. Still required by `all-checks-passed` (um job em matriz falha se qualquer shard falhar).
+- `lighthouse` — throttled-mobile Lighthouse perf budget on a production build, **dividido em 5 shards paralelos** (2 ou 3 URLs cada). Runs **in parallel with E2E**, not after: it builds its own production server and depends on nothing from the E2E jobs. Gating it behind E2E added ~8 min of wall clock to every run for no benefit — Actions minutes are free on this public repo. Still required by `all-checks-passed` (um job em matriz falha se qualquer shard falhar).
 - `security` — OWASP ZAP baseline. Roda **em paralelo** com o E2E: faz o próprio build e `npm start`. Esperar os shards (como era até 2026-09-23) só somava ~8 min de relógio.
 - `all-checks-passed` — consolidated gate required by branch protection
 
 ## Lighthouse Perf Budget (`lighthouse` job + `lighthouserc.json`)
 
 Builds Next.js for production, starts `next start -p 3001`, and runs Lighthouse 3x per
-URL across the **9 animated public routes** (`/`, `/automacao-residencial`, `/decoracao`,
-`/contato`, `/agendar`, `/aplicativo`, `/institucional`, `/sobre`, `/produtos`) under
+URL across the **13 animated public routes** (`/`, `/automacao-residencial`, `/decoracao`,
+`/contato`, `/agendar`, `/aplicativo`, `/institucional`, `/sobre`, `/produtos`,
+`/funcionalidades`, `/seguranca-eletronica`, `/vidracaria-esquadrias`, `/marcenaria`) under
 **mobile + 4x CPU + slow-3G, REAL `devtools` throttling**.
 
 - Config: `lighthouserc.json` at repo root (uses `@lhci/cli`, already a devDependency).
@@ -101,7 +102,7 @@ URL across the **9 animated public routes** (`/`, `/automacao-residencial`, `/de
   deferred (`requestIdleCallback`, commit `550a9bbd`).
 - Run locally: `npm run build && npm run test:lighthouse` (needs a built `.next/`).
 - Report artifact: `lighthouse-report-shard<N>-<run>` (from `lhci-report/`), um por shard.
-- **Shards.** No CI o job roda em matriz de 3 (`test-suite.yml`), e cada shard passa as
+- **Shards.** No CI o job roda em matriz de 5 (`test-suite.yml`), e cada shard passa as
   suas URLs por `--collect.url`, que **sobrepõe** a lista do `lighthouserc.json`. Os
   tetos continuam vindo do arquivo, porque o `assertMatrix` casa por padrão de URL.
   **Ao acrescentar uma URL no `lighthouserc.json`, ponha-a também num shard da matriz**,
@@ -144,6 +145,19 @@ URL across the **9 animated public routes** (`/`, `/automacao-residencial`, `/de
   como o CI começa a falhar por motivo que ninguém entende. Em `warn` o número aparece no
   relatório sem reprovar. **Assim que houver três execuções do CI, aperte para `error`** no
   teto que os números pedirem. O CLS delas continua `error`: esse foi medido e deu 0.
+- **`/funcionalidades` e as quatro landings de nicho novas ficam no teto genérico de 800**, sem
+  entrada própria. As landings de nicho mediram entre 282 e 337 (2026-09-28, local, Lighthouse
+  ligado ao Chromium do Playwright porque o chrome-launcher falha com EPERM ao apagar o
+  diretório temporário no Windows). A primeira versão de `/funcionalidades`, uma página longa
+  com os 52 recursos, as telas dos capítulos e uma jornada animada, mediu **~850** (contra 216
+  da `/decoracao` na mesma rodada) e só coube no teto com `content-visibility: auto`. Ela
+  virou uma lista curta com uma página por funcionalidade no mesmo dia, e o adiamento saiu
+  junto. Duas lições ficam: **não suba o teto de uma página grande antes de olhar o
+  `dom-size`** (se o `mainthread-work-breakdown` mostra "Other" e "Style & Layout" à frente de
+  "Script Evaluation", o custo é DOM fora da tela, não JavaScript), e `content-visibility`
+  também contém a PINTURA: sombra longa, como a do `DeviceFrame`, sai cortada numa reta sem
+  `overflow-clip-margin`, o que só aparece numa captura de rolagem real (um `fullPage` não
+  pinta o que foi pulado).
 - Duas das sub-páginas, e não todas, porque cada URL custa 3 corridas reais (~2 min de
   runner por URL). São as duas mais pesadas (contadores scrubados, faixa de retratos,
   ledger e a cena fixada), então uma regressão no kit de cenas aparece nelas primeiro.
@@ -190,7 +204,8 @@ de verdade (e, em `canonical-do-sitemap.spec.ts`, que toda URL de cada sitemap r
 200 e se declara canônica no HTML servido; em `aplicativo-notebook.spec.ts`, que os palcos parados da landing do app
 cabem sob a barra fixa em telas de notebook de 1024 a 1440), `tests/e2e/institucional/` cobre a navegação do site da empresa (cortina,
 âncoras e o caminho de `prefers-reduced-motion`), e `mobile/superficies-layout.spec.ts`
-cobre as sete páginas de marketing a 393px.
+cobre as páginas de marketing a 393px (inclusive as landings de nicho e cada página de
+`/funcionalidades/<slug>`, as duas listas derivadas dos registros).
 
 `mobile/landing-do-app-layout.spec.ts` cobre a landing do app no que o resto da
 pasta não olha: a ALTURA, o gesto de toque e texto que é RECORTADO em vez de

@@ -18,7 +18,6 @@ describe("settings sub-tab page configs", () => {
     "/settings/security",
     "/settings/payments",
     "/settings/linked-accounts",
-    "/settings/goals",
   ];
 
   it.each(SUBTABS)("%s resolves a direct page config", (path) => {
@@ -87,5 +86,21 @@ describe("rotas apontam para caminhos que existem de fato", () => {
 
   it("não existe mais a entrada órfã /clients", () => {
     expect(PAGE_CONFIG["/clients"]).toBeUndefined();
+  });
+});
+
+/**
+ * Metas e Link de agendamento saíram de Configurações para os grupos
+ * Financeiro e Agenda, e levaram junto a decisão de acesso: o portão (plano e
+ * administrador) fica dentro da tela, então a rota não pode mandar o membro
+ * para /403.
+ */
+describe("visões de configuração dentro dos grupos", () => {
+  it.each(["/goals", "/booking"])("%s abre para qualquer usuário logado", (path) => {
+    const config = getPageConfig(path);
+    expect(config?.slug).toBe(path);
+    expect(config?.requiresAuth).toBe(true);
+    expect(pageIsMasterOnly(path)).toBe(false);
+    expect(config?.requiredPermission).toBeUndefined();
   });
 });

@@ -198,6 +198,9 @@ describe("passos por plano e papel", () => {
       "crm",
       "contacts",
       "calendar",
+      // O Link de agendamento é visão da Agenda, junto do Calendário. O id
+      // ainda é o de quando morava em Configurações.
+      "settings-booking",
       "products",
       "services",
       "solutions",
@@ -207,12 +210,12 @@ describe("passos por plano e papel", () => {
       "dre",
       "cash-flow",
       "invoices",
+      // Metas de vendas fecham o grupo Financeiro.
+      "settings-goals",
       "spreadsheets",
       "settings-security",
       "settings-team",
       "settings-proposals",
-      "settings-goals",
-      "settings-booking",
       "settings-integrations",
     ]);
   });
@@ -251,7 +254,8 @@ describe("passos por plano e papel", () => {
     expect(ids).toContain("cash-flow");
     expect(ids).toContain("settings-security");
     expect(ids).toContain("settings-team");
-    for (const id of ["commissions", "invoices", "settings-proposals", "settings-booking", "settings-integrations"]) {
+    expect(ids).toContain("calendar");
+    for (const id of ["commissions", "invoices", "settings-proposals", "settings-goals", "settings-booking", "settings-integrations"]) {
       expect(ids).not.toContain(id);
     }
   });
@@ -275,6 +279,15 @@ describe("passos por plano e papel", () => {
     const ids = stepIds("enterprise", MEMBER, "automacao_residencial", ["transactions"]);
     expect(ids).toContain("transactions");
     expect(ids).not.toContain("commissions");
+    // Metas também são do dono: o membro acompanha a dele no Dashboard.
+    expect(ids).not.toContain("settings-goals");
+  });
+
+  it("membro com Calendário e Tarefas não ganha o Link de agendamento (masterOnly)", () => {
+    const ids = stepIds("enterprise", MEMBER, "automacao_residencial", ["calendar", "tasks"]);
+    expect(ids).toContain("calendar");
+    expect(ids).toContain("tasks");
+    expect(ids).not.toContain("settings-booking");
   });
 
   it("o nicho troca a descrição de um passo sem mexer nos outros", () => {
@@ -461,7 +474,7 @@ describe("matchStepForPath", () => {
     expect(chapterProgress(steps, contacts)).toEqual({
       label: "Vendas",
       position: 4,
-      total: 5,
+      total: 6,
     });
   });
 });

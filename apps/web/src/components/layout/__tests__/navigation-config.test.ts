@@ -52,10 +52,30 @@ describe("menuItems", () => {
     }
   });
 
-  it("a dock oferece 9 destinos de topo", () => {
-    // Tarefas entrou de topo, ao lado do Calendário. Projetos (obra depois da
-    // venda) mora no grupo de Propostas, com o seletor no cabeçalho.
-    expect(menuItems).toHaveLength(9);
+  it("a dock oferece 8 destinos de topo", () => {
+    // Calendário, Tarefas e Link de agendamento dividem o ícone da Agenda.
+    // Projetos (obra depois da venda) mora no grupo de Propostas.
+    expect(menuItems).toHaveLength(8);
+  });
+
+  it("Agenda é grupo, sem capacidade própria, e só o link pede plano", () => {
+    const group = menuItems.find((item) => item.label === "Agenda");
+    expect(group?.requiresCapability).toBeUndefined();
+    expect(group?.children?.map((c) => [c.href, c.requiresCapability])).toEqual([
+      ["/calendar", undefined],
+      ["/tasks", undefined],
+      ["/booking", "bookingLink"],
+    ]);
+  });
+
+  it("Metas de vendas fecha o grupo Financeiro", () => {
+    const group = menuItems.find((item) => item.label === "Financeiro");
+    const last = group?.children?.at(-1);
+    expect([last?.href, last?.requiresCapability, last?.masterOnly]).toEqual([
+      "/goals",
+      "salesGoals",
+      true,
+    ]);
   });
 
   it("Propostas é grupo com Projetos, e só Projetos pede plano", () => {

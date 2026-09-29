@@ -29,11 +29,21 @@ financeiro mais um backfill.
 ## Grupo
 
 Um `MenuItem` com `children` é um grupo: a dock desenha **um** ícone, e as telas
-irmãs reaparecem no seletor do cabeçalho de cada uma delas. Hoje são três:
-Propostas (Propostas e Projetos, o caminho da venda até a obra), Financeiro e
-Catálogo. Tela de uso diário não entra em grupo: Tarefas chegou a ficar num
-grupo "Agenda" com o Calendário e ninguém a achava atrás do seletor, então
-voltou a ter ícone próprio.
+irmãs reaparecem no seletor do cabeçalho de cada uma delas. Hoje são quatro:
+Propostas (Propostas e Projetos, o caminho da venda até a obra), Financeiro
+(que fecha com Metas de vendas), Agenda (Calendário, Tarefas e Link de
+agendamento) e Catálogo.
+
+Tarefas já esteve num grupo "Agenda" com o Calendário e saiu porque ninguém a
+achava atrás do seletor. Voltou em 2026-09-28, por decisão do dono do produto,
+junto com o Link de agendamento. Se a queixa reaparecer, o sinal é esse.
+
+Metas de vendas e Link de agendamento são telas de configuração que moravam em
+`/settings`. Levá-las para um grupo exigiu rota própria (`/goals`, `/booking`):
+um filho de grupo dentro de `/settings` abriria com o título "Configurações" e
+a sidebar de lá por cima do seletor. As duas são `masterOnly`, e o Link de
+agendamento declara `showInDemo`: a conta free é MEMBER, e aquela tela tem o
+que mostrar em somente leitura (o expediente padrão do nicho).
 
 O grupo de Propostas tem o mesmo rótulo do primeiro filho, e sem capacidade
 própria: Propostas é de todo plano, e Projetos (Pro e Enterprise) coroa sozinho
@@ -69,7 +79,9 @@ Um destino novo é **filho de um grupo** ou item de topo. Em qualquer caso:
 1. `pageId` que exista em `lib/permissions/pages.ts`. Uma chave que só existe no
    leitor nega todo mundo, para sempre, sem erro visível.
 2. `requiresCapability` se o módulo for de plano, e a entrada em
-   `PLAN_CATALOG` no backend. O checklist das quatro camadas está em
+   `PLAN_CATALOG` no backend. Capacidade nova no menu entra em
+   `MenuCapability`, no mapa de `useMenuCapabilities` e em `CAPABILITY_COPY`
+   (`capability-gate.ts`). O checklist das quatro camadas está em
    `.claude/rules/access-control.md`.
 3. `availabilityPageId` se a disponibilidade por nicho for diferente da
    permissão. É o caso de Ambientes, que divide `pageId: "solutions"` com

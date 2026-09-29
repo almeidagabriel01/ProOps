@@ -22,6 +22,7 @@ import {
   shouldNoIndexHost,
   type Surface,
 } from "./surfaces";
+import { FUNCIONALIDADE_SLUGS, caminhoDaFuncionalidade } from "@/lib/landing/funcionalidades/slugs";
 import { NICHE_LANDING_PATHS } from "@/lib/niches/registry";
 
 type ChangeFrequency =
@@ -49,6 +50,13 @@ const ROTAS: Record<Surface, SitemapRoute[]> = {
       path,
       changeFrequency: "monthly" as const,
       priority: 0.9,
+    })),
+    { path: "/funcionalidades", changeFrequency: "monthly", priority: 0.9 },
+    // Uma página por funcionalidade, da mesma lista que gera as rotas.
+    ...FUNCIONALIDADE_SLUGS.map((slug) => ({
+      path: caminhoDaFuncionalidade(slug),
+      changeFrequency: "monthly" as const,
+      priority: 0.7,
     })),
     { path: "/contato", changeFrequency: "yearly", priority: 0.5 },
     { path: "/agendar", changeFrequency: "yearly", priority: 0.5 },

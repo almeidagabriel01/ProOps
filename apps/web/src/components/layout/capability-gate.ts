@@ -22,15 +22,24 @@ import type {
 export type { MenuCapabilityMap };
 
 export function useMenuCapabilities(): MenuCapabilityMap {
-  const { hasFinancial, hasKanban, hasFiscal, hasProjects } = usePlanLimits();
+  const {
+    hasFinancial,
+    hasKanban,
+    hasFiscal,
+    hasProjects,
+    hasSalesGoals,
+    hasBookingLink,
+  } = usePlanLimits();
   return React.useMemo(
     () => ({
       financial: hasFinancial,
       crm: hasKanban,
       fiscal: hasFiscal,
       projects: hasProjects,
+      salesGoals: hasSalesGoals,
+      bookingLink: hasBookingLink,
     }),
-    [hasFinancial, hasKanban, hasFiscal, hasProjects],
+    [hasFinancial, hasKanban, hasFiscal, hasProjects, hasSalesGoals, hasBookingLink],
   );
 }
 
@@ -63,6 +72,16 @@ const CAPABILITY_COPY: Record<
     requiredPlan: "pro",
     description:
       "Acompanhe cada obra depois da venda: etapas, checklist, fotos, técnico responsável e o aceite do cliente na entrega.",
+  },
+  salesGoals: {
+    requiredPlan: "pro",
+    description:
+      "Defina a meta do mês da empresa e de cada pessoa da equipe e acompanhe no Dashboard quanto já foi vendido.",
+  },
+  bookingLink: {
+    requiredPlan: "pro",
+    description:
+      "Mande ao cliente um link para ele escolher um horário livre e pedir a visita, que entra na Agenda para você confirmar.",
   },
 };
 

@@ -19,6 +19,8 @@ import {
   ListTodo,
   BarChart3,
   TrendingUp,
+  Target,
+  CalendarClock,
 } from "lucide-react";
 
 import type { NicheConfig } from "@/lib/niches/config-types";
@@ -34,7 +36,13 @@ import { cap } from "@/lib/niches/vocabulary";
  * morto, e o CRM não tinha entrada de menu alguma: só era alcançado pelo
  * command palette, por botões soltos ou por URL direta.
  */
-export type MenuCapability = "financial" | "crm" | "fiscal" | "projects";
+export type MenuCapability =
+  | "financial"
+  | "crm"
+  | "fiscal"
+  | "projects"
+  | "salesGoals"
+  | "bookingLink";
 
 /**
  * Quais capacidades o plano do tenant abre. Mora aqui, e não em
@@ -66,6 +74,12 @@ export type SubMenuItem = {
   label: string;
   href: string;
   masterOnly?: boolean;
+  /**
+   * Abre a exceção do `masterOnly` para a conta de demonstração, que é MEMBER.
+   * Só para tela de configuração que tem o que mostrar em somente leitura: o
+   * Link de agendamento mostra o expediente padrão do nicho.
+   */
+  showInDemo?: boolean;
   pageId?: string;
   /**
    * Sobrepõe pageId na checagem de nicho, como em MenuItem. Ambientes divide o
@@ -173,6 +187,17 @@ export const menuItems: MenuItem[] = [
         // abria o módulo inteiro.
         requiresCapability: "fiscal",
       },
+      {
+        icon: Target,
+        label: "Metas de vendas",
+        href: "/goals",
+        // Sem pageId: a meta é definida pelo dono, e o membro acompanha a dele
+        // no Dashboard. A tela diz "Acesso Restrito" a quem abrir pela URL.
+        masterOnly: true,
+        // Pro, como o financeiro, mas é capacidade própria do catálogo: o
+        // Starter com o add-on financeiro não tem metas.
+        requiresCapability: "salesGoals",
+      },
     ],
   },
   {
@@ -183,17 +208,34 @@ export const menuItems: MenuItem[] = [
   },
   {
     icon: CalendarDays,
-    label: "Calendário",
-    href: "/calendar",
-    pageId: "calendar",
-  },
-  {
-    // Ícone próprio, e não num grupo com o Calendário: é tela de uso diário, e
-    // escondida atrás do seletor do cabeçalho ninguém a achava.
-    icon: ListTodo,
-    label: "Tarefas",
-    href: "/tasks",
-    pageId: "tasks",
+    label: "Agenda",
+    // O tempo da equipe: os compromissos, o que cada um tem a fazer e o link
+    // em que o cliente pede a visita. Sem capacidade no grupo: Calendário e
+    // Tarefas são de todo plano, o Link de agendamento coroa sozinho.
+    children: [
+      {
+        icon: CalendarDays,
+        label: "Calendário",
+        href: "/calendar",
+        pageId: "calendar",
+      },
+      {
+        icon: ListTodo,
+        label: "Tarefas",
+        href: "/tasks",
+        pageId: "tasks",
+      },
+      {
+        icon: CalendarClock,
+        label: "Link de agendamento",
+        href: "/booking",
+        // Sem pageId: o expediente é do dono. Os pedidos que chegam são
+        // respondidos no Calendário, com a permissão dele.
+        masterOnly: true,
+        showInDemo: true,
+        requiresCapability: "bookingLink",
+      },
+    ],
   },
   {
     icon: Blocks,
@@ -310,7 +352,9 @@ export function filterVisibleChildren(
     // dois sumiriam no nicho cortinas.
     const availKey = child.availabilityPageId ?? child.pageId;
     if (!viewer.isPageEnabled(availKey)) return false;
-    if (child.masterOnly && !viewer.isMaster) return false;
+    if (child.masterOnly && !viewer.isMaster) {
+      if (!(child.showInDemo && viewer.isDemo)) return false;
+    }
     if (child.pageId && !viewer.isMaster && !viewer.isDemo) {
       if (!viewer.hasPermission(child.pageId, "view")) return false;
     }

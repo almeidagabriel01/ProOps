@@ -4,6 +4,7 @@ import * as React from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ListTodo, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { PageViewSwitcher } from "@/components/layout/page-view-switcher";
 import { SegmentedControl } from "@/components/ui/segmented-control";
 import { EmptyState } from "@/components/shared/empty-state";
 import { SelectTenantState } from "@/components/shared/select-tenant-state";
@@ -84,6 +85,7 @@ export default function TasksPage() {
           <p className="mt-1 text-sm text-muted-foreground">
             O que fazer, quem faz e até quando. Use @ para avisar alguém da equipe.
           </p>
+          <PageViewSwitcher className="mt-3" />
         </div>
         {canCreate && (
           <Button onClick={() => setDialog({ open: true, task: null })}>

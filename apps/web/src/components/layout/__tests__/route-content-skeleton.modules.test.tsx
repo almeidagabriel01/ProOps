@@ -20,6 +20,10 @@ const CASOS: Array<[string, string]> = [
   ["/dre", "dre-skeleton"],
   ["/cash-flow", "cash-flow-skeleton"],
   ["/calendar", "calendar-skeleton"],
+  // Saíram de Configurações para os grupos Financeiro e Agenda: sem o caso
+  // próprio, carregariam com o desenho do Dashboard.
+  ["/goals", "goals-skeleton"],
+  ["/booking", "booking-skeleton"],
 ];
 
 describe("RouteContentSkeleton: módulos com skeleton próprio", () => {

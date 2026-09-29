@@ -80,6 +80,19 @@ export const SearchableSelect = React.forwardRef<
       }
     }, [selectedOption, isOpen]);
 
+    // A lista abre por vários caminhos (foco, digitação, a seta), então o lado
+    // é decidido aqui, na abertura: para cima quando embaixo não cabem os
+    // 240px dela (max-h-60) e em cima cabe mais. Antes do paint, para a lista
+    // não piscar embaixo e pular.
+    const [opensUpward, setOpensUpward] = React.useState(false);
+    React.useLayoutEffect(() => {
+      if (!isOpen || !containerRef.current) return;
+      const rect = containerRef.current.getBoundingClientRect();
+      const spaceBelow = window.innerHeight - rect.bottom - 16;
+      const spaceAbove = rect.top - 16;
+      setOpensUpward(spaceBelow < 240 && spaceAbove > spaceBelow);
+    }, [isOpen]);
+
     React.useEffect(() => {
       const handleClickOutside = (event: MouseEvent) => {
         if (
@@ -260,7 +273,13 @@ export const SearchableSelect = React.forwardRef<
         </div>
 
         {isOpen && !disabled && (
-          <div className="absolute top-full left-0 right-0 mt-1 max-h-60 overflow-y-auto rounded-md border bg-popover text-popover-foreground shadow-lg z-50 animate-in fade-in-0 zoom-in-95">
+          <div
+            className={cn(
+              "absolute left-0 right-0 max-h-60 overflow-y-auto",
+              opensUpward ? "bottom-full mb-1" : "top-full mt-1",
+              "rounded-md border bg-popover text-popover-foreground shadow-lg z-50 animate-in fade-in-0 zoom-in-95",
+            )}
+          >
             <div className="p-1">
               {canCreateOption && (
                 <button
