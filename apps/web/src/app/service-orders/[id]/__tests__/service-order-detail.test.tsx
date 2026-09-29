@@ -16,6 +16,11 @@ const m = vi.hoisted(() => ({
   perms: { canView: true, canCreate: true, canEdit: true, canDelete: true },
 }));
 
+const NICHE = {
+  fieldService: { preventiveChecklist: [], equipmentTypes: [], equipmentNamePlaceholder: "" },
+  productCatalog: { inventory: { mode: "unit", unitSuffix: "un" } },
+};
+
 vi.mock("next/navigation", () => ({ useParams: () => ({ id: "o1" }), useRouter: () => ({ push: vi.fn() }) }));
 vi.mock("next/link", () => ({
   default: ({ href, children }: { href: string; children: React.ReactNode }) => <a href={href}>{children}</a>,
@@ -31,7 +36,7 @@ vi.mock("@/hooks/useServiceOrders", () => ({
   useServiceOrderScope: () => ({ seesAll: m.seesAll, uid: "diego", isLoading: false }),
 }));
 vi.mock("@/hooks/useCurrentNicheConfig", () => ({
-  useCurrentNicheConfig: () => ({ fieldService: { preventiveChecklist: [], equipmentTypes: [], equipmentNamePlaceholder: "" } }),
+  useCurrentNicheConfig: () => NICHE,
 }));
 vi.mock("@/lib/toast", () => ({ toast: Object.assign(vi.fn(), { error: vi.fn(), success: vi.fn(), warning: vi.fn() }) }));
 vi.mock("@/services/field-service-service", () => ({
