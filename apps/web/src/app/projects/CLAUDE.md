@@ -41,18 +41,21 @@ e contam no armazenamento do plano.
   `resolveProjectOnApproval` na transição para aprovada e devolve
   `projectCreated` (modo `always`) ou `projectSuggested` (modo `ask`, sem obra
   ainda).
-- **O aviso e o convite passam por uma fila** (`lib/project-on-approval.ts`)
-  até o `ProjectOnApprovalHost`, montado uma vez no `protected-app-shell`. A
+- **Uma janela só depois de aprovar: "Proposta aprovada"**
+  (`ApprovalNextStepsHost`, em `components/features/proposal/`, montado uma vez
+  no `protected-app-shell`). Cada próximo passo que couber na venda é uma linha
+  opcional (emitir a nota, criar a obra, abrir o contrato da mensalidade), e
+  "Fechar" dispensa todos. Até 2026-09-29 eram até três janelas seguidas,
+  cada uma travando a tela. Criar a obra pela janela não sai dela (a linha
+  vira "Obra criada" com "Abrir a obra"); só a obra criada sozinha (modo
+  `always`) sem mais nada a decidir vira um aviso curto, sem janela.
+- **O estado é por proposta, em módulo** (`lib/approval-next-steps.ts`): a
   proposta é aprovada em três lugares (lista, formulário e quadro do CRM), e o
-  formulário navega logo depois de salvar: um diálogo aberto por ele morreria
-  na troca de página. Todo caminho que muda status chama
-  `announceProjectOnApproval(result, proposta)`.
-- **Um diálogo pós-aprovação por vez** (`lib/approval-dialog-queue.ts`): o
-  convite da nota fiscal e a pergunta do projeto nunca abrem juntos, e a nota
-  vem primeiro, inclusive enquanto a consulta "dá para emitir?" ainda está em
-  andamento. Criar o projeto leva para a tela da obra; se a pergunta viesse
-  antes, o convite da nota atrás dela se perderia na troca de página. Quem já
-  está na tela não é trocado por outro que chegou depois.
+  formulário navega logo depois de salvar; o host no shell sobrevive à troca
+  de página. Todo caminho que muda status chama
+  `announceProjectOnApproval(result, proposta)` (`lib/project-on-approval.ts`).
+  A janela espera a consulta "dá para emitir?" (até 20s), para não abrir sem a
+  nota e mudar de tamanho depois.
 - **A tela da obra responde na hora** (`_lib/project-overlay.ts`): checklist,
   situação da etapa, responsável e datas entram numa camada de "pendente" por
   cima do que o listener entrega. A entrada sai quando o listener mostra o

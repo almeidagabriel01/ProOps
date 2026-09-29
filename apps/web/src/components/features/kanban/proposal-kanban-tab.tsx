@@ -54,7 +54,6 @@ import {
 import { Loader } from "@/components/ui/loader";
 import { isApprovedColumn } from "@/lib/proposal-approval";
 import { useProposalInvoicePrompt } from "@/hooks/use-proposal-invoice-prompt";
-import { ProposalInvoicePrompt } from "@/components/features/fiscal/proposal-invoice-prompt";
 
 interface ColumnPageState {
   cursor: KanbanColumnCursor | null;
@@ -1291,7 +1290,6 @@ export function ProposalKanbanTab() {
         </AlertDialogContent>
       </AlertDialog>
 
-      <ProposalInvoicePrompt {...invoicePrompt} />
     </div>
   );
 }

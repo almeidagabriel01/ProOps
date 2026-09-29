@@ -16,7 +16,6 @@ import { FiscalGapsDialog } from "@/components/features/fiscal/fiscal-gaps-dialo
 import { useIssueInvoice } from "@/hooks/use-issue-invoice";
 import { useProposalInvoicePrompt } from "@/hooks/use-proposal-invoice-prompt";
 import { isApprovedColumn } from "@/lib/proposal-approval";
-import { ProposalInvoicePrompt } from "@/components/features/fiscal/proposal-invoice-prompt";
 import { ProposalAttachmentsDialog } from "@/components/features/proposal/proposal-attachments-dialog";
 import { useTenant } from "@/providers/tenant-provider";
 import { useAuth } from "@/providers/auth-provider";
@@ -1605,7 +1604,6 @@ export default function ProposalsPage() {
 
       <FiscalGapsDialog gaps={fiscalGaps} onClose={closeFiscalGaps} />
 
-      <ProposalInvoicePrompt {...invoicePrompt} />
 
       <UpgradeModal
         open={upgradeModal.isOpen}

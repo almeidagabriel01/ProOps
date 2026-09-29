@@ -207,7 +207,9 @@
   atalho em armadilha, e convidar sobre proposta ja faturada seria convite a duplicar.
   Recusar nao deixa pendencia: o botao "Emitir NF" continua na lista.
   Ligado em `useProposalInvoicePrompt`, consumido pela lista de propostas e pelo arraste
-  do kanban. **Falta o formulario da proposta**, que redireciona logo apos salvar.
+  do kanban, e mostrado como a linha "Nota fiscal" da janela unica "Proposta aprovada"
+  (`ApprovalNextStepsHost` no front), junto da obra e do contrato. **Falta o formulario
+  da proposta**, que redireciona logo apos salvar.
 - **`autoIssueRule` continua sem UI, de proposito.** O convite pos-aprovacao entrega a
   conveniencia sem que nada seja emitido sem confirmacao; expor `on_payment` /
   `on_proposal_approved` acrescentaria emissao sem humano no circuito. O codigo dos
