@@ -1,4 +1,23 @@
+import { DEFAULT_PLANS } from "@/lib/plans/default-plans";
+
 export type FAQ = { question: string; answer: string };
+
+/**
+ * "o Starter tem 1 usuário, o Profissional tem 2 e o Enterprise não tem limite",
+ * lido dos planos: um número de plano digitado aqui sairia do lugar em silêncio
+ * na próxima mudança de catálogo.
+ */
+function usuariosPorPlano(): string {
+  const partes = [...DEFAULT_PLANS]
+    .sort((a, b) => a.order - b.order)
+    .map(({ name, features: { maxUsers } }) => {
+      if (maxUsers === -1) return `o ${name} não tem limite`;
+      return `o ${name} tem ${maxUsers} ${maxUsers === 1 ? "usuário" : "usuários"}`;
+    });
+  return partes.length > 1
+    ? `${partes.slice(0, -1).join(", ")} e ${partes[partes.length - 1]}`
+    : partes.join("");
+}
 
 /**
  * Fonte única das perguntas da FAQ — consumida pelo componente client
@@ -24,12 +43,12 @@ export const FAQS: FAQ[] = [
   {
     question: "O sistema é compatível com a minha contabilidade?",
     answer:
-      "Sim. Exportamos relatórios em formatos padrão da indústria, facilitando a integração com o software do seu contador sem retrabalho.",
+      "Sim. Com o financeiro no plano, você gera o link do contador: ele abre o DRE, os lançamentos e as notas em PDF e XML, escolhe o período e exporta para Excel ou CSV. Não precisa de login e não ocupa um usuário.",
   },
   {
     question: "Qual o limite de usuários?",
     answer:
-      "Depende do plano: o Starter tem 1 usuário, o Profissional tem 2 e o Enterprise não tem limite. Para aumentar a equipe, basta mudar de plano.",
+      `Depende do plano: ${usuariosPorPlano()}. Para aumentar a equipe, basta mudar de plano.`,
   },
   {
     question: "Meus dados estão seguros? E quanto à LGPD?",

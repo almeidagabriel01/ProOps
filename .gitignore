@@ -109,6 +109,12 @@ scripts/.recordings/
 
 # Playwright test server build dir (see next.config.ts distDir)
 apps/web/.next-test/
+# Qualquer outro distDir do Next (NEXT_DIST_DIR): o das capturas do ERP, o de
+# medir o Lighthouse. Fora do git E fora da varredura do Tailwind, que lê o
+# .gitignore: o cache binário do Turbopack ali dentro quebrava o CSS do dev.
+apps/web/.next-*/
+# PID dos emuladores das capturas (tests/capturas-do-erp).
+.capturas-pid
 
 # ownership migration snapshots and backups (contain PII)
 .migration/

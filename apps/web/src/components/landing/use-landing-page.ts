@@ -1,12 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { signOut } from "firebase/auth";
-import { auth } from "@/lib/firebase";
-import { toast } from "@/lib/toast";
 import { PlanService } from "@/services/plan-service";
 import { UserPlan } from "@/types";
-import { useAuth } from "@/providers/auth-provider";
+import { useLandingSession } from "./use-landing-session";
 
 export interface LandingPlan {
   name: string;
@@ -115,7 +112,7 @@ function mapPlans(sourcePlans: UserPlan[]): LandingPlan[] {
 }
 
 export function useLandingPage() {
-  const { user: currentUser, isLoading: isAuthLoading } = useAuth();
+  const { currentUser, isAuthLoading, handleSignOut } = useLandingSession();
   const [billingInterval, setBillingInterval] = useState<"monthly" | "yearly">(
     "monthly",
   );
@@ -138,19 +135,6 @@ export function useLandingPage() {
 
     fetchPlans();
   }, []);
-
-  const handleSignOut = async () => {
-    try {
-      await signOut(auth);
-      toast.success("Você saiu da sua conta.", {
-        title: "Logout realizado",
-      });
-    } catch {
-      toast.error("Não foi possível sair da conta agora.", {
-        title: "Erro ao sair",
-      });
-    }
-  };
 
   return {
     currentUser,

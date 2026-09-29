@@ -34,6 +34,7 @@ import { Accent, SectionHeading } from "./_shared/section-heading";
 export function LandingCenaPlanta() {
   return (
     <section
+      id="showcase"
       aria-label="Conheça a plataforma ProOps"
       className="border-t border-black/10 bg-white pt-24 dark:border-white/10 dark:bg-neutral-950 md:pt-28"
     >

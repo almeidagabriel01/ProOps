@@ -1,0 +1,250 @@
+/* ────────────────────────────────────────────────────────────────────────────
+   Vitrine: o CSS das superfícies de venda do ERP que nasceram depois da home
+   (a página /funcionalidades e as landings de nicho). Separado do globals.css,
+   que já passa de duas mil linhas, e importado por ele logo depois do Tailwind,
+   para as utilidades daqui entrarem na mesma varredura.
+
+   Três blocos, nesta ordem: o acento por nicho (`[data-acento]`), as cenas das
+   landings de nicho e as revelações dirigidas pelo scroll sem JavaScript.
+   Todo loop daqui está no bloco de movimento reduzido no fim do arquivo e é
+   pausável por `.anim-paused`.
+   ──────────────────────────────────────────────────────────────────────────── */
+
+/* ── O acento de cada nicho ───────────────────────────────────────────────────
+
+   A landing de nicho escreve `--acento-claro` e `--acento-escuro` na raiz
+   (os valores moram em `lib/niches/definitions/<id>/landing.ts`, com teste de
+   contraste), e daqui sai `--acento`, que troca com o tema. A home e
+   /funcionalidades não têm `data-acento` e continuam preto e branco. */
+[data-acento] {
+  --acento: var(--acento-claro);
+  --acento-suave: color-mix(in oklab, var(--acento) 12%, transparent);
+  --acento-linha: color-mix(in oklab, var(--acento) 45%, transparent);
+}
+.dark [data-acento] {
+  --acento: var(--acento-escuro);
+}
+[data-acento] ::selection {
+  background: var(--acento);
+  color: #ffffff;
+}
+.dark [data-acento] ::selection {
+  color: #0a0a0a;
+}
+.texto-acento {
+  color: var(--acento);
+}
+
+/* ── As cenas das landings de nicho ───────────────────────────────────────────
+
+   Controle de medida: um <input type="range"> de verdade (teclado, leitor de
+   tela e toque de graça), com trilho e alça desenhados aqui. `--pct` é escrito
+   pelo componente e pinta a parte percorrida com o acento. */
+.controle-medida {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 28px;
+  background: transparent;
+  cursor: pointer;
+  touch-action: pan-y;
+}
+.controle-medida:focus-visible {
+  outline: none;
+}
+.controle-medida::-webkit-slider-runnable-track {
+  height: 4px;
+  border-radius: 4px;
+  background: linear-gradient(
+    to right,
+    var(--acento) 0 var(--pct),
+    color-mix(in oklab, currentColor 14%, transparent) var(--pct) 100%
+  );
+}
+.controle-medida::-moz-range-track {
+  height: 4px;
+  border-radius: 4px;
+  background: color-mix(in oklab, currentColor 14%, transparent);
+}
+.controle-medida::-moz-range-progress {
+  height: 4px;
+  border-radius: 4px;
+  background: var(--acento);
+}
+.controle-medida::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 22px;
+  height: 22px;
+  margin-top: -9px;
+  border-radius: 999px;
+  background: var(--fundo-cena, #ffffff);
+  border: 3px solid var(--acento);
+  box-shadow: 0 4px 12px -4px rgb(0 0 0 / 0.35);
+  transition: transform 0.18s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.controle-medida::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  border-radius: 999px;
+  background: var(--fundo-cena, #ffffff);
+  border: 3px solid var(--acento);
+}
+.controle-medida:active::-webkit-slider-thumb {
+  transform: scale(1.18);
+}
+.controle-medida:focus-visible::-webkit-slider-thumb {
+  box-shadow: 0 0 0 4px var(--acento-suave);
+}
+.dark .cena-nicho {
+  --fundo-cena: #0a0a0a;
+}
+
+/* As cotas e as peças se desenham quando a cena entra na tela
+   (`data-visto`, escrito uma vez por um IntersectionObserver). Escritas no
+   estado final: sem o atributo, ou com movimento reduzido, estão lá. */
+.cena-nicho[data-visto] .cena-cota {
+  animation: cena-cota 0.9s cubic-bezier(0.65, 0, 0.35, 1) 0.2s both;
+}
+.cena-nicho[data-visto] .cena-cota-v {
+  animation-name: cena-cota-v;
+}
+.cena-nicho[data-visto] .cena-peca {
+  animation: cena-peca 0.8s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation-delay: calc(0.1s + var(--ordem, 0) * 90ms);
+}
+/* O perfil por metro linear: o traço marcha ao redor do vão. */
+.cena-marcha {
+  stroke-dasharray: 10 8;
+  animation: cena-marcha 1.2s linear infinite;
+}
+/* Ferragem por unidade, sensor de alarme: um pulso discreto. */
+.cena-pulso {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: cena-pulso 1.8s ease-out infinite;
+}
+/* O cone da câmera varre a área. */
+.cena-varre {
+  transform-box: view-box;
+  animation: cena-varre 5s ease-in-out infinite alternate;
+}
+@keyframes cena-cota {
+  from {
+    clip-path: inset(0 100% 0 0);
+  }
+  to {
+    clip-path: inset(0 0 0 0);
+  }
+}
+@keyframes cena-cota-v {
+  from {
+    clip-path: inset(0 0 100% 0);
+  }
+  to {
+    clip-path: inset(0 0 0 0);
+  }
+}
+@keyframes cena-peca {
+  from {
+    opacity: 0;
+    transform: translate(var(--de-x, 0px), var(--de-y, 18px));
+  }
+}
+@keyframes cena-marcha {
+  to {
+    stroke-dashoffset: -36;
+  }
+}
+@keyframes cena-pulso {
+  0% {
+    opacity: 0.9;
+    transform: scale(0.6);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(2.2);
+  }
+}
+@keyframes cena-varre {
+  from {
+    transform: rotate(calc(var(--angulo) * 1deg - 14deg));
+  }
+  to {
+    transform: rotate(calc(var(--angulo) * 1deg + 14deg));
+  }
+}
+
+/* Antes e depois: o jeito antigo leva um risco que corre com a rolagem. */
+@supports (animation-timeline: view()) {
+  @media (prefers-reduced-motion: no-preference) {
+    .dor-riscado {
+      animation: dor-risco linear both;
+      animation-timeline: view();
+      animation-range: entry 60% cover 45%;
+    }
+    .etapas-trilho-cheio {
+      animation: etapas-enche linear both;
+      animation-timeline: view();
+      animation-range: entry 40% cover 60%;
+    }
+  }
+}
+/* O risco é um fundo de 1px, e não uma linha por cima: com
+   `box-decoration-break: clone` cada linha do texto quebrado ganha o próprio
+   risco, do tamanho do texto dela. */
+.dor-riscado {
+  background-image: linear-gradient(currentColor, currentColor);
+  background-repeat: no-repeat;
+  background-position: 0 58%;
+  background-size: 100% 1px;
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+}
+@keyframes dor-risco {
+  from {
+    background-size: 0% 1px;
+  }
+  to {
+    background-size: 100% 1px;
+  }
+}
+@keyframes etapas-enche {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+
+/* Revelação guiada pelo scroll, sem JavaScript: onde o navegador não tem
+   `animation-timeline`, a linha simplesmente já está lá. */
+@supports (animation-timeline: view()) {
+  @media (prefers-reduced-motion: no-preference) {
+    .vt-revela {
+      animation: vt-revela linear both;
+      animation-timeline: view();
+      animation-range: entry 0% entry 55%;
+    }
+  }
+}
+@keyframes vt-revela {
+  from {
+    opacity: 0;
+    transform: translateY(18px);
+  }
+}
+
+/* ── Movimento reduzido ───────────────────────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  .cena-nicho[data-visto] .cena-cota,
+  .cena-nicho[data-visto] .cena-peca,
+  .cena-marcha,
+  .cena-pulso,
+  .cena-varre {
+    animation: none;
+  }
+  .cena-varre {
+    transform: rotate(calc(var(--angulo) * 1deg));
+  }
+}

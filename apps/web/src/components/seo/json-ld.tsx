@@ -37,10 +37,13 @@ export const ORGANIZACAO_REF = {
 
 interface SoftwareApplicationJsonLdProps {
   niche?: TenantNiche;
+  /** Recursos do produto, do catálogo de `lib/landing/funcionalidades`. */
+  featureList?: readonly string[];
 }
 
 export function SoftwareApplicationJsonLd({
   niche,
+  featureList,
 }: SoftwareApplicationJsonLdProps = {}) {
   const description = niche
     ? `ProOps para empresas de ${NICHE_CONFIGS[niche].seoAudience}: propostas, CRM, financeiro, agenda e WhatsApp. ERP que adapta-se ao seu negócio.`
@@ -54,6 +57,7 @@ export function SoftwareApplicationJsonLd({
     operatingSystem: "Web",
     url: BASE,
     description,
+    ...(featureList?.length ? { featureList: [...featureList] } : {}),
     // Sem `aggregateRating`: a nota que estava aqui (4,8 com 50 avaliações) não
     // existia. Nota inventada em dado estruturado é violação de política do
     // Google, com ação manual que derruba os rich results do domínio inteiro.

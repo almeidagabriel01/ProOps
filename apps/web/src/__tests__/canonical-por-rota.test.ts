@@ -45,6 +45,28 @@ function gruposDeRota(): string[] {
 }
 
 /**
+ * Desce do diretório `base` pelos segmentos do caminho. Onde o segmento não
+ * tem pasta própria, vale a pasta dinâmica do nível (`[slug]`), como o Next
+ * resolve: `/funcionalidades/financeiro` é servida por
+ * `funcionalidades/[slug]/page.tsx`.
+ */
+function resolverSegmentos(base: string, caminho: string): string {
+  let dir = base;
+  for (const segmento of caminho.split("/").filter(Boolean)) {
+    const exato = path.join(dir, segmento);
+    if (fs.existsSync(exato)) {
+      dir = exato;
+      continue;
+    }
+    const dinamico = fs.existsSync(dir)
+      ? fs.readdirSync(dir, { withFileTypes: true }).find((e) => e.isDirectory() && /^\[[^.\]]+\]$/.test(e.name))
+      : undefined;
+    dir = dinamico ? path.join(dir, dinamico.name) : exato;
+  }
+  return path.join(dir, "page.tsx");
+}
+
+/**
  * Onde mora o `page.tsx` que responde por um caminho de uma superfície.
  *
  * A raiz de cada superfície passa pela MESMA busca em route group que o resto:
@@ -65,11 +87,11 @@ function arquivoDaRota(surface: Surface, rota: string): string {
 
   if (caminho === "/") return path.join(APP_DIR, "page.tsx");
 
-  const direto = path.join(APP_DIR, caminho, "page.tsx");
+  const direto = resolverSegmentos(APP_DIR, caminho);
   if (fs.existsSync(direto)) return direto;
 
   for (const grupo of gruposDeRota()) {
-    const agrupado = path.join(APP_DIR, grupo, caminho, "page.tsx");
+    const agrupado = resolverSegmentos(path.join(APP_DIR, grupo), caminho);
     if (fs.existsSync(agrupado)) return agrupado;
   }
 

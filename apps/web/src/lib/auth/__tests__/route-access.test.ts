@@ -5,6 +5,7 @@ import {
   isBillingAllowedRoute,
   isPublicMarketingRoute,
   isPublicRoute,
+  isSessionlessMarketingRoute,
   shouldSkipRoute,
 } from "../route-access";
 
@@ -23,6 +24,17 @@ const PROTECTED_ERP_ROUTES = [
 ];
 
 describe("route-access", () => {
+  // A página de funcionalidades abre sem login, mas a navbar dela mostra a
+  // empresa de quem está logado: ela precisa do AuthProvider em volta.
+  it("/funcionalidades é pública e fica dentro dos provedores de sessão", () => {
+    expect(isPublicRoute("/funcionalidades")).toBe(true);
+    expect(isPublicMarketingRoute("/funcionalidades")).toBe(true);
+    expect(isSessionlessMarketingRoute("/funcionalidades")).toBe(false);
+    // As páginas de cada funcionalidade herdam o prefixo.
+    expect(isPublicRoute("/funcionalidades/financeiro")).toBe(true);
+    expect(isPublicMarketingRoute("/funcionalidades/financeiro")).toBe(true);
+  });
+
   describe("isPublicMarketingRoute", () => {
     for (const route of PUBLIC_MARKETING_ROUTES) {
       it(`classifies ${route} as a public marketing page`, () => {

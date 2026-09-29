@@ -1,60 +1,57 @@
-import { MessageCircle, CalendarDays, Ruler, Layers, Palette, CreditCard, LayoutGrid, Package } from "lucide-react";
+import { Ruler, LayoutGrid, Package } from "lucide-react";
 import type { NicheLandingConfig } from "@/components/landing/niche/types";
+import type { ProdutoDeExemplo } from "@/lib/landing/proposta-de-exemplo";
 import { NICHE_REGISTRY } from "../../registry";
 import { signupHrefForNiche } from "../../niche-ids";
+
+/** Produtos de exemplo, com preço fictício, calculados pelo motor de preço real. */
+const VIDRO: ProdutoDeExemplo = { price: 185, markup: 55, pricingModel: { mode: "curtain_meter" } };
+const PERFIL: ProdutoDeExemplo = { price: 95, markup: 60, pricingModel: { mode: "curtain_width" } };
+const KIT: ProdutoDeExemplo = { price: 160, markup: 50, pricingModel: { mode: "standard" } };
 
 /** Texto da landing do nicho. */
 export const nicheLanding: NicheLandingConfig = {
   slug: "vidracaria_esquadrias",
+  acento: { claro: "#0e7490", escuro: "#67e8f9" },
   hero: {
-    eyebrow: "",
     title: "ERP para",
     titleHighlight: "Vidraçaria e Esquadrias",
     subtitle:
       "A ProOps tem um pacote pronto para vidraçarias e empresas de esquadrias: orçamento por m² a partir das medidas do vão, proposta por ambiente, agenda de medição, obra da têmpera à instalação, CRM e financeiro integrados.",
     primaryCta: { label: "Começar agora", href: signupHrefForNiche("vidracaria_esquadrias") },
     secondaryCta: { label: "Fazer login", href: "/login" },
+    provas: ["Por m², metro linear e unidade", "Proposta por ambiente", "Da medição à entrega"],
   },
-  features: [
+  dores: [
     {
-      icon: Ruler,
-      title: "Orçamento por m²",
-      description:
-        "Informe largura e altura do vão e o total sai na hora, com o preço do m² e o markup de cada vidro. Perfil e pingadeira podem ser cobrados por metro linear.",
+      antes: "Vão medido na obra e orçamento montado à noite, no computador de casa.",
+      depois: "As medidas entram na proposta e o total sai na hora, com o markup de cada produto.",
     },
     {
-      icon: Layers,
-      title: "Proposta por ambiente",
-      description:
-        "Banheiro, sacada, fachada: cada ambiente com os vidros e esquadrias padrão já definidos. Monte a proposta escolhendo os ambientes e ajuste as medidas.",
+      antes: "Vidro por m², perfil por metro e kit por peça em três contas separadas.",
+      depois: "Os três modos de preço na mesma proposta, cada item com a sua regra.",
     },
     {
-      icon: Palette,
-      title: "Catálogo com fotos",
-      description:
-        "Cadastre vidros, kits de box, esquadrias e acessórios com até três fotos por produto. As fotos aparecem no PDF da proposta.",
-    },
-    {
-      icon: CalendarDays,
-      title: "Da medição à instalação",
-      description:
-        "Marque a medição na agenda e acompanhe cada obra por etapas: medição, têmpera e produção, instalação e entrega.",
-    },
-    {
-      icon: CreditCard,
-      title: "Financeiro integrado",
-      description:
-        "Ao aprovar um orçamento, o sinal e as parcelas são criados automaticamente no financeiro. Controle entradas e saídas sem planilhas.",
-    },
-    {
-      icon: MessageCircle,
-      title: "WhatsApp integrado",
-      description:
-        "Envie a proposta pelo WhatsApp direto da plataforma e acompanhe quando o cliente abre e aceita.",
+      antes: "Têmpera e instalação acompanhadas no grupo do WhatsApp.",
+      depois: "Medição, produção, instalação e entrega com checklist e fotos da obra.",
     },
   ],
+  cena: {
+    titulo: "Medida que vira orçamento",
+    frase: "Mude o vão e escolha o que olhar: o vidro por m², o perfil por metro linear, as ferragens por peça.",
+    dados: {
+      tipo: "esquadria",
+      largura: 2,
+      altura: 1.2,
+      folhas: 2,
+      vidro: { descricao: "Vidro temperado 8 mm incolor", produto: VIDRO },
+      perfil: { descricao: "Perfil de alumínio, pelo perímetro", produto: PERFIL },
+      ferragem: { descricao: "Kit de roldanas e fecho", produto: KIT, quantidade: 1 },
+    },
+  },
   modulesSection: {
-    title: "Do vão medido ao orçamento aprovado",
+    title: "Do vão medido ao",
+    titleHighlight: "orçamento aprovado",
     subtitle:
       "Cada produto escolhe como é cobrado, e a proposta calcula o total a partir das medidas que a sua equipe tirou na obra.",
   },
@@ -62,6 +59,7 @@ export const nicheLanding: NicheLandingConfig = {
     {
       icon: Ruler,
       title: "Por m²",
+      modo: "curtain_meter",
       description:
         "Largura x altura do vão x número de folhas x preço do m². Para vidro temperado, laminado, espelho, box e fechamento de sacada.",
       bullets: [
@@ -73,6 +71,7 @@ export const nicheLanding: NicheLandingConfig = {
     {
       icon: LayoutGrid,
       title: "Por metro linear",
+      modo: "curtain_width",
       description:
         "Preço por metro, multiplicado pela largura. Para perfis, trilhos, pingadeiras e guarda-corpos cobrados pelo comprimento.",
       bullets: [
@@ -84,6 +83,7 @@ export const nicheLanding: NicheLandingConfig = {
     {
       icon: Package,
       title: "Por unidade",
+      modo: "standard",
       description:
         "Kits de box, fechaduras, puxadores, roldanas e a instalação como item fechado, ao lado dos vidros cobrados por medida.",
       bullets: [
@@ -116,7 +116,7 @@ export const nicheLanding: NicheLandingConfig = {
     },
   ],
   cta: {
-    title: "Sua vidraçaria merece um sistema profissional",
+    title: "Do vão medido ao vidro instalado",
     subtitle: "Orçamentos por medida, obra organizada e financeiro em dia, em um só lugar.",
     crossLink: {
       label: "Ver também: ERP para Persianas e Toldos",

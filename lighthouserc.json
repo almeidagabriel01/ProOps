@@ -13,7 +13,11 @@
         "http://localhost:3001/aplicativo",
         "http://localhost:3001/institucional",
         "http://localhost:3001/sobre",
-        "http://localhost:3001/produtos"
+        "http://localhost:3001/produtos",
+        "http://localhost:3001/funcionalidades",
+        "http://localhost:3001/seguranca-eletronica",
+        "http://localhost:3001/vidracaria-esquadrias",
+        "http://localhost:3001/marcenaria"
       ],
       "numberOfRuns": 3,
       "settings": {

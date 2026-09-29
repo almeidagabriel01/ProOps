@@ -8,10 +8,10 @@ import { m as motion } from "motion/react";
 import {
   Banknote,
   Calendar,
-  CreditCard,
+  FolderOpen,
   MessageCircle,
   QrCode,
-  Sparkles,
+  Receipt,
 } from "lucide-react";
 import { ProOpsLogo } from "@/components/branding/proops-logo";
 import { Accent, SectionHeading } from "./_shared/section-heading";
@@ -29,15 +29,15 @@ type Integration = {
 };
 
 const LEFT: Integration[] = [
-  { label: "WhatsApp", icon: MessageCircle, tag: "Mensagens" },
+  { label: "WhatsApp", icon: MessageCircle, tag: "Consultas" },
   { label: "Google Agenda", icon: Calendar, tag: "Agenda" },
-  { label: "Lia (IA)", icon: Sparkles, tag: "Assistente IA" },
+  { label: "Google Drive", icon: FolderOpen, tag: "Arquivos" },
 ];
 
 const RIGHT: Integration[] = [
-  { label: "Stripe", icon: CreditCard, tag: "Pagamento" },
   { label: "Pix", icon: QrCode, tag: "Pagamento" },
   { label: "Asaas", icon: Banknote, tag: "Cobrança" },
+  { label: "Focus NFe", icon: Receipt, tag: "Notas fiscais" },
 ];
 
 // Posições verticais (% da altura do painel) dos badges e dos pontos de conexão.
@@ -164,7 +164,7 @@ export function LandingIntegrations() {
               Conectado ao que você <Accent>já usa</Accent>
             </>
           }
-          description="Pagamentos, mensagens e agenda em um fluxo só. Cartão via Stripe, pix e boleto via Asaas, sem trocar de tela."
+          description="Cobrança, notas e agenda em um fluxo só: Pix e boleto pelo Asaas, notas pela Focus NFe, visitas no Google Agenda e o PDF da proposta na pasta do cliente no Google Drive."
           className="mb-14"
         />
 

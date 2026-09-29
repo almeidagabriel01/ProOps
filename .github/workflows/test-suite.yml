@@ -292,7 +292,7 @@ jobs:
           retention-days: 14
 
   lighthouse:
-    name: Lighthouse Perf Budget (${{ matrix.shard }}/3)
+    name: Lighthouse Perf Budget (${{ matrix.shard }}/5)
     runs-on: ubuntu-latest
     # As 27 corridas (9 URLs x 3) rodavam em serie num runner so: o lhci sozinho
     # levava ~18 min e o job ~22, o caminho critico do pipeline inteiro. Rodar
@@ -319,6 +319,12 @@ jobs:
             urls: "/contato /agendar /aplicativo"
           - shard: 3
             urls: "/institucional /sobre /produtos"
+          # As paginas de funcionalidades e as tres landings de nicho que nao
+          # eram medidas: cenas animadas novas, sob o mesmo teto de TBT.
+          - shard: 4
+            urls: "/funcionalidades /seguranca-eletronica"
+          - shard: 5
+            urls: "/vidracaria-esquadrias /marcenaria"
     steps:
       - uses: actions/checkout@v4
 
@@ -345,7 +351,7 @@ jobs:
       # 3x per URL, then asserts the budget in lighthouserc.json. Fails the job if
       # LCP/TBT/CLS regress past the ceiling. As flags --collect.url sobrepoem a
       # lista do arquivo, entao cada shard coleta so as URLs dele.
-      - name: Run Lighthouse budget (lhci, shard ${{ matrix.shard }}/3)
+      - name: Run Lighthouse budget (lhci, shard ${{ matrix.shard }}/5)
         run: |
           args=()
           for path in ${{ matrix.urls }}; do

@@ -1,89 +1,62 @@
-"use client";
-
 import React from "react";
-import { Skeleton } from "@/components/ui/skeleton";
-import { LandingButton } from "../_shared/landing-button";
-import { AnimatedGradientText } from "@/components/ui/animated-text";
-import type { User } from "@/types";
-import { getAuthenticatedHome } from "@/lib/landing/auth-redirect";
+
+import { CapturaDoErp } from "@/components/landing/_shared/captura-do-erp";
+import type { Captura } from "@/lib/landing/capturas";
+
+import { NicheHeroCtas } from "./niche-hero-ctas";
 import type { NicheLandingConfig } from "./types";
 
 interface NicheHeroProps {
   hero: NicheLandingConfig["hero"];
-  currentUser?: User | null;
-  isAuthLoading?: boolean;
+  /** O print de uma proposta desse nicho no ERP. */
+  captura: Captura;
 }
 
-export function NicheHero({ hero, currentUser, isAuthLoading }: NicheHeroProps) {
-  const appHref = currentUser ? getAuthenticatedHome(currentUser) : hero.primaryCta.href;
-  const primaryLabel = currentUser ? "Acessar painel" : hero.primaryCta.label;
-  const showSecondaryCta = !currentUser;
+/**
+ * O herói da landing de nicho: o título com o nome do nicho na cor dele, e ao
+ * lado o print de verdade de uma proposta DESSE nicho aberta no ERP.
+ *
+ * Componente de servidor. A entrada é keyframe CSS (`hero-enter`), porque este
+ * é o bloco do LCP; a única ilha é a dos botões.
+ */
+export function NicheHero({ hero, captura }: NicheHeroProps) {
+  const atraso = (s: number, y = 18) => ({ "--hero-delay": `${s}s`, "--hero-y": `${y}px` }) as React.CSSProperties;
 
   return (
-    <section className="relative overflow-hidden min-h-[100svh] flex flex-col items-center justify-center px-4 text-center pt-24 pb-16">
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_80%_50%_at_50%_-10%,rgba(0,0,0,0.04)_0%,transparent_100%)] dark:bg-[radial-gradient(ellipse_80%_50%_at_50%_-10%,rgba(255,255,255,0.06)_0%,transparent_100%)]" />
-
-      <div className="relative mx-auto max-w-4xl">
-        {hero.eyebrow && (
-          <span
-            style={
-              {
-                "--hero-y": "-12px",
-                "--hero-s": "0.85",
-                "--hero-blur": "8px",
-                "--hero-dur": "0.5s",
-              } as React.CSSProperties
-            }
-            className="hero-enter mb-5 inline-flex items-center rounded-full border border-black/10 bg-black/[0.03] px-4 py-1.5 text-xs font-semibold uppercase tracking-widest text-black/60 dark:border-white/10 dark:bg-white/[0.04] dark:text-white/60"
+    <section className="relative overflow-hidden bg-white pb-20 pt-32 dark:bg-neutral-950 md:pb-28 md:pt-40">
+      <div className="mx-auto grid max-w-7xl items-center gap-14 px-4 sm:px-6 lg:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)] lg:gap-16">
+        <div>
+          <h1
+            className="hero-enter [font-family:var(--font-pdf-montserrat)] text-[2.5rem] font-bold leading-[1.02] tracking-[-0.035em] text-black dark:text-white sm:text-6xl lg:text-[4.25rem]"
+            style={atraso(0, 22)}
           >
-            {hero.eyebrow}
-          </span>
-        )}
-
-        <h1
-          style={
-            { "--hero-y": "20px", "--hero-delay": "0.1s" } as React.CSSProperties
-          }
-          className="hero-enter mb-6 text-4xl font-bold tracking-tight text-black dark:text-white md:text-6xl"
-        >
-          {hero.title}{" "}
-          <AnimatedGradientText>{hero.titleHighlight}</AnimatedGradientText>
-        </h1>
-
-        <p
-          style={
-            { "--hero-y": "16px", "--hero-delay": "0.2s" } as React.CSSProperties
-          }
-          className="hero-enter mx-auto mb-10 max-w-2xl text-lg leading-relaxed text-black/65 dark:text-white/65"
-        >
-          {hero.subtitle}
-        </p>
-
-        <div
-          style={
-            { "--hero-y": "12px", "--hero-delay": "0.3s", "--hero-dur": "0.5s" } as React.CSSProperties
-          }
-          className="hero-enter flex min-h-[52px] flex-wrap items-center justify-center gap-4"
-        >
-          {isAuthLoading ? (
-            <>
-              <Skeleton className="h-12 w-44 rounded-full" />
-              <Skeleton className="h-12 w-44 rounded-full" />
-            </>
-          ) : (
-            <>
-              <LandingButton href={appHref} variant="solid" size="lg">
-                {primaryLabel}
-              </LandingButton>
-
-              {showSecondaryCta && (
-                <LandingButton href={hero.secondaryCta.href} variant="link">
-                  {hero.secondaryCta.label}
-                </LandingButton>
-              )}
-            </>
-          )}
+            {hero.title}{" "}
+            <em className="texto-acento [font-family:var(--font-pdf-playfair)] font-medium italic tracking-[-0.02em]">
+              {hero.titleHighlight}
+            </em>
+          </h1>
+          <p className="hero-enter mt-6 max-w-xl text-lg leading-relaxed text-black/60 dark:text-white/60" style={atraso(0.1)}>
+            {hero.subtitle}
+          </p>
+          <div className="hero-enter mt-9" style={atraso(0.2, 12)}>
+            <NicheHeroCtas primario={hero.primaryCta} secundario={hero.secondaryCta} />
+          </div>
+          <ul className="hero-enter mt-10 flex flex-wrap gap-x-6 gap-y-2" style={atraso(0.3, 10)}>
+            {hero.provas.map((prova) => (
+              <li key={prova} className="flex items-center gap-2 text-sm font-medium text-black/70 dark:text-white/70">
+                <span aria-hidden="true" className="h-1.5 w-1.5 rounded-full bg-[var(--acento)]" />
+                {prova}
+              </li>
+            ))}
+          </ul>
         </div>
+
+        <figure className="hero-enter relative" style={atraso(0.25, 30)}>
+          <CapturaDoErp captura={captura} sizes="(min-width: 1024px) 640px, 100vw" prioridade />
+          <figcaption className="mt-4 text-sm text-black/55 dark:text-white/55">
+            Proposta no ERP. Tela real, com dados de exemplo.
+          </figcaption>
+        </figure>
       </div>
     </section>
   );

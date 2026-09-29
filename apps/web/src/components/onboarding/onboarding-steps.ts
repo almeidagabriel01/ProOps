@@ -497,7 +497,7 @@ export const SETTINGS_STEP_TEMPLATES: Record<string, OnboardingStepTemplate> = {
         requiresCapability: "driveSync",
       },
       {
-        text: "Pagamento Online: o cliente paga por Pix, boleto ou cartão direto pelo link.",
+        text: "Pagamento Online: o cliente paga por Pix ou boleto direto pelo link.",
         requiresCapability: "onlinePayments",
       },
       {

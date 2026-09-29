@@ -24,12 +24,32 @@ Segmentos de rota: proposals, contacts, products, transactions, calendar, crm, d
 403, admin, agendar, ambientes, aplicativo, api, auth,
 automacao-residencial, automation, calendar, cash-flow, checkout-success,
 commissions, contacts, contato, cookies, crm, dashboard, data-deletion, dre,
-decoracao, fale-conosco, forgot-password, institucional, invoices, login,
+decoracao, fale-conosco, forgot-password, funcionalidades, institucional, invoices, login,
 manifesto, notifications, privacy, products, produtos, profile, projects, proposals,
 register, reset,
 services, settings, share, sobre, solutions, spreadsheets, subscribe,
 subscription-blocked, tasks, team, terms, transactions, verify, wallets
 ```
+
+`funcionalidades` é a página pública com todas as funcionalidades do ERP, em
+cards com o print de verdade de cada tela, e `funcionalidades/[slug]` é a
+página de cada uma (estática, gerada da mesma lista; slug fora dela é 404), com
+o print no topo. Na home, "Funcionalidades" da navbar rola até "Recursos da
+plataforma" (`#recursos`), que cita as cinco principais e leva a esta página.
+Os prints moram em `public/capturas/`, declarados em `lib/landing/capturas.ts`,
+e são refeitos por `tests/capturas-do-erp`. Tudo sai do catálogo em
+`lib/landing/funcionalidades/`: os recursos (o detalhe), as funcionalidades que
+os reúnem (`funcionalidades.ts`, uma página cada, com os slugs em `slugs.ts`, que
+o sitemap também lê) e os cinco destaques da home, que abrem essas páginas. Todo
+recurso pertence a exatamente uma funcionalidade (teste do catálogo). O plano de
+cada recurso é um selo DERIVADO de `DEFAULT_PLANS` e dos add-ons
+(`selo-do-plano.ts`), com paridade testada contra o `PLAN_CATALOG` do backend.
+Nunca escreva o nome de um plano num recurso: declare a chave de `PlanFeatures`
+que o libera. Recurso novo no ERP entra no catálogo e numa funcionalidade, e o
+teste do selo reprova se uma capacidade vendável não aparecer em nenhum recurso.
+Funcionalidade nova precisa de um print em `CAPTURAS_DAS_FUNCIONALIDADES`
+(um `Record` por slug, que não compila sem ele) e de uma entrada no roteiro de
+`tests/capturas-do-erp/capturas.spec.ts`.
 
 `sobre`, `manifesto`, `produtos` e `fale-conosco` são as páginas do
 **site da empresa** e vivem no route group `(empresa)/`, que não entra na URL.
