@@ -344,8 +344,6 @@ export async function saveFiscalSettings(
     habilitaManifestacao: input.habilitaManifestacao === true,
     padraoNfse: input.padraoNfse === "municipal" ? "municipal" : "nacional",
     regimeApuracaoSimplesNacional: input.regimeApuracaoSimplesNacional ?? 1,
-    percentualTotalTributosSimplesNacional:
-      input.percentualTotalTributosSimplesNacional,
     autoIssueRule: input.autoIssueRule,
     status:
       existing?.status === "ready" && trocouDeEmpresa
@@ -369,6 +367,10 @@ export async function saveFiscalSettings(
     ["providerIssuerId", input.providerIssuerId],
     ["defaultNaturezaOperacao", input.defaultNaturezaOperacao],
     ["dataInicioRecebimento", dataInicioRecebimentoFinal],
+    // Aqui, e não no payload fixo: em branco o controller manda `undefined`, e
+    // o Firestore recusa gravar `undefined`. Salvar a configuração sem este
+    // campo devolvia 500 (a primeira gravação de toda empresa fora do Simples).
+    ["percentualTotalTributosSimplesNacional", input.percentualTotalTributosSimplesNacional],
   ];
   for (const [key, value] of optional) {
     // `undefined` means "not supplied, keep what is stored"; an empty string
