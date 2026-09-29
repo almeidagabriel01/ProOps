@@ -60,7 +60,9 @@ export const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
     const portalContentRef = React.useRef<HTMLDivElement>(null);
     const [isMounted, setIsMounted] = React.useState(false);
     const [fixedCoords, setFixedCoords] = React.useState<{
-      top: number;
+      /** Um dos dois: `top` abre para baixo, `bottom` abre para cima. */
+      top: number | null;
+      bottom: number | null;
       left: number | null;
       right: number | null;
       width: number;
@@ -68,6 +70,7 @@ export const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
       maxHeight: number;
     }>({
       top: 0,
+      bottom: null,
       left: 0,
       right: null,
       width: 0,
@@ -142,10 +145,20 @@ export const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
       if (containerRef.current) {
         const rect = containerRef.current.getBoundingClientRect();
         const viewportHeight = window.innerHeight;
-        const spaceBelow = viewportHeight - rect.bottom - 16; // 16px margin from bottom
+        const margin = 16;
+        const spaceBelow = viewportHeight - rect.bottom - margin;
+        const spaceAbove = rect.top - margin;
 
-        // Use available space, but cap at 250px max and minimum 100px
-        const calculatedMaxHeight = Math.min(Math.max(spaceBelow, 100), 250);
+        // Altura que a lista quer (40px por opção mais o respiro, até 250).
+        // Campo perto do rodapé abre para CIMA quando embaixo não cabe e em
+        // cima cabe mais: antes a lista abria sempre para baixo e saía da tela
+        // (a "Antecedência" do link de agendamento, no fim da página).
+        const desiredHeight = Math.min(options.length * 40 + 8, 250);
+        const opensUpward = spaceBelow < desiredHeight && spaceAbove > spaceBelow;
+        const calculatedMaxHeight = Math.min(
+          Math.max(opensUpward ? spaceAbove : spaceBelow, 100),
+          250,
+        );
 
         // A lista tem no mínimo a largura do campo e cresce até caber a
         // opção mais longa: presa à largura do campo, um select estreito
@@ -155,7 +168,8 @@ export const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
         const edge = 8;
         const opensLeftward = rect.left + Math.max(rect.width, 240) > viewportWidth - edge;
         setFixedCoords({
-          top: rect.bottom + 4,
+          top: opensUpward ? null : rect.bottom + 4,
+          bottom: opensUpward ? viewportHeight - rect.top + 4 : null,
           left: opensLeftward ? null : rect.left,
           right: opensLeftward ? viewportWidth - rect.right : null,
           width: rect.width,
@@ -259,7 +273,8 @@ export const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
           ref={portalContentRef}
           style={{
             position: "fixed",
-            top: fixedCoords.top,
+            top: fixedCoords.top ?? undefined,
+            bottom: fixedCoords.bottom ?? undefined,
             left: fixedCoords.left ?? undefined,
             right: fixedCoords.right ?? undefined,
             minWidth: fixedCoords.width,
