@@ -3,7 +3,7 @@
 import * as React from "react";
 import { Minus, Package, PackagePlus, PenLine, Plus, Trash2, Wrench } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { DecimalInput } from "@/components/ui/decimal-input";
+import { CurrencyInput } from "@/components/ui/currency-input";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/utils";
@@ -142,7 +142,7 @@ export function ItemsEditor({
         </p>
       ) : (
         <div className="overflow-hidden rounded-lg border">
-          <div className="hidden grid-cols-[minmax(0,1fr)_9.5rem_8.5rem_7rem_2.5rem] gap-3 border-b bg-muted/40 px-3 py-2 text-xs font-medium text-muted-foreground md:grid">
+          <div className="hidden grid-cols-[minmax(0,1fr)_9.5rem_10rem_8.5rem_2.5rem] gap-4 border-b bg-muted/40 px-3 py-2 text-xs font-medium text-muted-foreground md:grid">
             <span>Item</span>
             <span className="text-center">Quantidade</span>
             <span>Valor unitário</span>
@@ -155,7 +155,7 @@ export function ItemsEditor({
               return (
                 <li
                   key={item.id}
-                  className="grid grid-cols-2 gap-3 p-3 md:grid-cols-[minmax(0,1fr)_9.5rem_8.5rem_7rem_2.5rem] md:items-center"
+                  className="grid grid-cols-2 gap-3 p-3 md:grid-cols-[minmax(0,1fr)_9.5rem_10rem_8.5rem_2.5rem] md:items-center md:gap-4"
                 >
                   <div className="col-span-2 space-y-1.5 md:col-span-1">
                     <div className="flex items-center gap-2">
@@ -192,15 +192,16 @@ export function ItemsEditor({
                   </div>
                   <div className="space-y-1 md:space-y-0">
                     <span className="text-xs text-muted-foreground md:hidden">Valor unitário</span>
-                    <DecimalInput
+                    <CurrencyInput
                       aria-label={`Valor unitário de ${item.name}`}
                       value={item.unitPrice}
-                      onChange={(value) => update(item.id, { unitPrice: value })}
+                      onChange={(e) => update(item.id, { unitPrice: Number(e.target.value) || 0 })}
+                      placeholder="0,00"
                       disabled={disabled}
-                      className="h-9"
+                      className="h-9 py-0 pl-10"
                     />
                   </div>
-                  <p className="self-center text-left text-sm font-semibold md:text-right">
+                  <p className="self-center whitespace-nowrap text-left text-sm font-semibold tabular-nums md:pl-2 md:text-right">
                     <span className="mr-1 text-xs font-normal text-muted-foreground md:hidden">Total</span>
                     {formatCurrency(item.quantity * item.unitPrice)}
                   </p>
