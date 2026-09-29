@@ -3,6 +3,7 @@ import { Product } from "@/services/product-service";
 import { Service } from "@/services/service-service";
 import { Proposal, ProposalProduct } from "@/services/proposal-service";
 import { ProposalSistema } from "@/types/automation";
+import { countsInProposalTotal } from "@/lib/proposal/monthly-lines";
 
 interface ProductHandlersProps {
   selectedProducts: ProposalProduct[];
@@ -103,7 +104,7 @@ export function createCalculators(
   discount: number,
 ) {
   const calculateSubtotal = () =>
-    selectedProducts.reduce((sum, p) => sum + p.total, 0);
+    selectedProducts.reduce((sum, p) => (countsInProposalTotal(p) ? sum + p.total : sum), 0);
   const calculateDiscount = () => (calculateSubtotal() * (discount || 0)) / 100;
   const calculateTotal = () => calculateSubtotal() - calculateDiscount();
 

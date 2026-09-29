@@ -88,6 +88,8 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { MonthlyLineBadge, MonthlyLineSwitch } from "./monthly-line";
+import { countsInProposalTotal } from "@/lib/proposal/monthly-lines";
 
 interface ProposalEnvironmentsSectionProps {
   selectedSistemas: ProposalSistema[];
@@ -270,11 +272,13 @@ export function ProposalEnvironmentsSection({
               const ambienteProducts = selectedProducts.filter(
                 (product) => product.systemInstanceId === instanceId,
               );
-              const ambienteTotal = ambienteProducts.reduce((sum, product) => {
+              // Subtotal da venda: a mensalidade fica à parte, como no total.
+              const ambienteSaleProducts = ambienteProducts.filter(countsInProposalTotal);
+              const ambienteTotal = ambienteSaleProducts.reduce((sum, product) => {
                 if ((product.itemType || "product") === "service") return sum;
                 return sum + product.unitPrice * product.quantity;
               }, 0);
-              const ambienteTotalWithMarkup = ambienteProducts.reduce(
+              const ambienteTotalWithMarkup = ambienteSaleProducts.reduce(
                 (sum, product) => sum + product.total,
                 0,
               );
@@ -1207,6 +1211,7 @@ function EnvironmentProductRow({
                   Extra
                 </Badge>
               )}
+              <MonthlyLineBadge product={product} />
               {!isActive && (
                 <Badge
                   variant="outline"
@@ -1313,6 +1318,8 @@ function EnvironmentProductRow({
             </div>
           </div>
         )}
+
+        <MonthlyLineSwitch product={product} systemInstanceId={systemInstanceId} disabled={isUpdating} />
 
         <div className="flex flex-1 flex-wrap items-center justify-end gap-3">
           {isActive && !isService && (

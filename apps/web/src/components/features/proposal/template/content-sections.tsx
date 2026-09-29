@@ -11,6 +11,7 @@ import {
   isNeutralServiceLine,
 } from "@/lib/product-pricing";
 import { getNicheConfig } from "@/lib/niches/config";
+import { countsInProposalTotal } from "@/lib/proposal/monthly-lines";
 
 interface ProductsSectionProps {
   proposal: Partial<Proposal>;
@@ -24,7 +25,7 @@ export function ProductsSection({
   tenantNiche,
 }: ProductsSectionProps) {
   const products = proposal.products || [];
-  const subtotal = products.reduce((sum, p) => sum + p.total, 0);
+  const subtotal = products.reduce((sum, p) => (countsInProposalTotal(p) ? sum + p.total : sum), 0);
   const discountAmount = (subtotal * (proposal.discount || 0)) / 100;
   const total = subtotal - discountAmount;
 

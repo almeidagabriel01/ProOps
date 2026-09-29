@@ -4,12 +4,15 @@ import {
   PdfDisplaySettings,
   defaultPdfDisplaySettings,
 } from "@/types/pdf-display-settings";
+import { countsInProposalTotal } from "@/lib/proposal/monthly-lines";
 
 interface PdfTotalsProps {
   products: ProposalProduct[];
   discount: number;
   extraExpense?: number;
   closedValue?: number | null;
+  /** Soma das linhas de mensalidade: aparece abaixo do total, por mês. */
+  monthlyAmount?: number;
   contentStyles: Record<string, React.CSSProperties>;
   // Payment options (optional for backwards compatibility)
   pdfDisplaySettings?: PdfDisplaySettings;
@@ -23,12 +26,13 @@ export function PdfTotals({
   discount,
   extraExpense,
   closedValue,
+  monthlyAmount,
   contentStyles,
   pdfDisplaySettings,
 }: PdfTotalsProps) {
   const settings = { ...defaultPdfDisplaySettings, ...pdfDisplaySettings };
   const subtotal = products.reduce(
-    (sum, p) => (Number(p.quantity || 0) > 0 ? sum + p.total : sum),
+    (sum, p) => (Number(p.quantity || 0) > 0 && countsInProposalTotal(p) ? sum + p.total : sum),
     0,
   );
   const discountAmt = (subtotal * (discount || 0)) / 100;
@@ -105,6 +109,15 @@ export function PdfTotals({
           <span>Total:</span>
           <span>{formatCurrency(total)}</span>
         </div>
+        {(monthlyAmount || 0) > 0 && (
+          <div
+            className="flex items-baseline justify-between"
+            style={contentStyles.subtotal}
+          >
+            <span>Mensalidade:</span>
+            <span className="font-medium">+{formatCurrency(monthlyAmount || 0)}/mês</span>
+          </div>
+        )}
       </div>
     </div>
   );

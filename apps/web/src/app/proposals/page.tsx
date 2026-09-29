@@ -110,6 +110,7 @@ import { Tenant } from "@/types";
 import { SharedProposalService } from "@/services/shared-proposal-service";
 import { formatDateBR } from "@/utils/date-format";
 import { Loader } from "@/components/ui/loader";
+import { countsInProposalTotal } from "@/lib/proposal/monthly-lines";
 
 function PdfDownloader({
   proposal,
@@ -899,7 +900,8 @@ export default function ProposalsPage() {
           const productCount = proposal.products?.length || 0;
           const total =
             proposal.products?.reduce(
-              (sum: number, p: { total: number }) => sum + p.total,
+              (sum: number, p: { total: number; isMonthly?: boolean }) =>
+                countsInProposalTotal(p) ? sum + p.total : sum,
               0,
             ) || 0;
           return (

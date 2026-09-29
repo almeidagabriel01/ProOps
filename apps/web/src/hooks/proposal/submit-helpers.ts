@@ -18,6 +18,7 @@ import {
   normalizeProposalPricingDetails,
 } from "@/lib/product-pricing";
 import { ensureProposalProductLineItemId } from "@/lib/proposal-product";
+import { countsInProposalTotal } from "@/lib/proposal/monthly-lines";
 
 interface CreateProposalPayload {
   formData: Partial<Proposal>;
@@ -120,6 +121,7 @@ export function sanitizeProducts(products: ProposalProduct[]) {
       systemInstanceId:
         normalizedProduct.systemInstanceId || normalizedProduct.ambienteInstanceId,
       isExtra: normalizedProduct.isExtra,
+      ...(normalizedProduct.isMonthly ? { isMonthly: true } : {}),
       status: normalizedProduct.status,
     };
   });
@@ -226,7 +228,11 @@ export async function updateProposal(
       : [];
 
   const productsForUpdate = sanitizeProducts(selectedProducts);
-  const safeTotal = productsForUpdate.reduce((sum, p) => sum + p.total, 0);
+  // A mensalidade vira contrato: fora do total, da entrada e das parcelas.
+  const safeTotal = productsForUpdate.reduce(
+    (sum, p) => (countsInProposalTotal(p) ? sum + p.total : sum),
+    0,
+  );
   const discountAmount = (safeTotal * (formData.discount || 0)) / 100;
   const baseTotalValue = safeTotal - discountAmount + (formData.extraExpense || 0);
   const closedValueNumber = Number(formData.closedValue) || 0;

@@ -721,9 +721,16 @@ capacidade `fieldService`, pageId `contracts`, rotas em `/v1/service-contracts`.
   contrato, que a tela preenche com o do nicho), com id
   `contract_{id}_visit_{AAAAMMDD}`, e vai para a Agenda com aviso ao técnico.
   Uma por execução. A OS guarda `contractId`.
-- **Proposta:** `ensureContractFromProposal` cria o rascunho
-  `proposal_{proposalId}` com as linhas marcadas como mensalidade
-  (`isMonthly`), com `create`: aprovar de novo não cria outro.
+- **Proposta:** a linha marcada como mensalidade (`isMonthly`, chave "Mensal"
+  na linha, visível com o módulo no plano) fica FORA do total, da entrada e
+  das parcelas, e aparece à parte como "+ R$ X/mês" no formulário, no PDF e no
+  link. No front toda soma passa por `countsInProposalTotal`
+  (`apps/web/src/lib/proposal/monthly-lines.ts`), com um guard que reprova
+  arquivo que some `.total` sem ela; no backend, `sumProductTotals` (que a
+  edição usa para recalcular o `totalValue`). Na aprovação,
+  `resolveContractOnApproval` (nunca derruba a aprovação) cria o rascunho
+  `proposal_{proposalId}` com essas linhas e a carteira da proposta (id ou
+  nome, senão a padrão), com `create`: aprovar de novo não cria outro.
 - **Link de pagamento:** o de qualquer lançamento (compartilhar), que abre o
   Pix e o boleto do Asaas quando a empresa tem pagamento online.
 - **Nota da mensalidade** (`contract-invoice.ts`): com `issueNfse` ligado, o

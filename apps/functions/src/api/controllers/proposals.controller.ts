@@ -38,6 +38,8 @@ import { productRefsFields } from "../../lib/proposal-product-refs";
 import { logger, recordPhase } from "../../lib/logger";
 import { PDF_IRRELEVANT_PROPOSAL_FIELDS } from "../services/proposal-pdf.service";
 import { resolveProjectOnApproval } from "../services/projects/project.service";
+import { resolveContractOnApproval } from "../services/field-service/contract.service";
+import { sumProductTotals } from "../services/proposals.service";
 import {
   isAcceptancePending,
   isChangeRequestOpen,
@@ -1277,6 +1279,12 @@ export const createProposal = async (req: Request, res: Response) => {
           userId: createdProposal.data.createdById as string,
           initialStatus: input.initialPaymentStatus || "pending",
         });
+        await resolveContractOnApproval({
+          tenantId: createdProposal.data.tenantId as string,
+          proposalId: createdProposal.id,
+          proposal: createdProposal.data as Record<string, unknown>,
+          uid: createdProposal.data.createdById as string,
+        });
       }
 
       proposalId = createdProposal.id;
@@ -1530,10 +1538,8 @@ export const updateProposal = async (req: Request, res: Response) => {
     }
 
     if (updateData.products) {
-      const subtotal = (sanitizedProducts || []).reduce<number>(
-        (sum: number, p: Record<string, unknown>) => sum + ((p.total as number) || 0),
-        0,
-      );
+      // A mensalidade (`isMonthly`) fica fora do total, como na tela.
+      const subtotal = sumProductTotals((sanitizedProducts || []) as Record<string, unknown>[]);
       const discountAmount =
         (subtotal * (Number(updateData.discount) || Number(proposalData?.discount) || 0)) / 100;
       const extraExpense =
@@ -1591,8 +1597,17 @@ export const updateProposal = async (req: Request, res: Response) => {
     // empresa configurou, cria, pergunta (padrão) ou não faz nada. Nunca
     // derruba a aprovação.
     let projectOutcome: { createdProjectId: string | null; suggest: boolean } | null = null;
+    // Contrato de manutenção: as linhas de mensalidade viram um contrato em
+    // rascunho, que a empresa ativa escolhendo o início. Também nunca derruba.
+    let contractCreated: string | null = null;
     if (isBeingApproved) {
       projectOutcome = await resolveProjectOnApproval({
+        tenantId: proposalTenantId,
+        proposalId: id,
+        proposal: { ...proposalData, ...safeUpdate },
+        uid: userId,
+      });
+      contractCreated = await resolveContractOnApproval({
         tenantId: proposalTenantId,
         proposalId: id,
         proposal: { ...proposalData, ...safeUpdate },
@@ -2088,6 +2103,7 @@ export const updateProposal = async (req: Request, res: Response) => {
       // se a venda tem instalação (modo padrão). A tela avisa ou pergunta.
       projectCreated: projectOutcome?.createdProjectId ?? null,
       projectSuggested: projectOutcome?.suggest ?? false,
+      contractCreated,
     });
   } catch (error: unknown) {
     const err = error as Error;

@@ -125,6 +125,9 @@ export function sanitizeProposalProductsInput(rawValue: unknown): Record<string,
         .trim()
         .slice(0, 200),
       isExtra: Boolean(source.isExtra),
+      // Mensalidade: fora do total da venda, vira contrato na aprovação. Só
+      // gravado quando ligado, para a linha comum sair igual a antes.
+      ...(source.isMonthly === true ? { isMonthly: true } : {}),
       status,
       pricingDetails:
         itemType === "service"

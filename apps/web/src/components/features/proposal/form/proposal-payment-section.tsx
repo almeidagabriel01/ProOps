@@ -25,6 +25,7 @@ import {
   getProposalInstallmentsPaymentMethod,
   PROPOSAL_PAYMENT_METHOD_OPTIONS,
 } from "@/lib/proposal-payment";
+import { countsInProposalTotal, monthlyTotal } from "@/lib/proposal/monthly-lines";
 
 interface ProposalPaymentSectionProps {
   formData: Partial<Proposal>;
@@ -126,8 +127,11 @@ export function ProposalPaymentSection({
     }
   };
 
-  const productsValue = selectedProducts.reduce((sum, p) => sum + p.total, 0);
-  const totalProfit = selectedProducts.reduce((sum, p) => {
+  // A mensalidade vira contrato: fora do valor da venda, da entrada e das parcelas.
+  const saleProducts = selectedProducts.filter(countsInProposalTotal);
+  const monthly = monthlyTotal(selectedProducts);
+  const productsValue = saleProducts.reduce((sum, p) => sum + p.total, 0);
+  const totalProfit = saleProducts.reduce((sum, p) => {
     if ((p.itemType || "product") === "service") {
       return sum;
     }
@@ -397,7 +401,7 @@ export function ProposalPaymentSection({
             {/* Discount applied line */}
             {(() => {
               const rawTotal =
-                selectedProducts.reduce(
+                saleProducts.reduce(
                   (sum, p) =>
                     Number(p.quantity || 0) > 0 ? sum + p.total : sum,
                   0,
@@ -453,6 +457,19 @@ export function ProposalPaymentSection({
                 })}
               </span>
             </div>
+            {monthly > 0 && (
+              <div className="flex justify-between items-center text-sm text-violet-700 dark:text-violet-300">
+                <span>Mensalidade, cobrada à parte por contrato:</span>
+                <span className="font-semibold">
+                  + R${" "}
+                  {monthly.toLocaleString("pt-BR", {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2,
+                  })}
+                  /mês
+                </span>
+              </div>
+            )}
           </div>
         </div>
       )}

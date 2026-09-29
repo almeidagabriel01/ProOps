@@ -196,6 +196,10 @@ export function PdfProductLineFooter({
 }) {
   const legacyUnit =
     product.quantity > 0 ? product.total / product.quantity : product.unitPrice;
+  // Mensalidade: o valor é por mês e fica fora do total da proposta.
+  const lineTotal = product.isMonthly
+    ? `${formatCurrency(product.total)}/mês`
+    : formatCurrency(product.total);
   const { lineFormat } = getNicheConfig(tenantNiche).proposal;
   const isLabeledProduct =
     lineFormat === "labeled" && product.itemType !== "service";
@@ -227,7 +231,7 @@ export function PdfProductLineFooter({
               className={totalTextClassName}
               style={primaryColor ? { color: primaryColor } : undefined}
             >
-              {formatCurrency(product.total)}
+              {lineTotal}
             </span>
           </>
         ) : (
@@ -235,7 +239,7 @@ export function PdfProductLineFooter({
             className={totalTextClassName}
             style={primaryColor ? { color: primaryColor } : undefined}
           >
-            {formatCurrency(product.total)}
+            {lineTotal}
           </span>
         );
       }
@@ -249,7 +253,7 @@ export function PdfProductLineFooter({
             className={totalTextClassName}
             style={primaryColor ? { color: primaryColor } : undefined}
           >
-            {formatCurrency(product.total)}
+            {lineTotal}
           </span>
         </>
       );
@@ -266,7 +270,7 @@ export function PdfProductLineFooter({
             className={totalTextClassName}
             style={primaryColor ? { color: primaryColor } : undefined}
           >
-            {formatCurrency(product.total)}
+            {lineTotal}
           </span>
         </>
       );
@@ -284,7 +288,7 @@ export function PdfProductLineFooter({
             className={totalTextClassName}
             style={primaryColor ? { color: primaryColor } : undefined}
           >
-            {formatCurrency(product.total)}
+            {lineTotal}
           </span>
         </>
       );
@@ -300,7 +304,7 @@ export function PdfProductLineFooter({
           className={totalTextClassName}
           style={primaryColor ? { color: primaryColor } : undefined}
         >
-          {formatCurrency(product.total)}
+          {lineTotal}
         </span>
       </>
     );

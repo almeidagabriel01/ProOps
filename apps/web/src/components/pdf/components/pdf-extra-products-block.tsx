@@ -12,6 +12,7 @@ import type { ProposalProductPricingDetails } from "@/lib/product-pricing";
 import type { TenantNiche } from "@/types";
 import { PdfSistemaProductCard } from "./pdf-sistema-primitives";
 import { compareConfiguredDisplayItemWithExtras } from "@/lib/sort-text";
+import { countsInProposalTotal } from "@/lib/proposal/monthly-lines";
 
 interface PdfProduct {
   productId: string;
@@ -28,6 +29,7 @@ interface PdfProduct {
   _isInactive?: boolean;
   _isGhost?: boolean;
   isExtra?: boolean;
+  isMonthly?: boolean;
 }
 
 interface PdfExtraProductsBlockProps {
@@ -47,8 +49,8 @@ export function PdfExtraProductsBlock({
   const visibleProducts = [...products]
     .filter((product) => isProductVisibleInPdf(product))
     .sort(compareConfiguredDisplayItemWithExtras);
-  const productsForTotals = products.filter((product) =>
-    shouldCountInPdfTotals(product),
+  const productsForTotals = products.filter(
+    (product) => shouldCountInPdfTotals(product) && countsInProposalTotal(product),
   );
   const extraSubtotal = productsForTotals.reduce(
     (sum: number, p: PdfProduct) => sum + p.total,

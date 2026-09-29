@@ -2,6 +2,7 @@ import { Timestamp, type Transaction } from "firebase-admin/firestore";
 import { db } from "../../../init";
 import { logger } from "../../../lib/logger";
 import { NotificationService } from "../notification.service";
+import { tenantHasCapability } from "../../../lib/tenant-capabilities";
 import {
   SERVICE_CONTRACTS_COLLECTION,
   buildChargeTransaction,
@@ -287,4 +288,58 @@ export async function ensureContractFromProposal(params: {
     });
     return ref.id;
   });
+}
+
+/**
+ * A carteira do contrato vem da proposta (a das parcelas, senão a da
+ * entrada), que pode estar gravada pelo id ou pelo nome. Sem nenhuma, a
+ * carteira padrão da empresa; o contrato não ativa sem carteira.
+ */
+async function resolveContractWallet(tenantId: string, proposal: Record<string, unknown>): Promise<string | null> {
+  const candidates = [proposal.installmentsWallet, proposal.downPaymentWallet]
+    .map((v) => (typeof v === "string" ? v.trim() : ""))
+    .filter(Boolean);
+  for (const candidate of candidates) {
+    const byId = await db.collection("wallets").doc(candidate).get();
+    if (byId.exists && byId.data()?.tenantId === tenantId) return byId.id;
+    const byName = await db
+      .collection("wallets")
+      .where("tenantId", "==", tenantId)
+      .where("name", "==", candidate)
+      .limit(1)
+      .get();
+    if (!byName.empty) return byName.docs[0].id;
+  }
+  const fallback = await db
+    .collection("wallets")
+    .where("tenantId", "==", tenantId)
+    .where("isDefault", "==", true)
+    .limit(1)
+    .get();
+  return fallback.empty ? null : fallback.docs[0].id;
+}
+
+/**
+ * Na aprovação da proposta: se ela tem linhas de mensalidade e a empresa tem
+ * o módulo, nasce o contrato em rascunho. Nunca derruba a aprovação.
+ */
+export async function resolveContractOnApproval(params: {
+  tenantId: string;
+  proposalId: string;
+  proposal: Record<string, unknown>;
+  uid: string;
+}): Promise<string | null> {
+  try {
+    if (monthlyLinesFromProposal(params.proposal.products).length === 0) return null;
+    if (!(await tenantHasCapability(params.tenantId, "fieldService"))) return null;
+    const wallet = await resolveContractWallet(params.tenantId, params.proposal);
+    return await ensureContractFromProposal({ ...params, wallet });
+  } catch (error) {
+    logger.warn("service_contract_on_approval_failed", {
+      tenantId: params.tenantId,
+      proposalId: params.proposalId,
+      error: error instanceof Error ? error.message : String(error),
+    });
+    return null;
+  }
 }

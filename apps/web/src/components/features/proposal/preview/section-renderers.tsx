@@ -16,6 +16,7 @@ import {
   getProposalProductMeasurementLabel,
   isDimensionProductLine,
 } from "@/lib/product-pricing";
+import { countsInProposalTotal } from "@/lib/proposal/monthly-lines";
 
 // ============================================
 // TYPES
@@ -97,7 +98,8 @@ export function ProductTableSection({
     sistemaInfo?: ProposalSystemInstance,
   ) => {
     const total = items.reduce(
-      (sum, item) => sum + (item.total || item.quantity * item.unitPrice),
+      (sum, item) =>
+        countsInProposalTotal(item) ? sum + (item.total || item.quantity * item.unitPrice) : sum,
       0,
     );
 

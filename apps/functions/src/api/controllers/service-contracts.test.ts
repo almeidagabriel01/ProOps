@@ -120,7 +120,7 @@ import {
   updateServiceContract,
 } from "./service-contracts.controller";
 import { runServiceContracts } from "../services/field-service/contract-billing-run";
-import { ensureContractFromProposal } from "../services/field-service/contract.service";
+import { ensureContractFromProposal, resolveContractOnApproval } from "../services/field-service/contract.service";
 
 type MockRes = Response & { statusCode: number; body: unknown };
 
@@ -496,5 +496,48 @@ describe("contrato a partir da proposta", () => {
     });
     expect(created).toBeNull();
     expect(store.service_contracts).toBeUndefined();
+  });
+});
+
+describe("contrato na aprovação da proposta", () => {
+  const proposal = {
+    title: "Segurança da casa",
+    clientId: "c1",
+    clientName: "Ana",
+    installmentsWallet: "Caixa",
+    products: [{ productId: "s1", productName: "Monitoramento", itemType: "service", isMonthly: true, quantity: 1, total: 129 }],
+  };
+
+  it("nasce com a carteira da proposta, mesmo gravada pelo nome", async () => {
+    const id = await resolveContractOnApproval({ tenantId: "t1", proposalId: "p7", proposal, uid: "master" });
+    expect(id).toBe("proposal_p7");
+    expect(store.service_contracts.proposal_p7).toMatchObject({ wallet: "w1", status: "draft" });
+  });
+
+  it("sem carteira na proposta, usa a padrão da empresa", async () => {
+    store.wallets.w3 = { tenantId: "t1", name: "Banco", isDefault: true };
+    await resolveContractOnApproval({
+      tenantId: "t1",
+      proposalId: "p6",
+      proposal: { ...proposal, installmentsWallet: undefined },
+      uid: "master",
+    });
+    expect(store.service_contracts.proposal_p6.wallet).toBe("w3");
+  });
+
+  it("empresa sem o módulo não ganha contrato, e a aprovação segue", async () => {
+    caps.fieldService = false;
+    expect(await resolveContractOnApproval({ tenantId: "t1", proposalId: "p5", proposal, uid: "master" })).toBeNull();
+    expect(store.service_contracts).toBeUndefined();
+  });
+
+  it("carteira de outra empresa com o mesmo nome não é usada", async () => {
+    await resolveContractOnApproval({
+      tenantId: "t1",
+      proposalId: "p4",
+      proposal: { ...proposal, installmentsWallet: "w2" },
+      uid: "master",
+    });
+    expect(store.service_contracts.proposal_p4.wallet).toBe("");
   });
 });

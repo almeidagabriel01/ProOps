@@ -75,6 +75,13 @@ export interface UseProposalFormReturn {
     itemType?: "product" | "service",
     lineItemId?: string,
   ) => Promise<void>;
+  handleToggleProductMonthly: (
+    productId: string,
+    isMonthly: boolean,
+    systemInstanceId?: string,
+    itemType?: "product" | "service",
+    lineItemId?: string,
+  ) => void;
 
   calculateSubtotal: () => number;
   calculateDiscount: () => number;

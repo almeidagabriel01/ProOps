@@ -38,6 +38,7 @@ export type {
   UseProposalFormProps,
   UseProposalFormReturn,
 } from "./useProposalForm.types";
+import { countsInProposalTotal } from "@/lib/proposal/monthly-lines";
 
 export function useProposalFormCore({
   proposalId,
@@ -321,8 +322,10 @@ export function useProposalFormCore({
               clientId: state.selectedClientId,
               tenantId: state.tenant?.id || "",
               calculateTotal: () => {
+                // A mensalidade vira contrato: fora do total do rascunho.
                 const sub = visibleProductsForSave.reduce(
-                  (sum: number, p: ProposalProduct) => sum + p.total,
+                  (sum: number, p: ProposalProduct) =>
+                    countsInProposalTotal(p) ? sum + p.total : sum,
                   0,
                 );
                 const disc = (sub * (state.formData.discount || 0)) / 100;
@@ -384,6 +387,7 @@ export function useProposalFormCore({
     resetProductPrice,
     removeProduct,
     handleToggleProductStatus,
+    handleToggleProductMonthly,
     calculateSubtotal,
     calculateDiscount,
     calculateTotal,
@@ -470,6 +474,7 @@ export function useProposalFormCore({
     updateProductQuantity,
     removeProduct,
     handleToggleProductStatus,
+    handleToggleProductMonthly,
     calculateSubtotal,
     calculateDiscount,
     calculateTotal,

@@ -18,6 +18,7 @@ export interface PdfProduct {
   total: number;
   pricingDetails?: ProposalProductPricingDetails;
   isExtra?: boolean;
+  isMonthly?: boolean;
   systemInstanceId?: string;
   _isInactive?: boolean;
   _isGhost?: boolean;

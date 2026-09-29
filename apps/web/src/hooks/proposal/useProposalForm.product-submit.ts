@@ -22,6 +22,7 @@ import {
   resetProposalProductPriceToDefault,
 } from "@/lib/proposal-product";
 import { ProposalProductPricingDetails } from "@/lib/product-pricing";
+import { countsInProposalTotal } from "@/lib/proposal/monthly-lines";
 
 interface UseProposalFormProductSubmitContext {
   formData: Partial<Proposal>;
@@ -343,10 +344,35 @@ export function useProposalFormProductSubmit(
     }));
   };
 
+  const handleToggleProductMonthly = (
+    productId: string,
+    isMonthly: boolean,
+    systemInstanceId?: string,
+    itemType?: "product" | "service",
+    lineItemId?: string,
+  ) => {
+    setFormData((prev) => ({
+      ...prev,
+      products: (prev.products || []).map((currentProduct) => {
+        const p = ensureProposalProductLineItemId(currentProduct);
+        const isTarget = matchesTargetProduct(
+          p,
+          productId,
+          systemInstanceId,
+          itemType,
+          lineItemId,
+        );
+        return isTarget ? { ...p, isMonthly } : p;
+      }),
+    }));
+  };
+
+  // A mensalidade não entra no total da venda: ela vira contrato.
   const calculateSubtotal = React.useCallback(
     () =>
       visibleProducts.reduce(
-        (sum, p) => (Number(p.quantity || 0) > 0 ? sum + p.total : sum),
+        (sum, p) =>
+          Number(p.quantity || 0) > 0 && countsInProposalTotal(p) ? sum + p.total : sum,
         0,
       ),
     [visibleProducts],
@@ -646,6 +672,7 @@ export function useProposalFormProductSubmit(
     updateProductPricingDetails,
     removeProduct,
     handleToggleProductStatus,
+    handleToggleProductMonthly,
     calculateSubtotal,
     calculateDiscount,
     calculateTotal,

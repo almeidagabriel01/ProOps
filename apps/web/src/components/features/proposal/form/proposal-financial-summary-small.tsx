@@ -1,4 +1,5 @@
 import { ProposalProduct } from "@/services/proposal-service";
+import { countsInProposalTotal } from "@/lib/proposal/monthly-lines";
 
 interface ProposalFinancialSummarySmallProps {
   selectedProducts: ProposalProduct[];
@@ -9,13 +10,16 @@ export function ProposalFinancialSummarySmall({
   selectedProducts,
   className,
 }: ProposalFinancialSummarySmallProps) {
+  // A mensalidade vira contrato: fora do valor e do lucro da venda.
+  const saleProducts = selectedProducts.filter(countsInProposalTotal);
+
   // Calculate total selling value (with markup)
-  const totalValue = selectedProducts.reduce((sum, p) => {
+  const totalValue = saleProducts.reduce((sum, p) => {
     return sum + p.total;
   }, 0);
 
   // Calculate total profit (markup only)
-  const totalProfit = selectedProducts.reduce((sum, p) => {
+  const totalProfit = saleProducts.reduce((sum, p) => {
     if ((p.itemType || "product") === "service") {
       return sum;
     }

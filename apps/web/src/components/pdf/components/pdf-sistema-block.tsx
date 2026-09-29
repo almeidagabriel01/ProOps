@@ -18,6 +18,7 @@ import {
 import { compareConfiguredDisplayItemWithExtras } from "@/lib/sort-text";
 import { getNicheConfig } from "@/lib/niches/config";
 import { cap } from "@/lib/niches/vocabulary";
+import { countsInProposalTotal } from "@/lib/proposal/monthly-lines";
 
 /** Nome do local sem nome ("Ambiente", "Área"), pelo nicho da proposta. */
 function getPlaceFallbackName(tenantNiche?: TenantNiche | null): string {
@@ -267,8 +268,8 @@ export function PdfSistemaBlock({
   const settings = resolvePdfDisplaySettings(pdfDisplaySettings);
   const placeFallbackName = getPlaceFallbackName(tenantNiche);
   const ambientes = resolveSistemaAmbientes(sistema, placeFallbackName);
-  const productsForTotals = products.filter((product) =>
-    shouldCountInPdfTotals(product),
+  const productsForTotals = products.filter(
+    (product) => shouldCountInPdfTotals(product) && countsInProposalTotal(product),
   );
   const sistemaSubtotal = productsForTotals.reduce((sum, p) => sum + p.total, 0);
 
@@ -417,7 +418,7 @@ export function PdfSistemaBlock({
                     >
                       {formatCurrency(
                         scopeProducts
-                          .filter((p) => shouldCountInPdfTotals(p))
+                          .filter((p) => shouldCountInPdfTotals(p) && countsInProposalTotal(p))
                           .reduce((sum, p) => sum + p.total, 0),
                       )}
                     </span>
