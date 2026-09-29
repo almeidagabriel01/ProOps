@@ -56,12 +56,20 @@ test.describe("Onboarding: conta nova paga", () => {
     await expect(card.getByRole("heading", { name: "Dashboard" })).toBeVisible();
     await expect(card).toContainText("Visão geral");
 
+    // Tarefas fica no capítulo Visão geral, logo depois do Dashboard.
+    await card.getByTestId("onboarding-next").click();
+    await page.waitForURL(/\/tasks$/);
+    await expect(card.getByRole("heading", { name: "Tarefas" })).toBeVisible();
+    await expect
+      .poll(async () => (await savedOnboarding()).completedStepIds)
+      .toEqual(["dashboard"]);
+
     await card.getByTestId("onboarding-next").click();
     await page.waitForURL(/\/proposals$/);
     await expect(card.getByRole("heading", { name: "Propostas" })).toBeVisible();
     await expect
       .poll(async () => (await savedOnboarding()).completedStepIds)
-      .toEqual(["dashboard"]);
+      .toEqual(["dashboard", "tasks"]);
 
     // Rota aninhada continua sendo o passo de Propostas.
     await page.goto("/proposals/new");
