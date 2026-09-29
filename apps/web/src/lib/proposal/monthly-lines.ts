@@ -12,7 +12,6 @@ interface LineLike {
   isMonthly?: boolean;
   quantity?: number;
   total?: number;
-  status?: string;
 }
 
 export function isMonthlyLine(line: LineLike): boolean {
@@ -24,11 +23,14 @@ export function countsInProposalTotal(line: LineLike): boolean {
   return !isMonthlyLine(line);
 }
 
-/** Soma das mensalidades ativas: o "+ R$ X/mês". */
+/**
+ * Soma das mensalidades: o "+ R$ X/mês". A linha "Inativa" continua somando,
+ * como no total da venda: o status só a esconde do PDF.
+ */
 export function monthlyTotal(lines: readonly LineLike[]): number {
   const sum = lines.reduce(
     (acc, line) =>
-      isMonthlyLine(line) && line.status !== "inactive" && Number(line.quantity || 0) > 0
+      isMonthlyLine(line) && Number(line.quantity || 0) > 0
         ? acc + Number(line.total || 0)
         : acc,
     0,

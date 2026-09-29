@@ -24,16 +24,16 @@ describe("monthly-lines", () => {
     expect(countsInProposalTotal({ isMonthly: false })).toBe(true);
   });
 
-  it("soma as mensalidades ativas com quantidade, em centavos", () => {
+  it("soma as mensalidades com quantidade, em centavos; a oculta no PDF continua cobrada", () => {
     expect(
       monthlyTotal([
         { isMonthly: true, quantity: 1, total: 129.9 },
         { isMonthly: true, quantity: 2, total: 39.8 },
-        { isMonthly: true, quantity: 1, total: 50, status: "inactive" },
+        { isMonthly: true, quantity: 1, total: 50, status: "inactive" } as never,
         { isMonthly: true, quantity: 0, total: 10 },
         { quantity: 4, total: 1200 },
       ]),
-    ).toBe(169.7);
+    ).toBe(219.7);
   });
 });
 

@@ -72,6 +72,14 @@ export const RenderPagedContent: React.FC<RenderPagedContentProps> = ({
     [products],
   );
   const monthlyAmount = useMemo(() => monthlyTotal(products), [products]);
+  const monthlyItems = useMemo(
+    () =>
+      products
+        // Oculta no PDF, a linha continua cobrada, mas o nome não aparece.
+        .filter((p) => p.isMonthly === true && !p._isInactive && Number(p.quantity || 0) > 0)
+        .map((p) => p.productName),
+    [products],
+  );
 
   // Measurement effect: capture real DOM heights
   useLayoutEffect(() => {
@@ -200,6 +208,7 @@ export const RenderPagedContent: React.FC<RenderPagedContentProps> = ({
             <PdfTotals
               products={countableProducts}
               monthlyAmount={monthlyAmount}
+              monthlyItems={monthlyItems}
               discount={proposal.discount || 0}
               extraExpense={proposal.extraExpense || 0}
               closedValue={proposal.closedValue}

@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
-import { HardHat } from "lucide-react";
+import { FileSignature, HardHat } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -34,16 +34,22 @@ export function ProjectOnApprovalHost() {
     suggestion !== null,
     APPROVAL_DIALOG_PRIORITY.project,
   );
+  // O contrato nascido da mensalidade da proposta. Diálogo, e não toast: a
+  // aprovação dispara outros avisos juntos (status, Google Drive), e o toast
+  // do contrato ficava por baixo deles, sem ninguém ver que era preciso ativar.
+  // Declarado DEPOIS do projeto: no mesmo render, a fila atende quem pede antes.
+  const [contract, setContract] = React.useState<{ contractId: string; proposalTitle: string } | null>(null);
+  const hasContractTurn = useApprovalDialogTurn(
+    "contract-on-approval",
+    contract !== null,
+    APPROVAL_DIALOG_PRIORITY.contract,
+  );
 
   React.useEffect(
     () =>
       subscribeProjectApproval((event) => {
         if (event.kind === "contract_created") {
-          toast.success("A mensalidade da proposta virou um contrato em rascunho. Ative para começar a cobrar.", {
-            duration: 8000,
-            autopilot: { expand: 150, collapse: 7700 },
-            button: { title: "Abrir", onClick: () => router.push(`/contracts/${event.contractId}`) },
-          });
+          setContract({ contractId: event.contractId, proposalTitle: event.proposalTitle });
         } else if (event.kind === "created") {
           toast.success("Projeto de instalação criado para acompanhar a obra.", {
             duration: 8000,
@@ -73,7 +79,36 @@ export function ProjectOnApprovalHost() {
     }
   };
 
+  const openContract = () => {
+    if (!contract) return;
+    const id = contract.contractId;
+    setContract(null);
+    router.push(`/contracts/${id}`);
+  };
+
   return (
+    <>
+    <Dialog open={contract !== null && hasContractTurn} onOpenChange={(open) => !open && setContract(null)}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <FileSignature className="h-5 w-5 text-primary" />
+            A mensalidade virou um contrato
+          </DialogTitle>
+          <DialogDescription className="break-words">
+            {contract?.proposalTitle ? `"${contract.proposalTitle}" tinha itens mensais. ` : "A proposta tinha itens mensais. "}
+            O contrato ficou como rascunho: ative escolhendo a data de início para a mensalidade começar a
+            entrar no financeiro.
+          </DialogDescription>
+        </DialogHeader>
+        <DialogFooter className="gap-2 sm:gap-0">
+          <Button variant="outline" onClick={() => setContract(null)}>
+            Depois
+          </Button>
+          <Button onClick={openContract}>Abrir o contrato</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
     <Dialog open={suggestion !== null && hasTurn} onOpenChange={(open) => !open && !creating && setSuggestion(null)}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
@@ -98,5 +133,6 @@ export function ProjectOnApprovalHost() {
         </DialogFooter>
       </DialogContent>
     </Dialog>
+    </>
   );
 }

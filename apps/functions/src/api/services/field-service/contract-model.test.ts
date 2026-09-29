@@ -105,17 +105,18 @@ describe("valores e linhas", () => {
     expect(computeMonthlyAmount([{ quantity: 3, unitPrice: 33.333 }, { quantity: 1, unitPrice: 29.9 }])).toBe(129.9);
   });
 
-  it("da proposta, só as linhas de mensalidade ativas e com quantidade", () => {
+  it("da proposta, as linhas de mensalidade com quantidade (a oculta no PDF também é cobrada)", () => {
     const lines = monthlyLinesFromProposal([
       { productId: "p1", productName: "Câmera", quantity: 4, total: 1200 },
       { productId: "s1", productName: "Monitoramento 24h", itemType: "service", isMonthly: true, quantity: 1, total: 129 },
       { productId: "s2", productName: "App", itemType: "service", isMonthly: true, quantity: 2, total: 39.8 },
-      { productId: "s3", productName: "Inativo", itemType: "service", isMonthly: true, status: "inactive", quantity: 1, total: 10 },
+      { productId: "s3", productName: "Oculto no PDF", itemType: "service", isMonthly: true, status: "inactive", quantity: 1, total: 10 },
       { productId: "s4", productName: "Zerado", isMonthly: true, quantity: 0, total: 0 },
     ]);
     expect(lines.map((l) => [l.refId, l.kind, l.quantity, l.unitPrice])).toEqual([
       ["s1", "service", 1, 129],
       ["s2", "service", 2, 19.9],
+      ["s3", "service", 1, 10],
     ]);
     expect(monthlyLinesFromProposal(undefined)).toEqual([]);
   });

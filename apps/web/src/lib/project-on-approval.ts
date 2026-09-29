@@ -11,7 +11,7 @@
 export type ProjectApprovalEvent =
   | { kind: "created"; projectId: string }
   | { kind: "suggested"; proposalId: string; proposalTitle: string }
-  | { kind: "contract_created"; contractId: string };
+  | { kind: "contract_created"; contractId: string; proposalTitle: string };
 
 type Listener = (event: ProjectApprovalEvent) => void;
 
@@ -48,14 +48,20 @@ export function announceProjectOnApproval(
     | undefined,
   proposal: { id: string; title?: string | null },
 ): void {
-  // A mensalidade da proposta virou contrato em rascunho: independe da obra.
-  if (result?.contractCreated) {
-    emit({ kind: "contract_created", contractId: result.contractCreated });
-  }
+
   if (result?.projectCreated) {
     emit({ kind: "created", projectId: result.projectCreated });
   } else if (result?.projectSuggested) {
     emit({ kind: "suggested", proposalId: proposal.id, proposalTitle: proposal.title?.trim() || "" });
+  }
+  // A mensalidade da proposta virou contrato em rascunho: independe da obra,
+  // e é avisado depois dela (a fila de diálogos também o põe por último).
+  if (result?.contractCreated) {
+    emit({
+      kind: "contract_created",
+      contractId: result.contractCreated,
+      proposalTitle: proposal.title?.trim() || "",
+    });
   }
 }
 

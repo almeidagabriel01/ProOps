@@ -9,6 +9,7 @@ import * as React from "react";
 import { describe, expect, it } from "vitest";
 import { render, screen } from "@testing-library/react";
 import { PdfTotals } from "../components/pdf-totals";
+import { PdfMonthlyBadge } from "../components/pdf-item-type-badge";
 import type { ProposalProduct } from "@/types/proposal";
 
 const products = [
@@ -30,5 +31,30 @@ describe("PdfTotals", () => {
   it("sem mensalidade, a linha não aparece", () => {
     render(<PdfTotals products={[products[0]]} discount={0} contentStyles={{}} />);
     expect(screen.queryByText("Mensalidade:")).not.toBeInTheDocument();
+  });
+});
+
+describe("mensalidade com os preços unitários escondidos", () => {
+  it("o total diz quais itens são mensais", () => {
+    render(
+      <PdfTotals
+        products={[products[0]]}
+        discount={0}
+        monthlyAmount={168.8}
+        monthlyItems={["Monitoramento 24h", "Aplicativo", "Suporte"]}
+        contentStyles={{}}
+      />,
+    );
+    expect(screen.getByText("Cobrados todo mês: Monitoramento 24h, Aplicativo e Suporte.")).toBeInTheDocument();
+  });
+
+  it("um item só, no singular", () => {
+    render(<PdfTotals products={[]} discount={0} monthlyAmount={129} monthlyItems={["Monitoramento 24h"]} contentStyles={{}} />);
+    expect(screen.getByText("Cobrado todo mês: Monitoramento 24h.")).toBeInTheDocument();
+  });
+
+  it("o selo MENSAL aparece na linha do item mesmo sem o preço", () => {
+    const { container } = render(<PdfMonthlyBadge />);
+    expect(container.querySelector('[data-pdf-item-monthly-tag="1"]')).toHaveTextContent("MENSAL");
   });
 });

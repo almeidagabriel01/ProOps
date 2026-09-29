@@ -119,7 +119,8 @@ export function computeMonthlyAmount(lines: readonly Pick<ContractLine, "quantit
 
 /**
  * As linhas marcadas como mensalidade na proposta viram as linhas do contrato.
- * Linha inativa ou sem quantidade fica de fora, como no total da proposta.
+ * Linha sem quantidade fica de fora. A "Inativa" entra: na proposta o status
+ * só esconde a linha do PDF, e ela continua somando no total vendido.
  */
 export function monthlyLinesFromProposal(products: unknown): ContractLine[] {
   if (!Array.isArray(products)) return [];
@@ -127,7 +128,7 @@ export function monthlyLinesFromProposal(products: unknown): ContractLine[] {
   products.forEach((raw, index) => {
     if (!raw || typeof raw !== "object") return;
     const p = raw as Record<string, unknown>;
-    if (p.isMonthly !== true || p.status === "inactive") return;
+    if (p.isMonthly !== true) return;
     const quantity = Number(p.quantity);
     if (!Number.isFinite(quantity) || quantity <= 0) return;
     const total = Number(p.total);

@@ -8,13 +8,14 @@ import * as React from "react";
  * Aprovar uma proposta pode abrir dois convites: emitir a nota fiscal e criar
  * o projeto da obra. Abertos juntos, um cobria o outro; e como criar o projeto
  * leva para a tela da obra, o convite da nota que estivesse atrás se perdia
- * sem ninguém ver. Por isso a nota tem prioridade (0) e o projeto espera (1).
+ * sem ninguém ver. Por isso a nota tem prioridade (0), o projeto espera (1) e
+ * o contrato criado com a mensalidade da proposta vem por último (2).
  *
  * Quem tem a vez fica com ela até soltar: um diálogo já na tela nunca é
  * trocado por outro de prioridade maior que chegou depois.
  */
 
-export const APPROVAL_DIALOG_PRIORITY = { invoice: 0, project: 1 } as const;
+export const APPROVAL_DIALOG_PRIORITY = { invoice: 0, project: 1, contract: 2 } as const;
 
 interface Entry {
   id: string;

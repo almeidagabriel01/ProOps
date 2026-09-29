@@ -126,3 +126,34 @@ describe("nota fiscal e projeto da obra depois da aprovação", () => {
     expect(screen.getByText("Esta venda tem instalação?")).toBeInTheDocument();
   });
 });
+
+describe("contrato nascido da mensalidade da proposta", () => {
+  it("vira diálogo, e não toast: espera a pergunta da obra e abre depois", async () => {
+    render(<ProjectOnApprovalHost />);
+    act(() =>
+      announceProjectOnApproval(
+        { projectSuggested: true, contractCreated: "proposal_p1" },
+        { id: "p1", title: "Casa" },
+      ),
+    );
+    expect(screen.getByText("Esta venda tem instalação?")).toBeInTheDocument();
+    expect(screen.queryByText("A mensalidade virou um contrato")).toBeNull();
+
+    await userEvent.click(screen.getByRole("button", { name: "Agora não" }));
+    expect(await screen.findByText("A mensalidade virou um contrato")).toBeInTheDocument();
+    expect(screen.getByText(/"Casa" tinha itens mensais/)).toBeInTheDocument();
+  });
+
+  it("sem obra a perguntar, o contrato abre sozinho", () => {
+    render(<ProjectOnApprovalHost />);
+    act(() => announceProjectOnApproval({ contractCreated: "proposal_p2" }, { id: "p2", title: "Loja" }));
+    expect(screen.getByText("A mensalidade virou um contrato")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Abrir o contrato" })).toBeInTheDocument();
+  });
+
+  it("aprovação sem mensalidade não abre nada sobre contrato", () => {
+    render(<ProjectOnApprovalHost />);
+    act(() => announceProjectOnApproval({ projectSuggested: false, contractCreated: null }, { id: "p3" }));
+    expect(screen.queryByText("A mensalidade virou um contrato")).toBeNull();
+  });
+});

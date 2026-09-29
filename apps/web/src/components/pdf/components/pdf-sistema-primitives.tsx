@@ -10,7 +10,7 @@ import {
   isNeutralServiceLine,
 } from "@/lib/product-pricing";
 import { getNicheConfig } from "@/lib/niches/config";
-import { PdfItemTypeBadge } from "./pdf-item-type-badge";
+import { PdfItemTypeBadge, PdfMonthlyBadge } from "./pdf-item-type-badge";
 import { PdfProduct } from "./pdf-sistema-types";
 import { Package, Wrench } from "lucide-react";
 
@@ -392,9 +392,10 @@ export function PdfSistemaProductCard({
           </div>
 
           <div
-            className="shrink-0 flex items-start"
+            className="shrink-0 flex items-start gap-1"
             style={{ minHeight: "20px" }}
           >
+            {product.isMonthly && <PdfMonthlyBadge />}
             <PdfItemTypeBadge itemType={product.itemType || "product"} />
           </div>
         </div>

@@ -129,7 +129,7 @@ PDF_RENDER_ASSET_TIMEOUT_MS = 20_000  // timeout do seletor de readiness
 
 ### Versioning e cache
 
-**`PDF_TEMPLATE_VERSION = "proposal-pdf-v9-playwright"`**
+**`PDF_TEMPLATE_VERSION = "proposal-pdf-v10-playwright"`**
 
 Ao mudar o template HTML/CSS de proposta, incrementar esta string para invalidar todos os caches em producao.
 
@@ -137,7 +137,7 @@ O hash de versao (`versionHash`) e calculado com SHA-256 sobre:
 
 ```
 {
-  templateVersion: "proposal-pdf-v9-playwright",
+  templateVersion: "proposal-pdf-v10-playwright",
   proposalId: string,
   proposal: { ...proposalData sem campos pdf/lock/timestamps },
   tenant: { name, primaryColor, logoUrl, niche, proposalDefaults }
