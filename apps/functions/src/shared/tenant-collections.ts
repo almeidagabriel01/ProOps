@@ -18,6 +18,7 @@ export const TENANT_PURGE_BY_FIELD = [
   "services",
   "transactions",
   "transaction_groups",
+  "transaction_group_sync",
   "wallets",
   "wallet_transactions",
   "wallet_cascade_jobs",
@@ -115,6 +116,10 @@ export const NOT_TENANT_SCOPED = [
   "security_metrics_tenants",
   "mfaOtpChallenges",
   "mfaRecoveryCodes",
+  // Login que passou pelo codigo do WhatsApp: por pessoa, expira em 30 dias.
+  "mfa_sessions",
+  // Onde cada cron longo parou: da plataforma, nao de uma empresa.
+  "cron_cursors",
   "demo_bookings",
   // O proprio job de exclusao: fica para registrar que a empresa foi apagada.
   "tenant_purge_jobs",
