@@ -87,7 +87,7 @@ export const nicheLanding: NicheLandingConfig = {
     {
       question: "A ProOps faz PMOC e contrato de manutenção?",
       answer:
-        "Hoje o pacote cobre a venda e a instalação: orçamento, proposta, obra, agenda e financeiro. Os contratos de manutenção com cobrança mensal, as ordens de serviço e o PMOC estão em desenvolvimento.",
+        "Hoje o pacote cobre a venda, a instalação e a assistência: orçamento, proposta, obra, agenda, financeiro, os aparelhos de cada cliente e a ordem de serviço com a assinatura do cliente no celular. Os contratos de manutenção com cobrança mensal e o PMOC estão em desenvolvimento.",
     },
     {
       question: "A ProOps calcula a carga térmica do ambiente?",
