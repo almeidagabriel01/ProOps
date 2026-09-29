@@ -726,9 +726,20 @@ capacidade `fieldService`, pageId `contracts`, rotas em `/v1/service-contracts`.
   (`isMonthly`), com `create`: aprovar de novo não cria outro.
 - **Link de pagamento:** o de qualquer lançamento (compartilhar), que abre o
   Pix e o boleto do Asaas quando a empresa tem pagamento online.
+- **Nota da mensalidade** (`contract-invoice.ts`): com `issueNfse` ligado, o
+  lançamento que vira pago emite a NFS-e. Quem chama é o `onTransactionTotals`
+  (vê toda baixa: webhook do Asaas, edição, baixa em lote), com import sob
+  demanda. Trava por lançamento em `contract_invoice_claims/{transactionId}`
+  (`create` antes de emitir): a entrega repetida do gatilho não emite de novo,
+  e a falha fica para o botão do lançamento. Os itens são as linhas de SERVIÇO
+  do catálogo do contrato, levadas ao valor do lançamento
+  (`contractInvoiceItems`); `issueFromTransaction` segue esse caminho quando o
+  lançamento tem `serviceContractId`. A regra geral de emissão automática
+  (`tryAutoIssue`) ignora mensalidade de contrato, senão sairiam duas notas.
 
 Guards: `contract-model.test.ts`, `service-contracts.test.ts` (API e rotina com
-Firestore falso) e os blocos de contratos em `field-service.routes.gates.test.ts`
+Firestore falso), `contract-invoice.test.ts`, os blocos de contrato em
+`invoice-issue.auto.test.ts` e `onTransactionTotals.test.ts` e os blocos de contratos em `field-service.routes.gates.test.ts`
 e `tests/firestore-rules/field-service.test.ts`.
 
 ### Vendedor e metas de vendas

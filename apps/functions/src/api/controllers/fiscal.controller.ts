@@ -119,6 +119,12 @@ const FISCAL_ERROR_MESSAGES: Record<string, string> = {
     "O provedor fiscal nao aceita carta de correcao para este documento.",
   INVOICE_NAO_AUTORIZADA:
     "So uma nota autorizada aceita esta operacao.",
+  CONTRATO_SEM_SERVICO:
+    "A nota da mensalidade sai das linhas de serviço do contrato, e este contrato não tem um serviço do catálogo. Troque a linha avulsa por um serviço cadastrado.",
+  CONTRATO_NAO_ENCONTRADO:
+    "O contrato deste lançamento não existe mais.",
+  CONTRATO_SEM_CLIENTE:
+    "O contrato deste lançamento não tem cliente.",
   FISCAL_COTA_MENSAL_ATINGIDA:
     "Voce atingiu o limite de notas fiscais do mes no seu plano. O limite renova no dia 1; para emitir sem limite, fale com a gente sobre o plano Enterprise.",
 };
@@ -150,6 +156,7 @@ function mapFiscalErrorStatus(error: Error): number {
   // 402, como os demais limites de plano: nao e erro do cliente nem nosso.
   if (error.message === "FISCAL_COTA_MENSAL_ATINGIDA") return 402;
   if (error.message === "FISCAL_SETTINGS_NOT_FOUND") return 404;
+  if (error.message.startsWith("CONTRATO_")) return 422;
   if (error.message === "FISCAL_CERTIFICADO_AUSENTE") return 422;
   if (error.message === "FISCAL_SETTINGS_SAVE_FAILED") return 500;
   if (error.message === "FOCUS_NFE_TOKEN_NAO_CONFIGURADO") return 503;

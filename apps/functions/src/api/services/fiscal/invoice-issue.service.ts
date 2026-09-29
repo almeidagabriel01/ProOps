@@ -113,6 +113,87 @@ export async function issueFromProposal(
   });
 }
 
+interface ContractLineDocument {
+  kind?: string;
+  refId?: string | null;
+  name?: string;
+  quantity?: number;
+  unitPrice?: number;
+}
+
+/**
+ * Os itens da nota da mensalidade: as linhas de SERVIÇO do contrato, com o
+ * valor levado ao do lançamento. O lançamento é o que o cliente pagou; se o
+ * contrato mudou de valor depois de lançar o mês, a nota acompanha o
+ * lançamento, na proporção das linhas. Linha avulsa (sem item do catálogo)
+ * fica de fora: sem o serviço cadastrado não há código de serviço para a nota.
+ */
+export function contractInvoiceItems(lines: readonly ContractLineDocument[], amount: number): ProposalItem[] {
+  const services = lines.filter(
+    (line) => line.kind === "service" && typeof line.refId === "string" && line.refId && Number(line.quantity) > 0,
+  );
+  const base = services.reduce((sum, line) => sum + Number(line.quantity) * Number(line.unitPrice ?? 0), 0);
+  if (services.length === 0 || base <= 0 || amount <= 0) return [];
+  const factor = amount / base;
+  let assigned = 0;
+  return services.map((line, index) => {
+    const lineTotal =
+      index === services.length - 1
+        ? Math.round((amount - assigned) * 100) / 100
+        : Math.round(Number(line.quantity) * Number(line.unitPrice ?? 0) * factor * 100) / 100;
+    assigned += lineTotal;
+    const quantity = Number(line.quantity);
+    return {
+      productId: String(line.refId),
+      productName: line.name,
+      itemType: "service" as const,
+      quantity,
+      unitPrice: Math.round((lineTotal / quantity) * 100) / 100,
+      total: lineTotal,
+    };
+  });
+}
+
+/**
+ * Emite a NFS-e da mensalidade de um contrato, a partir do lançamento do mês.
+ * O lançamento não tem proposta: os itens vêm das linhas do contrato.
+ */
+async function issueFromContractCharge(
+  tenantId: string,
+  transactionId: string,
+  transaction: TransactionDocument & { serviceContractId?: string; amount?: number },
+  options: { createdBy?: string; naturezaOperacao?: NaturezaOperacao },
+): Promise<IssueFromSourceResult> {
+  const settings = await getFiscalSettings(tenantId);
+  if (!settings) {
+    throw new Error("FISCAL_NAO_CONFIGURADO");
+  }
+  const contractSnap = await db.collection("service_contracts").doc(String(transaction.serviceContractId)).get();
+  const contract = contractSnap.data() as { tenantId?: string; clientId?: string; lines?: ContractLineDocument[] } | undefined;
+  if (!contractSnap.exists || contract?.tenantId !== tenantId) {
+    throw new Error("CONTRATO_NAO_ENCONTRADO");
+  }
+  const clientId = transaction.clientId || contract.clientId;
+  if (!clientId) {
+    throw new Error("CONTRATO_SEM_CLIENTE");
+  }
+  const items = contractInvoiceItems(contract.lines ?? [], Number(transaction.amount ?? 0));
+  if (items.length === 0) {
+    throw new Error("CONTRATO_SEM_SERVICO");
+  }
+
+  const assembly = await assembleInvoices({
+    tenantId,
+    settings,
+    clientId,
+    items,
+    naturezaOperacao: options.naturezaOperacao,
+    observacoes: transaction.description,
+    transactionId,
+  });
+  return dispatch(assembly, { tenantId, settings, transactionId, createdBy: options.createdBy });
+}
+
 /** Nota que já existe e conta como "esta proposta já foi faturada". */
 export interface ExistingInvoiceSummary {
   id: string;
@@ -245,9 +326,12 @@ export async function issueFromTransaction(
     throw new Error("LANCAMENTO_NAO_ENCONTRADO");
   }
 
-  const transaction = snap.data() as TransactionDocument;
+  const transaction = snap.data() as TransactionDocument & { serviceContractId?: string; amount?: number };
   if (transaction.tenantId !== tenantId) {
     throw new Error("FORBIDDEN_TENANT_MISMATCH");
+  }
+  if (transaction.serviceContractId) {
+    return issueFromContractCharge(tenantId, transactionId, transaction, options);
   }
   if (!transaction.proposalId) {
     throw new Error("LANCAMENTO_SEM_PROPOSTA");
@@ -315,6 +399,11 @@ async function dispatch(
   return { invoices: issued, gaps: [] };
 }
 
+async function isContractCharge(transactionId: string): Promise<boolean> {
+  const snap = await db.collection("transactions").doc(transactionId).get();
+  return Boolean(snap.data()?.serviceContractId);
+}
+
 /**
  * Dispara a emissão automática de um gatilho, sem nunca derrubar o fluxo que a
  * chamou.
@@ -340,6 +429,12 @@ export async function tryAutoIssue(
     // emitindo (e consumindo Focus) pela configuracao antiga.
     const { capabilities } = await resolveTenantCapabilities(tenantId);
     if (!capabilities.fiscal) {
+      return;
+    }
+    // Mensalidade de contrato segue a chave do próprio contrato, emitida pelo
+    // gatilho do lançamento (`contract-invoice.ts`). Emitir também por aqui
+    // daria duas notas para o mesmo pagamento.
+    if (params.transactionId && (await isContractCharge(params.transactionId))) {
       return;
     }
 

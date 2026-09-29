@@ -3,6 +3,11 @@
  * resumos em transaction_groups. Fake Firestore em memória — sem emulador.
  */
 
+const issueContractChargeInvoice = jest.fn(async () => "issued");
+jest.mock("./api/services/field-service/contract-invoice", () => ({
+  issueContractChargeInvoice: (...args: unknown[]) => (issueContractChargeInvoice as (...a: unknown[]) => unknown)(...args),
+}));
+
 import { handleTransactionTotalsEvent } from "./onTransactionTotals";
 
 type FakeDoc = { id: string; data: Record<string, unknown> };
@@ -311,5 +316,43 @@ describe("coalescência e ordem dos resumos", () => {
 
     expect(fake.transactionQueries()).toBe(0);
     expect(fake.groupDeletes).toEqual([]);
+  });
+});
+
+describe("nota da mensalidade de contrato", () => {
+  const charge = {
+    tenantId: "t1",
+    type: "income",
+    amount: 129,
+    serviceContractId: "ct1",
+    grouped: false,
+  };
+  const snapOf = (data: Record<string, unknown> | undefined) => ({
+    exists: data !== undefined,
+    data: () => data,
+    ref: { update: jest.fn(async () => undefined), firestore: {} },
+  });
+  const run = (before: Record<string, unknown> | undefined, after: Record<string, unknown> | undefined) =>
+    handleTransactionTotalsEvent({
+      params: { transactionId: "tx1" },
+      data: { before: snapOf(before), after: snapOf(after) },
+    } as never);
+
+  beforeEach(() => issueContractChargeInvoice.mockClear());
+
+  it("a baixa da mensalidade chama a emissão uma vez", async () => {
+    await run({ ...charge, status: "pending" }, { ...charge, status: "paid" });
+    expect(issueContractChargeInvoice).toHaveBeenCalledTimes(1);
+    expect(issueContractChargeInvoice).toHaveBeenCalledWith("tx1", expect.objectContaining({ status: "paid" }));
+  });
+
+  it("o eco do próprio gatilho (já pago antes) não chama de novo", async () => {
+    await run({ ...charge, status: "paid" }, { ...charge, status: "paid", paidTotal: 129 });
+    expect(issueContractChargeInvoice).not.toHaveBeenCalled();
+  });
+
+  it("lançamento que não é de contrato não chama", async () => {
+    await run({ tenantId: "t1", type: "income", amount: 10, status: "pending" }, { tenantId: "t1", type: "income", amount: 10, status: "paid" });
+    expect(issueContractChargeInvoice).not.toHaveBeenCalled();
   });
 });

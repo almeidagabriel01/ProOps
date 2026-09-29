@@ -311,6 +311,15 @@ export function buildChargeTransaction(params: {
   };
 }
 
+/** Só a passagem para pago de uma mensalidade de contrato interessa. */
+export function becamePaidContractCharge(
+  before: Record<string, unknown> | undefined,
+  after: Record<string, unknown> | undefined,
+): boolean {
+  if (!after || typeof after.serviceContractId !== "string" || !after.serviceContractId) return false;
+  return after.status === "paid" && before?.status !== "paid";
+}
+
 // ---------------------------------------------------------------------------
 // Entrada da API
 // ---------------------------------------------------------------------------

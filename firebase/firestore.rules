@@ -518,6 +518,11 @@ service cloud.firestore {
       allow write: if false;
     }
 
+    // Trava da nota da mensalidade (uma por lançamento). Admin SDK only.
+    match /contract_invoice_claims/{transactionId} {
+      allow read, write: if false;
+    }
+
     // Histórico de estoque: gravado só pelo backend, na mesma transação que
     // ajusta o saldo do produto.
     match /stock_movements/{movementId} {
