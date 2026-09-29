@@ -267,7 +267,7 @@ service cloud.firestore {
     // (apps/functions/src/shared/niches.ts), comparada em
     // apps/web/src/__tests__/niche-registry-parity.test.ts.
     function isKnownTenantNiche(niche) {
-      return niche in ['automacao_residencial', 'cortinas', 'seguranca_eletronica', 'vidracaria_esquadrias', 'marcenaria'];
+      return niche in ['automacao_residencial', 'cortinas', 'seguranca_eletronica', 'vidracaria_esquadrias', 'marcenaria', 'climatizacao'];
     }
 
     // O nicho (e o campo legado tenantNiche) de uma empresa nao muda depois
@@ -280,7 +280,7 @@ service cloud.firestore {
     // Tenants de demonstracao, um por nicho (demoTenantId de NICHE_REGISTRY),
     // comparados em apps/web/src/__tests__/niche-registry-parity.test.ts.
     function isDemoRead(resourceTenantId) {
-      return isAuthenticated() && resourceTenantId in ['demo', 'demo-cortinas', 'demo-seguranca', 'demo-vidracaria', 'demo-marcenaria'];
+      return isAuthenticated() && resourceTenantId in ['demo', 'demo-cortinas', 'demo-seguranca', 'demo-vidracaria', 'demo-marcenaria', 'demo-climatizacao'];
     }
 
     /**

@@ -5,6 +5,7 @@ import { nicheLanding as cortinas } from "@/lib/niches/definitions/cortinas/land
 import { nicheLanding as segurancaEletronica } from "@/lib/niches/definitions/seguranca_eletronica/landing";
 import { nicheLanding as vidracariaEsquadrias } from "@/lib/niches/definitions/vidracaria_esquadrias/landing";
 import { nicheLanding as marcenaria } from "@/lib/niches/definitions/marcenaria/landing";
+import { nicheLanding as climatizacao } from "@/lib/niches/definitions/climatizacao/landing";
 
 /**
  * O texto da landing de cada nicho, uma pasta por nicho em
@@ -16,4 +17,5 @@ export const NICHE_LANDING_CONFIG: Record<TenantNiche, NicheLandingConfig> = {
   seguranca_eletronica: segurancaEletronica,
   vidracaria_esquadrias: vidracariaEsquadrias,
   marcenaria: marcenaria,
+  climatizacao: climatizacao,
 };

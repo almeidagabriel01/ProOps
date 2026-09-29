@@ -62,6 +62,10 @@ emulado.
   (é de propósito, os cards somam a seleção). O print usa a aba Agrupados.
 - **Pasta nova em `public/`** precisa entrar na exclusão do matcher do
   `proxy.ts`, senão a imagem leva 307. `capturas/` já está, com teste.
+- **O `dev:capturas` altera o `apps/web/tsconfig.json`**: o Next acrescenta
+  `.next-capturas/dev/types/**/*.ts` ao `include` quando sobe. Não é mudança
+  do trabalho; desfaça (`git checkout -- apps/web/tsconfig.json`) antes do
+  commit.
 - **Um segundo distDir do Next** (`.next-capturas`) quebrava o CSS do
   `npm run dev`, porque o Tailwind varria o cache binário do Turbopack. O
   `.gitignore` cobre `apps/web/.next-*/`, e o Tailwind respeita o `.gitignore`.

@@ -71,9 +71,9 @@ Runs on PRs and Merge Queue events:
 ## Lighthouse Perf Budget (`lighthouse` job + `lighthouserc.json`)
 
 Builds Next.js for production, starts `next start -p 3001`, and runs Lighthouse 3x per
-URL across the **13 animated public routes** (`/`, `/automacao-residencial`, `/decoracao`,
+URL across the **14 animated public routes** (`/`, `/automacao-residencial`, `/decoracao`,
 `/contato`, `/agendar`, `/aplicativo`, `/institucional`, `/sobre`, `/produtos`,
-`/funcionalidades`, `/seguranca-eletronica`, `/vidracaria-esquadrias`, `/marcenaria`) under
+`/funcionalidades`, `/seguranca-eletronica`, `/vidracaria-esquadrias`, `/marcenaria`, `/climatizacao`) under
 **mobile + 4x CPU + slow-3G, REAL `devtools` throttling**.
 
 - Config: `lighthouserc.json` at repo root (uses `@lhci/cli`, already a devDependency).

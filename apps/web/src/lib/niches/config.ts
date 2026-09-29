@@ -8,6 +8,7 @@ import { nicheConfig as cortinas } from "./definitions/cortinas/app";
 import { nicheConfig as segurancaEletronica } from "./definitions/seguranca_eletronica/app";
 import { nicheConfig as vidracariaEsquadrias } from "./definitions/vidracaria_esquadrias/app";
 import { nicheConfig as marcenaria } from "./definitions/marcenaria/app";
+import { nicheConfig as climatizacao } from "./definitions/climatizacao/app";
 
 export * from "./config-types";
 
@@ -22,6 +23,7 @@ export const NICHE_CONFIGS: Record<TenantNiche, NicheConfig> = {
   seguranca_eletronica: segurancaEletronica,
   vidracaria_esquadrias: vidracariaEsquadrias,
   marcenaria: marcenaria,
+  climatizacao: climatizacao,
 };
 
 /** Nicho desconhecido (ou vindo de um doc antigo) é tratado como automação. */

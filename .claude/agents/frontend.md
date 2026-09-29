@@ -63,7 +63,7 @@ Você trabalha nestas pastas:
 4. **Verificar existência** antes de criar: `src/components/ui/` e as pastas de domínio em `src/components/`
 5. **Acessibilidade básica**: `alt` em imagens, `aria-label` em ícones interativos
 6. **Loading + error + empty states** em toda operação assíncrona
-7. **Multi-tenant**: sempre considerar `tenantNiche` para rendering condicional (`automacao_residencial` | `cortinas` | `seguranca_eletronica` | `vidracaria_esquadrias` | `marcenaria`, lidos de `NICHE_CONFIGS`)
+7. **Multi-tenant**: sempre considerar `tenantNiche` para rendering condicional (`automacao_residencial` | `cortinas` | `seguranca_eletronica` | `vidracaria_esquadrias` | `marcenaria` | `climatizacao`, lidos de `NICHE_CONFIGS`)
 
 ## Checklist antes de entregar
 - [ ] TypeScript sem erros (`strict: true`, sem `any`)

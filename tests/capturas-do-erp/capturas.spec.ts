@@ -134,7 +134,7 @@ const ROTEIRO: Captura[] = [
 ];
 
 function prefixoDoNicho(empresa: EmpresaDeCaptura): string {
-  return { cortinas: "cort", seguranca_eletronica: "seg", vidracaria_esquadrias: "vid", marcenaria: "marc" }[
+  return { cortinas: "cort", seguranca_eletronica: "seg", vidracaria_esquadrias: "vid", marcenaria: "marc", climatizacao: "clim" }[
     empresa.niche as "cortinas"
   ];
 }

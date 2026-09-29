@@ -19,6 +19,12 @@ describe("unidade do estoque por medida", () => {
     expect(inventory.priceSuffix).toBe("/ m²");
   });
 
+  it("climatização conta aparelhos em unidade, e a tubulação sai em metro", () => {
+    const { inventory } = NICHE_CONFIGS.climatizacao.productCatalog;
+    expect(inventory.mode).toBe("unit");
+    expect(inventoryDefinitionFor(inventory, "meter").unitSuffix).toBe("m");
+  });
+
   it("persianas continua em metro linear", () => {
     expect(NICHE_CONFIGS.cortinas.productCatalog.inventory.unitSuffix).toBe("m");
   });

@@ -28,7 +28,7 @@ export const FAQS: FAQ[] = [
   {
     question: "A ProOps serve para o meu segmento?",
     answer:
-      "Se a sua empresa vende projeto, serve. Já vêm configurados, com catálogo e cálculos prontos: automação residencial; persianas e toldos; segurança eletrônica; vidraçaria e esquadrias; marcenaria e móveis planejados. Qualquer outro segmento é configurado na mesma base: catálogo, campos da proposta, etapas do funil e unidade de medida. O que muda é a configuração, não o sistema.",
+      "Se a sua empresa vende projeto, serve. Já vêm configurados, com catálogo e cálculos prontos: automação residencial; persianas e toldos; segurança eletrônica; vidraçaria e esquadrias; marcenaria e móveis planejados; climatização e ar-condicionado. Qualquer outro segmento é configurado na mesma base: catálogo, campos da proposta, etapas do funil e unidade de medida. O que muda é a configuração, não o sistema.",
   },
   {
     question: "Preciso de cartão de crédito para começar?",

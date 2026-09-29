@@ -71,6 +71,15 @@ export type CenaDoNicho =
       mensalidade: { descricao: string; valor: number };
     }
   | {
+      tipo: "split-instalacao";
+      /** Um aparelho por capacidade; a pessoa escolhe qual entra (por unidade). */
+      aparelhos: readonly (ItemDaCena & { btus: number })[];
+      /** A tubulação de cobre, cobrada pelo comprimento (metro). */
+      tubulacao: ItemDaCena & { comprimento: number };
+      /** A mão de obra da instalação (unidade). */
+      instalacao: ItemDaCena;
+    }
+  | {
       tipo: "matriz-automacao";
       /** Os ambientes da planta, em coordenadas de 0 a 100. */
       ambientes: readonly { nome: string; x: number; y: number; w: number; h: number }[];

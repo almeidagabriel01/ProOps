@@ -123,4 +123,5 @@ export const CAPTURAS_DOS_NICHOS: Record<TenantNicheId, CapturasDoNicho> = {
   seguranca_eletronica: doNicho("seguranca_eletronica", "segurança eletrônica"),
   vidracaria_esquadrias: doNicho("vidracaria_esquadrias", "vidraçaria"),
   marcenaria: doNicho("marcenaria", "marcenaria"),
+  climatizacao: doNicho("climatizacao", "climatização"),
 };
