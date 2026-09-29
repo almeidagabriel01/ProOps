@@ -11,54 +11,51 @@ function CardHeaderSkeleton() {
 }
 
 /**
- * O corpo da tela: link e expediente à esquerda, tipos de visita e exceções à
- * direita. O painel o usa enquanto busca o expediente, com o cabeçalho na tela.
+ * O corpo da tela, na mesma grade 2x2 do painel: link e tipos de visita em
+ * cima, expediente e exceções embaixo. O painel o usa enquanto busca o
+ * expediente, com o cabeçalho na tela.
  */
 export function BookingBodySkeleton() {
   return (
-    <div className="grid items-start gap-6 lg:grid-cols-2" data-testid="booking-body-skeleton">
-      <div className="space-y-6">
-        <Card>
-          <CardHeaderSkeleton />
-          <CardContent>
-            <Skeleton className="h-14 w-full rounded-lg" />
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeaderSkeleton />
-          <CardContent className="space-y-6">
-            <div className="flex flex-wrap gap-2">
-              {Array.from({ length: 7 }).map((_, i) => (
-                <Skeleton key={i} className="h-9 w-12 rounded-full" />
-              ))}
-            </div>
-            <div className="grid gap-4 sm:grid-cols-2">
-              {Array.from({ length: 4 }).map((_, i) => (
-                <div key={i} className="space-y-2">
-                  <Skeleton className="h-4 w-32" />
-                  <Skeleton className="h-12 w-full rounded-md" />
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-      <div className="space-y-6">
-        <Card>
-          <CardHeaderSkeleton />
-          <CardContent className="space-y-2">
-            <Skeleton className="h-12 w-full rounded-md" />
-            <Skeleton className="h-12 w-full rounded-md" />
-            <Skeleton className="h-9 w-48 rounded-md" />
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeaderSkeleton />
-          <CardContent>
-            <Skeleton className="h-12 w-full rounded-lg" />
-          </CardContent>
-        </Card>
-      </div>
+    <div className="grid gap-6 lg:grid-cols-2" data-testid="booking-body-skeleton">
+      <Card className="lg:col-start-1 lg:row-start-1">
+        <CardHeaderSkeleton />
+        <CardContent>
+          <Skeleton className="h-14 w-full rounded-lg" />
+        </CardContent>
+      </Card>
+      <Card className="lg:col-start-1 lg:row-start-2">
+        <CardHeaderSkeleton />
+        <CardContent className="space-y-6">
+          <div className="flex flex-wrap gap-2">
+            {Array.from({ length: 7 }).map((_, i) => (
+              <Skeleton key={i} className="h-9 w-12 rounded-full" />
+            ))}
+          </div>
+          <div className="grid gap-4 sm:grid-cols-2">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <div key={i} className="space-y-2">
+                <Skeleton className="h-4 w-32" />
+                <Skeleton className="h-12 w-full rounded-md" />
+              </div>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+      <Card className="lg:col-start-2 lg:row-start-1">
+        <CardHeaderSkeleton />
+        <CardContent className="space-y-2">
+          <Skeleton className="h-12 w-full rounded-md" />
+          <Skeleton className="h-12 w-full rounded-md" />
+          <Skeleton className="h-9 w-48 rounded-md" />
+        </CardContent>
+      </Card>
+      <Card className="lg:col-start-2 lg:row-start-2">
+        <CardHeaderSkeleton />
+        <CardContent>
+          <Skeleton className="h-12 w-full rounded-lg" />
+        </CardContent>
+      </Card>
     </div>
   );
 }

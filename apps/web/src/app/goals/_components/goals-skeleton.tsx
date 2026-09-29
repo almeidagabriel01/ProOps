@@ -7,7 +7,7 @@ import { Skeleton } from "@/components/ui/skeleton";
  */
 export function GoalsBodySkeleton() {
   return (
-    <div className="grid items-start gap-6 lg:grid-cols-3" data-testid="goals-body-skeleton">
+    <div className="grid gap-6 lg:grid-cols-3" data-testid="goals-body-skeleton">
       <Card>
         <CardHeader className="space-y-2">
           <Skeleton className="h-5 w-24" />

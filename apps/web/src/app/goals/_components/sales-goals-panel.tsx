@@ -180,7 +180,8 @@ export function SalesGoalsPanel({ header }: SalesGoalsPanelProps) {
       {loading ? (
         <GoalsBodySkeleton />
       ) : (
-        <div className="grid items-start gap-6 lg:grid-cols-3">
+        // Sem items-start: os dois cards esticam até a altura do mais alto.
+        <div className="grid gap-6 lg:grid-cols-3">
           <Card>
             <CardHeader>
               <CardTitle>Empresa</CardTitle>
