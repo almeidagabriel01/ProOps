@@ -104,6 +104,8 @@ export const nicheConfig: NicheConfig = {
       "Limpar lentes e caixas",
       "Conferir o acesso remoto",
     ],
+    defaultContractType: "monitoring",
+    contractTitlePlaceholder: "Ex.: Monitoramento 24h",
   },
   booking: {
     defaultVisitType: NICHE_REGISTRY.seguranca_eletronica.defaultVisitType,

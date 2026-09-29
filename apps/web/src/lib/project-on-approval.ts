@@ -10,7 +10,8 @@
 
 export type ProjectApprovalEvent =
   | { kind: "created"; projectId: string }
-  | { kind: "suggested"; proposalId: string; proposalTitle: string };
+  | { kind: "suggested"; proposalId: string; proposalTitle: string }
+  | { kind: "contract_created"; contractId: string };
 
 type Listener = (event: ProjectApprovalEvent) => void;
 
@@ -41,9 +42,16 @@ function emit(event: ProjectApprovalEvent) {
  * caminho que muda o status de uma proposta.
  */
 export function announceProjectOnApproval(
-  result: { projectCreated?: string | null; projectSuggested?: boolean } | null | undefined,
+  result:
+    | { projectCreated?: string | null; projectSuggested?: boolean; contractCreated?: string | null }
+    | null
+    | undefined,
   proposal: { id: string; title?: string | null },
 ): void {
+  // A mensalidade da proposta virou contrato em rascunho: independe da obra.
+  if (result?.contractCreated) {
+    emit({ kind: "contract_created", contractId: result.contractCreated });
+  }
   if (result?.projectCreated) {
     emit({ kind: "created", projectId: result.projectCreated });
   } else if (result?.projectSuggested) {

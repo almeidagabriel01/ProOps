@@ -191,5 +191,8 @@ export const vidracariaEsquadriasDemo: DemoDataset = {
         createdDaysAgo: 1,
       },
     ],
+    contracts: [
+      { id: "demo_vid_ct_clinica", number: 1, clientId: "demo_vid_client_clinica", title: "Manutenção das esquadrias", type: "maintenance", lines: [{ refId: "demo_vid_svc_instalacao", quantity: 1, unitPrice: 90 }], billingDay: 10, equipmentIds: ["demo_vid_equip_janela"], visitIntervalMonths: 6, visitChecklist: ["Regular roldanas e fechos", "Refazer a vedação onde houver infiltração", "Limpar trilhos e drenos"] },
+    ],
   },
 };

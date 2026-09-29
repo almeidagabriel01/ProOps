@@ -16,7 +16,12 @@ import { callApi, callPublicApi } from "@/lib/api-client";
 import type {
   CompleteServiceOrderInput,
   CompleteServiceOrderResult,
+  ContractCharge,
+  ContractStatus,
+  ContractType,
   CustomerEquipment,
+  ServiceContract,
+  ServiceContractInput,
   EquipmentInput,
   ServiceOrder,
   ServiceOrderInput,
@@ -26,6 +31,7 @@ import type {
 
 const EQUIPMENT = "customer_equipment";
 const ORDERS = "service_orders";
+const CONTRACTS = "service_contracts";
 const MAX_ITEMS = 300;
 
 function str(value: unknown): string | null {
@@ -79,6 +85,7 @@ export function toServiceOrder(id: string, data: DocumentData): ServiceOrder {
     equipmentIds: arr<string>(data.equipmentIds),
     equipmentLabels: arr<string>(data.equipmentLabels),
     projectId: str(data.projectId),
+    contractId: str(data.contractId),
     technicianUids: arr<string>(data.technicianUids),
     technicianName: str(data.technicianName),
     scheduledStart: str(data.scheduledStart),
@@ -101,6 +108,53 @@ export function toServiceOrder(id: string, data: DocumentData): ServiceOrder {
     transactionId: str(data.transactionId),
     createdAt: str(data.createdAt),
     updatedAt: str(data.updatedAt),
+  };
+}
+
+export function toContract(id: string, data: DocumentData): ServiceContract {
+  const plan = (data.visitPlan ?? {}) as Partial<ServiceContract["visitPlan"]>;
+  return {
+    id,
+    tenantId: String(data.tenantId ?? ""),
+    code: String(data.code ?? ""),
+    clientId: String(data.clientId ?? ""),
+    clientName: String(data.clientName ?? ""),
+    title: String(data.title ?? "Contrato"),
+    type: (data.type as ContractType) ?? "other",
+    status: (data.status as ContractStatus) ?? "draft",
+    lines: arr(data.lines),
+    monthlyAmount: Number(data.monthlyAmount ?? 0),
+    billingDay: Number(data.billingDay ?? 10),
+    wallet: String(data.wallet ?? ""),
+    issueNfse: data.issueNfse === true,
+    equipmentIds: arr<string>(data.equipmentIds),
+    visitPlan: {
+      enabled: plan.enabled === true,
+      intervalMonths: Number(plan.intervalMonths ?? 3),
+      technicianId: str(plan.technicianId),
+      checklist: arr<string>(plan.checklist),
+      nextVisitDate: str(plan.nextVisitDate),
+    },
+    notes: str(data.notes),
+    startDate: str(data.startDate),
+    endDate: str(data.endDate),
+    nextBillingDate: str(data.nextBillingDate),
+    lastBilledPeriod: str(data.lastBilledPeriod),
+    suspendedReason: data.suspendedReason === "plan" || data.suspendedReason === "manual" ? data.suspendedReason : null,
+    proposalId: str(data.proposalId),
+    createdAt: str(data.createdAt),
+  };
+}
+
+function toCharge(id: string, data: DocumentData): ContractCharge {
+  const status = data.status === "paid" || data.status === "overdue" ? data.status : "pending";
+  return {
+    id,
+    description: String(data.description ?? ""),
+    amount: Number(data.amount ?? 0),
+    dueDate: str(data.dueDate),
+    status,
+    period: str(data.contractPeriod),
   };
 }
 
@@ -188,6 +242,66 @@ export const FieldService = {
   shareLink: (id: string) => callApi<{ url: string }>(`/v1/service-orders/${id}/share-link`, "POST"),
   launchTransaction: (id: string, input: LaunchTransactionInput) =>
     callApi<{ transactionId: string }>(`/v1/service-orders/${id}/transaction`, "POST", input),
+
+  subscribeContracts(
+    tenantId: string,
+    onChange: (contracts: ServiceContract[]) => void,
+    onError: (error: Error) => void,
+  ): () => void {
+    return onSnapshot(
+      query(collection(db, CONTRACTS), where("tenantId", "==", tenantId), limit(MAX_ITEMS)),
+      (snap) => onChange(snap.docs.map((d) => toContract(d.id, d.data())).sort(byNewest)),
+      onError,
+    );
+  },
+
+  subscribeContract(
+    id: string,
+    onChange: (contract: ServiceContract | null) => void,
+    onError: (error: Error) => void,
+  ): () => void {
+    return onSnapshot(
+      doc(db, CONTRACTS, id),
+      (snap) => onChange(snap.exists() ? toContract(snap.id, snap.data()) : null),
+      onError,
+    );
+  },
+
+  /** As mensalidades lançadas pelo contrato, da mais nova para a mais antiga. */
+  async listContractCharges(tenantId: string, contractId: string): Promise<ContractCharge[]> {
+    const snap = await getDocs(
+      query(
+        collection(db, "transactions"),
+        where("tenantId", "==", tenantId),
+        where("serviceContractId", "==", contractId),
+        limit(120),
+      ),
+    );
+    return snap.docs
+      .map((d) => toCharge(d.id, d.data()))
+      .sort((a, b) => String(b.dueDate ?? "").localeCompare(String(a.dueDate ?? "")));
+  },
+
+  /** As visitas preventivas que o contrato abriu. Só para quem vê todas as OS. */
+  async listContractVisits(tenantId: string, contractId: string): Promise<ServiceOrder[]> {
+    const snap = await getDocs(
+      query(collection(db, ORDERS), where("tenantId", "==", tenantId), where("contractId", "==", contractId), limit(60)),
+    );
+    return snap.docs
+      .map((d) => toServiceOrder(d.id, d.data()))
+      .sort((a, b) => String(b.scheduledStart ?? "").localeCompare(String(a.scheduledStart ?? "")));
+  },
+
+  createContract: (input: ServiceContractInput) =>
+    callApi<{ id: string; code: string }>("/v1/service-contracts", "POST", input),
+  updateContract: (id: string, input: Partial<ServiceContractInput>) =>
+    callApi(`/v1/service-contracts/${id}`, "PUT", input),
+  removeContract: (id: string) => callApi(`/v1/service-contracts/${id}`, "DELETE"),
+  activateContract: (id: string, input: { startDate: string; firstVisitDate?: string | null }) =>
+    callApi(`/v1/service-contracts/${id}/activate`, "POST", input),
+  suspendContract: (id: string) => callApi(`/v1/service-contracts/${id}/suspend`, "POST"),
+  resumeContract: (id: string) => callApi(`/v1/service-contracts/${id}/resume`, "POST"),
+  endContract: (id: string) => callApi(`/v1/service-contracts/${id}/end`, "POST"),
 };
 
 /** Como a OS concluída entra no financeiro: à vista ou parcelada, com ou sem entrada. */

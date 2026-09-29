@@ -2,6 +2,7 @@ import { db } from "../../../init";
 import { logger } from "../../../lib/logger";
 import { runRotatingCursor } from "../../../lib/cron-iteration";
 import { resolveTenantCapabilities } from "../../../lib/tenant-capabilities";
+import { DEMO_TENANT_IDS } from "../../../shared/demo-tenant";
 import { notifyTechnician, syncOrderAgenda } from "../../controllers/field-service.controller";
 import { SERVICE_CONTRACTS_COLLECTION, todayInBrazil } from "./contract-model";
 import { billContract, openContractVisit, readContract, suspendContractForPlan } from "./contract.service";
@@ -15,6 +16,8 @@ import { SERVICE_ORDERS_COLLECTION } from "./field-service-model";
  * Compartilhada pelo cron (`processServiceContracts`) e pelo endpoint interno
  * de depuração, que roda com `dryRun` sem gravar nada.
  */
+
+const DEMO_TENANT_IDS_SET = new Set(Object.values(DEMO_TENANT_IDS));
 
 const PAGE_SIZE = 100;
 /** Prazo de trabalho, com folga até o timeout de 540s. O resto fica para amanhã, de onde parou. */
@@ -74,8 +77,11 @@ export async function runServiceContracts(options: {
     deadlineMs: Date.now() + BUDGET_MS,
     processPage: async (docs) => {
       for (const doc of docs) {
-        result.contracts += 1;
         const contract = readContract(doc.id, doc.data());
+        // A demonstração é vitrine: sem plano, a rotina suspenderia os
+        // contratos de exemplo, e com plano cobraria mensalidade de mentira.
+        if (DEMO_TENANT_IDS_SET.has(contract.tenantId)) continue;
+        result.contracts += 1;
         try {
           const caps = await capabilitiesOf(contract.tenantId);
           if (!caps.fieldService || !caps.financial) {

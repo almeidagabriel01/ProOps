@@ -160,7 +160,7 @@ export type PlanFeatures = {
   hasSalesGoals: boolean; // Metas de vendas por vendedor e da empresa (Pro e Enterprise)
   hasBookingLink: boolean; // Link público de agendamento de visitas (Pro e Enterprise)
   hasClientPortal: boolean; // Portal do cliente por link (Pro e Enterprise)
-  hasFieldService: boolean; // Ordens de serviço e equipamentos do cliente (Pro e Enterprise; Starter por add-on)
+  hasFieldService: boolean; // Ordens de serviço, equipamentos e contratos (Pro e Enterprise; Starter por add-on)
   hasFiscalReceiving: boolean; // Recepção de notas de entrada (Enterprise)
   hasWhatsApp: boolean; // Bot do WhatsApp (Enterprise)
   canCustomizeTheme: boolean; // Can change colors/branding
@@ -189,7 +189,7 @@ export type AddonType =
   | "crm"
   | "fiscal" // Notas fiscais, franquia de 100 notas/mês
   | "online_payments" // Pagamento da parcela pelo link (Asaas)
-  | "field_service"; // Ordens de serviço e equipamentos do cliente
+  | "field_service"; // Ordens de serviço, equipamentos e contratos
 
 export type PurchasedAddon = {
   id: string;

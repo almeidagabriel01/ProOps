@@ -29,6 +29,7 @@ function order(over: Partial<ServiceOrder>): ServiceOrder {
     equipmentIds: [],
     equipmentLabels: [],
     projectId: null,
+    contractId: null,
     technicianUids: [],
     technicianName: null,
     scheduledStart: null,

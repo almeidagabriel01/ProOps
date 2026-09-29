@@ -26,6 +26,7 @@ import {
   CalendarClock,
   ClipboardList,
   ServerCog,
+  FileSignature,
 } from "lucide-react";
 
 import {
@@ -144,6 +145,16 @@ export const searchItems: SearchItem[] = [
     requiresView: "equipment",
     requiresCapability: "fieldService",
     keywords: ["equipamento", "aparelho", "garantia", "número de série", "parque instalado"],
+  },
+  {
+    id: "contracts",
+    label: "Contratos",
+    description: "Mensalidades de manutenção e monitoramento",
+    path: "/contracts",
+    icon: FileSignature,
+    requiresView: "contracts",
+    requiresCapability: "fieldService",
+    keywords: ["contrato", "mensalidade", "manutenção", "monitoramento", "recorrente", "pmoc", "preventiva"],
   },
   {
     id: "spreadsheets",

@@ -67,7 +67,7 @@ export const nicheLanding: NicheLandingConfig = {
     },
     {
       antes: "Mensalidade de monitoramento lembrada de cabeça todo mês.",
-      depois: "O contrato mensal entra como lançamento recorrente no financeiro.",
+      depois: "O contrato de monitoramento lança a mensalidade sozinho todo mês, com o link de Pix ou boleto.",
     },
     {
       antes: "Vistoria, instalação e senhas entregues sem registro nenhum.",
@@ -76,7 +76,7 @@ export const nicheLanding: NicheLandingConfig = {
   ],
   cena: {
     titulo: "Cada área coberta, cada mês cobrado",
-    frase: "Ligue os sistemas na planta: cada um entra na proposta com os itens dele, e o contrato mensal vira recorrência.",
+    frase: "Ligue os sistemas na planta: cada um entra na proposta com os itens dele, e a mensalidade vira contrato.",
     dados: {
       tipo: "planta-seguranca",
       areas: [
@@ -121,11 +121,11 @@ export const nicheLanding: NicheLandingConfig = {
       icon: Repeat,
       title: "Contratos recorrentes",
       description:
-        "Manutenção preventiva e monitoramento terceirizado como lançamento recorrente no financeiro.",
+        "Monitoramento e manutenção com a mensalidade lançada sozinha todo mês e a visita preventiva agendada.",
       bullets: [
-        "Recorrência mensal no financeiro",
+        "Mensalidade no financeiro todo mês, sem digitar",
         "Cobrança por Pix ou boleto no link, com o pagamento online",
-        "Nota fiscal de serviço no plano com o módulo fiscal",
+        "Nota de serviço emitida quando a mensalidade é paga, com o módulo fiscal",
       ],
     },
   ],
@@ -143,7 +143,7 @@ export const nicheLanding: NicheLandingConfig = {
     {
       question: "Dá para controlar as mensalidades?",
       answer:
-        "Sim. Contratos de manutenção e monitoramento entram como lançamentos recorrentes no financeiro.",
+        "Sim. O contrato de monitoramento ou manutenção lança a mensalidade no financeiro todo mês, e a visita preventiva abre a ordem de serviço sozinha.",
     },
     {
       question: "Qual o custo para começar?",

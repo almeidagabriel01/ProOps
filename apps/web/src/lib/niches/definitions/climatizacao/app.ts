@@ -121,6 +121,8 @@ export const nicheConfig: NicheConfig = {
       "Conferir as conexões elétricas",
       "Medir a corrente do compressor",
     ],
+    defaultContractType: "maintenance",
+    contractTitlePlaceholder: "Ex.: Manutenção preventiva dos splits",
   },
   booking: {
     defaultVisitType: NICHE_REGISTRY.climatizacao.defaultVisitType,

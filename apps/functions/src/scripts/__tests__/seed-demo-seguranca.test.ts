@@ -49,7 +49,7 @@ describe("seedDemoSegurancaTenant", () => {
       if (w.path.startsWith("tenants/")) continue;
       expect(w.data.tenantId).toBe(DEMO_SEGURANCA_TENANT_ID);
       const id = w.path.split("/")[1];
-      expect(id.startsWith("demo_seg_") || id.startsWith("proposal_demo_seg_") || id === DEMO_SEGURANCA_TENANT_ID).toBe(true);
+      expect(id.startsWith("demo_seg_") || id.startsWith("proposal_demo_seg_") || id.startsWith("contract_demo_seg_") || id === DEMO_SEGURANCA_TENANT_ID).toBe(true);
     }
   });
 

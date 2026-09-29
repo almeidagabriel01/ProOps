@@ -211,6 +211,20 @@ export const MENU_STEP_TEMPLATES: Record<string, OnboardingStepTemplate> = {
     ],
     actionLabel: "Abrir Equipamentos",
   },
+  "/contracts": {
+    id: "contracts",
+    route: "/contracts",
+    chapter: "sales",
+    description:
+      "A receita que se repete: a mensalidade de manutenção, monitoramento ou suporte entra no financeiro todo mês, sem lançar à mão, e a visita preventiva abre a OS sozinha.",
+    checklist: [
+      { text: "Crie o contrato com o que o cliente paga todo mês, ou marque a linha como mensal na proposta." },
+      { text: "Escolha o dia do vencimento e a carteira que recebe." },
+      { text: "Ligue as visitas preventivas, com a frequência e o técnico." },
+      { text: "Ative escolhendo a data de início: a cobrança começa sozinha." },
+    ],
+    actionLabel: "Abrir Contratos",
+  },
   "/contacts": {
     id: "contacts",
     route: "/contacts",

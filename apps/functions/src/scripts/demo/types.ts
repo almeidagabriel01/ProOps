@@ -193,6 +193,11 @@ export interface DemoDataset {
   fieldService: {
     equipment: DemoEquipment[];
     orders: DemoServiceOrder[];
+    /**
+     * O contrato típico do nicho, ativo, com as duas últimas mensalidades já
+     * recebidas: a lista mostra a receita recorrente e o detalhe, o histórico.
+     */
+    contracts: DemoContract[];
   };
   /** Documentos de versões antigas da demonstração que não existem mais. */
   legacyDeletes?: string[];
@@ -234,6 +239,20 @@ export interface DemoServiceOrder {
   createdDaysAgo: number;
 }
 
+export interface DemoContract {
+  id: string;
+  number: number;
+  clientId: string;
+  title: string;
+  type: "monitoring" | "maintenance" | "support" | "pmoc" | "other";
+  /** Serviço do catálogo e o valor mensal dele no contrato. */
+  lines: Array<{ refId: string; quantity: number; unitPrice: number }>;
+  billingDay: number;
+  equipmentIds: string[];
+  visitIntervalMonths: number | null;
+  visitChecklist: string[];
+}
+
 export interface SeedDemoResult {
   tenant: number;
   products: number;
@@ -252,4 +271,5 @@ export interface SeedDemoResult {
   tasks: number;
   equipment: number;
   serviceOrders: number;
+  contracts: number;
 }

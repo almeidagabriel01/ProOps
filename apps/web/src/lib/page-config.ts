@@ -179,6 +179,14 @@ export const PAGE_CONFIG: Record<string, PageConfig> = {
     requiresAuth: true,
     requiredPermission: "view",
   },
+  "/contracts": {
+    pageId: "contracts",
+    slug: "/contracts",
+    name: "Contratos",
+    module: "contracts",
+    requiresAuth: true,
+    requiredPermission: "view",
+  },
   "/tasks": {
     pageId: "tasks",
     slug: "/tasks",

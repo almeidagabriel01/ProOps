@@ -106,7 +106,7 @@ export interface PlanContextValue {
   hasSalesGoals: boolean;
   hasBookingLink: boolean;
   hasClientPortal: boolean;
-  /** Ordens de serviço e equipamentos do cliente (Pro e Enterprise, ou add-on). */
+  /** Ordens de serviço, equipamentos e contratos de manutenção (Pro e Enterprise, ou add-on). */
   hasFieldService: boolean;
   hasFiscal: boolean;
   hasDriveSync: boolean;

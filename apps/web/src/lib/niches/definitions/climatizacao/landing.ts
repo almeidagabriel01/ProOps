@@ -87,7 +87,7 @@ export const nicheLanding: NicheLandingConfig = {
     {
       question: "A ProOps faz PMOC e contrato de manutenção?",
       answer:
-        "Hoje o pacote cobre a venda, a instalação e a assistência: orçamento, proposta, obra, agenda, financeiro, os aparelhos de cada cliente e a ordem de serviço com a assinatura do cliente no celular. Os contratos de manutenção com cobrança mensal e o PMOC estão em desenvolvimento.",
+        "Contrato de manutenção, sim: a mensalidade entra no financeiro sozinha todo mês, com o link de Pix ou boleto e a nota de serviço quando é paga, e a visita preventiva abre a ordem de serviço com o técnico e o checklist. O PMOC, com o plano e o relatório que a norma pede, está em desenvolvimento.",
     },
     {
       question: "A ProOps calcula a carga térmica do ambiente?",

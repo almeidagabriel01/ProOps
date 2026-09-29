@@ -101,6 +101,8 @@ export const nicheConfig: NicheConfig = {
       "Testar controles e o aplicativo",
       "Conferir nobreak e alimentação",
     ],
+    defaultContractType: "support",
+    contractTitlePlaceholder: "Ex.: Suporte mensal da automação",
   },
   booking: {
     defaultVisitType: NICHE_REGISTRY.automacao_residencial.defaultVisitType,

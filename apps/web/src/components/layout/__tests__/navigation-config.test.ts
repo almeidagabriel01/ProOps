@@ -58,12 +58,13 @@ describe("menuItems", () => {
     expect(menuItems).toHaveLength(9);
   });
 
-  it("Assistência é grupo com capacidade própria, OS e equipamentos", () => {
+  it("Assistência é grupo com capacidade própria: OS, equipamentos e contratos", () => {
     const group = menuItems.find((item) => item.label === "Assistência");
     expect(group?.requiresCapability).toBe("fieldService");
     expect(group?.children?.map((c) => [c.href, c.pageId])).toEqual([
       ["/service-orders", "service_orders"],
       ["/equipment", "equipment"],
+      ["/contracts", "contracts"],
     ]);
   });
 

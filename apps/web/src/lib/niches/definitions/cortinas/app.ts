@@ -100,6 +100,8 @@ export const nicheConfig: NicheConfig = {
       "Conferir tecido e costuras",
       "Testar o controle remoto",
     ],
+    defaultContractType: "maintenance",
+    contractTitlePlaceholder: "Ex.: Manutenção anual dos toldos",
   },
   booking: {
     defaultVisitType: NICHE_REGISTRY.cortinas.defaultVisitType,

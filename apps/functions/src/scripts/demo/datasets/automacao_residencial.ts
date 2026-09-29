@@ -207,6 +207,9 @@ export const automacaoResidencialDemo: DemoDataset = {
         createdDaysAgo: 0,
       },
     ],
+    contracts: [
+      { id: "demo_ct_suporte", number: 1, clientId: "demo_client_ana", title: "Suporte da automação", type: "support", lines: [{ refId: "demo_svc_support", quantity: 1, unitPrice: 100 }], billingDay: 10, equipmentIds: ["demo_equip_central"], visitIntervalMonths: 3, visitChecklist: ["Testar os cenários de cada ambiente", "Atualizar o firmware da central", "Conferir a conexão dos dispositivos"] },
+    ],
   },
   // A atividade "tarefa" do lead virou a tarefa acima; num tenant já semeado
   // ela continuaria aparecendo duplicada no histórico do lead.

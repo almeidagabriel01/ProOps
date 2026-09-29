@@ -23,7 +23,7 @@ Segmentos de rota: proposals, contacts, products, transactions, calendar, crm, d
 ```
 403, admin, agendar, ambientes, aplicativo, api, auth,
 automacao-residencial, automation, booking, calendar, cash-flow, checkout-success,
-commissions, contacts, contato, cookies, crm, dashboard, data-deletion, dre,
+commissions, contacts, contato, contracts, cookies, crm, dashboard, data-deletion, dre,
 decoracao, equipment, fale-conosco, forgot-password, funcionalidades, goals, institucional, invoices, login,
 manifesto, notifications, privacy, products, produtos, profile, projects, proposals,
 register, reset,
@@ -108,15 +108,22 @@ As duas telas moravam em Configurações até 2026-09-28; os endereços antigos
 de administrador continua dentro da tela, e não em `page-config.ts`, para o
 membro que abrir pela URL ler o motivo em vez de cair em `/403`.
 
-A **assistência técnica** são duas telas do grupo Assistência da dock:
+A **assistência técnica** são três telas do grupo Assistência da dock:
 `/service-orders` (a fila de OS, o detalhe `/service-orders/[id]` e o
 atendimento pelo celular em `/service-orders/[id]/executar`, passo a passo até
-a assinatura) e `/equipment` (o parque instalado, também como aba
-"Equipamentos" na ficha do contato, carregada sob demanda). A lista e o
+a assinatura), `/equipment` (o parque instalado, também como aba
+"Equipamentos" na ficha do contato, carregada sob demanda) e `/contracts`
+(os contratos de manutenção: a receita recorrente no topo, o detalhe
+`/contracts/[id]` com ativar, suspender, retomar e encerrar, as mensalidades
+lançadas com o link de pagamento de cada uma e as visitas que o contrato
+abriu). A lista e o
 detalhe são lidos no Firestore; o técnico sem o escopo `service_orders_all`
 consulta filtrando por ele mesmo (`serviceOrdersQuery`), senão as rules recusam
 a lista. O que muda por nicho (tipos de equipamento, exemplo de nome e o
-checklist com que a preventiva nasce) é `NicheConfig.fieldService`. A barra de
+checklist com que a preventiva nasce, e o tipo e o exemplo de nome do
+contrato) é `NicheConfig.fieldService`. O editor de itens e o seletor de
+catálogo moram em `components/features/field-service/`, porque servem à OS e
+ao contrato (este sem a chave de estoque). A barra de
 ações no rodapé é `sticky` dentro do `<main>`, e não `fixed`: quem rola é o
 `<main>`, e a barra de abas do celular fica logo abaixo dele. Regras do backend
 em `apps/functions/CLAUDE.md`, seção Assistência técnica.
@@ -124,6 +131,12 @@ em `apps/functions/CLAUDE.md`, seção Assistência técnica.
 O **portal do cliente** também tem duas pontas: o botão "Portal do cliente"
 na ficha do contato (`/contacts/[id]`, ao lado das abas) e a página pública em
 `/share/portal/[token]`. Detalhes em `share/CLAUDE.md`.
+
+Na **proposta**, a chave "Mensal" de cada linha (só com o módulo de contratos
+no plano) tira a linha do total, da entrada e das parcelas; ela aparece à
+parte como "+ R$ X/mês" no resumo, no pagamento, no PDF e no link, e vira um
+contrato em rascunho na aprovação. Toda soma de total passa por
+`countsInProposalTotal` (`lib/proposal/monthly-lines.ts`), com guard.
 
 ## Três superfícies num projeto só
 

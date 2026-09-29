@@ -202,5 +202,8 @@ export const climatizacaoDemo: DemoDataset = {
         createdDaysAgo: 0,
       },
     ],
+    contracts: [
+      { id: "demo_clim_ct_escritorio", number: 1, clientId: "demo_clim_client_escritorio", title: "Manutenção preventiva do escritório", type: "maintenance", lines: [{ refId: "demo_clim_svc_limpeza", quantity: 1, unitPrice: 220 }], billingDay: 15, equipmentIds: ["demo_clim_equip_cassete"], visitIntervalMonths: 3, visitChecklist: ["Limpar filtros e serpentina", "Verificar a drenagem", "Medir a temperatura de insuflamento"] },
+    ],
   },
 };

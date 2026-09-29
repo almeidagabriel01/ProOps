@@ -56,7 +56,7 @@ Exceção: `createCheckoutSession` e `confirmCheckoutSession` aceitam `allowFree
 | `crm` | CRM avulso (Starter e Pro) |
 | `fiscal` | Notas fiscais, 100 por mes, sem recepcao de notas de entrada (Starter e Pro) |
 | `online_payments` | Pagamento online pelo Asaas (Starter e Pro; no Starter exige `financial`) |
-| `field_service` | Ordens de serviço e equipamentos do cliente (Starter; Pro e Enterprise já têm) |
+| `field_service` | Ordens de serviço, equipamentos do cliente e contratos de manutenção (Starter; Pro e Enterprise já têm). A cobrança do contrato pede também o financeiro |
 
 Pre-requisito entre add-ons: `requiresAddons` em `shared/addon-definitions.ts`,
 checado no checkout (403 `ADDON_REQUIRES_ADDON`) e na cortesia do superadmin.

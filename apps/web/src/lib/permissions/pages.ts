@@ -100,6 +100,11 @@ export const PERMISSION_PAGES: PermissionPage[] = [
     description: "Aparelhos instalados nos clientes, com garantia e histórico",
   },
   {
+    id: "contracts",
+    name: "Contratos",
+    description: "Mensalidades de manutenção e monitoramento, com visitas preventivas",
+  },
+  {
     id: "solutions",
     name: "Soluções",
     description: "Aplicativos, automações e ambientes",

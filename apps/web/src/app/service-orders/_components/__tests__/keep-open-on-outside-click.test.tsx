@@ -64,12 +64,14 @@ describe("janelas da assistência técnica", () => {
     const root = path.resolve(__dirname, "../../../..");
     const files = [
       "app/service-orders/[id]/page.tsx",
-      "app/service-orders/_components/catalog-picker-dialog.tsx",
+      "components/features/field-service/catalog-picker-dialog.tsx",
       "app/service-orders/_components/complete-dialog.tsx",
       "app/service-orders/_components/launch-transaction-dialog.tsx",
       "components/features/field-service/equipment-form-dialog.tsx",
       "components/features/field-service/project-equipment-dialog.tsx",
       "components/features/field-service/service-order-form-dialog.tsx",
+      "components/features/field-service/contract-form-dialog.tsx",
+      "app/contracts/_components/activate-contract-dialog.tsx",
     ];
     for (const file of files) {
       const source = fs.readFileSync(path.join(root, file), "utf8");

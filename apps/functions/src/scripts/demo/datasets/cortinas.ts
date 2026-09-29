@@ -205,5 +205,8 @@ export const cortinasDemo: DemoDataset = {
         createdDaysAgo: 1,
       },
     ],
+    contracts: [
+      { id: "demo_cort_ct_toldo", number: 1, clientId: "demo_cort_client_rafael", title: "Manutenção anual do toldo", type: "maintenance", lines: [{ refId: "demo_cort_svc_instalacao", quantity: 1, unitPrice: 45 }], billingDay: 20, equipmentIds: ["demo_cort_equip_toldo"], visitIntervalMonths: 12, visitChecklist: ["Lubrificar os braços e o tubo", "Regular o motor e os fins de curso", "Conferir a lona e as costuras"] },
+    ],
   },
 };

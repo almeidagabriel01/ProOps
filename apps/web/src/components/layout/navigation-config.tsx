@@ -22,6 +22,7 @@ import {
   Target,
   CalendarClock,
   ClipboardList,
+  FileSignature,
   ServerCog,
 } from "lucide-react";
 
@@ -243,8 +244,9 @@ export const menuItems: MenuItem[] = [
   {
     icon: ClipboardList,
     label: "Assistência",
-    // O pós-venda técnico: o chamado (OS) e o aparelho atendido. As duas telas
-    // pedem a mesma capacidade, então o grupo coroa inteiro.
+    // O pós-venda técnico: o chamado (OS), o aparelho atendido e o contrato que
+    // cobra a manutenção todo mês. As três telas pedem a mesma capacidade,
+    // então o grupo coroa inteiro.
     requiresCapability: "fieldService",
     children: [
       {
@@ -258,6 +260,12 @@ export const menuItems: MenuItem[] = [
         label: "Equipamentos",
         href: "/equipment",
         pageId: "equipment",
+      },
+      {
+        icon: FileSignature,
+        label: "Contratos",
+        href: "/contracts",
+        pageId: "contracts",
       },
     ],
   },

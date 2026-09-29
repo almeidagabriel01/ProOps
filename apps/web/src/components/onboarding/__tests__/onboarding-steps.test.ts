@@ -207,6 +207,7 @@ describe("passos por plano e papel", () => {
       // Assistência técnica: grupo próprio da dock, depois da Agenda.
       "service-orders",
       "equipment",
+      "contracts",
       "products",
       "services",
       "solutions",
@@ -242,11 +243,12 @@ describe("passos por plano e papel", () => {
     // Ordens de serviço e equipamentos também.
     expect(ids).toContain("service-orders");
     expect(ids).toContain("equipment");
+    expect(ids).toContain("contracts");
   });
 
   it("Starter, master: sem Financeiro nem Integrações", () => {
     const ids = stepIds("starter", MASTER);
-    for (const id of ["transactions", "wallets", "commissions", "dre", "cash-flow", "invoices", "crm", "projects", "settings-goals", "settings-booking", "settings-integrations", "service-orders", "equipment"]) {
+    for (const id of ["transactions", "wallets", "commissions", "dre", "cash-flow", "invoices", "crm", "projects", "settings-goals", "settings-booking", "settings-integrations", "service-orders", "equipment", "contracts"]) {
       expect(ids).not.toContain(id);
     }
     expect(ids).toContain("settings-team");
@@ -261,6 +263,7 @@ describe("passos por plano e papel", () => {
     }).map((step) => step.id);
     expect(ids).toContain("service-orders");
     expect(ids).toContain("equipment");
+    expect(ids).toContain("contracts");
   });
 
   it("conta free: módulos da demonstração, sem Comissões, Notas e telas vazias", () => {
@@ -270,6 +273,7 @@ describe("passos por plano e papel", () => {
     // Cada demonstração tem OS e equipamentos de exemplo.
     expect(ids).toContain("service-orders");
     expect(ids).toContain("equipment");
+    expect(ids).toContain("contracts");
     expect(ids).toContain("transactions");
     expect(ids).toContain("wallets");
     // O DRE da demonstração lê o exemplo do tenant demo.
@@ -497,7 +501,7 @@ describe("matchStepForPath", () => {
     expect(chapterProgress(steps, contacts)).toEqual({
       label: "Vendas",
       position: 4,
-      total: 8,
+      total: 9,
     });
   });
 });

@@ -201,5 +201,8 @@ export const segurancaEletronicaDemo: DemoDataset = {
         createdDaysAgo: 0,
       },
     ],
+    contracts: [
+      { id: "demo_seg_ct_monitoramento", number: 1, clientId: "demo_seg_client_loja", title: "Monitoramento 24h", type: "monitoring", lines: [{ refId: "demo_seg_svc_manutencao", quantity: 1, unitPrice: 129 }], billingDay: 5, equipmentIds: ["demo_seg_equip_central"], visitIntervalMonths: 1, visitChecklist: ["Testar sensores e sirene", "Verificar a bateria da central", "Conferir a comunicação com a central de monitoramento"] },
+    ],
   },
 };

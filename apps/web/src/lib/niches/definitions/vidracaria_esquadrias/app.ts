@@ -119,6 +119,8 @@ export const nicheConfig: NicheConfig = {
       "Inspecionar vidros e fixações",
       "Limpar os drenos das esquadrias",
     ],
+    defaultContractType: "maintenance",
+    contractTitlePlaceholder: "Ex.: Manutenção das esquadrias",
   },
   booking: {
     defaultVisitType: NICHE_REGISTRY.vidracaria_esquadrias.defaultVisitType,

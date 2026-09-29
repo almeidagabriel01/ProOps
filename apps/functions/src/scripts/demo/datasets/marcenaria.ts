@@ -198,5 +198,8 @@ export const marcenariaDemo: DemoDataset = {
         createdDaysAgo: 0,
       },
     ],
+    contracts: [
+      { id: "demo_marc_ct_painel", number: 1, clientId: "demo_marc_client_marcos", title: "Manutenção dos móveis planejados", type: "maintenance", lines: [{ refId: "demo_marc_svc_montagem", quantity: 1, unitPrice: 80 }], billingDay: 10, equipmentIds: ["demo_marc_equip_painel"], visitIntervalMonths: 6, visitChecklist: ["Regular portas e dobradiças", "Conferir corrediças das gavetas", "Reapertar a fixação dos módulos"] },
+    ],
   },
 };

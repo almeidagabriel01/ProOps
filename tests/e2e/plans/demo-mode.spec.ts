@@ -102,6 +102,7 @@ test.describe("DEMO-01: a conta free não escreve nada", () => {
     // Firestore; a API só aceita a leitura de apoio, nunca a escrita.
     ["ordem de serviço", "/api/backend/v1/service-orders"],
     ["equipamento", "/api/backend/v1/equipment"],
+    ["contrato", "/api/backend/v1/service-contracts"],
   ] as const;
 
   for (const [nome, url] of ESCRITAS) {
@@ -151,7 +152,12 @@ test.describe("DEMO-01: módulos que o demo não alcança", () => {
 });
 
 test.describe("DEMO-01: a conta free abre a assistência técnica", () => {
-  for (const rota of ["/service-orders", "/equipment"]) {
+  const TITULOS: Record<string, string> = {
+    "/service-orders": "Ordens de serviço",
+    "/equipment": "Equipamentos",
+    "/contracts": "Contratos",
+  };
+  for (const rota of ["/service-orders", "/equipment", "/contracts"]) {
     test(`navega ${rota} sem ser mandada embora`, async ({ page }) => {
       await interceptFirebaseRequests(page);
       const loginPage = new LoginPage(page);
@@ -162,7 +168,7 @@ test.describe("DEMO-01: a conta free abre a assistência técnica", () => {
       await page.goto(rota);
       await expect(page).toHaveURL(new RegExp(`${rota}$`));
       await expect(
-        page.getByRole("heading", { name: rota === "/service-orders" ? "Ordens de serviço" : "Equipamentos" }),
+        page.getByRole("heading", { name: TITULOS[rota], exact: true }),
       ).toBeVisible();
     });
   }

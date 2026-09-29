@@ -78,7 +78,7 @@ export const ADDON_DEFINITIONS: AddonDefinition[] = [
     id: "field_service",
     name: "Ordens de Serviço",
     description:
-      "Equipamentos do cliente, ordem de serviço no celular do técnico e assinatura do cliente na tela",
+      "Equipamentos do cliente, ordem de serviço no celular do técnico, assinatura do cliente na tela e contratos de manutenção com a mensalidade lançada todo mês (a cobrança pede o financeiro)",
     featureKey: "hasFieldService",
     featureValue: true,
     icon: "Wrench",

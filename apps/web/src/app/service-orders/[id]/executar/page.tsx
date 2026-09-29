@@ -20,7 +20,7 @@ import type { ServiceOrder } from "@/types/field-service";
 import { ServiceOrdersSkeleton } from "../../_components/service-orders-skeleton";
 import { ServiceOrderStatusBadge } from "../../_components/status-badge";
 import { ChecklistEditor } from "../../_components/checklist-editor";
-import { ItemsEditor } from "../../_components/items-editor";
+import { ItemsEditor } from "@/components/features/field-service/items-editor";
 import { PhotosSection } from "../../_components/photos-section";
 import { CompleteDialog } from "../../_components/complete-dialog";
 import { useExecutionDraft } from "../../_components/use-execution-draft";

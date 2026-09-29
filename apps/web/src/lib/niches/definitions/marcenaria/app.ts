@@ -119,6 +119,8 @@ export const nicheConfig: NicheConfig = {
       "Conferir acabamento e fitas de borda",
       "Lubrificar as ferragens",
     ],
+    defaultContractType: "maintenance",
+    contractTitlePlaceholder: "Ex.: Manutenção dos móveis planejados",
   },
   booking: {
     defaultVisitType: NICHE_REGISTRY.marcenaria.defaultVisitType,

@@ -11,6 +11,7 @@ import {
   PenLine,
   Ruler,
   ServerCog,
+  FileSignature,
   Wrench,
 } from "lucide-react";
 
@@ -184,5 +185,19 @@ export const RECURSOS_DE_ENTREGA: readonly Recurso[] = [
     requisito: { tipo: "plano", recursos: ["hasFieldService"] },
     rota: "/equipment",
     ondeFica: "Assistência › Equipamentos",
+  },
+  {
+    id: "contratos-de-manutencao",
+    titulo: "Contratos de manutenção",
+    resumo: "A mensalidade de monitoramento, manutenção ou suporte lançada sozinha todo mês.",
+    detalhes: [
+      "A cobrança entra no financeiro dez dias antes, com o link de Pix ou boleto.",
+      "A visita preventiva abre a ordem de serviço com o técnico e o checklist.",
+      "A linha marcada como mensal na proposta vira contrato na aprovação.",
+    ],
+    icone: FileSignature,
+    requisito: { tipo: "plano", recursos: ["hasFieldService"] },
+    rota: "/contracts",
+    ondeFica: "Assistência › Contratos",
   },
 ];

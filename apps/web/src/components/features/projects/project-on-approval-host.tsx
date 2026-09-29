@@ -38,7 +38,13 @@ export function ProjectOnApprovalHost() {
   React.useEffect(
     () =>
       subscribeProjectApproval((event) => {
-        if (event.kind === "created") {
+        if (event.kind === "contract_created") {
+          toast.success("A mensalidade da proposta virou um contrato em rascunho. Ative para começar a cobrar.", {
+            duration: 8000,
+            autopilot: { expand: 150, collapse: 7700 },
+            button: { title: "Abrir", onClick: () => router.push(`/contracts/${event.contractId}`) },
+          });
+        } else if (event.kind === "created") {
           toast.success("Projeto de instalação criado para acompanhar a obra.", {
             duration: 8000,
             // O sileo recolhe o toast 2s antes do fim, escondendo o botão.

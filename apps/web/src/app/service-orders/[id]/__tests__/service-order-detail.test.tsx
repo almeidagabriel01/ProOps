@@ -75,6 +75,7 @@ const ORDER = {
   equipmentIds: ["e1"],
   equipmentLabels: ["Split sala (LG)"],
   projectId: null,
+  contractId: null,
   technicianUids: ["diego"],
   technicianName: "Diego",
   scheduledStart: null,

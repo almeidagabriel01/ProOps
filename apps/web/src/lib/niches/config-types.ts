@@ -179,5 +179,12 @@ export interface NicheConfig {
     equipmentNamePlaceholder: string;
     /** Checklist com que a OS preventiva nasce. */
     preventiveChecklist: string[];
+    /**
+     * O contrato típico do negócio: monitoramento em segurança, manutenção em
+     * climatização, suporte em automação. É o tipo com que um contrato novo
+     * nasce, e o exemplo do nome.
+     */
+    defaultContractType: "monitoring" | "maintenance" | "support" | "pmoc" | "other";
+    contractTitlePlaceholder: string;
   };
 }

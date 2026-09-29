@@ -16,6 +16,12 @@ interface ItemsEditorProps {
   items: ServiceOrderItem[];
   onChange: (items: ServiceOrderItem[]) => void;
   disabled?: boolean;
+  /** Mostra a chave "Sai do estoque ao concluir" (a OS sim; o contrato não). */
+  stock?: boolean;
+  emptyText?: string;
+  /** Rótulo e sufixo do total: "Mensalidade" e "/mês" no contrato. */
+  totalLabel?: string;
+  totalSuffix?: string;
 }
 
 function newId(): string {
@@ -94,7 +100,15 @@ function QuantityStepper({
  * ou avulsas. A peça do catálogo sai do estoque quando a OS é concluída, a
  * menos que a pessoa desligue.
  */
-export function ItemsEditor({ items, onChange, disabled }: ItemsEditorProps) {
+export function ItemsEditor({
+  items,
+  onChange,
+  disabled,
+  stock = true,
+  emptyText = "Nenhuma peça ou serviço lançado.",
+  totalLabel = "Total",
+  totalSuffix = "",
+}: ItemsEditorProps) {
   const [pickerOpen, setPickerOpen] = React.useState(false);
 
   const update = (id: string, patch: Partial<ServiceOrderItem>) =>
@@ -124,7 +138,7 @@ export function ItemsEditor({ items, onChange, disabled }: ItemsEditorProps) {
     <div className="space-y-3">
       {items.length === 0 ? (
         <p className="rounded-lg border border-dashed p-6 text-center text-sm text-muted-foreground">
-          Nenhuma peça ou serviço lançado.
+          {emptyText}
         </p>
       ) : (
         <div className="overflow-hidden rounded-lg border">
@@ -155,7 +169,7 @@ export function ItemsEditor({ items, onChange, disabled }: ItemsEditorProps) {
                         className="h-9"
                       />
                     </div>
-                    {item.kind === "product" && item.refId && (
+                    {stock && item.kind === "product" && item.refId && (
                       <label className="ml-6 flex w-fit items-center gap-2 text-xs text-muted-foreground">
                         <Switch
                           checked={item.fromStock}
@@ -227,7 +241,11 @@ export function ItemsEditor({ items, onChange, disabled }: ItemsEditorProps) {
         )}
         {items.length > 0 && (
           <p className={cn("text-sm")}>
-            Total <span className="ml-1 text-base font-semibold">{formatCurrency(orderTotal(items))}</span>
+            {totalLabel}{" "}
+            <span className="ml-1 text-base font-semibold">
+              {formatCurrency(orderTotal(items))}
+              {totalSuffix}
+            </span>
           </p>
         )}
       </div>

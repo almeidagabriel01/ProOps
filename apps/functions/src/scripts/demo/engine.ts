@@ -8,6 +8,15 @@ import {
   signatureContentHash,
   type ServiceOrderItem,
 } from "../../api/services/field-service/field-service-model";
+import {
+  CONTRACT_INCOME_CATEGORY,
+  addMonthsOnDay,
+  chargeTransactionId,
+  computeMonthlyAmount,
+  formatContractCode,
+  formatPeriod,
+  periodOf,
+} from "../../api/services/field-service/contract-model";
 import type {
   DemoDataset,
   DemoLine,
@@ -30,6 +39,9 @@ export interface BuildDemoOptions {
   now: Date;
   timestamp: (ms: number) => unknown;
 }
+
+/** Mensalidades já recebidas em cada contrato de exemplo. */
+const DEMO_PAID_CHARGES = 2;
 
 /** Datas fixas: re-semear e ordenar por createdAt é determinístico. */
 const BASE_MS = Date.UTC(2026, 0, 1, 12, 0, 0);
@@ -357,6 +369,12 @@ export function buildDemoDocs(ds: DemoDataset, opts: BuildDemoOptions): DemoWrit
     if (t.status === "paid") {
       balances.set(t.walletId, (balances.get(t.walletId) ?? 0) + (t.type === "income" ? t.amount : -t.amount));
     }
+  }
+  // As mensalidades pagas dos contratos de exemplo entram na carteira padrão.
+  const mainWallet = wallets.find((w) => w.isDefault) ?? wallets[0];
+  for (const c of ds.fieldService.contracts) {
+    const paid = computeMonthlyAmount(c.lines) * DEMO_PAID_CHARGES;
+    balances.set(mainWallet.id, Math.round(((balances.get(mainWallet.id) ?? 0) + paid) * 100) / 100);
   }
   wallets.forEach((w) => {
     set(`wallets/${w.id}`, {
@@ -727,9 +745,97 @@ export function buildDemoDocs(ds: DemoDataset, opts: BuildDemoOptions): DemoWrit
       createdBy: null,
     });
   });
+  // Contratos: ativos há três meses, com as duas últimas mensalidades pagas e
+  // a próxima no dia de vencimento do mês que vem.
+  ds.fieldService.contracts.forEach((c) => {
+    const cl = client(c.clientId);
+    const lines = c.lines.map((line, i) => {
+      const found = serviceById.get(line.refId);
+      if (!found) throw new Error(`Demo ${ds.niche}: serviço ${line.refId} não existe no dataset.`);
+      return { id: `line_${i}`, kind: "service" as const, refId: line.refId, name: found.name, quantity: line.quantity, unitPrice: line.unitPrice };
+    });
+    const monthlyAmount = computeMonthlyAmount(lines);
+    const today = ymd(0);
+    const thisMonthDue = addMonthsOnDay(today, 0, c.billingDay);
+    const lastDue = thisMonthDue <= today ? thisMonthDue : addMonthsOnDay(today, -1, c.billingDay);
+    const dues = Array.from({ length: DEMO_PAID_CHARGES }, (_, i) =>
+      addMonthsOnDay(lastDue, i - (DEMO_PAID_CHARGES - 1), c.billingDay),
+    );
+    const startDate = addMonthsOnDay(lastDue, -2, c.billingDay);
+    set(`service_contracts/${c.id}`, {
+      ...tenantTag,
+      number: c.number,
+      code: formatContractCode(c.number),
+      clientId: cl.id,
+      clientName: cl.name,
+      title: c.title,
+      type: c.type,
+      status: "active",
+      lines,
+      monthlyAmount,
+      billingDay: c.billingDay,
+      // O contrato guarda o id; o lançamento, o nome (convenção da demonstração).
+      wallet: mainWallet.id,
+      issueNfse: false,
+      equipmentIds: c.equipmentIds,
+      visitPlan: {
+        enabled: c.visitIntervalMonths !== null,
+        intervalMonths: c.visitIntervalMonths ?? 3,
+        technicianId: null,
+        checklist: c.visitChecklist,
+        nextVisitDate: c.visitIntervalMonths !== null ? addMonthsOnDay(today, 1, Math.min(Number(today.slice(8, 10)), 28)) : null,
+      },
+      notes: null,
+      startDate,
+      endDate: null,
+      nextBillingDate: addMonthsOnDay(lastDue, 1, c.billingDay),
+      lastBilledPeriod: periodOf(lastDue),
+      suspendedReason: null,
+      proposalId: null,
+      createdAt: `${startDate}T12:00:00.000Z`,
+      updatedAt: `${lastDue}T12:00:00.000Z`,
+      createdBy: null,
+    });
+    for (const due of dues) {
+      const period = periodOf(due);
+      set(`transactions/${chargeTransactionId(c.id, period)}`, {
+        ...tenantTag,
+        type: "income",
+        description: `${c.title} (${formatPeriod(period)})`,
+        amount: monthlyAmount,
+        date: addMonthsOnDay(due, 0, 1),
+        dueDate: due,
+        status: "paid",
+        paidAt: `${due}T15:00:00.000Z`,
+        clientId: cl.id,
+        clientName: cl.name,
+        proposalId: null,
+        category: CONTRACT_INCOME_CATEGORY,
+        wallet: mainWallet.name,
+        isDownPayment: false,
+        isInstallment: false,
+        isRecurring: false,
+        installmentCount: null,
+        installmentNumber: null,
+        installmentGroupId: null,
+        recurringGroupId: null,
+        paymentMode: null,
+        notes: `Mensalidade do contrato ${formatContractCode(c.number)}.`,
+        extraCosts: [],
+        serviceContractId: c.id,
+        contractPeriod: period,
+        grouped: false,
+        createdAt: `${due}T09:00:00.000Z`,
+        updatedAt: `${due}T15:00:00.000Z`,
+        createdById: "system",
+      });
+    }
+  });
+
   set(`service_order_counters/${ds.tenantId}`, {
     ...tenantTag,
     nextNumber: Math.max(0, ...ds.fieldService.orders.map((o) => o.number)) + 1,
+    nextContractNumber: Math.max(0, ...ds.fieldService.contracts.map((c) => c.number)) + 1,
   });
 
   for (const path of ds.legacyDeletes ?? []) writes.push({ op: "delete", path });
@@ -761,5 +867,6 @@ export function demoResultCounts(ds: DemoDataset): SeedDemoResult {
     tasks: ds.tasks.length,
     equipment: ds.fieldService.equipment.length,
     serviceOrders: ds.fieldService.orders.length,
+    contracts: ds.fieldService.contracts.length,
   };
 }

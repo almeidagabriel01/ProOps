@@ -120,6 +120,7 @@ import {
   updateServiceContract,
 } from "./service-contracts.controller";
 import { runServiceContracts } from "../services/field-service/contract-billing-run";
+import { DEMO_TENANT_IDS } from "../../shared/demo-tenant";
 import { ensureContractFromProposal, resolveContractOnApproval } from "../services/field-service/contract.service";
 
 type MockRes = Response & { statusCode: number; body: unknown };
@@ -373,6 +374,30 @@ describe("rotina diária", () => {
     expect(store.service_contracts[id]).toMatchObject({ status: "suspended", suspendedReason: "plan" });
     expect(notifications).toHaveLength(1);
     expect(notifications[0]).toMatchObject({ type: "service_contract_suspended", serviceContractId: id });
+  });
+
+  it("o contrato de exemplo da demonstração não é cobrado nem suspenso", async () => {
+    const demoTenant = DEMO_TENANT_IDS.seguranca_eletronica;
+    store.service_contracts = {
+      demo_ct: {
+        tenantId: demoTenant,
+        code: "CT-0001",
+        status: "active",
+        lines: LINES,
+        monthlyAmount: 129,
+        billingDay: 5,
+        nextBillingDate: "2026-10-05",
+        endDate: null,
+        wallet: "w1",
+        visitPlan: { enabled: true, intervalMonths: 1, technicianId: null, checklist: [], nextVisitDate: "2026-10-06" },
+      },
+    };
+    caps.fieldService = false;
+    const result = await runServiceContracts({ dryRun: false, cursorId: null });
+    expect(result).toMatchObject({ contracts: 0, charges: 0, suspended: 0, visits: 0 });
+    expect(store.service_contracts.demo_ct.status).toBe("active");
+    expect(contractTransactions()).toHaveLength(0);
+    expect(notifications).toHaveLength(0);
   });
 
   it("empresa que perdeu o financeiro também é suspensa", async () => {

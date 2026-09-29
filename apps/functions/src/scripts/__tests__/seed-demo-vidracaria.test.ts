@@ -48,7 +48,7 @@ describe("demonstração de vidraçaria e esquadrias", () => {
       if (w.path.startsWith("tenants/")) continue;
       expect(w.data.tenantId).toBe(TENANT_ID);
       const id = w.path.split("/")[1];
-      expect(id.startsWith("demo_vid_") || id.startsWith("proposal_demo_vid_") || id === TENANT_ID).toBe(true);
+      expect(id.startsWith("demo_vid_") || id.startsWith("proposal_demo_vid_") || id.startsWith("contract_demo_vid_") || id === TENANT_ID).toBe(true);
     }
   });
 

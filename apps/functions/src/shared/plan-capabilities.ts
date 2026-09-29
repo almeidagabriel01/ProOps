@@ -317,7 +317,7 @@ export const CAPABILITY_LABELS: Record<PlanCapabilityKey, string> = {
   salesGoals: "Metas de vendas",
   bookingLink: "Link de agendamento",
   clientPortal: "Portal do cliente",
-  fieldService: "Ordens de serviço e equipamentos",
+  fieldService: "Ordens de serviço, equipamentos e contratos",
   fiscalReceiving: "Notas de entrada",
 };
 
