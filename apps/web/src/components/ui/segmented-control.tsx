@@ -47,7 +47,13 @@ export function SegmentedControl({
     <div
       role="group"
       aria-label={id}
-      className="bg-muted/60 p-1 rounded-xl inline-flex items-center gap-0.5"
+      className={cn(
+        "bg-muted/60 p-1 rounded-xl inline-flex items-center gap-0.5",
+        // Abas que não cabem rolam dentro da própria barra, em vez de
+        // alargar a página: quatro filtros com contador ("Criadas por mim 12")
+        // passam dos 393px de um celular e vazavam o <main> de Tarefas.
+        "max-w-full overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden",
+      )}
     >
       {options.map((opt) => {
         const isActive = opt.value === value;

@@ -77,4 +77,25 @@ describe("SegmentedControl", () => {
 
     expect(onChange).toHaveBeenCalledWith("recebidas");
   });
+
+  it("rola por dentro da barra em vez de alargar a página", () => {
+    // O jsdom não mede layout: o que se afirma é o contrato de CSS que o E2E
+    // mobile (no-overflow.spec.ts, em /tasks) mede de verdade. Sem o teto de
+    // largura, quatro filtros com contador vazavam o <main> a 393px.
+    render(
+      <SegmentedControl
+        id="filtro"
+        options={[
+          { value: "mine", label: "Minhas", count: 3 },
+          { value: "created", label: "Criadas por mim", count: 12 },
+          { value: "all", label: "Todas", count: 40 },
+          { value: "done", label: "Concluídas", count: 7 },
+        ]}
+        value="mine"
+        onChange={vi.fn()}
+      />,
+    );
+    const grupo = screen.getByRole("group", { name: "filtro" });
+    expect(grupo).toHaveClass("max-w-full", "overflow-x-auto");
+  });
 });
