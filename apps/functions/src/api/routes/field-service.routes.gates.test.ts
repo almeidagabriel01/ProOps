@@ -48,6 +48,7 @@ afterAll(() => new Promise((r) => server.close(r)));
 
 it.each([
   ["POST", "/equipment", "createEquipment"],
+  ["POST", "/equipment/batch", "createEquipmentBatch"],
   ["PUT", "/equipment/e1", "updateEquipment"],
   ["DELETE", "/equipment/e1", "deleteEquipment"],
   ["GET", "/service-orders/technicians", "listTechnicians"],

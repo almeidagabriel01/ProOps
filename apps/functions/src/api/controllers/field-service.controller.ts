@@ -23,6 +23,7 @@ import {
   CompleteServiceOrderSchema,
   CreateServiceOrderSchema,
   EQUIPMENT_COLLECTION,
+  EquipmentBatchSchema,
   EquipmentSchema,
   ExecutionUpdateSchema,
   LaunchTransactionSchema,
@@ -947,5 +948,60 @@ export async function launchServiceOrderTransaction(req: Request, res: Response)
     }
   } catch (error) {
     return fail(res, error, "Erro ao lançar a OS no financeiro.", "service_order_transaction_failed");
+  }
+}
+
+/**
+ * POST /v1/equipment/batch
+ *
+ * Os aparelhos de uma obra entregue, de uma vez: a tela da obra traz os
+ * produtos da proposta e a pessoa escolhe o que é equipamento (o split sim, a
+ * tubulação não) e completa série e local.
+ */
+export async function createEquipmentBatch(req: Request, res: Response) {
+  const parsed = EquipmentBatchSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ message: firstIssue(parsed.error) });
+  try {
+    const { tenantId, uid } = await requireAccess(req, "equipment", "canCreate");
+    const client = await loadClientSnapshot(parsed.data.clientId, tenantId);
+    if (!client) return res.status(404).json({ message: "Contato não encontrado." });
+    const projectId = parsed.data.projectId ?? null;
+    if (projectId && !(await loadOfTenant("projects", projectId, tenantId))) {
+      return res.status(404).json({ message: "Projeto não encontrado." });
+    }
+
+    const now = new Date().toISOString();
+    const batch = db.batch();
+    const ids: string[] = [];
+    for (const item of parsed.data.items) {
+      const ref = db.collection(EQUIPMENT_COLLECTION).doc();
+      ids.push(ref.id);
+      batch.set(ref, {
+        tenantId,
+        clientId: client.id,
+        clientName: client.name,
+        name: item.name,
+        type: item.type ?? null,
+        brand: item.brand ?? null,
+        model: item.model ?? null,
+        serialNumber: item.serialNumber ?? null,
+        capacity: item.capacity ?? null,
+        location: item.location ?? null,
+        installedAt: item.installedAt ?? null,
+        warrantyUntil: item.warrantyUntil ?? null,
+        notes: item.notes ?? null,
+        status: "active",
+        projectId,
+        lastServiceAt: null,
+        lastServiceOrderId: null,
+        createdAt: now,
+        updatedAt: now,
+        createdBy: uid,
+      });
+    }
+    await batch.commit();
+    return res.status(201).json({ ids });
+  } catch (error) {
+    return fail(res, error, "Erro ao registrar os equipamentos.", "equipment_batch_failed");
   }
 }

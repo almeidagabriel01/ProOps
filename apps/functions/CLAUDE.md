@@ -661,6 +661,8 @@ nichos: chamado de alarme, manutenção de ar-condicionado, suporte de automaç�
   encerrada. O vínculo atravessa a regravação do evento (`pickEventLinks`).
 - **Aviso ao técnico** (`service_order_assigned`, direto): quando a OS passa
   para ele ou a data muda; quem fez a mudança não é avisado.
+- **Equipamentos da obra** (`POST /v1/equipment/batch`, até 50): a tela da obra
+  manda os aparelhos escolhidos da proposta, ligados ao `projectId`.
 - **Lançar no financeiro** (`POST /v1/service-orders/:id/transaction`): a OS
   concluída vira UMA receita com o total, pelo `TransactionService.createTransaction`
   (que confere a permissão de Lançamentos e o saldo da carteira), na categoria

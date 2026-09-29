@@ -111,9 +111,16 @@ e contam no armazenamento do plano.
 | `_lib/projects.ts` | Rótulos, progresso (espelha o backend), filtros, atraso |
 | `components/features/projects/proposal-project-button.tsx` | Atalho na proposta |
 | `app/share/project/[token]/` | Página pública da entrega |
+| `components/features/field-service/project-equipment-dialog.tsx` | "Registrar equipamentos": os produtos da proposta viram equipamentos do cliente (só com `fieldService`) |
 | Backend | `api/services/projects/` (a visita em `project-schedule.ts`, puro, e `project-schedule-store.ts`), `api/controllers/projects.controller.ts`, `shared-projects.controller.ts`, `api/routes/projects.routes.ts` |
 
 ## Pendente de propósito
 
 - Documento em PDF da obra: nem ordem de serviço para o técnico, nem termo de
-  entrega. O aceite da entrega fica registrado pelo link (nome, data, IP).
+  entrega. O aceite da entrega fica registrado pelo link (nome, data, IP). O
+  chamado técnico depois da entrega é a ordem de serviço (`/service-orders`),
+  que tem PDF próprio.
+- Os equipamentos NÃO nascem sozinhos na entrega: quem registra escolhe, na
+  obra, o que da proposta é aparelho (o split) e o que é material (a
+  tubulação). Um campo por produto dizendo "é equipamento" automatizaria, mas
+  exigiria mexer no formulário de produto inteiro por um ganho pequeno.

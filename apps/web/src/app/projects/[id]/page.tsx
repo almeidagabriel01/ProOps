@@ -1,9 +1,10 @@
 "use client";
 
 import * as React from "react";
+import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { ArrowLeft, FileText, MapPin, Trash2 } from "lucide-react";
+import { ArrowLeft, FileText, MapPin, ServerCog, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
@@ -25,6 +26,13 @@ import { ProjectsSkeleton } from "../_components/projects-skeleton";
 import { StageCard } from "../_components/stage-card";
 import { DeliveryCard } from "../_components/delivery-card";
 import { PROJECT_STATUS_LABELS, computeProgress } from "../_lib/projects";
+
+// Só com o módulo de assistência: carrega quando a janela abre.
+const ProjectEquipmentDialog = dynamic(
+  () =>
+    import("@/components/features/field-service/project-equipment-dialog").then((m) => m.ProjectEquipmentDialog),
+  { ssr: false },
+);
 import {
   EMPTY_OVERLAY,
   applyOverlay,
@@ -42,8 +50,10 @@ export default function ProjectDetailPage() {
   const projectId = String(params.id || "");
   const { tenant, isReadOnly } = useTenant();
   const { user } = useAuth();
-  const { hasProjects, isLoading: isPlanLoading } = usePlanLimits();
+  const { hasProjects, hasFieldService, isLoading: isPlanLoading } = usePlanLimits();
   const { canEdit: canEditPerm, canDelete: canDeletePerm } = usePagePermission("projects");
+  const { canCreate: canCreateEquipment } = usePagePermission("equipment");
+  const [equipmentOpen, setEquipmentOpen] = React.useState(false);
 
   const [serverProject, setProject] = React.useState<Project | null>(null);
   // Mudanças já mostradas e ainda não confirmadas pelo servidor: é o que faz
@@ -351,6 +361,25 @@ export default function ProjectDetailPage() {
 
         <div className="space-y-4">
           <DeliveryCard project={project} companyName={tenant?.name} canEdit={canEdit} />
+
+          {hasFieldService && canCreateEquipment && !isReadOnly && project.clientId && (
+            <section aria-label="Equipamentos instalados" className="space-y-2 rounded-xl border bg-card p-4">
+              <p className="flex items-center gap-2 font-semibold">
+                <ServerCog className="h-4 w-4 text-muted-foreground" />
+                Equipamentos instalados
+              </p>
+              <p className="text-sm text-muted-foreground">
+                Registre os aparelhos desta obra no cliente: garantia, série e local ficam guardados para a
+                assistência.
+              </p>
+              <Button variant="outline" size="sm" onClick={() => setEquipmentOpen(true)}>
+                Registrar equipamentos
+              </Button>
+              {equipmentOpen && (
+                <ProjectEquipmentDialog open={equipmentOpen} onOpenChange={setEquipmentOpen} project={project} />
+              )}
+            </section>
+          )}
 
           <section aria-label="Observações" className="space-y-2 rounded-xl border bg-card p-4">
             <Label htmlFor="project-notes" className="font-semibold">

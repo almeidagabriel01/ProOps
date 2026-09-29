@@ -161,6 +161,11 @@ export const FieldService = {
   },
 
   createEquipment: (input: EquipmentInput) => callApi<{ id: string }>("/v1/equipment", "POST", input),
+  createEquipmentBatch: (input: {
+    clientId: string;
+    projectId?: string | null;
+    items: Array<Omit<EquipmentInput, "clientId" | "status">>;
+  }) => callApi<{ ids: string[] }>("/v1/equipment/batch", "POST", input),
   updateEquipment: (id: string, input: Partial<EquipmentInput>) => callApi(`/v1/equipment/${id}`, "PUT", input),
   removeEquipment: (id: string) => callApi(`/v1/equipment/${id}`, "DELETE"),
 

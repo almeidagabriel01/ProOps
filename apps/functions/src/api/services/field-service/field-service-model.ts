@@ -228,6 +228,19 @@ export const EquipmentSchema = z
 
 export const UpdateEquipmentSchema = EquipmentSchema.partial().strict();
 
+/** Os aparelhos de uma obra entregue, registrados de uma vez. */
+export const MAX_EQUIPMENT_BATCH = 50;
+export const EquipmentBatchSchema = z
+  .object({
+    clientId: z.string().trim().min(1, "A obra precisa de um cliente."),
+    projectId: z.string().trim().min(1).nullable().optional(),
+    items: z
+      .array(EquipmentSchema.omit({ clientId: true, projectId: true, status: true }))
+      .min(1, "Escolha ao menos um equipamento.")
+      .max(MAX_EQUIPMENT_BATCH, `No máximo ${MAX_EQUIPMENT_BATCH} equipamentos por vez.`),
+  })
+  .strict();
+
 const ItemSchema = z
   .object({
     id: z.string().trim().min(1).max(64),

@@ -3,6 +3,7 @@ import {
   changeServiceOrderStatus,
   completeServiceOrder,
   createEquipment,
+  createEquipmentBatch,
   createServiceOrder,
   deleteEquipment,
   deleteServiceOrder,
@@ -29,6 +30,8 @@ router.use("/equipment", gate);
 router.use("/service-orders", gate);
 
 router.post("/equipment", createEquipment);
+// `/batch` antes de `/:id`: o Express casa por ordem.
+router.post("/equipment/batch", createEquipmentBatch);
 router.put("/equipment/:id", updateEquipment);
 router.delete("/equipment/:id", deleteEquipment);
 

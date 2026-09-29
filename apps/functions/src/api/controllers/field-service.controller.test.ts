@@ -117,6 +117,13 @@ jest.mock("../../init", () => {
   const db = {
     collection: (name: string) => ({ doc: (id?: string) => ref(name, id ?? `auto_${++autoId}`) }),
     getAll: async (...refs: Ref[]) => refs.map((r) => snap(collectionOf(r), r.id)),
+    batch: () => {
+      const pending: Array<() => void> = [];
+      return {
+        set: (r: Ref, data: Doc) => pending.push(() => write(collectionOf(r), r.id, data)),
+        commit: async () => pending.forEach((apply) => apply()),
+      };
+    },
     runTransaction: async (fn: (t: unknown) => Promise<unknown>) => {
       // Escritas só valem se a transação inteira terminar, como no Firestore.
       const pending: Array<() => void> = [];
@@ -138,6 +145,7 @@ import {
   changeServiceOrderStatus,
   completeServiceOrder,
   createServiceOrder,
+  createEquipmentBatch,
   createServiceOrderShareLink,
   deleteServiceOrder,
   downloadServiceOrderPdf,
@@ -644,5 +652,40 @@ describe("lançar no financeiro", () => {
     store.service_orders.o1.status = "completed";
     store.service_orders.o1.totals = { total: 0 };
     expect((await launch()).statusCode).toBe(400);
+  });
+});
+
+describe("equipamentos da obra", () => {
+  const items = [
+    { name: "Split da sala", brand: "Frioteck", model: "Inverter 18.000", location: "Sala" },
+    { name: "Split da suíte", brand: "Frioteck", model: "Inverter 12.000", serialNumber: "FT12-1" },
+  ];
+
+  it("registra os aparelhos da obra de uma vez, ligados a ela", async () => {
+    store.projects = { p1: { tenantId: "t1", title: "Casa da Ana" } };
+    const res = mockRes();
+    await createEquipmentBatch(req({ body: { clientId: "c1", projectId: "p1", items } }), res);
+    expect(res.statusCode).toBe(201);
+    const created = Object.values(store.customer_equipment).filter((e) => e.projectId === "p1");
+    expect(created.map((e) => e.name).sort()).toEqual(["Split da suíte", "Split da sala"].sort());
+    expect(created.every((e) => e.clientName === "Ana Souza" && e.status === "active")).toBe(true);
+  });
+
+  it("obra de outra empresa dá 404 e nada é gravado", async () => {
+    store.projects = { alheia: { tenantId: "t2" } };
+    const before = Object.keys(store.customer_equipment).length;
+    const res = mockRes();
+    await createEquipmentBatch(req({ body: { clientId: "c1", projectId: "alheia", items } }), res);
+    expect(res.statusCode).toBe(404);
+    expect(Object.keys(store.customer_equipment)).toHaveLength(before);
+  });
+
+  it("lista vazia e membro sem permissão de cadastrar são recusados", async () => {
+    const empty = mockRes();
+    await createEquipmentBatch(req({ body: { clientId: "c1", items: [] } }), empty);
+    expect(empty.statusCode).toBe(400);
+    const member = mockRes();
+    await createEquipmentBatch(req({ ...TECH, body: { clientId: "c1", items } }), member);
+    expect(member.statusCode).toBe(403);
   });
 });
