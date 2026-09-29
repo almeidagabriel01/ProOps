@@ -153,7 +153,7 @@ export function hasProductLineFooterContent({
 
   if (isDimensionProduct) {
     const measurementLabel = showProductMeasurements
-      ? getProposalProductMeasurementLabel(product)
+      ? getProposalProductMeasurementLabel(product, getNicheConfig(tenantNiche).pricing)
       : null;
     const quantityLabel =
       showProductQuantities !== false
@@ -205,7 +205,7 @@ export function PdfProductLineFooter({
   const quantityLabel = formatProposalProductDisplayQuantity(product);
   const measurementLabel =
     showProductMeasurements && isDimensionProduct
-      ? getProposalProductMeasurementLabel(product)
+      ? getProposalProductMeasurementLabel(product, getNicheConfig(tenantNiche).pricing)
       : null;
 
   if (showProductPrices) {

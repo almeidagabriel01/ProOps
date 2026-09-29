@@ -68,7 +68,7 @@ export function ProductsSection({
                   <div className="text-sm text-gray-500">
                     {isDimensionProductLine(product) ? (
                       <>
-                        {getProposalProductMeasurementLabel(product)} x{" "}
+                        {getProposalProductMeasurementLabel(product, getNicheConfig(tenantNiche).pricing)} x{" "}
                         {formatCurrency(
                           getProposalLineUnitSellingPrice(product),
                         )}{" "}

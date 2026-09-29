@@ -1,3 +1,7 @@
+import type { PricingDefinition } from "@/lib/niches/config-types";
+import { cap } from "@/lib/niches/vocabulary";
+import { measureTerms } from "@/lib/pricing/dimension-mode-labels";
+
 /**
  * Preço de produto por medida. Módulo puro, sem "use client": as landings de
  * nicho calculam os totais de exemplo com estas mesmas funções no servidor, e
@@ -597,8 +601,14 @@ export function getProductPricingDescription(product: ProductPricingSource): str
   return "Preço simples por quantidade.";
 }
 
+/**
+ * A medida de uma linha, como a proposta e o PDF mostram. O nome das medidas
+ * vem do nicho (`pricing.measureLabels`): a tubulação de climatização sai
+ * "Comprimento 6 m", e não "Largura". Sem o nicho, largura e altura.
+ */
 export function getProposalProductMeasurementLabel(
   product: Pick<ProposalPricingSource, "pricingDetails" | "quantity">,
+  pricing: Pick<PricingDefinition, "measureLabels"> = {},
 ): string {
   const details = hydrateProposalPricingDetails(product);
 
@@ -607,13 +617,14 @@ export function getProposalProductMeasurementLabel(
   }
 
   if (details.mode === "curtain_height") {
-    return `Largura ${formatMeters(details.width)} | Altura até ${formatMeters(
+    const { width, height } = measureTerms(pricing, "curtain_height");
+    return `${cap(width.singular)} ${formatMeters(details.width)} | ${cap(height.singular)} até ${formatMeters(
       details.maxHeight,
     )}`;
   }
 
   if (details.mode === "curtain_width") {
-    return `Largura ${formatMeters(details.width)}`;
+    return `${cap(measureTerms(pricing, "curtain_width").width.singular)} ${formatMeters(details.width)}`;
   }
 
   const quantity = roundPricingValue(Math.max(0, Number(product.quantity || 0)), 4);

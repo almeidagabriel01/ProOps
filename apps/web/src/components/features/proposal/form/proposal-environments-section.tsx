@@ -1100,7 +1100,7 @@ function EnvironmentProductRow({
         activeHeightTiers[0]
       : null;
   const measurementLabel = isDimensionProduct
-    ? getProposalProductMeasurementLabel(product)
+    ? getProposalProductMeasurementLabel(product, pricing)
     : "";
   const priceUnitLabel = getProposalProductUnitLabel(product);
   const priceSuffix = isCurtainMeter

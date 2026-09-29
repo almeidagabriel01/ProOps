@@ -116,6 +116,11 @@ describe("rótulos", () => {
       getProposalProductMeasurementLabel({ pricingDetails: { mode: "curtain_meter", width: 1.2, height: 2.5, area: 3, panels: 1 } }),
     ).toBe("1,2 m x 2,5 m");
     expect(getProposalProductMeasurementLabel({ pricingDetails: { mode: "curtain_width", width: 3, panels: 1 } })).toBe("Largura 3 m");
+    // O nome da medida vem do nicho: a tubulação de climatização se mede em
+    // comprimento, e a proposta e o PDF diziam "Largura" para um cano.
+    const comprimento = { measureLabels: { curtain_width: { width: { singular: "comprimento", plural: "comprimentos", gender: "m" as const } } } };
+    expect(getProposalProductMeasurementLabel({ pricingDetails: { mode: "curtain_width", width: 6, panels: 1 } }, comprimento)).toBe("Comprimento 6 m");
+    expect(getProposalProductMeasurementLabel({ pricingDetails: { mode: "curtain_width", width: 6, panels: 1 } }, {})).toBe("Largura 6 m");
     expect(getProposalProductMeasurementLabel({ quantity: 2, pricingDetails: { mode: "standard" } })).toBe("Qtd. 2");
   });
 

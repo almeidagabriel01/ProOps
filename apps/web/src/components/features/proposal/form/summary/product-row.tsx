@@ -1,3 +1,4 @@
+import { useCurrentNicheConfig } from "@/hooks/useCurrentNicheConfig";
 import { Badge } from "@/components/ui/badge";
 import { ProposalProduct } from "@/services/proposal-service";
 import {
@@ -17,7 +18,8 @@ export function ProductRow({ product, isInactive }: ProductRowProps) {
   const unitValue = isService
     ? product.unitPrice || 0
     : (product.unitPrice || 0) * (1 + (product.markup || 0) / 100);
-  const measurementLabel = getProposalProductMeasurementLabel(product);
+  const { pricing } = useCurrentNicheConfig();
+  const measurementLabel = getProposalProductMeasurementLabel(product, pricing);
   const quantityLabel = `Qtd. ${formatProposalProductDisplayQuantity(product)}`;
   const isDimensionProduct = getProposalProductPanelCount(product) !== null;
   const unitLabel = getProposalProductUnitLabel(product);

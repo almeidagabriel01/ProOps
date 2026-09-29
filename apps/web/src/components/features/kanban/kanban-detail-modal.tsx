@@ -87,7 +87,7 @@ function KanbanProposalProductLineDetail({
   if (isDimensionProductLine(product)) {
     return (
       <>
-        {getProposalProductMeasurementLabel(product)} x{" "}
+        {getProposalProductMeasurementLabel(product, getNicheConfig(tenantNiche).pricing)} x{" "}
         {formatCurrency(getProposalLineUnitSellingPrice(product))} /{" "}
         {getProposalProductUnitLabel(product)}
       </>
