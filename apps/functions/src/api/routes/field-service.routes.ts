@@ -6,7 +6,10 @@ import {
   createServiceOrder,
   deleteEquipment,
   deleteServiceOrder,
+  createServiceOrderShareLink,
   deleteServiceOrderPhoto,
+  downloadServiceOrderPdf,
+  getSharedServiceOrder,
   listTechnicians,
   reopenServiceOrder,
   updateEquipment,
@@ -14,6 +17,7 @@ import {
   uploadServiceOrderPhoto,
 } from "../controllers/field-service.controller";
 import { requirePlanCapability } from "../middleware/require-plan-capability";
+import { pdfRateLimiter } from "../middleware/pdf-rate-limiter";
 
 const router = Router();
 
@@ -37,5 +41,13 @@ router.post("/service-orders/:id/complete", completeServiceOrder);
 router.post("/service-orders/:id/reopen", reopenServiceOrder);
 router.post("/service-orders/:id/photos", uploadServiceOrderPhoto);
 router.delete("/service-orders/:id/photos/:photoId", deleteServiceOrderPhoto);
+router.post("/service-orders/:id/share-link", createServiceOrderShareLink);
+// Fallback: o proxy manda os caminhos terminados em /pdf para a função `pdf`.
+router.get("/service-orders/:id/pdf", pdfRateLimiter, downloadServiceOrderPdf);
 
 export const fieldServiceRoutes = router;
+
+/** Pública: o token é a credencial. Montada antes da autenticação, sob /v1/share. */
+const publicRouter = Router();
+publicRouter.get("/share/service-order/:token", getSharedServiceOrder);
+export const publicFieldServiceRoutes = publicRouter;

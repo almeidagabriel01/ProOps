@@ -654,6 +654,15 @@ nichos: chamado de alarme, manutenção de ar-condicionado, suporte de automaç�
   Cancelar devolve tudo. Estoque negativo é avisado na resposta, nunca
   bloqueia. Produto sem `inventoryValue` numérico não ganha movimento.
 - **OS que mexeu no estoque não se exclui**: reabra e cancele.
+- **Link do cliente e PDF.** Um link por OS (`shareToken` na OS, e
+  `shared_service_orders/{token}` com o token como id, Admin SDK only), aberto
+  em `GET /v1/share/service-order/:token` (público; token desconhecido, OS
+  apagada ou empresa sem o módulo dão 404) e em `/share/os/[token]` no front.
+  O PDF (`GET /v1/service-orders/:id/pdf`) imprime essa página com o Chromium
+  e guarda o cache em `.../service_orders/{id}/pdf/os.pdf` (fora da cota). Ele
+  roda na função `pdf`, que não tem o gate de plano do router: o controller
+  confere a capacidade. A visão do cliente não leva IP, navegador, caminho de
+  arquivo nem ids de membro.
 - Fotos e assinatura sobem pelo backend (`tenants/{t}/service_orders/...`),
   contam no armazenamento do plano.
 

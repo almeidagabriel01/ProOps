@@ -43,6 +43,7 @@ vi.mock("@/services/field-service-service", () => ({
   },
 }));
 
+vi.mock("@/services/pdf/download-service-order-pdf", () => ({ downloadServiceOrderPdf: vi.fn() }));
 vi.mock("@/services/product-service", () => ({ ProductService: { getProducts: async () => [] } }));
 vi.mock("@/services/service-service", () => ({ ServiceService: { getServices: async () => [] } }));
 vi.mock("@/services/client-service", () => ({ ClientService: { getClientsPaginated: async () => ({ data: [] }) } }));

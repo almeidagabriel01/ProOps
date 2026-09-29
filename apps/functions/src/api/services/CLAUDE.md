@@ -32,7 +32,7 @@ PDFs sao gerados renderizando a pagina Next.js com Playwright/Chromium headless 
 
 ### Onde roda
 
-Os 4 endpoints de PDF sao atendidos pela **funcao Cloud dedicada `pdf`** (`src/pdfApp.ts`, config `PDF_OPTIONS`: 1GiB, `concurrency: 2` = max 2 Chromiums por instancia). O proxy Next.js roteia paths `*/pdf` para ela. As mesmas rotas seguem montadas no monolito `api` como fallback e para o fluxo interno WhatsApp→PDF (que chama `getOrGenerateProposalPdfBuffer` in-process). Lock (Firestore) e cache (Storage) sao compartilhados entre as duas funcoes.
+Os 5 endpoints de PDF sao atendidos pela **funcao Cloud dedicada `pdf`** (`src/pdfApp.ts`, config `PDF_OPTIONS`: 1GiB, `concurrency: 2` = max 2 Chromiums por instancia). O proxy Next.js roteia paths `*/pdf` para ela. As mesmas rotas seguem montadas no monolito `api` como fallback e para o fluxo interno WhatsApp→PDF (que chama `getOrGenerateProposalPdfBuffer` in-process). Lock (Firestore) e cache (Storage) sao compartilhados entre as duas funcoes.
 
 ### Fluxo geral
 
@@ -219,8 +219,9 @@ Para o endpoint publico (share token). Valida o shared link via `SharedTransacti
 |------|-----------|-----|
 | `GET /v1/proposals/:id/pdf` | `proposal-pdf.controller.ts` | Download PDF de proposta pelo dono |
 | `GET /v1/transactions/:id/pdf` | `transaction-pdf.controller.ts` | Download recibo de lancamento pelo dono |
+| `GET /v1/service-orders/:id/pdf` | `field-service.controller.ts` | PDF da ordem de servico (imprime `/share/os/{token}`; confere a capacidade `fieldService` no controller) |
 
-Ambos passam pelo middleware `pdfRateLimiter`.
+Todos passam pelo middleware `pdfRateLimiter`.
 
 ### PDF publico (share token como auth)
 

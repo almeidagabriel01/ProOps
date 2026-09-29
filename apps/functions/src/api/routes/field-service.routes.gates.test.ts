@@ -29,13 +29,14 @@ jest.mock("../controllers/field-service.controller", () =>
   ),
 );
 
-import { fieldServiceRoutes } from "./field-service.routes";
+import { fieldServiceRoutes, publicFieldServiceRoutes } from "./field-service.routes";
 
 let server: Server;
 let base: string;
 
 beforeAll(async () => {
   const app = express();
+  app.use("/v1", publicFieldServiceRoutes);
   app.use("/v1", fieldServiceRoutes);
   app.get("/v1/outra-coisa", (_req, res) => res.json({ ok: true }));
   server = app.listen(0);
@@ -58,12 +59,21 @@ it.each([
   ["POST", "/service-orders/o1/reopen", "reopenServiceOrder"],
   ["POST", "/service-orders/o1/photos", "uploadServiceOrderPhoto"],
   ["DELETE", "/service-orders/o1/photos/f1", "deleteServiceOrderPhoto"],
+  ["POST", "/service-orders/o1/share-link", "createServiceOrderShareLink"],
+  ["GET", "/service-orders/o1/pdf", "downloadServiceOrderPdf"],
 ])("%s %s exige a capacidade fieldService e chega no handler certo", async (method, path, handler) => {
   hits.length = 0;
   const res = await fetch(`${base}${path}`, { method });
   expect(res.status).toBe(200);
   expect(await res.json()).toEqual({ handler });
   expect(hits).toEqual(["fieldService"]);
+});
+
+it("o link público da OS não passa pelo gate nem pede usuário", async () => {
+  hits.length = 0;
+  const res = await fetch(`${base}/share/service-order/tok123`);
+  expect(await res.json()).toEqual({ handler: "getSharedServiceOrder" });
+  expect(hits).toEqual([]);
 });
 
 it("não aplica o gate fora do prefixo do módulo", async () => {

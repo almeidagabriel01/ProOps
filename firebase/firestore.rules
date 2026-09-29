@@ -522,6 +522,11 @@ service cloud.firestore {
       allow read, write: if false; // Admin SDK only
     }
 
+    // Link público da OS: o id é o token, resolvido só pelo backend.
+    match /shared_service_orders/{token} {
+      allow read, write: if false;
+    }
+
     match /project_settings/{tenantId} {
       allow read, write: if false; // Admin SDK only (lido pela API)
     }

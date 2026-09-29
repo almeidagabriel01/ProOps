@@ -12,7 +12,7 @@ import {
   type QueryConstraint,
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
-import { callApi } from "@/lib/api-client";
+import { callApi, callPublicApi } from "@/lib/api-client";
 import type {
   CompleteServiceOrderInput,
   CompleteServiceOrderResult,
@@ -179,4 +179,49 @@ export const FieldService = {
   uploadPhoto: (id: string, dataUrl: string, caption?: string) =>
     callApi<{ photo: ServiceOrderPhoto }>(`/v1/service-orders/${id}/photos`, "POST", { dataUrl, caption }),
   removePhoto: (id: string, photoId: string) => callApi(`/v1/service-orders/${id}/photos/${photoId}`, "DELETE"),
+  shareLink: (id: string) => callApi<{ url: string }>(`/v1/service-orders/${id}/share-link`, "POST"),
+};
+
+/** O que o link público da OS mostra (`toClientOrderView` no backend). */
+export interface SharedServiceOrderView {
+  code: string;
+  type: ServiceOrder["type"];
+  status: ServiceOrderStatus;
+  title: string;
+  description: string | null;
+  clientName: string | null;
+  address: string | null;
+  equipmentLabels: string[];
+  technicianName: string | null;
+  scheduledStart: string | null;
+  checkInAt: string | null;
+  checkOutAt: string | null;
+  completedAt: string | null;
+  checklist: { text: string; done: boolean }[];
+  items: { name: string; kind: "product" | "service"; quantity: number; unitPrice: number }[];
+  totals: { products: number; services: number; total: number };
+  report: string | null;
+  photos: { url: string; caption: string | null }[];
+  signature: {
+    name: string;
+    document: string | null;
+    imageUrl: string;
+    signedAt: string;
+    contentHash: string;
+  } | null;
+  noSignatureReason: string | null;
+}
+
+export interface SharedServiceOrderTenant {
+  name: string | null;
+  logoUrl: string | null;
+  primaryColor: string | null;
+}
+
+export const SharedServiceOrderService = {
+  get: (token: string) =>
+    callPublicApi<{ order: SharedServiceOrderView; tenant: SharedServiceOrderTenant }>(
+      `/v1/share/service-order/${token}`,
+      "GET",
+    ),
 };

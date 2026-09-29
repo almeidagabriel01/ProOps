@@ -27,7 +27,7 @@ import { recoveryCodesRoutes } from "./routes/recovery-codes.routes";
 import { kanbanRoutes } from "./routes/kanban.routes";
 import { crmRoutes } from "./routes/crm.routes";
 import { projectsRoutes } from "./routes/projects.routes";
-import { fieldServiceRoutes } from "./routes/field-service.routes";
+import { fieldServiceRoutes, publicFieldServiceRoutes } from "./routes/field-service.routes";
 import { tasksRoutes } from "./routes/tasks.routes";
 import { salesGoalsRoutes } from "./routes/sales-goals.routes";
 import { bookingRoutes, publicBookingRoutes } from "./routes/booking.routes";
@@ -462,6 +462,7 @@ app.use("/v1/share/accountant", publicShareLimiter, publicAccountantRoutes);
 // Public shared links
 app.use("/v1", publicShareLimiter, sharedProposalsRoutes);
 app.use("/v1", publicShareLimiter, sharedTransactionsRoutes);
+app.use("/v1", publicShareLimiter, publicFieldServiceRoutes);
 app.use("/v1", publicShareLimiter, paymentPublicRoutes);
 
 // Link de agendamento: ANTES do `/v1/public` do formulário de contato, que

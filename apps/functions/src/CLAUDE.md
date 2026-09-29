@@ -16,7 +16,7 @@
 | Exportacao | Tipo | Descricao |
 |------------|------|-----------|
 | `api` | HTTP (Express) | Monolito Express — todas as rotas REST |
-| `pdf` | HTTP (Express) | Renderizacao de PDF isolada (Chromium fora do monolito) — 4 rotas de PDF; proxy Next.js roteia paths `*/pdf` para ca |
+| `pdf` | HTTP (Express) | Renderizacao de PDF isolada (Chromium fora do monolito) — 5 rotas de PDF; proxy Next.js roteia paths `*/pdf` para ca |
 | `stripeWebhook` | HTTP (Express) | Webhook Stripe com verificacao de assinatura |
 | `checkManualSubscriptions` | Scheduled | Verificacao diaria de assinaturas manuais |
 | `checkDueDates` | Scheduled | Verificacao diaria de vencimentos |
@@ -318,6 +318,7 @@ Funcao HTTP separada (nao faz parte do monolito `api`):
 | `shared_projects/{id}` | Projetos | Link publico da entrega (token). Admin SDK only |
 | `customer_equipment/{id}` | Assistencia tecnica | Aparelhos instalados em cada cliente (garantia, ultimo atendimento). Tenant le; escrita so via Cloud Functions (`field-service.controller.ts`) |
 | `service_orders/{id}` | Assistencia tecnica | Ordem de servico (checklist, pecas, fotos, assinatura). Do TECNICO: as rules leem `technicianUids`; dono, admins e o escopo `service_orders_all` leem todas. Escrita so via Cloud Functions |
+| `shared_service_orders/{token}` | Assistencia tecnica | Link publico da OS (o id e o token). Admin SDK only |
 | `service_order_counters/{tenantId}` | Assistencia tecnica | Proximo numero da OS (`OS-0001`), alocado na transacao que cria a OS. Admin SDK only |
 | `stock_movements/{id}` | Estoque | Historico de estoque, gravado na mesma transacao que ajusta `inventoryValue`. Id `so_{ordem}_{revisao}_{produto}`. Tenant le; escrita so via Cloud Functions |
 | `proposal_counters/{tenantId}` | Propostas | Configuracao e contador da numeracao (o codigo `0018926SP`). Admin SDK only |

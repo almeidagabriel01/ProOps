@@ -5,6 +5,8 @@ import { logger } from "../../lib/logger";
 import { hasPagePermission } from "../../lib/auth-helpers";
 import { isTenantAdminRole } from "../../lib/auth-context";
 import { resolveClientIp } from "../../lib/client-ip";
+import { tenantHasCapability } from "../../lib/tenant-capabilities";
+import { buildPdfContentDisposition, buildPdfFilename } from "../services/pdf-filename";
 import { decodePhotoDataUrl } from "../services/projects/project-model";
 import { isStorageOverQuota } from "../services/projects/project.service";
 import {
@@ -32,14 +34,19 @@ import {
 } from "../services/field-service/field-service-model";
 import {
   allocateOrderNumber,
+  buildOrderShareUrl,
   deleteOrderFiles,
+  ensureOrderShareToken,
+  generateOrderPdf,
   loadClientSnapshot,
   loadEquipmentLabels,
   loadOfTenant,
   loadTechnician,
   orderFilePath,
+  resolveOrderShareToken,
   storeOrderFile,
   syncOrderStock,
+  toClientOrderView,
 } from "../services/field-service/field-service.service";
 
 /**
@@ -650,5 +657,73 @@ export async function deleteServiceOrder(req: Request, res: Response) {
     return res.json({ success: true });
   } catch (error) {
     return fail(res, error, "Erro ao excluir a ordem de serviço.", "service_order_delete_failed");
+  }
+}
+
+/**
+ * POST /v1/service-orders/:id/share-link
+ *
+ * O link do comprovante para mandar ao cliente. Um por OS, reaproveitado.
+ */
+export async function createServiceOrderShareLink(req: Request, res: Response) {
+  try {
+    const { tenantId, uid } = await requireAccess(req, "service_orders", "canView");
+    const found = await loadOrderForUser(req, tenantId, uid);
+    const token = await ensureOrderShareToken({ tenantId, orderId: found.ref.id, uid });
+    return res.json({ url: buildOrderShareUrl(token) });
+  } catch (error) {
+    return fail(res, error, "Erro ao gerar o link da OS.", "service_order_share_link_failed");
+  }
+}
+
+/**
+ * GET /v1/share/service-order/:token (público)
+ *
+ * Token inexistente, OS apagada ou empresa sem o módulo dão o mesmo 404, como
+ * no portal do cliente.
+ */
+export async function getSharedServiceOrder(req: Request, res: Response) {
+  try {
+    const shared = await resolveOrderShareToken(String(req.params.token || ""));
+    if (!shared || !(await tenantHasCapability(shared.tenantId, "fieldService"))) {
+      return res.status(404).json({ message: "Link não encontrado ou inválido" });
+    }
+    const tenant = (await db.collection("tenants").doc(shared.tenantId).get()).data() ?? {};
+    res.setHeader("Cache-Control", "no-store");
+    return res.json({
+      order: toClientOrderView(shared.data),
+      tenant: {
+        name: tenant.name ?? null,
+        logoUrl: tenant.logoUrl ?? null,
+        primaryColor: tenant.primaryColor ?? null,
+      },
+    });
+  } catch (error) {
+    return fail(res, error, "Erro ao carregar a OS.", "shared_service_order_get_failed");
+  }
+}
+
+/**
+ * GET /v1/service-orders/:id/pdf
+ *
+ * Montado também na função `pdf` (o proxy manda todo caminho terminado em
+ * `/pdf` para lá), que não passa pelo gate de plano do router: por isso a
+ * capacidade é conferida aqui.
+ */
+export async function downloadServiceOrderPdf(req: Request, res: Response) {
+  try {
+    const { tenantId, uid } = await requireAccess(req, "service_orders", "canView");
+    if (!(await tenantHasCapability(tenantId, "fieldService"))) {
+      return res.status(402).json({ message: "O plano da empresa não inclui ordens de serviço." });
+    }
+    const found = await loadOrderForUser(req, tenantId, uid);
+    const result = await generateOrderPdf({ tenantId, orderId: found.ref.id, uid });
+    const filename = buildPdfFilename(result.code, { prefix: "OS", fallbackName: "OS.pdf" });
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader("Content-Disposition", buildPdfContentDisposition(filename));
+    res.setHeader("Cache-Control", "private, no-store");
+    return res.status(200).send(result.buffer);
+  } catch (error) {
+    return fail(res, error, "Erro ao gerar o PDF da OS.", "service_order_pdf_failed");
   }
 }

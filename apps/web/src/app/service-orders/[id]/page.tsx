@@ -8,6 +8,8 @@ import {
   CalendarClock,
   CheckCircle2,
   ClipboardList,
+  Download,
+  Link2,
   MapPin,
   Pencil,
   Phone,
@@ -43,6 +45,7 @@ import { usePagePermission } from "@/hooks/usePagePermission";
 import { useServiceOrderScope } from "@/hooks/useServiceOrders";
 import { toast } from "@/lib/toast";
 import { FieldService } from "@/services/field-service-service";
+import { downloadServiceOrderPdf } from "@/services/pdf/download-service-order-pdf";
 import type { ServiceOrder } from "@/types/field-service";
 import { ServiceOrdersSkeleton } from "../_components/service-orders-skeleton";
 import { ServiceOrderStatusBadge } from "../_components/status-badge";
@@ -208,6 +211,31 @@ export default function ServiceOrderDetailPage() {
               <Button variant="outline" onClick={() => setReopenOpen(true)} disabled={busy}>
                 <RotateCcw className="mr-2 h-4 w-4" />
                 Reabrir
+              </Button>
+            )}
+            {!isReadOnly && (
+              <Button
+                variant="outline"
+                disabled={busy}
+                onClick={() => run(() => downloadServiceOrderPdf(order.id, order.code), "PDF gerado.")}
+              >
+                <Download className="mr-2 h-4 w-4" />
+                PDF
+              </Button>
+            )}
+            {!isReadOnly && (
+              <Button
+                variant="outline"
+                disabled={busy}
+                onClick={() =>
+                  run(async () => {
+                    const { url } = await FieldService.shareLink(order.id);
+                    await navigator.clipboard.writeText(url);
+                  }, "Link da OS copiado. Mande ao cliente.")
+                }
+              >
+                <Link2 className="mr-2 h-4 w-4" />
+                Link do cliente
               </Button>
             )}
             {!isReadOnly && canDelete && order.status !== "completed" && (

@@ -19,6 +19,7 @@ share/
 ├── [token]/page.tsx              # Proposta compartilhada
 ├── transaction/[token]/page.tsx  # Lançamento financeiro compartilhado
 ├── project/[token]/page.tsx      # Entrega da obra (projeto de instalação): conferir, ver a data das visitas e aceitar
+├── os/[token]/page.tsx           # Comprovante da ordem de serviço (peças, fotos, assinatura); é o que o PDF da OS imprime
 ├── visita/[token]/page.tsx       # Link de agendamento: escolher horário e pedir a visita
 ├── portal/[token]/page.tsx       # Portal do cliente: propostas, pagamentos, obra e notas de um contato
 └── contador/[token]/page.tsx     # Link do contador: DRE, lançamentos e notas da empresa, só leitura

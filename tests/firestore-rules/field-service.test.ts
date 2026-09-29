@@ -137,8 +137,15 @@ describe("customer_equipment e stock_movements", () => {
   });
 });
 
-describe("service_order_counters", () => {
+describe("service_order_counters e shared_service_orders", () => {
   it("nem o dono lê o contador", async () => {
     await assertFails(getDoc(doc(ctx("dono", "MASTER"), "service_order_counters", ALPHA)));
+  });
+
+  it("o link público só é resolvido pelo backend", async () => {
+    await testEnv.withSecurityRulesDisabled(async (admin) => {
+      await setDoc(doc(admin.firestore(), "shared_service_orders", "tok"), { tenantId: ALPHA, serviceOrderId: "do-diego" });
+    });
+    await assertFails(getDoc(doc(ctx("dono", "MASTER"), "shared_service_orders", "tok")));
   });
 });

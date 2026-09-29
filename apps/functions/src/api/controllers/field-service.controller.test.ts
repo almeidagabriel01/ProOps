@@ -24,6 +24,21 @@ jest.mock("../../lib/auth-helpers", () => ({
 jest.mock("../services/projects/project.service", () => ({
   isStorageOverQuota: async () => false,
 }));
+let capability = true;
+jest.mock("../../lib/tenant-capabilities", () => ({
+  tenantHasCapability: async () => capability,
+}));
+const rendered: string[] = [];
+jest.mock("../services/core-pdf.service", () => ({
+  resolveAppBaseUrl: () => "https://erp.test",
+  renderPageToPdfBuffer: async ({ url }: { url: string }) => {
+    rendered.push(url);
+    return Buffer.from("%PDF-1.7 fake");
+  },
+}));
+jest.mock("../../lib/frontend-app-url", () => ({
+  resolveFrontendAppUrl: () => "https://erp.test/",
+}));
 jest.mock("firebase-admin/storage", () => ({
   getStorage: () => ({
     bucket: () => ({
@@ -32,6 +47,7 @@ jest.mock("firebase-admin/storage", () => ({
         save: async () => {
           savedFiles.push(path);
         },
+        exists: async () => [false],
         delete: async () => {
           deletedFiles.push(path);
         },
@@ -85,7 +101,10 @@ import {
   changeServiceOrderStatus,
   completeServiceOrder,
   createServiceOrder,
+  createServiceOrderShareLink,
   deleteServiceOrder,
+  downloadServiceOrderPdf,
+  getSharedServiceOrder,
   reopenServiceOrder,
   updateServiceOrder,
 } from "./field-service.controller";
@@ -111,6 +130,14 @@ function mockRes(): MockRes {
       state.body = body;
       return res;
     },
+    send(body: unknown) {
+      state.body = body;
+      return res;
+    },
+    setHeader() {
+      return res;
+    },
+    headersSent: false,
   };
   return res as unknown as MockRes;
 }
@@ -148,10 +175,13 @@ function order(over: Doc = {}): Doc {
 
 beforeEach(() => {
   autoId = 0;
+  capability = true;
+  rendered.length = 0;
   permissions.clear();
   savedFiles.length = 0;
   deletedFiles.length = 0;
   store = {
+    tenants: { t1: { name: "Polar Climatização", logoUrl: null, primaryColor: "#1e40af" } },
     clients: { c1: { tenantId: "t1", name: "Ana Souza", phone: "11999990000", address: "Rua A, 10" } },
     users: { tec: { tenantId: "t1", name: "Diego" }, fora: { tenantId: "t2", name: "Outro" } },
     products: { p1: { tenantId: "t1", name: "Capacitor", inventoryValue: 5, inventoryUnit: "unit" } },
@@ -364,5 +394,81 @@ describe("reabrir e cancelar", () => {
     expect(res.statusCode).toBe(200);
     expect(store.service_orders.o1).toBeUndefined();
     expect(deletedFiles).toEqual(["tenants/t1/service_orders/o1/f1.webp"]);
+  });
+});
+
+describe("link público e PDF", () => {
+  async function shareLink(opts: { uid?: string; role?: string; id?: string } = {}) {
+    const res = mockRes();
+    await createServiceOrderShareLink(req({ ...opts, params: { id: opts.id ?? "o1" } }), res);
+    return res;
+  }
+
+  it("um link por OS, reaproveitado", async () => {
+    const first = await shareLink();
+    const second = await shareLink();
+    const url = (first.body as { url: string }).url;
+    expect(url).toMatch(/^https:\/\/erp\.test\/share\/os\/[A-Za-z0-9_-]{32}$/);
+    expect((second.body as { url: string }).url).toBe(url);
+    expect(Object.keys(store.shared_service_orders)).toHaveLength(1);
+  });
+
+  it("o técnico não gera link de OS de outro", async () => {
+    permissions.set("service_orders.canView", true);
+    const res = await shareLink({ ...TECH, id: "outra" });
+    expect(res.statusCode).toBe(404);
+  });
+
+  it("o cliente vê a OS sem IP, navegador, técnico interno nem caminho de arquivo", async () => {
+    store.service_orders.o1.signature = {
+      name: "Ana Souza",
+      document: null,
+      imageUrl: "https://files.test/a.png",
+      storagePath: "tenants/t1/service_orders/o1/assinatura-1.png",
+      signedAt: "2026-09-29T15:00:00.000Z",
+      ip: "10.0.0.1",
+      userAgent: "jest",
+      contentHash: "h",
+    };
+    const url = (await shareLink()).body as { url: string };
+    const token = url.url.split("/").pop()!;
+    const res = mockRes();
+    await getSharedServiceOrder(req({ params: { token } }), res);
+    expect(res.statusCode).toBe(200);
+    const body = JSON.stringify(res.body);
+    expect(body).toContain("Ana Souza");
+    expect(body).toContain("Polar Climatização");
+    for (const secret of ["10.0.0.1", "jest", "assinatura-1.png", "technicianUids", "stockApplied"]) {
+      expect(body).not.toContain(secret);
+    }
+  });
+
+  it("token desconhecido ou empresa sem o módulo dão o mesmo 404", async () => {
+    const unknown = mockRes();
+    await getSharedServiceOrder(req({ params: { token: "x".repeat(32) } }), unknown);
+    expect(unknown.statusCode).toBe(404);
+
+    const token = ((await shareLink()).body as { url: string }).url.split("/").pop()!;
+    capability = false;
+    const noPlan = mockRes();
+    await getSharedServiceOrder(req({ params: { token } }), noPlan);
+    expect(noPlan.statusCode).toBe(404);
+  });
+
+  it("o PDF imprime a página pública da OS", async () => {
+    const res = mockRes();
+    await downloadServiceOrderPdf(req({ params: { id: "o1" } }), res);
+    expect(res.statusCode).toBe(200);
+    expect(rendered).toHaveLength(1);
+    expect(rendered[0]).toMatch(/^https:\/\/erp\.test\/share\/os\/[A-Za-z0-9_-]+\?print=1$/);
+    expect(savedFiles).toContain("tenants/t1/service_orders/o1/pdf/os.pdf");
+  });
+
+  it("sem o módulo no plano o PDF é recusado, mesmo pela função pdf", async () => {
+    capability = false;
+    const res = mockRes();
+    await downloadServiceOrderPdf(req({ params: { id: "o1" } }), res);
+    expect(res.statusCode).toBe(402);
+    expect(rendered).toHaveLength(0);
   });
 });

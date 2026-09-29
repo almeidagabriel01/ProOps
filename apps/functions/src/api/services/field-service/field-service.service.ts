@@ -1,8 +1,10 @@
-import { randomUUID } from "node:crypto";
+import { createHash, randomBytes, randomUUID } from "node:crypto";
 import { getStorage } from "firebase-admin/storage";
 import type { Transaction } from "firebase-admin/firestore";
 import { db } from "../../../init";
 import { logger } from "../../../lib/logger";
+import { resolveFrontendAppUrl } from "../../../lib/frontend-app-url";
+import { renderPageToPdfBuffer, resolveAppBaseUrl } from "../core-pdf.service";
 import {
   EQUIPMENT_COLLECTION,
   SERVICE_ORDERS_COLLECTION,
@@ -210,6 +212,170 @@ export async function deleteOrderFiles(paths: string[]): Promise<void> {
         ),
     ),
   );
+}
+
+// ---------------------------------------------------------------------------
+// Link público da OS: o comprovante do atendimento para o cliente, e a página
+// que o Chromium do backend imprime no PDF.
+// ---------------------------------------------------------------------------
+
+export const SHARED_SERVICE_ORDERS_COLLECTION = "shared_service_orders";
+
+export function buildOrderShareUrl(token: string): string {
+  return new URL(`/share/os/${token}`, resolveFrontendAppUrl()).toString();
+}
+
+/**
+ * Um link por OS, reaproveitado: o token mora na própria OS
+ * (`shareToken`) e o documento do link tem o token como id, então abrir o
+ * link é uma leitura por id, sem consulta.
+ */
+export async function ensureOrderShareToken(params: {
+  tenantId: string;
+  orderId: string;
+  uid: string | null;
+}): Promise<string> {
+  const ref = db.collection(SERVICE_ORDERS_COLLECTION).doc(params.orderId);
+  return db.runTransaction(async (t) => {
+    const snap = await t.get(ref);
+    const current = snap.data()?.shareToken;
+    if (typeof current === "string" && current) return current;
+    const token = randomBytes(24).toString("base64url");
+    t.set(db.collection(SHARED_SERVICE_ORDERS_COLLECTION).doc(token), {
+      tenantId: params.tenantId,
+      serviceOrderId: params.orderId,
+      createdAt: new Date().toISOString(),
+      createdBy: params.uid,
+    });
+    t.update(ref, { shareToken: token });
+    return token;
+  });
+}
+
+export async function resolveOrderShareToken(token: string) {
+  if (!/^[A-Za-z0-9_-]{16,64}$/.test(token)) return null;
+  const snap = await db.collection(SHARED_SERVICE_ORDERS_COLLECTION).doc(token).get();
+  if (!snap.exists) return null;
+  const data = snap.data() ?? {};
+  const order = await loadOfTenant(SERVICE_ORDERS_COLLECTION, String(data.serviceOrderId), String(data.tenantId));
+  if (!order || order.data.shareToken !== token) return null;
+  return { tenantId: String(data.tenantId), orderId: order.ref.id, data: order.data };
+}
+
+/**
+ * O que o cliente vê: sem ids de membro, sem caminho de Storage, sem o
+ * histórico de reabertura nem o IP de quem assinou.
+ */
+export function toClientOrderView(order: Record<string, unknown>) {
+  const signature = order.signature as Record<string, unknown> | null;
+  const items = (order.items as ServiceOrderItem[] | undefined) ?? [];
+  return {
+    code: order.code,
+    type: order.type,
+    status: order.status,
+    title: order.title,
+    description: order.description ?? null,
+    clientName: order.clientName ?? null,
+    address: order.address ?? null,
+    equipmentLabels: (order.equipmentLabels as string[] | undefined) ?? [],
+    technicianName: order.technicianName ?? null,
+    scheduledStart: order.scheduledStart ?? null,
+    checkInAt: order.checkInAt ?? null,
+    checkOutAt: order.checkOutAt ?? null,
+    completedAt: order.completedAt ?? null,
+    checklist: ((order.checklist as Array<Record<string, unknown>> | undefined) ?? []).map((c) => ({
+      text: c.text,
+      done: c.done === true,
+    })),
+    items: items.map((i) => ({ name: i.name, kind: i.kind, quantity: i.quantity, unitPrice: i.unitPrice })),
+    totals: order.totals ?? { products: 0, services: 0, total: 0 },
+    report: order.report ?? null,
+    photos: ((order.photos as Array<Record<string, unknown>> | undefined) ?? []).map((p) => ({
+      url: p.url,
+      caption: p.caption ?? null,
+    })),
+    signature: signature
+      ? {
+          name: signature.name,
+          document: signature.document ?? null,
+          imageUrl: signature.imageUrl,
+          signedAt: signature.signedAt,
+          contentHash: signature.contentHash,
+        }
+      : null,
+    noSignatureReason: order.noSignatureReason ?? null,
+  };
+}
+
+/** Mude quando o layout impresso mudar: o cache antigo deixa de valer. */
+const ORDER_PDF_TEMPLATE_VERSION = "service-order-pdf-v1";
+
+export function orderPdfPath(tenantId: string, orderId: string): string {
+  // `pdf` no caminho: gerado pelo sistema, fora da conta do armazenamento.
+  return `tenants/${tenantId}/service_orders/${orderId}/pdf/os.pdf`;
+}
+
+export function orderPdfVersion(order: Record<string, unknown>, tenant: Record<string, unknown>): string {
+  return createHash("sha256")
+    .update(
+      JSON.stringify([
+        ORDER_PDF_TEMPLATE_VERSION,
+        order.updatedAt ?? null,
+        order.status ?? null,
+        tenant.name ?? null,
+        tenant.logoUrl ?? null,
+        tenant.primaryColor ?? null,
+      ]),
+    )
+    .digest("hex");
+}
+
+/**
+ * O PDF da OS, impresso da página pública pelo Chromium, com cache no Storage
+ * enquanto a OS e a marca da empresa não mudarem.
+ */
+export async function generateOrderPdf(params: {
+  tenantId: string;
+  orderId: string;
+  uid: string | null;
+}): Promise<{ buffer: Buffer; code: string }> {
+  const found = await loadOfTenant(SERVICE_ORDERS_COLLECTION, params.orderId, params.tenantId);
+  if (!found) throw new Error("SERVICE_ORDER_NOT_FOUND");
+  const tenantSnap = await db.collection("tenants").doc(params.tenantId).get();
+  const version = orderPdfVersion(found.data, tenantSnap.data() ?? {});
+  const path = orderPdfPath(params.tenantId, params.orderId);
+  const file = getStorage().bucket().file(path);
+  const code = String(found.data.code ?? "OS");
+
+  const [exists] = await file.exists();
+  if (exists) {
+    const [metadata] = await file.getMetadata();
+    if (metadata.metadata?.versionHash === version) {
+      const [cached] = await file.download();
+      if (cached.subarray(0, 5).toString("ascii") === "%PDF-") return { buffer: cached, code };
+    }
+  }
+
+  const token = await ensureOrderShareToken(params);
+  const buffer = await renderPageToPdfBuffer({
+    url: `${buildOrderShareUrl(token)}?print=1`,
+    readySelector: '[data-pdf-service-order-ready="1"]',
+    appOrigin: resolveAppBaseUrl(),
+    vercelBypassSecret: process.env.VERCEL_PROTECTION_BYPASS_SECRET || "",
+  });
+  if (buffer.subarray(0, 5).toString("ascii") !== "%PDF-") throw new Error("INVALID_PDF_HEADER");
+  try {
+    await file.save(buffer, {
+      contentType: "application/pdf",
+      resumable: false,
+      metadata: { cacheControl: "private, max-age=3600", metadata: { versionHash: version } },
+    });
+  } catch (error) {
+    logger.warn("service_order_pdf_cache_failed", {
+      error: error instanceof Error ? error.message : String(error),
+    });
+  }
+  return { buffer, code };
 }
 
 export { SERVICE_ORDERS_COLLECTION, EQUIPMENT_COLLECTION };
