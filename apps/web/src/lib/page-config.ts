@@ -163,6 +163,22 @@ export const PAGE_CONFIG: Record<string, PageConfig> = {
     requiresAuth: true,
     requiredPermission: "view",
   },
+  "/service-orders": {
+    pageId: "service_orders",
+    slug: "/service-orders",
+    name: "Ordens de serviço",
+    module: "service_orders",
+    requiresAuth: true,
+    requiredPermission: "view",
+  },
+  "/equipment": {
+    pageId: "equipment",
+    slug: "/equipment",
+    name: "Equipamentos",
+    module: "equipment",
+    requiresAuth: true,
+    requiredPermission: "view",
+  },
   "/tasks": {
     pageId: "tasks",
     slug: "/tasks",

@@ -27,7 +27,7 @@ export function RoleSelectionStep({
           </div>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           {ROLE_PRESETS.map((role) => {
             const config = roleConfig[role.id as keyof typeof roleConfig];
             const RoleIcon = config.icon;

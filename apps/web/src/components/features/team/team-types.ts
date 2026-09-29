@@ -54,4 +54,11 @@ export const ROLE_PRESETS = [
     description: "Acesso completo (exceto plano)",
     color: "bg-emerald-500/10 text-emerald-500 border-emerald-500/20",
   },
+  {
+    id: "technician",
+    name: "Técnico",
+    icon: "🔧",
+    description: "Atende as ordens de serviço atribuídas a ele, pelo celular",
+    color: "bg-teal-500/10 text-teal-500 border-teal-500/20",
+  },
 ];

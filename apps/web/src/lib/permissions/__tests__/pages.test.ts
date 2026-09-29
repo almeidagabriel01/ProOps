@@ -113,3 +113,39 @@ describe("nome da página nas telas de Equipe, por nicho", () => {
     expect(getPermissionPageName(products, "seguranca_eletronica")).toBe(products.name);
   });
 });
+
+describe("preset de técnico", () => {
+  const perms = getDefaultPermissions("technician", true);
+
+  it("atende OS sem criar nem excluir, e consulta equipamentos e agenda", () => {
+    expect(perms.service_orders).toEqual({
+      canView: true,
+      canCreate: false,
+      canEdit: true,
+      canDelete: false,
+    });
+    expect(perms.equipment?.canView).toBe(true);
+    expect(perms.equipment?.canEdit).toBe(false);
+    expect(perms.calendar?.canView).toBe(true);
+  });
+
+  it("vê só as OS atribuídas a ele: sem service_orders_all", () => {
+    expect(perms.service_orders_all).toEqual({ canView: false });
+  });
+
+  it("o resto do ERP fica fechado", () => {
+    for (const id of ["proposals", "clients", "products", "transactions", "kanban", "dashboard"]) {
+      expect(perms[id]?.canView, id).toBe(false);
+    }
+  });
+
+  it("oferece as mesmas páginas dos outros presets", () => {
+    expect(Object.keys(perms).sort()).toEqual(Object.keys(getDefaultPermissions("viewer", true)).sort());
+  });
+
+  it("os outros presets enxergam todas as OS", () => {
+    for (const role of ["viewer", "editor", "admin"] as const) {
+      expect(getDefaultPermissions(role, true).service_orders_all).toEqual({ canView: true });
+    }
+  });
+});
