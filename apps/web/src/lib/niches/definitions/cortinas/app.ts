@@ -84,6 +84,23 @@ export const nicheConfig: NicheConfig = {
     total: 2,
   },
   onboardingStepDescriptions: {},
+  fieldService: {
+    equipmentTypes: [
+      "Persiana",
+      "Cortina",
+      "Toldo",
+      "Motor",
+      "Controle remoto",
+    ],
+    equipmentNamePlaceholder: "Ex.: Persiana rolô da sala",
+    preventiveChecklist: [
+      "Testar abertura e fechamento",
+      "Lubrificar trilhos e mecanismo",
+      "Verificar motor e fim de curso",
+      "Conferir tecido e costuras",
+      "Testar o controle remoto",
+    ],
+  },
   booking: {
     defaultVisitType: NICHE_REGISTRY.cortinas.defaultVisitType,
   },

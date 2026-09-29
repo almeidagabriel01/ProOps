@@ -24,10 +24,10 @@ Segmentos de rota: proposals, contacts, products, transactions, calendar, crm, d
 403, admin, agendar, ambientes, aplicativo, api, auth,
 automacao-residencial, automation, booking, calendar, cash-flow, checkout-success,
 commissions, contacts, contato, cookies, crm, dashboard, data-deletion, dre,
-decoracao, fale-conosco, forgot-password, funcionalidades, goals, institucional, invoices, login,
+decoracao, equipment, fale-conosco, forgot-password, funcionalidades, goals, institucional, invoices, login,
 manifesto, notifications, privacy, products, produtos, profile, projects, proposals,
 register, reset,
-services, settings, share, sobre, solutions, spreadsheets, subscribe,
+service-orders, services, settings, share, sobre, solutions, spreadsheets, subscribe,
 subscription-blocked, tasks, team, terms, transactions, verify, wallets
 ```
 
@@ -107,6 +107,19 @@ As duas telas moravam em Configurações até 2026-09-28; os endereços antigos
 (`/settings/goals`, `/settings/booking`) só redirecionam. O portão de plano e
 de administrador continua dentro da tela, e não em `page-config.ts`, para o
 membro que abrir pela URL ler o motivo em vez de cair em `/403`.
+
+A **assistência técnica** são duas telas do grupo Assistência da dock:
+`/service-orders` (a fila de OS, o detalhe `/service-orders/[id]` e o
+atendimento pelo celular em `/service-orders/[id]/executar`, passo a passo até
+a assinatura) e `/equipment` (o parque instalado, também como aba
+"Equipamentos" na ficha do contato, carregada sob demanda). A lista e o
+detalhe são lidos no Firestore; o técnico sem o escopo `service_orders_all`
+consulta filtrando por ele mesmo (`serviceOrdersQuery`), senão as rules recusam
+a lista. O que muda por nicho (tipos de equipamento, exemplo de nome e o
+checklist com que a preventiva nasce) é `NicheConfig.fieldService`. A barra de
+ações no rodapé é `sticky` dentro do `<main>`, e não `fixed`: quem rola é o
+`<main>`, e a barra de abas do celular fica logo abaixo dele. Regras do backend
+em `apps/functions/CLAUDE.md`, seção Assistência técnica.
 
 O **portal do cliente** também tem duas pontas: o botão "Portal do cliente"
 na ficha do contato (`/contacts/[id]`, ao lado das abas) e a página pública em

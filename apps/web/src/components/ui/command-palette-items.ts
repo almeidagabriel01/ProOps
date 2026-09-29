@@ -24,6 +24,8 @@ import {
   TrendingUp,
   Target,
   CalendarClock,
+  ClipboardList,
+  ServerCog,
 } from "lucide-react";
 
 import {
@@ -121,7 +123,27 @@ export const searchItems: SearchItem[] = [
     icon: HardHat,
     requiresView: "projects",
     requiresCapability: "projects",
-    keywords: ["projeto", "obra", "instalação", "ordem de serviço", "os", "entrega", "técnico"],
+    keywords: ["projeto", "obra", "instalação", "entrega", "técnico"],
+  },
+  {
+    id: "service-orders",
+    label: "Ordens de serviço",
+    description: "Chamados técnicos, com a assinatura do cliente",
+    path: "/service-orders",
+    icon: ClipboardList,
+    requiresView: "service_orders",
+    requiresCapability: "fieldService",
+    keywords: ["ordem de serviço", "os", "chamado", "manutenção", "assistência", "técnico", "preventiva", "corretiva"],
+  },
+  {
+    id: "equipment",
+    label: "Equipamentos",
+    description: "Aparelhos instalados nos clientes",
+    path: "/equipment",
+    icon: ServerCog,
+    requiresView: "equipment",
+    requiresCapability: "fieldService",
+    keywords: ["equipamento", "aparelho", "garantia", "número de série", "parque instalado"],
   },
   {
     id: "spreadsheets",

@@ -102,6 +102,24 @@ export const nicheConfig: NicheConfig = {
     total: 2,
   },
   onboardingStepDescriptions: {},
+  fieldService: {
+    equipmentTypes: [
+      "Janela",
+      "Porta",
+      "Box de banheiro",
+      "Guarda-corpo",
+      "Fachada",
+      "Espelho",
+    ],
+    equipmentNamePlaceholder: "Ex.: Janela de correr da suíte",
+    preventiveChecklist: [
+      "Verificar vedação e silicone",
+      "Regular roldanas e trilhos",
+      "Conferir fechaduras e puxadores",
+      "Inspecionar vidros e fixações",
+      "Limpar os drenos das esquadrias",
+    ],
+  },
   booking: {
     defaultVisitType: NICHE_REGISTRY.vidracaria_esquadrias.defaultVisitType,
   },

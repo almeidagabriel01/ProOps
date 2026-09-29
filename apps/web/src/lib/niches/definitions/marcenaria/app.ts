@@ -102,6 +102,24 @@ export const nicheConfig: NicheConfig = {
     total: 2,
   },
   onboardingStepDescriptions: {},
+  fieldService: {
+    equipmentTypes: [
+      "Armário",
+      "Cozinha planejada",
+      "Guarda-roupa",
+      "Painel",
+      "Bancada",
+      "Porta",
+    ],
+    equipmentNamePlaceholder: "Ex.: Guarda-roupa do casal",
+    preventiveChecklist: [
+      "Regular portas e dobradiças",
+      "Ajustar as corrediças das gavetas",
+      "Verificar a fixação na parede",
+      "Conferir acabamento e fitas de borda",
+      "Lubrificar as ferragens",
+    ],
+  },
   booking: {
     defaultVisitType: NICHE_REGISTRY.marcenaria.defaultVisitType,
   },

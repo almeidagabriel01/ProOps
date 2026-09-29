@@ -101,6 +101,27 @@ export const nicheConfig: NicheConfig = {
     total: 2,
   },
   onboardingStepDescriptions: {},
+  fieldService: {
+    equipmentTypes: [
+      "Split hi-wall",
+      "Cassete",
+      "Piso-teto",
+      "Multi-split",
+      "VRF",
+      "Janela",
+      "Cortina de ar",
+    ],
+    equipmentNamePlaceholder: "Ex.: Split 12.000 BTU da sala",
+    preventiveChecklist: [
+      "Limpar os filtros de ar",
+      "Higienizar evaporadora e bandeja",
+      "Limpar a condensadora",
+      "Verificar o dreno",
+      "Medir pressão e temperatura de insuflamento",
+      "Conferir as conexões elétricas",
+      "Medir a corrente do compressor",
+    ],
+  },
   booking: {
     defaultVisitType: NICHE_REGISTRY.climatizacao.defaultVisitType,
   },

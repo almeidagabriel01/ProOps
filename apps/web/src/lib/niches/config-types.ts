@@ -169,4 +169,15 @@ export interface NicheConfig {
   booking: {
     defaultVisitType: { id: string; label: string; durationMin: number };
   };
+  /**
+   * Assistência técnica: o que é um "equipamento" neste negócio (um split, uma
+   * câmera, uma persiana) e o que a manutenção preventiva confere. Os tipos são
+   * sugestões do cadastro, não uma lista fechada.
+   */
+  fieldService: {
+    equipmentTypes: string[];
+    equipmentNamePlaceholder: string;
+    /** Checklist com que a OS preventiva nasce. */
+    preventiveChecklist: string[];
+  };
 }

@@ -82,6 +82,26 @@ export const nicheConfig: NicheConfig = {
     total: 2,
   },
   onboardingStepDescriptions: {},
+  fieldService: {
+    equipmentTypes: [
+      "Central de automação",
+      "Controlador ou hub",
+      "Rede e roteador",
+      "Sonorização",
+      "Câmera",
+      "Fechadura inteligente",
+      "Cortina motorizada",
+      "Nobreak",
+    ],
+    equipmentNamePlaceholder: "Ex.: Central de automação da sala",
+    preventiveChecklist: [
+      "Testar cenas e comandos",
+      "Atualizar o firmware da central",
+      "Verificar a rede e o roteador",
+      "Testar controles e o aplicativo",
+      "Conferir nobreak e alimentação",
+    ],
+  },
   booking: {
     defaultVisitType: NICHE_REGISTRY.automacao_residencial.defaultVisitType,
   },

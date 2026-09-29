@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import {
@@ -14,6 +15,7 @@ import {
   Wallet,
 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -43,6 +45,13 @@ import { formatDateBR } from "@/utils/date-format";
 import { toast } from "@/lib/toast";
 import { summarizeFinance, summarizeProposals } from "../../_lib/client-summary";
 
+// A aba só existe com o módulo de assistência: carrega quando é aberta, e o
+// resto da ficha não leva o catálogo e a OS junto.
+const EquipmentList = dynamic(
+  () => import("@/components/features/field-service/equipment-list").then((m) => m.EquipmentList),
+  { ssr: false },
+);
+
 const LEGACY_STATUS_LABEL: Record<string, string> = {
   draft: "Rascunho",
   in_progress: "Em aberto",
@@ -66,7 +75,7 @@ const INVOICE_STATUS_LABEL: Record<string, string> = {
   error: "Erro",
 };
 
-const HUB_TABS = ["resumo", "propostas", "financeiro", "tarefas", "anotacoes", "dados"];
+const HUB_TABS = ["resumo", "propostas", "financeiro", "tarefas", "equipamentos", "anotacoes", "dados"];
 
 interface ContactHubProps {
   client: Client;
@@ -85,12 +94,14 @@ type Loadable<T> = { loading: boolean; data: T };
 export function ContactHub({ client, dataTab }: ContactHubProps) {
   const { tenant } = useTenant();
   const tenantId = tenant?.id;
-  const { hasFinancial, hasFiscal } = usePlanLimits();
+  const { hasFinancial, hasFiscal, hasFieldService } = usePlanLimits();
   const { canView: canViewProposals } = usePagePermission("proposals");
   const { canView: canViewTransactions } = usePagePermission("transactions");
   const { canView: canViewInvoices } = usePagePermission("invoices");
   const { canEdit: canEditClient } = usePagePermission("clients");
   const { canView: canViewTasks } = usePagePermission("tasks");
+  const { canView: canViewEquipment } = usePagePermission("equipment");
+  const showEquipment = hasFieldService && canViewEquipment;
 
   const showFinance = hasFinancial && canViewTransactions;
   const showInvoices = hasFiscal && canViewInvoices;
@@ -225,6 +236,7 @@ export function ContactHub({ client, dataTab }: ContactHubProps) {
           {/* "Próximas ações", e não "Tarefas": a tarefa é de alguém da equipe
               e o contato é só o assunto. O valor segue "tarefas" pelo ?aba=. */}
           {canViewTasks && <TabsTrigger value="tarefas">Próximas ações</TabsTrigger>}
+          {showEquipment && <TabsTrigger value="equipamentos">Equipamentos</TabsTrigger>}
           <TabsTrigger value="anotacoes">Anotações</TabsTrigger>
           <TabsTrigger value="dados">Dados</TabsTrigger>
         </TabsList>
@@ -559,6 +571,12 @@ export function ContactHub({ client, dataTab }: ContactHubProps) {
       {canViewTasks && (
         <TabsContent value="tarefas">
           <TasksPanel context={{ clientId: client.id, clientName: client.name }} hideHeading />
+        </TabsContent>
+      )}
+
+      {showEquipment && (
+        <TabsContent value="equipamentos">
+          <EquipmentList client={{ id: client.id, name: client.name }} />
         </TabsContent>
       )}
 

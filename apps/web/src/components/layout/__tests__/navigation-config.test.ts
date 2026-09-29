@@ -52,10 +52,19 @@ describe("menuItems", () => {
     }
   });
 
-  it("a dock oferece 8 destinos de topo", () => {
+  it("a dock oferece 9 destinos de topo", () => {
     // Calendário, Tarefas e Link de agendamento dividem o ícone da Agenda.
     // Projetos (obra depois da venda) mora no grupo de Propostas.
-    expect(menuItems).toHaveLength(8);
+    expect(menuItems).toHaveLength(9);
+  });
+
+  it("Assistência é grupo com capacidade própria, OS e equipamentos", () => {
+    const group = menuItems.find((item) => item.label === "Assistência");
+    expect(group?.requiresCapability).toBe("fieldService");
+    expect(group?.children?.map((c) => [c.href, c.pageId])).toEqual([
+      ["/service-orders", "service_orders"],
+      ["/equipment", "equipment"],
+    ]);
   });
 
   it("Agenda é grupo, sem capacidade própria, e só o link pede plano", () => {

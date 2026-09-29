@@ -184,6 +184,33 @@ export const MENU_STEP_TEMPLATES: Record<string, OnboardingStepTemplate> = {
     ],
     actionLabel: "Abrir Projetos",
   },
+  "/service-orders": {
+    id: "service-orders",
+    route: "/service-orders",
+    chapter: "sales",
+    description:
+      "O chamado técnico depois da venda: abra a OS, escolha o técnico e a data, e ele atende pelo celular com a assinatura do cliente na tela.",
+    checklist: [
+      { text: "Abra uma OS para o chamado do cliente e ligue os equipamentos atendidos." },
+      { text: "Escolha o técnico e a data da visita." },
+      { text: "No atendimento, o técnico marca o checklist, lança as peças e tira as fotos." },
+      { text: "O cliente assina na tela, e as peças usadas saem do estoque." },
+    ],
+    actionLabel: "Abrir Ordens de serviço",
+  },
+  "/equipment": {
+    id: "equipment",
+    route: "/equipment",
+    chapter: "sales",
+    description:
+      "O que está instalado em cada cliente, com marca, modelo, número de série, garantia e o último atendimento.",
+    checklist: [
+      { text: "Cadastre os aparelhos que a sua empresa instalou ou atende." },
+      { text: "Informe a garantia: a lista avisa quando ela está para vencer." },
+      { text: "Abra a OS direto do equipamento quando o cliente chamar." },
+    ],
+    actionLabel: "Abrir Equipamentos",
+  },
   "/contacts": {
     id: "contacts",
     route: "/contacts",

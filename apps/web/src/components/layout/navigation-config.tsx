@@ -21,6 +21,8 @@ import {
   TrendingUp,
   Target,
   CalendarClock,
+  ClipboardList,
+  ServerCog,
 } from "lucide-react";
 
 import type { NicheConfig } from "@/lib/niches/config-types";
@@ -235,6 +237,27 @@ export const menuItems: MenuItem[] = [
         masterOnly: true,
         showInDemo: true,
         requiresCapability: "bookingLink",
+      },
+    ],
+  },
+  {
+    icon: ClipboardList,
+    label: "Assistência",
+    // O pós-venda técnico: o chamado (OS) e o aparelho atendido. As duas telas
+    // pedem a mesma capacidade, então o grupo coroa inteiro.
+    requiresCapability: "fieldService",
+    children: [
+      {
+        icon: ClipboardList,
+        label: "Ordens de serviço",
+        href: "/service-orders",
+        pageId: "service_orders",
+      },
+      {
+        icon: ServerCog,
+        label: "Equipamentos",
+        href: "/equipment",
+        pageId: "equipment",
       },
     ],
   },

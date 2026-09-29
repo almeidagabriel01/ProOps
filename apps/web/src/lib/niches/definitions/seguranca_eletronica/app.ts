@@ -85,6 +85,26 @@ export const nicheConfig: NicheConfig = {
     solutions:
       "Kits prontos, como oito câmeras com gravador ou um alarme monitorado, com os produtos de cada área já definidos.",
   },
+  fieldService: {
+    equipmentTypes: [
+      "Câmera",
+      "DVR ou NVR",
+      "Central de alarme",
+      "Sensor",
+      "Cerca elétrica",
+      "Controle de acesso",
+      "Interfone",
+    ],
+    equipmentNamePlaceholder: "Ex.: Câmera da garagem",
+    preventiveChecklist: [
+      "Testar todas as câmeras e a gravação",
+      "Conferir o HD e os dias de gravação",
+      "Testar sensores e sirene",
+      "Verificar a bateria da central",
+      "Limpar lentes e caixas",
+      "Conferir o acesso remoto",
+    ],
+  },
   booking: {
     defaultVisitType: NICHE_REGISTRY.seguranca_eletronica.defaultVisitType,
   },

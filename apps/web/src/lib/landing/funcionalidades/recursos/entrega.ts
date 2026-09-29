@@ -169,6 +169,8 @@ export const RECURSOS_DE_ENTREGA: readonly Recurso[] = [
     ],
     icone: PenLine,
     requisito: { tipo: "plano", recursos: ["hasFieldService"] },
+    rota: "/service-orders",
+    ondeFica: "Assistência › Ordens de serviço",
   },
   {
     id: "equipamentos-do-cliente",
@@ -180,5 +182,7 @@ export const RECURSOS_DE_ENTREGA: readonly Recurso[] = [
     ],
     icone: ServerCog,
     requisito: { tipo: "plano", recursos: ["hasFieldService"] },
+    rota: "/equipment",
+    ondeFica: "Assistência › Equipamentos",
   },
 ];
