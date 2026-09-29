@@ -10,8 +10,8 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { CurrencyInput } from "@/components/ui/currency-input";
 import { DatePicker } from "@/components/ui/date-picker";
-import { DecimalInput } from "@/components/ui/decimal-input";
 import { Label } from "@/components/ui/label";
 import { Loader } from "@/components/ui/loader";
 import { SegmentedControl } from "@/components/ui/segmented-control";
@@ -22,7 +22,7 @@ import { toast } from "@/lib/toast";
 import { formatCurrency } from "@/utils/format";
 import { WalletService } from "@/services/wallet-service";
 import { FieldService, type LaunchTransactionInput } from "@/services/field-service-service";
-import { launchSummary } from "@/lib/field-service/service-orders";
+import { launchSummary, keepOpenOnOutsideClick } from "@/lib/field-service/service-orders";
 import type { Wallet } from "@/types";
 import type { ServiceOrder } from "@/types/field-service";
 
@@ -119,7 +119,7 @@ export function LaunchTransactionDialog({ open, onOpenChange, order }: LaunchTra
 
   return (
     <Dialog open={open} onOpenChange={(next) => !saving && onOpenChange(next)}>
-      <DialogContent className="sm:max-w-lg">
+      <DialogContent className="sm:max-w-lg" onInteractOutside={keepOpenOnOutsideClick}>
         <DialogHeader>
           <DialogTitle>Lançar {order.code} no financeiro</DialogTitle>
           <DialogDescription>
@@ -151,10 +151,11 @@ export function LaunchTransactionDialog({ open, onOpenChange, order }: LaunchTra
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="space-y-2">
                   <Label htmlFor="launchDownAmount">Valor da entrada</Label>
-                  <DecimalInput
+                  <CurrencyInput
                     id="launchDownAmount"
                     value={downAmount}
-                    onChange={setDownAmount}
+                    onChange={(e) => setDownAmount(Number(e.target.value) || 0)}
+                    placeholder="0,00"
                     disabled={saving}
                   />
                   {downInvalid && down > 0 && (

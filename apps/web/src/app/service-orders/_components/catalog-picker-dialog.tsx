@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { keepOpenOnOutsideClick } from "@/lib/field-service/service-orders";
 import { Input } from "@/components/ui/input";
 import { Loader } from "@/components/ui/loader";
 import { SegmentedControl } from "@/components/ui/segmented-control";
@@ -146,7 +147,7 @@ export function CatalogPickerDialog({ open, onOpenChange, onConfirm }: CatalogPi
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="flex max-h-[90vh] flex-col sm:max-w-4xl">
+      <DialogContent className="flex max-h-[90vh] flex-col sm:max-w-4xl" onInteractOutside={keepOpenOnOutsideClick}>
         <DialogHeader>
           <DialogTitle>Adicionar do catálogo</DialogTitle>
           <DialogDescription>Escolha as peças e os serviços do atendimento.</DialogDescription>

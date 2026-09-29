@@ -10,6 +10,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { keepOpenOnOutsideClick } from "@/lib/field-service/service-orders";
 import { DatePicker } from "@/components/ui/date-picker";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -107,7 +108,7 @@ export function EquipmentFormDialog({ open, onOpenChange, equipment, client, onS
 
   return (
     <Dialog open={open} onOpenChange={(next) => !saving && onOpenChange(next)}>
-      <DialogContent className="sm:max-w-2xl">
+      <DialogContent className="sm:max-w-2xl" onInteractOutside={keepOpenOnOutsideClick}>
         <DialogHeader>
           <DialogTitle>{equipment ? "Editar equipamento" : "Novo equipamento"}</DialogTitle>
           <DialogDescription>

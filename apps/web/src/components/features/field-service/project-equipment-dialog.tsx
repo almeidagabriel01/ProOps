@@ -10,6 +10,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { keepOpenOnOutsideClick } from "@/lib/field-service/service-orders";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Loader } from "@/components/ui/loader";
@@ -87,7 +88,7 @@ export function ProjectEquipmentDialog({ open, onOpenChange, project }: ProjectE
 
   return (
     <Dialog open={open} onOpenChange={(next) => !saving && onOpenChange(next)}>
-      <DialogContent className="sm:max-w-3xl">
+      <DialogContent className="sm:max-w-3xl" onInteractOutside={keepOpenOnOutsideClick}>
         <DialogHeader>
           <DialogTitle>Registrar os equipamentos da obra</DialogTitle>
           <DialogDescription>

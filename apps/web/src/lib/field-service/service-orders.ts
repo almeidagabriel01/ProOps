@@ -154,3 +154,26 @@ export function launchSummary(total: number, installments: number, downPayment: 
   const launchedTotal = Math.round((downPayment + installment * count) * 100) / 100;
   return { installment, launchedTotal, roundingDiff: Math.round((launchedTotal - total) * 100) / 100 };
 }
+
+/**
+ * Janela com formulário não fecha com um clique fora dela: um toque sem querer
+ * no fundo apagava tudo o que já tinha sido preenchido. Fecha pelo X, pelo
+ * Cancelar ou pelo Esc.
+ */
+export function keepOpenOnOutsideClick(event: Event): void {
+  event.preventDefault();
+}
+
+/** Horários da visita, de 15 em 15 minutos, das 6h às 22h. */
+export function visitTimeOptions(current?: string): string[] {
+  const options: string[] = [];
+  for (let minutes = 6 * 60; minutes <= 22 * 60; minutes += 15) {
+    options.push(`${String(Math.floor(minutes / 60)).padStart(2, "0")}:${String(minutes % 60).padStart(2, "0")}`);
+  }
+  // Um horário gravado fora da grade (08:10) continua aparecendo.
+  if (current && /^\d{2}:\d{2}$/.test(current) && !options.includes(current)) {
+    options.push(current);
+    options.sort();
+  }
+  return options;
+}

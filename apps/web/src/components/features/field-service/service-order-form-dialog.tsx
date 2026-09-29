@@ -1,7 +1,6 @@
 "use client";
 
 import * as React from "react";
-import { Clock3 } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -37,6 +36,8 @@ import {
   formatDuration,
   isoToSchedule,
   scheduleToIso,
+  keepOpenOnOutsideClick,
+  visitTimeOptions,
   type ScheduleFields,
 } from "@/lib/field-service/service-orders";
 
@@ -173,7 +174,7 @@ export function ServiceOrderFormDialog({
 
   return (
     <Dialog open={open} onOpenChange={(next) => !saving && onOpenChange(next)}>
-      <DialogContent className="sm:max-w-2xl">
+      <DialogContent className="sm:max-w-2xl" onInteractOutside={keepOpenOnOutsideClick}>
         <DialogHeader>
           <DialogTitle>{order ? `Editar ${order.code}` : "Nova ordem de serviço"}</DialogTitle>
           <DialogDescription>
@@ -352,14 +353,19 @@ export function ServiceOrderFormDialog({
             </div>
             <div className="space-y-2">
               <Label htmlFor="soTime">Horário</Label>
-              <Input
+              <Select
                 id="soTime"
-                type="time"
                 value={form.schedule.time}
                 onChange={(e) => set("schedule", { ...form.schedule, time: e.target.value })}
-                icon={<Clock3 className="h-4 w-4" />}
+                disableSort
                 disabled={saving || !form.schedule.date}
-              />
+              >
+                {visitTimeOptions(form.schedule.time).map((time) => (
+                  <option key={time} value={time}>
+                    {time}
+                  </option>
+                ))}
+              </Select>
             </div>
             <div className="space-y-2">
               <Label htmlFor="soDuration">Duração</Label>

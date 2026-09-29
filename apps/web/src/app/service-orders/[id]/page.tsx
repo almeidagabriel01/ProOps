@@ -58,7 +58,7 @@ import { CompleteDialog } from "../_components/complete-dialog";
 import { SignatureCard } from "../_components/signature-card";
 import { LaunchTransactionDialog } from "../_components/launch-transaction-dialog";
 import { useExecutionDraft } from "../_components/use-execution-draft";
-import { PRIORITY_LABELS, TYPE_LABELS, formatWhen, isClosed } from "@/lib/field-service/service-orders";
+import { PRIORITY_LABELS, TYPE_LABELS, formatWhen, isClosed, keepOpenOnOutsideClick } from "@/lib/field-service/service-orders";
 
 /** O detalhe da OS: quem coordena edita tudo, o técnico preenche a execução. */
 export default function ServiceOrderDetailPage() {
@@ -486,7 +486,7 @@ function ReopenDialog({
 
   return (
     <Dialog open={open} onOpenChange={(next) => !saving && onOpenChange(next)}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-md" onInteractOutside={keepOpenOnOutsideClick}>
         <DialogHeader>
           <DialogTitle>Reabrir {order.code}</DialogTitle>
           <DialogDescription>

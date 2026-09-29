@@ -10,6 +10,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { keepOpenOnOutsideClick } from "@/lib/field-service/service-orders";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Loader } from "@/components/ui/loader";
@@ -84,7 +85,7 @@ export function CompleteDialog({ open, onOpenChange, order, onCompleted }: Compl
 
   return (
     <Dialog open={open} onOpenChange={(next) => !saving && onOpenChange(next)}>
-      <DialogContent className="sm:max-w-lg">
+      <DialogContent className="sm:max-w-lg" onInteractOutside={keepOpenOnOutsideClick}>
         <DialogHeader>
           <DialogTitle>Concluir {order.code}</DialogTitle>
           <DialogDescription>

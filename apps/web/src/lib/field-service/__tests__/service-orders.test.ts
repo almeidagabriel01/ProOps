@@ -7,6 +7,7 @@ import {
   orderTotal,
   scheduleToIso,
   sortQueue,
+  visitTimeOptions,
   warrantyState,
 } from "../service-orders";
 
@@ -136,5 +137,26 @@ describe("resumo do lançamento", () => {
 
   it("a entrada sai do total antes da divisão", () => {
     expect(launchSummary(1000, 4, 200)).toEqual({ installment: 200, launchedTotal: 1000, roundingDiff: 0 });
+  });
+});
+
+describe("visitTimeOptions", () => {
+  it("vai das 6h às 22h, de 15 em 15 minutos", () => {
+    const options = visitTimeOptions();
+    expect(options[0]).toBe("06:00");
+    expect(options.at(-1)).toBe("22:00");
+    expect(options).toContain("08:15");
+    expect(options).toHaveLength(65);
+  });
+
+  it("mantém um horário gravado fora da grade, na ordem", () => {
+    const options = visitTimeOptions("08:10");
+    expect(options).toContain("08:10");
+    expect(options.indexOf("08:10")).toBe(options.indexOf("08:00") + 1);
+  });
+
+  it("ignora valor que não é horário e não duplica o que já está na grade", () => {
+    expect(visitTimeOptions("")).toHaveLength(65);
+    expect(visitTimeOptions("09:00")).toHaveLength(65);
   });
 });
