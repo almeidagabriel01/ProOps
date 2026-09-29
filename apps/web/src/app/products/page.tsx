@@ -51,6 +51,8 @@ import { formatCurrency } from "@/utils/format";
 import { useCurrentNicheConfig } from "@/hooks/useCurrentNicheConfig";
 import {
   formatInventoryValue,
+  inventoryDefinitionFor,
+  productInventoryUnit,
   parseInventoryValue,
 } from "@/lib/niches/config";
 import { getProductInventoryValue } from "@/services/product-service";
@@ -147,21 +149,25 @@ export default function ProductsPage() {
   const handleInventoryUpdate = async (product: Product, newValue: string) => {
     const normalizedInventoryValue = parseInventoryValue(newValue);
     if (Number.isNaN(normalizedInventoryValue)) return false;
+    // A unidade é do produto: editar o estoque de um motor numa loja de
+    // persianas gravava "metro" nele, porque a tela gravava a do nicho.
+    const productUnit = productInventoryUnit(product);
+    const productInventory = inventoryDefinitionFor(inventoryConfig, productUnit);
 
     const success = await updateProduct(
       product.id,
       {
         inventoryValue: normalizedInventoryValue,
-        inventoryUnit: inventoryConfig.mode,
+        inventoryUnit: productUnit,
         stock: normalizedInventoryValue,
       },
       {
         productName: product.name,
         context: "inventory",
-        contextLabel: inventoryConfig.readOnlyLabel,
+        contextLabel: productInventory.readOnlyLabel,
         formattedValue: formatInventoryValue(
           normalizedInventoryValue,
-          inventoryConfig,
+          productInventory,
         ),
       },
     );
@@ -175,7 +181,7 @@ export default function ProductsPage() {
             ? {
                 ...p,
                 inventoryValue: normalizedInventoryValue,
-                inventoryUnit: inventoryConfig.mode,
+                inventoryUnit: productUnit,
                 stock: normalizedInventoryValue,
               }
             : p,
@@ -189,7 +195,7 @@ export default function ProductsPage() {
                 ? {
                     ...p,
                     inventoryValue: normalizedInventoryValue,
-                    inventoryUnit: inventoryConfig.mode,
+                    inventoryUnit: productUnit,
                     stock: normalizedInventoryValue,
                   }
                 : p,
@@ -430,7 +436,7 @@ export default function ProductsPage() {
         <StockEditableCell
           className="max-md:pr-0"
           initialValue={getProductInventoryValue(product)}
-          inventory={inventoryConfig}
+          inventory={inventoryDefinitionFor(inventoryConfig, productInventoryUnit(product))}
           onUpdate={(val) => handleInventoryUpdate(product, val)}
         />
       ),
@@ -443,7 +449,7 @@ export default function ProductsPage() {
       render: (product) => (
         <div className="flex flex-col items-start gap-0.5">
           <span className="text-sm font-medium">
-            {getProductPricingSummary(product)}
+            {getProductPricingSummary(product, nicheConfig.pricing)}
           </span>
           <span className="text-xs text-muted-foreground">
             Base: R$ {getProductBasePrice(product).toFixed(2)}

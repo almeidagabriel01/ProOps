@@ -75,7 +75,7 @@ import {
   getProductPricingSummary,
 } from "@/lib/product-pricing";
 import { resetProposalProductPriceToDefault } from "@/lib/proposal-product";
-import { dimensionModeLabel, measureTerms } from "@/lib/pricing/dimension-mode-labels";
+import { dimensionModeLabel, linearPriceUnit, measureTerms } from "@/lib/pricing/dimension-mode-labels";
 import { useCurrentNicheConfig } from "@/hooks/useCurrentNicheConfig";
 import {
   AlertDialog,
@@ -1102,22 +1102,22 @@ function EnvironmentProductRow({
   const measurementLabel = isDimensionProduct
     ? getProposalProductMeasurementLabel(product, pricing)
     : "";
-  const priceUnitLabel = getProposalProductUnitLabel(product);
+  const priceUnitLabel = getProposalProductUnitLabel(product, pricing);
   const priceSuffix = isCurtainMeter
     ? " /m²"
     : isCurtainHeight
-      ? " /m larg."
+      ? ` /${linearPriceUnit(pricing, "curtain_height")}`
       : isCurtainWidth
-        ? " /m larg."
+        ? ` /${linearPriceUnit(pricing, "curtain_width")}`
       : isQuantityPricedProduct
         ? " /un"
         : ` /${priceUnitLabel}`;
   const sellingUnitLabel = isCurtainMeter
     ? "m2"
     : isCurtainHeight
-      ? "m larg."
+      ? linearPriceUnit(pricing, "curtain_height")
       : isCurtainWidth
-        ? "m larg."
+        ? linearPriceUnit(pricing, "curtain_width")
       : isQuantityPricedProduct
         ? "un"
         : priceUnitLabel || priceSuffix;
@@ -1239,7 +1239,7 @@ function EnvironmentProductRow({
               )}
               {isActive && !isService && (
                 <span className="text-[10px] text-muted-foreground">
-                  Custo unit.: <span className="font-medium text-foreground/80">R$ {(product.unitPrice || 0).toFixed(2)}{isCurtainMeter ? " /m²" : isCurtainHeight ? " /m larg." : isCurtainWidth ? " /m larg." : ` /${priceUnitLabel}`}</span>
+                  Custo unit.: <span className="font-medium text-foreground/80">R$ {(product.unitPrice || 0).toFixed(2)}{priceSuffix}</span>
                 </span>
               )}
             </div>
@@ -1468,7 +1468,7 @@ function EnvironmentProductRow({
                       selectedHeightTier.markup,
                     ).toFixed(2)}{" "}
                     <span className="text-[10px] font-normal text-muted-foreground">
-                      / m larg.
+                      / {linearPriceUnit(pricing, "curtain_height")}
                     </span>
                   </span>
                 </div>
@@ -1755,6 +1755,7 @@ function ExtraProductsGrid({
   primaryColor,
   onAddProduct,
 }: ExtraProductsGridProps) {
+  const { pricing } = useCurrentNicheConfig();
   const [isProductsOpen, setIsProductsOpen] = React.useState(false);
   const [isServicesOpen, setIsServicesOpen] = React.useState(false);
   const [productSearchTerm, setProductSearchTerm] = React.useState("");
@@ -1939,7 +1940,7 @@ function ExtraProductsGrid({
                             <span>
                               {(product.itemType || "product") === "service"
                                 ? `R$ ${parseFloat(product.price).toFixed(2)}`
-                                : getProductPricingSummary(product)}
+                                : getProductPricingSummary(product, pricing)}
                             </span>
                           </div>
                         </div>

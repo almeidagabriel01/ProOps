@@ -89,7 +89,7 @@ function KanbanProposalProductLineDetail({
       <>
         {getProposalProductMeasurementLabel(product, getNicheConfig(tenantNiche).pricing)} x{" "}
         {formatCurrency(getProposalLineUnitSellingPrice(product))} /{" "}
-        {getProposalProductUnitLabel(product)}
+        {getProposalProductUnitLabel(product, getNicheConfig(tenantNiche).pricing)}
       </>
     );
   }

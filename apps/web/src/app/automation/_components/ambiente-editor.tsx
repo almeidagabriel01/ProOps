@@ -56,7 +56,7 @@ import {
   normalizeProposalPricingDetails,
 } from "@/lib/product-pricing";
 import { createLineItemId, ensureAmbienteProductLineItemId } from "@/lib/proposal-product";
-import { dimensionModeLabel, measureTerms } from "@/lib/pricing/dimension-mode-labels";
+import { dimensionModeLabel, linearPriceUnit, measureTerms } from "@/lib/pricing/dimension-mode-labels";
 
 interface AmbienteEditorProps {
   ambiente: Ambiente | null;
@@ -1161,7 +1161,7 @@ export function AmbienteEditor({
                                           selectedHeightTier.markup,
                                         ).toFixed(2)}
                                         <span className="ml-1 text-[10px] font-normal text-muted-foreground">
-                                          / m larg.
+                                          / {linearPriceUnit(nicheConfig.pricing, "curtain_height")}
                                         </span>
                                       </span>
                                     </div>

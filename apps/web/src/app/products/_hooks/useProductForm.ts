@@ -17,7 +17,7 @@ import {
 } from "@/services/storage-service";
 import { useFormValidation, FormErrors } from "@/hooks/useFormValidation";
 import { productSchema, serviceSchema } from "@/lib/validations";
-import { getNicheConfig, parseInventoryValue } from "@/lib/niches/config";
+import { getNicheConfig, parseInventoryValue, catalogInventoryUnit } from "@/lib/niches/config";
 import type { TenantNiche } from "@/types";
 import {
   CurtainHeightTier,
@@ -131,10 +131,10 @@ function resolveCatalogInventoryUnit(
   entityType: CatalogEntityType,
   pricingMode: ProductPricingMode,
 ): "unit" | "meter" {
-  // Produto cobrado por quantidade conta estoque em unidade em qualquer nicho;
-  // o resto segue a unidade do catálogo do nicho.
-  if (entityType === "product" && pricingMode === "standard") {
-    return "unit";
+  // Produto conta estoque pela forma como é cobrado (por quantidade: unidade;
+  // por medida: metro), em qualquer nicho. Serviço segue o catálogo do nicho.
+  if (entityType === "product") {
+    return catalogInventoryUnit(pricingMode);
   }
 
   return getNicheConfig(niche).productCatalog.inventory.mode;

@@ -28,3 +28,23 @@ describe.each(TELAS)("%s", (arquivo) => {
     expect(achados).toEqual([]);
   });
 });
+
+/**
+ * A unidade do preço linear ("m larg.") também vem do nicho
+ * (`linearPriceUnit`): a tubulação se cobra "/ m", e o rótulo fixo aparecia na
+ * lista de produtos, na proposta e no PDF.
+ */
+const COM_PRECO = [
+  ...TELAS,
+  "lib/product-pricing.ts",
+  "components/features/kanban/kanban-detail-modal.tsx",
+  "components/pdf/components/pdf-sistema-primitives.tsx",
+  "components/features/proposal/form/summary/product-row.tsx",
+];
+
+describe.each(COM_PRECO)("%s", (arquivo) => {
+  it("não escreve a unidade do preço linear à mão", () => {
+    const codigo = semComentario(fs.readFileSync(path.join(SRC, arquivo), "utf8"));
+    expect(codigo).not.toMatch(/m larg\./);
+  });
+});

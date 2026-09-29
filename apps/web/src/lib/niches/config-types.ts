@@ -84,7 +84,17 @@ export interface PricingDefinition {
    * tubulação de climatização se mede, em vez de "largura". Sem entrada, vale
    * largura e altura. É `Term` porque os textos de ajuda concordam em gênero.
    */
-  measureLabels?: Partial<Record<DimensionPricingMode, Partial<{ width: Term; height: Term }>>>;
+  measureLabels?: Partial<
+    Record<
+      DimensionPricingMode,
+      Partial<{
+        width: Term;
+        height: Term;
+        /** A unidade do preço linear ("R$ 18,00 / m larg."); a tubulação diz só "m". */
+        priceUnit: string;
+      }>
+    >
+  >;
 }
 
 export interface PdfDefinition {

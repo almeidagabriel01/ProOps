@@ -57,5 +57,17 @@ export function measureTerms(
   pricing: Pick<PricingDefinition, "measureLabels">,
   mode: DimensionPricingMode,
 ): MeasureTerms {
-  return { ...DEFAULT_MEASURE_TERMS, ...pricing.measureLabels?.[mode] };
+  const override = pricing.measureLabels?.[mode];
+  return {
+    width: override?.width ?? DEFAULT_MEASURE_TERMS.width,
+    height: override?.height ?? DEFAULT_MEASURE_TERMS.height,
+  };
+}
+
+/** A unidade do preço por medida linear: "m larg." no padrão, "m" na tubulação. */
+export function linearPriceUnit(
+  pricing: Pick<PricingDefinition, "measureLabels">,
+  mode: "curtain_width" | "curtain_height",
+): string {
+  return pricing.measureLabels?.[mode]?.priceUnit ?? "m larg.";
 }

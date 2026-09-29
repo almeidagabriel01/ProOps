@@ -211,7 +211,7 @@ export function PdfProductLineFooter({
   if (showProductPrices) {
     if (isDimensionProduct) {
       const sellingPrice = getProposalLineUnitSellingPrice(product);
-      const unitLabel = getProposalProductUnitLabel(product);
+      const unitLabel = getProposalProductUnitLabel(product, getNicheConfig(tenantNiche).pricing);
       const prefixParts = [
         shouldShowQuantity ? `Qtd. ${quantityLabel}` : null,
         measurementLabel,

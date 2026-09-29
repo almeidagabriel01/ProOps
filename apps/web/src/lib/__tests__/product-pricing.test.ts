@@ -121,6 +121,11 @@ describe("rótulos", () => {
     const comprimento = { measureLabels: { curtain_width: { width: { singular: "comprimento", plural: "comprimentos", gender: "m" as const } } } };
     expect(getProposalProductMeasurementLabel({ pricingDetails: { mode: "curtain_width", width: 6, panels: 1 } }, comprimento)).toBe("Comprimento 6 m");
     expect(getProposalProductMeasurementLabel({ pricingDetails: { mode: "curtain_width", width: 6, panels: 1 } }, {})).toBe("Largura 6 m");
+    // E a unidade do preço: "/ m" na tubulação, "/ m larg." no padrão.
+    const tubulacao = { measureLabels: { curtain_width: { priceUnit: "m" } } };
+    expect(getProductPricingSummary({ price: 85, markup: 40, pricingModel: { mode: "curtain_width" } }, tubulacao)).toBe("R$ 119.00 / m");
+    expect(getProductPricingSummary({ price: 85, markup: 40, pricingModel: { mode: "curtain_width" } })).toBe("R$ 119.00 / m larg.");
+    expect(getProposalProductUnitLabel({ pricingDetails: { mode: "curtain_width", width: 6, panels: 1 } }, tubulacao)).toBe("m");
     expect(getProposalProductMeasurementLabel({ quantity: 2, pricingDetails: { mode: "standard" } })).toBe("Qtd. 2");
   });
 

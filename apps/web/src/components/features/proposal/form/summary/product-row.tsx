@@ -22,7 +22,7 @@ export function ProductRow({ product, isInactive }: ProductRowProps) {
   const measurementLabel = getProposalProductMeasurementLabel(product, pricing);
   const quantityLabel = `Qtd. ${formatProposalProductDisplayQuantity(product)}`;
   const isDimensionProduct = getProposalProductPanelCount(product) !== null;
-  const unitLabel = getProposalProductUnitLabel(product);
+  const unitLabel = getProposalProductUnitLabel(product, pricing);
 
   return (
     <tr className="border-t">

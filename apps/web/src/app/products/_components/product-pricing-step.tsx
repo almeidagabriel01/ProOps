@@ -24,7 +24,8 @@ import { useCurrentNicheConfig } from "@/hooks/useCurrentNicheConfig";
 import { cap, no, o, pick } from "@/lib/niches/vocabulary";
 import { Product } from "@/services/product-service";
 import { Service } from "@/services/service-service";
-import { dimensionModeLabel, measureTerms } from "@/lib/pricing/dimension-mode-labels";
+import { dimensionModeLabel, linearPriceUnit, measureTerms } from "@/lib/pricing/dimension-mode-labels";
+import type { PricingDefinition } from "@/lib/niches/config-types";
 import type { DimensionPricingMode } from "@/lib/product-pricing";
 
 interface ProductPricingStepProps {
@@ -59,12 +60,15 @@ function parseFormNumber(value: string): number {
   return Number.isFinite(parsed) ? parsed : 0;
 }
 
-function buildPricingSummary(product: Product | Service | undefined): string | null {
+function buildPricingSummary(
+  product: Product | Service | undefined,
+  pricing: Pick<PricingDefinition, "measureLabels">,
+): string | null {
   if (!product || (product.itemType || "product") === "service") {
     return null;
   }
 
-  return `${getProductPricingSummary(product)} | ${getProductPricingDescription(product)}`;
+  return `${getProductPricingSummary(product, pricing)} | ${getProductPricingDescription(product, pricing)}`;
 }
 
 function StaticMeasureField({
@@ -210,7 +214,7 @@ export function ProductPricingStep({
     : nicheConfig.productCatalog.inventory.formLabel;
 
   if (isReadOnly) {
-    const readOnlySummary = buildPricingSummary(initialData);
+    const readOnlySummary = buildPricingSummary(initialData, nicheConfig.pricing);
 
     return (
       <div className="space-y-4">
@@ -497,7 +501,7 @@ export function ProductPricingStep({
             <div className="rounded-xl bg-muted/40 px-4 py-3">
               <div className="text-xs text-muted-foreground">Preço final</div>
               <div className="mt-1 text-xl font-semibold text-foreground">
-                R$ {sellingPrice.toFixed(2)} / m larg.
+                R$ {sellingPrice.toFixed(2)} / {linearPriceUnit(nicheConfig.pricing, "curtain_width")}
               </div>
             </div>
           }
@@ -560,7 +564,7 @@ export function ProductPricingStep({
               <div className="rounded-xl border border-primary/20 bg-primary/5 px-4 py-3">
                 <div className="text-xs text-muted-foreground">Preço com markup</div>
                 <div className="mt-1 font-semibold text-primary">
-                  R$ {sellingPrice.toFixed(2)} / m larg.
+                  R$ {sellingPrice.toFixed(2)} / {linearPriceUnit(nicheConfig.pricing, "curtain_width")}
                 </div>
               </div>
             </div>
