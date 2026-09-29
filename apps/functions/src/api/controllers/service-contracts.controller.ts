@@ -17,9 +17,11 @@ import {
   resumeBillingDate,
   todayInBrazil,
   type ContractStatus,
+  type PmocInput,
   type ServiceContract,
   type VisitPlan,
 } from "../services/field-service/contract-model";
+import { TECHNICAL_RESPONSIBLES_COLLECTION } from "../services/field-service/technical-responsible-model";
 import {
   allocateContractNumber,
   billContract,
@@ -87,6 +89,12 @@ async function assertTechnician(technicianId: string | null | undefined, tenantI
   }
 }
 
+async function assertResponsible(responsibleId: string | null | undefined, tenantId: string) {
+  if (responsibleId && !(await loadOfTenant(TECHNICAL_RESPONSIBLES_COLLECTION, responsibleId, tenantId))) {
+    throw new HttpError(400, "Escolha um responsável técnico da empresa.");
+  }
+}
+
 /** A mensalidade vira lançamento: sem o financeiro no plano, não há onde cobrar. */
 async function assertFinancial(tenantId: string) {
   if (!(await tenantHasCapability(tenantId, "financial"))) {
@@ -123,6 +131,11 @@ async function runNow(contractId: string, tenantId: string, uid: string) {
   }
 }
 
+/** O PMOC como é gravado; a âncora das frequências é da primeira visita. */
+function pmocDoc(input: PmocInput, anchorDate: string | null) {
+  return { ...input, anchorDate };
+}
+
 /** POST /v1/service-contracts */
 export async function createServiceContract(req: Request, res: Response) {
   const parsed = CreateContractSchema.safeParse(req.body);
@@ -136,6 +149,8 @@ export async function createServiceContract(req: Request, res: Response) {
     if (!equipment) return res.status(400).json({ message: "Escolha equipamentos deste cliente." });
     await assertWallet(input.wallet, tenantId);
     await assertTechnician(input.visitPlan?.technicianId, tenantId);
+    if (input.type === "pmoc" && !input.pmoc) throw new HttpError(400, "Preencha os dados do PMOC.");
+    await assertResponsible(input.pmoc?.responsibleId, tenantId);
 
     const now = new Date().toISOString();
     const ref = db.collection(SERVICE_CONTRACTS_COLLECTION).doc();
@@ -171,6 +186,7 @@ export async function createServiceContract(req: Request, res: Response) {
         lastBilledPeriod: null,
         suspendedReason: null,
         proposalId: null,
+        pmoc: input.type === "pmoc" && input.pmoc ? pmocDoc(input.pmoc, null) : null,
         createdAt: now,
         updatedAt: now,
         createdBy: uid,
@@ -206,6 +222,16 @@ export async function updateServiceContract(req: Request, res: Response) {
     }
     if (input.lines) update.monthlyAmount = computeMonthlyAmount(input.lines);
     if (input.wallet) await assertWallet(input.wallet, tenantId);
+
+    const type = input.type ?? contract.type;
+    if (type !== "pmoc") {
+      if (contract.pmoc) update.pmoc = null;
+    } else if (input.pmoc) {
+      await assertResponsible(input.pmoc.responsibleId, tenantId);
+      update.pmoc = pmocDoc(input.pmoc, contract.pmoc?.anchorDate ?? null);
+    } else if (!contract.pmoc) {
+      throw new HttpError(400, "Preencha os dados do PMOC.");
+    }
 
     let clientId = contract.clientId;
     if (input.clientId && input.clientId !== contract.clientId) {
@@ -263,6 +289,11 @@ export async function activateServiceContract(req: Request, res: Response) {
       throw new HttpError(400, "Defina o valor da mensalidade antes de ativar.");
     }
     if (!contract.wallet) throw new HttpError(400, "Escolha a carteira que recebe a mensalidade.");
+    if (contract.type === "pmoc") {
+      if (!contract.pmoc?.responsibleId) throw new HttpError(400, "Escolha o responsável técnico do PMOC.");
+      await assertResponsible(contract.pmoc.responsibleId, tenantId);
+      if (!contract.visitPlan.enabled) throw new HttpError(400, "O PMOC precisa do plano de visitas ligado.");
+    }
 
     const today = todayInBrazil();
     const { startDate, firstVisitDate } = parsed.data;

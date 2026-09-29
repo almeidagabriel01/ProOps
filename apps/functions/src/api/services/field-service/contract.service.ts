@@ -18,6 +18,7 @@ import {
 } from "./contract-model";
 import { SERVICE_ORDERS_COLLECTION, SERVICE_ORDER_COUNTERS_COLLECTION, newServiceOrderDoc } from "./field-service-model";
 import { allocateOrderNumber, loadClientSnapshot, loadEquipmentLabels, loadTechnician } from "./field-service.service";
+import { pmocItemsForVisit, pmocOrderChecklist } from "../../../shared/pmoc";
 
 /**
  * Leitura e gravação dos contratos. As regras puras (datas, períodos, o
@@ -155,6 +156,7 @@ export async function openContractVisit(contractId: string, today: string, dryRu
     const contract = readContract(snap.id, snap.data() as Record<string, unknown>);
     if (contract.status !== "active" || contract.visitPlan?.nextVisitDate !== planned.visitDate) return null;
     if (dryRun) return orderSnap.exists ? null : orderRef.id;
+    const pmoc = contract.type === "pmoc" && contract.pmoc ? contract.pmoc : null;
 
     let createdId: string | null = null;
     if (!orderSnap.exists) {
@@ -169,7 +171,7 @@ export async function openContractVisit(contractId: string, today: string, dryRu
           address: client.address,
           type: "preventive",
           priority: "normal",
-          title: `Visita preventiva: ${contract.title}`.slice(0, 160),
+          title: `${pmoc ? "Visita do PMOC" : "Visita preventiva"}: ${contract.title}`.slice(0, 160),
           description: `Visita prevista no contrato ${contract.code}.`,
           equipment,
           projectId: null,
@@ -177,12 +179,21 @@ export async function openContractVisit(contractId: string, today: string, dryRu
           technician,
           scheduledStart: start.toISOString(),
           scheduledEnd: end.toISOString(),
-          checklist: (contract.visitPlan.checklist ?? []).map((text, index) => ({
-            id: `visit_${index}`,
-            text,
-            done: false,
-            note: null,
-          })),
+          checklist: pmoc
+            ? pmocOrderChecklist(
+                pmocItemsForVisit({
+                  items: pmoc.items,
+                  anchorDate: pmoc.anchorDate ?? planned.visitDate,
+                  visitDate: planned.visitDate,
+                  intervalMonths: contract.visitPlan.intervalMonths,
+                }),
+              )
+            : (contract.visitPlan.checklist ?? []).map((text, index) => ({
+                id: `visit_${index}`,
+                text,
+                done: false,
+                note: null,
+              })),
           items: [],
           createdBy: "system",
           now: new Date().toISOString(),
@@ -192,6 +203,8 @@ export async function openContractVisit(contractId: string, today: string, dryRu
     }
     t.update(ref, {
       "visitPlan.nextVisitDate": planned.nextVisitDate,
+      // A primeira visita do PMOC fixa a âncora das frequências.
+      ...(pmoc && !pmoc.anchorDate ? { "pmoc.anchorDate": planned.visitDate } : {}),
       updatedAt: new Date().toISOString(),
     });
     return createdId;

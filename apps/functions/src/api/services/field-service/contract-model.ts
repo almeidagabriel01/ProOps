@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { PMOC_CATEGORIES, PMOC_FREQUENCIES, type PmocItem } from "../../../shared/pmoc";
 
 /**
  * Contratos de manutenção: a mensalidade que a empresa cobra todo mês
@@ -64,6 +65,31 @@ export interface VisitPlan {
 
 export type SuspendedReason = "manual" | "plan";
 
+/** O prédio do PMOC: o que o plano descreve e a fiscalização confere. */
+export interface PmocBuilding {
+  name: string | null;
+  address: string | null;
+  /** Ocupantes fixos e flutuantes, somados. */
+  occupants: number | null;
+  /** Área climatizada, em m². */
+  climatizedArea: number | null;
+  /** Uso do ambiente: escritório, loja, clínica... */
+  use: string | null;
+}
+
+export interface PmocData {
+  responsibleId: string | null;
+  building: PmocBuilding;
+  items: PmocItem[];
+  /**
+   * A primeira visita, gravada na ativação: a frequência de cada item conta a
+   * partir dela (`pmocItemsForVisit`).
+   */
+  anchorDate: string | null;
+}
+
+export const MAX_PMOC_ITEMS = 60;
+
 export interface ServiceContract {
   id: string;
   tenantId: string;
@@ -88,6 +114,8 @@ export interface ServiceContract {
   lastBilledPeriod: string | null;
   suspendedReason: SuspendedReason | null;
   proposalId: string | null;
+  /** Só no tipo `pmoc`. */
+  pmoc?: PmocData | null;
 }
 
 // ---------------------------------------------------------------------------
@@ -350,6 +378,36 @@ const VisitPlanSchema = z
   })
   .strict();
 
+const PmocSchema = z
+  .object({
+    responsibleId: z.string().trim().min(1).nullable(),
+    building: z
+      .object({
+        name: optionalText(160).transform((v) => v || null),
+        address: optionalText(300).transform((v) => v || null),
+        occupants: z.number().int().min(0).max(1_000_000).nullable().optional().transform((v) => v ?? null),
+        climatizedArea: z.number().min(0).max(10_000_000).nullable().optional().transform((v) => v ?? null),
+        use: optionalText(120).transform((v) => v || null),
+      })
+      .strict(),
+    items: z
+      .array(
+        z
+          .object({
+            id: z.string().trim().min(1).max(60),
+            category: z.enum(PMOC_CATEGORIES),
+            text: z.string().trim().min(2, "Descreva o item do PMOC.").max(180),
+            frequency: z.enum(PMOC_FREQUENCIES),
+          })
+          .strict(),
+      )
+      .min(1, "O PMOC precisa de ao menos um item.")
+      .max(MAX_PMOC_ITEMS, `No máximo ${MAX_PMOC_ITEMS} itens no PMOC.`),
+  })
+  .strict();
+
+export type PmocInput = z.infer<typeof PmocSchema>;
+
 export const CreateContractSchema = z
   .object({
     clientId: z.string().trim().min(1, "Escolha o cliente."),
@@ -366,6 +424,7 @@ export const CreateContractSchema = z
     visitPlan: VisitPlanSchema.optional(),
     notes: optionalText(4000),
     endDate: z.string().regex(ISO_DAY, "Data inválida.").nullable().optional(),
+    pmoc: PmocSchema.nullable().optional(),
   })
   .strict();
 

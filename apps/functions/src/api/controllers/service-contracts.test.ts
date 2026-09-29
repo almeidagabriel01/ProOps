@@ -491,6 +491,144 @@ describe("visitas preventivas", () => {
   });
 });
 
+describe("PMOC", () => {
+  const PMOC = {
+    responsibleId: "rt1",
+    building: { name: "Clínica Centro", address: "Rua B, 20", occupants: 40, climatizedArea: 320, use: "Clínica" },
+    items: [
+      { id: "split_filtros", category: "split", text: "Limpar ou trocar os filtros de ar", frequency: "monthly" },
+      { id: "split_bandeja", category: "split", text: "Limpar a bandeja de condensado", frequency: "quarterly" },
+      { id: "split_gas", category: "split", text: "Testar vazamentos", frequency: "semiannual" },
+    ],
+  };
+  const pmocContract = (extra: Doc = {}) =>
+    createContract({
+      type: "pmoc",
+      title: "PMOC da clínica",
+      equipmentIds: ["e1"],
+      visitPlan: { enabled: true, intervalMonths: 3, technicianId: "tech", checklist: [] },
+      pmoc: PMOC,
+      ...extra,
+    });
+
+  beforeEach(() => {
+    store.technical_responsibles = {
+      rt1: { tenantId: "t1", name: "Carla" },
+      rtFora: { tenantId: "t2", name: "De outra empresa" },
+    };
+  });
+
+  it("contrato PMOC sem os dados do PMOC é recusado", async () => {
+    const res = mockRes();
+    await createServiceContract(
+      req({ body: { clientId: "c1", title: "PMOC", type: "pmoc", lines: LINES, billingDay: 5, wallet: "w1", issueNfse: false } }),
+      res,
+    );
+    expect(res.statusCode).toBe(400);
+  });
+
+  it("responsável técnico de outra empresa é recusado", async () => {
+    const res = mockRes();
+    await createServiceContract(
+      req({
+        body: {
+          clientId: "c1",
+          title: "PMOC",
+          type: "pmoc",
+          lines: LINES,
+          billingDay: 5,
+          wallet: "w1",
+          issueNfse: false,
+          pmoc: { ...PMOC, responsibleId: "rtFora" },
+        },
+      }),
+      res,
+    );
+    expect(res.statusCode).toBe(400);
+  });
+
+  it("grava o prédio e os itens, sem âncora até a primeira visita", async () => {
+    const id = await pmocContract();
+    expect(store.service_contracts[id].pmoc).toMatchObject({
+      responsibleId: "rt1",
+      building: { name: "Clínica Centro", occupants: 40, climatizedArea: 320 },
+      anchorDate: null,
+    });
+    expect((store.service_contracts[id].pmoc as { items: unknown[] }).items).toHaveLength(3);
+  });
+
+  it("outro tipo de contrato não guarda PMOC", async () => {
+    const id = await createContract({ pmoc: PMOC });
+    expect(store.service_contracts[id].pmoc).toBeNull();
+  });
+
+  it("trocar o tipo para outro apaga o PMOC; voltar exige os dados de novo", async () => {
+    const id = await pmocContract();
+    const res = mockRes();
+    await updateServiceContract(req({ params: { id }, body: { type: "maintenance" } }), res);
+    expect(res.statusCode).toBe(200);
+    expect(store.service_contracts[id].pmoc).toBeNull();
+    const back = mockRes();
+    await updateServiceContract(req({ params: { id }, body: { type: "pmoc" } }), back);
+    expect(back.statusCode).toBe(400);
+  });
+
+  it("não ativa sem responsável técnico nem sem plano de visitas", async () => {
+    const semResponsavel = await pmocContract({ pmoc: { ...PMOC, responsibleId: null } });
+    expect((await activate(semResponsavel, "2026-10-05")).statusCode).toBe(400);
+    expect(store.service_contracts[semResponsavel].status).toBe("draft");
+
+    const semVisitas = await pmocContract({ visitPlan: { enabled: false, intervalMonths: 3, technicianId: null, checklist: [] } });
+    expect((await activate(semVisitas, "2026-10-05")).statusCode).toBe(400);
+  });
+
+  it("responsável excluído depois do cadastro impede a ativação", async () => {
+    const id = await pmocContract();
+    delete store.technical_responsibles.rt1;
+    expect((await activate(id, "2026-10-05")).statusCode).toBe(400);
+  });
+
+  it("a primeira visita leva tudo e fixa a âncora; a de 3 meses depois, só o que venceu", async () => {
+    const id = await pmocContract();
+    expect((await activate(id, "2026-10-05", { firstVisitDate: "2026-10-09" })).statusCode).toBe(200);
+    const first = store.service_orders[`contract_${id}_visit_20261009`];
+    expect(first.title).toBe("Visita do PMOC: PMOC da clínica");
+    expect((first.checklist as Doc[]).map((c) => c.id)).toEqual([
+      "pmoc_split_filtros",
+      "pmoc_split_bandeja",
+      "pmoc_split_gas",
+    ]);
+    expect((store.service_contracts[id].pmoc as Doc).anchorDate).toBe("2026-10-09");
+
+    jest.setSystemTime(new Date("2027-01-05T12:00:00Z"));
+    await runServiceContracts({ dryRun: false, cursorId: null });
+    const second = store.service_orders[`contract_${id}_visit_20270109`];
+    expect((second.checklist as Doc[]).map((c) => c.id)).toEqual(["pmoc_split_filtros", "pmoc_split_bandeja"]);
+    expect((store.service_contracts[id].pmoc as Doc).anchorDate).toBe("2026-10-09");
+
+    jest.setSystemTime(new Date("2027-04-05T12:00:00Z"));
+    await runServiceContracts({ dryRun: false, cursorId: null });
+    const third = store.service_orders[`contract_${id}_visit_20270409`];
+    expect((third.checklist as Doc[]).map((c) => c.id)).toEqual([
+      "pmoc_split_filtros",
+      "pmoc_split_bandeja",
+      "pmoc_split_gas",
+    ]);
+  });
+
+  it("editar o PMOC de um contrato ativo mantém a âncora", async () => {
+    const id = await pmocContract();
+    await activate(id, "2026-10-05", { firstVisitDate: "2026-10-09" });
+    const res = mockRes();
+    await updateServiceContract(
+      req({ params: { id }, body: { pmoc: { ...PMOC, building: { ...PMOC.building, occupants: 55 } } } }),
+      res,
+    );
+    expect(res.statusCode).toBe(200);
+    expect(store.service_contracts[id].pmoc).toMatchObject({ anchorDate: "2026-10-09", building: { occupants: 55 } });
+  });
+});
+
 describe("contrato a partir da proposta", () => {
   const proposal = {
     title: "Segurança da casa",

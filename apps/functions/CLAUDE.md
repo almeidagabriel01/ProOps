@@ -749,6 +749,33 @@ Firestore falso), `contract-invoice.test.ts`, os blocos de contrato em
 `invoice-issue.auto.test.ts` e `onTransactionTotals.test.ts` e os blocos de contratos em `field-service.routes.gates.test.ts`
 e `tests/firestore-rules/field-service.test.ts`.
 
+#### PMOC (`shared/pmoc.ts`)
+
+O PMOC é um contrato do tipo `pmoc` (a tela só oferece o tipo em
+climatização), com o campo `pmoc`: responsável técnico, dados do prédio
+(nome, endereço, ocupantes, área climatizada, uso) e os itens do plano, cada
+um com a frequência (mensal, trimestral, semestral, anual).
+
+- **Os modelos da norma moram em `shared/pmoc.ts`**, puro e sem import, por
+  tipo de aparelho (split, VRF, janela) e o do ambiente, que entra sempre.
+  Cortina de ar não entra. O front espelha os modelos para montar o plano no
+  formulário, com paridade testada. **Os itens precisam da revisão de um
+  engenheiro de climatização antes de produção.**
+- **Os itens são do contrato**, e não de um modelo por empresa: a tela parte
+  do modelo dos aparelhos cobertos e a empresa edita ali, porque cada prédio
+  tem o seu plano.
+- **Cada visita leva só o que venceu** (`pmocItemsForVisit`): a frequência
+  conta a partir da primeira visita (`pmoc.anchorDate`, gravada pela rotina ao
+  abrir a primeira OS). A primeira leva tudo; depois, o item entra quando a
+  frequência dele vence desde a visita anterior, então nunca passa do prazo,
+  mesmo com um intervalo de visitas que não divide a frequência. O id do item
+  vai para a OS (`pmoc_<id>`), para o relatório juntar as visitas.
+- **Ativar exige o responsável técnico e o plano de visitas ligado.** Contrato
+  PMOC sem os dados do PMOC é recusado; trocar o tipo para outro apaga o campo.
+
+Guards: `shared/__tests__/pmoc.test.ts` e o bloco PMOC de
+`service-contracts.test.ts`.
+
 #### Responsáveis técnicos do PMOC (`technical-responsible-model.ts`)
 
 O engenheiro ou técnico que assina o PMOC, com a ART. Rotas em
