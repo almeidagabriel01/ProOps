@@ -480,6 +480,48 @@ service cloud.firestore {
       allow write: if false; // Managed by Cloud Functions
     }
 
+    // ASSISTÊNCIA TÉCNICA (capacidade fieldService). Leitura direta pelo
+    // client, escrita só pela API (field-service.controller.ts).
+    //
+    // A OS é do técnico: lê quem está em `technicianUids`, o dono e os
+    // administradores, e o membro com a permissão de escopo
+    // `service_orders_all` (users/{uid}/permissions/service_orders_all). A
+    // lista do técnico filtra por tenantId e technicianUids (array-contains),
+    // que é o que deixa a regra ser provada; a de quem vê tudo, só por tenantId.
+    function seesAllServiceOrders() {
+      let permissionPath = /databases/$(database)/documents/users/$(request.auth.uid)/permissions/service_orders_all;
+      return exists(permissionPath) && get(permissionPath).data.get('canView', false) == true;
+    }
+
+    match /service_orders/{orderId} {
+      allow read: if isSuperAdmin()
+                  || isDemoRead(resource.data.tenantId)
+                  || (isAuthenticated()
+                      && belongsToTenant(resource.data.tenantId)
+                      && tenantSubscriptionAllowsRead(resource.data.tenantId)
+                      && (hasTenantAdminRole()
+                          || request.auth.uid in resource.data.get('technicianUids', [])
+                          || seesAllServiceOrders()));
+      allow write: if false;
+    }
+
+    // Equipamentos do cliente: da empresa inteira, como os projetos.
+    match /customer_equipment/{equipmentId} {
+      allow read: if isSuperAdmin() || isDemoRead(resource.data.tenantId) || (isAuthenticated() && belongsToTenant(resource.data.tenantId) && tenantSubscriptionAllowsRead(resource.data.tenantId));
+      allow write: if false;
+    }
+
+    // Histórico de estoque: gravado só pelo backend, na mesma transação que
+    // ajusta o saldo do produto.
+    match /stock_movements/{movementId} {
+      allow read: if isSuperAdmin() || isDemoRead(resource.data.tenantId) || (isAuthenticated() && belongsToTenant(resource.data.tenantId) && tenantSubscriptionAllowsRead(resource.data.tenantId));
+      allow write: if false;
+    }
+
+    match /service_order_counters/{tenantId} {
+      allow read, write: if false; // Admin SDK only
+    }
+
     match /project_settings/{tenantId} {
       allow read, write: if false; // Admin SDK only (lido pela API)
     }

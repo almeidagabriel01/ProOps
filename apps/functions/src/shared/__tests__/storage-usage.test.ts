@@ -13,6 +13,8 @@ describe("tenantForCountedPath", () => {
     "tenants/t1/proposals/pr1/attachments/memorial.pdf",
     // Fotos da obra (projetos de instalação).
     "tenants/t1/projects/prj1/etapa1/foto.webp",
+    "tenants/t1/service_orders/os1/foto.webp",
+    "tenants/t1/service_orders/os1/assinatura-1.png",
   ])("conta o que a empresa sobe: %s", (path) => {
     expect(tenantForCountedPath(path)).toBe("t1");
   });

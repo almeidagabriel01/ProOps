@@ -626,6 +626,40 @@ Guards: `client-portal-model.test.ts`, `client-portal.service.test.ts` (a
 fronteira do contato), `client-portal.controller.test.ts`,
 `client-portal.routes.gates.test.ts` e `tests/firestore-rules/client-portal.test.ts`.
 
+### Assistência técnica: equipamentos e ordens de serviço (`api/services/field-service/`)
+
+Equipamentos instalados em cada cliente e a ordem de serviço (OS) que os
+atende, executada no celular do técnico e assinada pelo cliente na tela.
+Capacidade `fieldService` (Pro e Enterprise; Starter pelo add-on
+`field_service`), pageIds `equipment` e `service_orders`. Serve a todos os
+nichos: chamado de alarme, manutenção de ar-condicionado, suporte de automação.
+
+- **A OS é do técnico.** Membro sem a permissão de escopo `service_orders_all`
+  (não é tela: `scopeOf` em `PERMISSION_PAGES`) só alcança as OS em que está em
+  `technicianUids`, e só mexe na execução (`ExecutionUpdateSchema`: checklist,
+  peças, relatório). As rules aplicam a mesma regra na leitura; a lista dele
+  filtra por `technicianUids` (índice `tenantId` + `technicianUids`). O preset
+  "Técnico" da tela de Equipe nasce sem o escopo.
+- **Cliente copiado na OS** (nome, telefone, endereço): o técnico não tem acesso
+  a Contatos e precisa saber aonde ir.
+- **Número sequencial** em `service_order_counters/{tenantId}`, alocado na
+  transação que cria a OS. Queimado, como o da proposta.
+- **Concluir** (`/complete`) exige a assinatura OU o motivo de não haver uma.
+  A assinatura guarda nome, documento, data, IP, navegador e o SHA-256 do
+  conteúdo (`signatureContentHash`); a OS concluída trava, e só o master reabre
+  (`/reopen`), com o motivo e a assinatura anterior no `reopenLog`.
+- **Baixa de estoque idempotente.** A OS guarda o que já tirou
+  (`stockApplied`); cada conclusão lança só a diferença (`stockDelta`) num
+  movimento de id determinístico, na mesma transação que ajusta o saldo.
+  Cancelar devolve tudo. Estoque negativo é avisado na resposta, nunca
+  bloqueia. Produto sem `inventoryValue` numérico não ganha movimento.
+- **OS que mexeu no estoque não se exclui**: reabra e cancele.
+- Fotos e assinatura sobem pelo backend (`tenants/{t}/service_orders/...`),
+  contam no armazenamento do plano.
+
+Guards: `field-service-model.test.ts`, `field-service.controller.test.ts`,
+`field-service.routes.gates.test.ts` e `tests/firestore-rules/field-service.test.ts`.
+
 ### Vendedor e metas de vendas
 
 A proposta guarda **`sellerId`/`sellerName`** (quem vendeu: membro da empresa,

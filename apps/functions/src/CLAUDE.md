@@ -316,6 +316,10 @@ Funcao HTTP separada (nao faz parte do monolito `api`):
 | `projects/{id}` | Projetos | Obra depois da venda (etapas, checklist, fotos, entrega). Id `proposal_{proposalId}` quando nasce da proposta. Tenant le; escrita so via Cloud Functions |
 | `project_settings/{tenantId}` | Projetos | Criacao automatica na aprovacao e roteiro de etapas. Admin SDK only |
 | `shared_projects/{id}` | Projetos | Link publico da entrega (token). Admin SDK only |
+| `customer_equipment/{id}` | Assistencia tecnica | Aparelhos instalados em cada cliente (garantia, ultimo atendimento). Tenant le; escrita so via Cloud Functions (`field-service.controller.ts`) |
+| `service_orders/{id}` | Assistencia tecnica | Ordem de servico (checklist, pecas, fotos, assinatura). Do TECNICO: as rules leem `technicianUids`; dono, admins e o escopo `service_orders_all` leem todas. Escrita so via Cloud Functions |
+| `service_order_counters/{tenantId}` | Assistencia tecnica | Proximo numero da OS (`OS-0001`), alocado na transacao que cria a OS. Admin SDK only |
+| `stock_movements/{id}` | Estoque | Historico de estoque, gravado na mesma transacao que ajusta `inventoryValue`. Id `so_{ordem}_{revisao}_{produto}`. Tenant le; escrita so via Cloud Functions |
 | `proposal_counters/{tenantId}` | Propostas | Configuracao e contador da numeracao (o codigo `0018926SP`). Admin SDK only |
 | `proposals/{proposalId}` | Propostas | Propostas (com `pdf.storagePath` e `pdfGenerationLock`) |
 | `transactions/{transactionId}` | Financeiro | Lancamentos financeiros |

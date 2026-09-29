@@ -1,6 +1,20 @@
 ﻿{
   "indexes": [
     {
+      "collectionGroup": "service_orders",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "tenantId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "technicianUids",
+          "arrayConfig": "CONTAINS"
+        }
+      ]
+    },
+    {
       "collectionGroup": "client_notes",
       "queryScope": "COLLECTION",
       "fields": [
