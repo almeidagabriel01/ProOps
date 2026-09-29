@@ -67,8 +67,8 @@ describe("planTenantNicheMigration", () => {
     expect(plan.ok).toBe(false);
   });
 
-  it("recusa nicho desconhecido, inclusive nome do protótipo", () => {
-    expect(planTenantNicheMigration(input({ targetNiche: "marcenaria" })).ok).toBe(false);
+  it("recusa nicho desconhecido e nome que só existe no protótipo do objeto", () => {
+    expect(planTenantNicheMigration(input({ targetNiche: "som_home_theater" })).ok).toBe(false);
     expect(planTenantNicheMigration(input({ targetNiche: "constructor" })).ok).toBe(false);
   });
 
