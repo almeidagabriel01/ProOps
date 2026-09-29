@@ -80,6 +80,16 @@ export const PLAN_PRO_ADDONS: SeedPlanTenant = {
   addons: ["fiscal", "online_payments"],
 };
 
+/** Starter que comprou o add-on de ordens de serviço e equipamentos. */
+export const PLAN_STARTER_FIELD_SERVICE: SeedPlanTenant = {
+  tenantId: "tenant-plan-starter-os",
+  tier: "starter",
+  uid: "user-plan-starter-os",
+  email: "starter-os@plans.test",
+  name: "Master Starter com Ordens de Serviço",
+  addons: ["field_service"],
+};
+
 /**
  * Donos de conta Pro exclusivos do tutorial (`onboarding/` e
  * `mobile/onboarding.spec.ts`). O spec reescreve `users/{uid}.onboarding` a
@@ -108,6 +118,7 @@ export const PLAN_TENANTS = [
   PLAN_ENTERPRISE,
   PLAN_STARTER_ADDON,
   PLAN_PRO_ADDONS,
+  PLAN_STARTER_FIELD_SERVICE,
   PLAN_ONBOARDING,
   PLAN_ONBOARDING_MOBILE,
 ];
