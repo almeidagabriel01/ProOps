@@ -70,7 +70,13 @@ Cada passo diz o que o cobra. Nenhum passo depende de lembrar.
 
 Nicho que cobra por medida (m², metro linear, faixa de altura) usa os modos que
 já existem (`pricing.dimensionModes`) e troca o nome deles em
-`pricing.modeLabels`. Os ids `curtain_*` são históricos e não mudam.
+`pricing.modeLabels`. O nome das medidas nos campos ("largura", "altura") troca
+em `pricing.measureLabels`, como `Term` com gênero, porque os textos de ajuda
+concordam ("o comprimento será preenchido"); as telas leem `measureTerms` e o
+guard `src/__tests__/no-hardcoded-measure-labels.test.ts` reprova rótulo à mão.
+O estoque por medida conta em metro linear (`meterInventoryDefinition`) ou em
+m² (`areaInventoryDefinition`, vidro e chapa). Os ids `curtain_*` são históricos
+e não mudam.
 
 ## Regras
 

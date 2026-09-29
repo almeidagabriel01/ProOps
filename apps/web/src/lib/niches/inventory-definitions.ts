@@ -37,3 +37,18 @@ export const meterInventoryDefinition: InventoryDefinition = {
   lowValueThreshold: 10,
   step: 0.01,
 };
+
+/**
+ * Estoque por área: vidro e chapa se contam em m², não em metro linear. O
+ * modo continua `meter` (é o que fica gravado no produto); muda o que a tela diz.
+ */
+export const areaInventoryDefinition: InventoryDefinition = {
+  ...meterInventoryDefinition,
+  unitLabel: "metros quadrados",
+  unitSuffix: "m²",
+  priceSuffix: "/ m²",
+  tableHeader: "Metragem (m²)",
+  formLabel: "Metragem (m²)",
+  formInitialLabel: "Metragem inicial (m²)",
+  readOnlyLabel: "Metragem (m²)",
+};

@@ -9,7 +9,7 @@ import type {
   ProposalLineFormat,
 } from "@/lib/product-pricing";
 import type { AttentionResult } from "@/lib/sales/proposal-attention";
-import type { NicheVocabulary } from "./vocabulary";
+import type { NicheVocabulary, Term } from "./vocabulary";
 
 export type InventoryUnit = "unit" | "meter";
 export type ProposalWorkflow = "automation" | "catalog" | "environment";
@@ -79,6 +79,12 @@ export interface PricingDefinition {
   modeLabels?: Partial<
     Record<DimensionPricingMode, Partial<{ short: string; description: string; ruleTitle: string }>>
   >;
+  /**
+   * Como as medidas de um modo se chamam nos campos: "comprimento" onde a
+   * tubulação de climatização se mede, em vez de "largura". Sem entrada, vale
+   * largura e altura. É `Term` porque os textos de ajuda concordam em gênero.
+   */
+  measureLabels?: Partial<Record<DimensionPricingMode, Partial<{ width: Term; height: Term }>>>;
 }
 
 export interface PdfDefinition {

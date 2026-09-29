@@ -1,5 +1,6 @@
 import type { DimensionPricingMode } from "@/lib/product-pricing";
 import type { PricingDefinition } from "@/lib/niches/config-types";
+import { term, type Term } from "@/lib/niches/vocabulary";
 
 /**
  * Como cada modo de preço por medida aparece na tela. Os ids (`curtain_*`)
@@ -39,4 +40,22 @@ export function dimensionModeLabel(
   mode: DimensionPricingMode,
 ): DimensionModeLabel {
   return { ...DEFAULT_DIMENSION_MODE_LABELS[mode], ...pricing.modeLabels?.[mode] };
+}
+
+/** O nome das medidas que um modo pede na tela. */
+export interface MeasureTerms {
+  width: Term;
+  height: Term;
+}
+
+export const DEFAULT_MEASURE_TERMS: MeasureTerms = {
+  width: term("largura", "larguras", "f"),
+  height: term("altura", "alturas", "f"),
+};
+
+export function measureTerms(
+  pricing: Pick<PricingDefinition, "measureLabels">,
+  mode: DimensionPricingMode,
+): MeasureTerms {
+  return { ...DEFAULT_MEASURE_TERMS, ...pricing.measureLabels?.[mode] };
 }

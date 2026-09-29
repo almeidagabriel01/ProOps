@@ -2,7 +2,7 @@ import type { NicheConfig, InventoryDefinition } from "../../config-types";
 import { groupsStepFor, pdfCopyFor, solutionsPageFor } from "../../copy-builders";
 import { term, type NicheVocabulary } from "../../vocabulary";
 import { NICHE_REGISTRY } from "../../registry";
-import { meterInventoryDefinition } from "../../inventory-definitions";
+import { areaInventoryDefinition } from "../../inventory-definitions";
 
 const vocabulary: NicheVocabulary = {
   place: term("ambiente", "ambientes", "m"),
@@ -13,9 +13,9 @@ const vocabulary: NicheVocabulary = {
   productNamePlaceholder: "Ex: Box de vidro temperado 8 mm",
 };
 
-// O estoque por medida é o mesmo de persianas; muda o que se conta nele.
+// Estoque por área (m²); muda o que se conta nele.
 const inventory: InventoryDefinition = {
-  ...meterInventoryDefinition,
+  ...areaInventoryDefinition,
   pageDescription: "Gerencie o catálogo de vidros, esquadrias e acessórios, a metragem disponível e os preços.",
   emptyStateDescription:
     "Cadastre vidros, perfis, kits e acessórios para controlar a metragem disponível e montar propostas.",

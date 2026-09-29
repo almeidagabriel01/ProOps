@@ -56,7 +56,7 @@ import {
   normalizeProposalPricingDetails,
 } from "@/lib/product-pricing";
 import { createLineItemId, ensureAmbienteProductLineItemId } from "@/lib/proposal-product";
-import { dimensionModeLabel } from "@/lib/pricing/dimension-mode-labels";
+import { dimensionModeLabel, measureTerms } from "@/lib/pricing/dimension-mode-labels";
 
 interface AmbienteEditorProps {
   ambiente: Ambiente | null;
@@ -122,6 +122,9 @@ export function AmbienteEditor({
   const { tenant } = useTenant();
   const nicheConfig = useCurrentNicheConfig();
   const v = nicheConfig.vocabulary;
+  const areaMeasures = measureTerms(nicheConfig.pricing, "curtain_meter");
+  const tierMeasures = measureTerms(nicheConfig.pricing, "curtain_height");
+  const linearMeasures = measureTerms(nicheConfig.pricing, "curtain_width");
   const inventoryConfig = getNicheConfig(tenant?.niche).productCatalog.inventory;
   const allowDecimalProductQuantity = inventoryConfig.step < 1;
   const [isSaving, setIsSaving] = React.useState(false);
@@ -939,7 +942,7 @@ export function AmbienteEditor({
                                 <div className="grid w-full gap-3 sm:grid-cols-3 sm:items-end md:w-[520px] lg:w-[560px]">
                                   <div className="space-y-1">
                                     <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-                                      Largura (m)
+                                      {cap(areaMeasures.width.singular)} (m)
                                     </span>
                                     <EditableMeasureInput
                                       value={
@@ -973,7 +976,7 @@ export function AmbienteEditor({
                                   </div>
                                   <div className="space-y-1">
                                     <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-                                      Altura (m)
+                                      {cap(areaMeasures.height.singular)} (m)
                                     </span>
                                     <EditableMeasureInput
                                       value={
@@ -1080,7 +1083,7 @@ export function AmbienteEditor({
                                   </div>
                                   <div className="space-y-1">
                                     <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-                                      Largura (m)
+                                      {cap(tierMeasures.width.singular)} (m)
                                     </span>
                                     <EditableMeasureInput
                                       value={
@@ -1168,7 +1171,7 @@ export function AmbienteEditor({
                                 <div className="grid w-full gap-3 md:w-[392px] md:grid-cols-[minmax(0,1fr)_max-content] md:items-end">
                                   <div className="space-y-1">
                                     <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-                                      Largura (m)
+                                      {cap(linearMeasures.width.singular)} (m)
                                     </span>
                                     <EditableMeasureInput
                                       value={
@@ -1276,11 +1279,11 @@ export function AmbienteEditor({
                             <div className="rounded-md bg-muted/25 px-2.5 py-2">
                               <p className="text-[10px] uppercase tracking-wide text-muted-foreground">
                                 {isCurtainMeter
-                                  ? "Area base"
+                                  ? "Área base"
                                   : isCurtainHeight
-                                    ? "Largura base"
+                                    ? `${cap(tierMeasures.width.singular)} base`
                                     : isCurtainWidth
-                                      ? "Largura base"
+                                      ? `${cap(linearMeasures.width.singular)} base`
                                     : "Quantidade"}
                               </p>
                               <p className="text-xs font-semibold text-foreground">
