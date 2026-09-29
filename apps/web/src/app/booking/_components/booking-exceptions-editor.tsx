@@ -45,14 +45,8 @@ export function BookingExceptionsEditor({
     ]);
 
   return (
+    // O título e a explicação ficam no cabeçalho do card que embrulha o editor.
     <div className="space-y-3">
-      <div className="space-y-1">
-        <Label>Exceções</Label>
-        <p className="text-sm text-muted-foreground">
-          Dias ou horários em que você não vai atender. O link não oferece esses horários.
-        </p>
-      </div>
-
       {exceptions.length === 0 ? (
         <p className="flex items-center gap-2 rounded-lg border border-dashed p-3 text-sm text-muted-foreground">
           <CalendarOff className="h-4 w-4 shrink-0" />

@@ -6,8 +6,8 @@ import { PageViewSwitcher } from "@/components/layout/page-view-switcher";
 import { UpgradeRequired } from "@/components/ui/upgrade-required";
 import { usePermissions } from "@/providers/permissions-provider";
 import { usePlanLimits } from "@/hooks/usePlanLimits";
-import { SalesGoalsCard } from "./_components/sales-goals-card";
-import { SalesGoalsCardSkeleton } from "./_components/goals-skeleton";
+import { SalesGoalsPanel } from "./_components/sales-goals-panel";
+import { GoalsSkeleton } from "./_components/goals-skeleton";
 
 /**
  * Metas de vendas (Pro e Enterprise), uma visão do grupo Financeiro. Quem
@@ -20,7 +20,9 @@ export default function GoalsPage() {
   const { hasSalesGoals, isLoading: planLoading } = usePlanLimits();
   const canConfigure = isMaster && !isDemo;
 
-  if (!planLoading && !hasSalesGoals) {
+  if (permLoading || planLoading) return <GoalsSkeleton />;
+
+  if (!hasSalesGoals) {
     return (
       <UpgradeRequired
         feature="Metas de vendas"
@@ -29,34 +31,29 @@ export default function GoalsPage() {
     );
   }
 
+  const header = (
+    <div>
+      <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">Metas de vendas</h1>
+      <p className="mt-1 text-muted-foreground">
+        Quanto a empresa e cada pessoa da equipe querem vender no mês, e quanto já venderam
+      </p>
+      <PageViewSwitcher className="mt-3" />
+    </div>
+  );
+
+  if (canConfigure) return <SalesGoalsPanel header={header} />;
+
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">
-          Metas de vendas
-        </h1>
-        <p className="mt-1 text-muted-foreground">
-          A meta do mês da empresa e de cada pessoa da equipe
+      {header}
+      <div className="flex min-h-[400px] flex-col items-center justify-center text-center">
+        <Shield className="mb-4 h-16 w-16 text-muted-foreground" />
+        <h2 className="mb-2 text-2xl font-bold">Acesso Restrito</h2>
+        <p className="text-muted-foreground">
+          {isDemo
+            ? "Na conta de demonstração as metas ficam só para ver, no Dashboard."
+            : "Apenas o administrador define as metas. O seu progresso aparece no Dashboard."}
         </p>
-        <PageViewSwitcher className="mt-3" />
-      </div>
-
-      <div className="max-w-4xl">
-        {permLoading || planLoading ? (
-          <SalesGoalsCardSkeleton />
-        ) : canConfigure ? (
-          <SalesGoalsCard />
-        ) : (
-          <div className="flex flex-col items-center justify-center min-h-[400px] text-center">
-            <Shield className="w-16 h-16 text-muted-foreground mb-4" />
-            <h2 className="text-2xl font-bold mb-2">Acesso Restrito</h2>
-            <p className="text-muted-foreground">
-              {isDemo
-                ? "Na conta de demonstração as metas ficam só para ver, no Dashboard."
-                : "Apenas o administrador define as metas. O seu progresso aparece no Dashboard."}
-            </p>
-          </div>
-        )}
       </div>
     </div>
   );

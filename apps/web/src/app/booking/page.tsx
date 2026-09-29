@@ -8,8 +8,8 @@ import { usePermissions } from "@/providers/permissions-provider";
 import { usePlanLimits } from "@/hooks/usePlanLimits";
 import { useCurrentNicheConfig } from "@/hooks/useCurrentNicheConfig";
 import { demoBookingSettings } from "@/lib/booking/booking-format";
-import { BookingSettingsCard } from "./_components/booking-settings-card";
-import { BookingCardSkeleton } from "./_components/booking-skeleton";
+import { BookingSettingsPanel } from "./_components/booking-settings-panel";
+import { BookingSkeleton } from "./_components/booking-skeleton";
 
 /**
  * Link de agendamento (Pro e Enterprise), uma visão do grupo Agenda. O
@@ -29,7 +29,9 @@ export default function BookingPage() {
     [nicheConfig.booking.defaultVisitType],
   );
 
-  if (!planLoading && !hasBookingLink) {
+  if (permLoading || planLoading) return <BookingSkeleton />;
+
+  if (!hasBookingLink) {
     return (
       <UpgradeRequired
         feature="Link de agendamento"
@@ -38,34 +40,26 @@ export default function BookingPage() {
     );
   }
 
+  const header = (
+    <div>
+      <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">Link de agendamento</h1>
+      <p className="mt-1 text-muted-foreground">O cliente escolhe um horário livre e pede a visita</p>
+      <PageViewSwitcher className="mt-3" />
+    </div>
+  );
+
+  if (canConfigure) return <BookingSettingsPanel header={header} />;
+  if (isDemo) return <BookingSettingsPanel header={header} readOnly demoDefaults={demoDefaults} />;
+
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">
-          Link de agendamento
-        </h1>
-        <p className="mt-1 text-muted-foreground">
-          O cliente escolhe um horário livre e pede a visita
+      {header}
+      <div className="flex min-h-[400px] flex-col items-center justify-center text-center">
+        <Shield className="mb-4 h-16 w-16 text-muted-foreground" />
+        <h2 className="mb-2 text-2xl font-bold">Acesso Restrito</h2>
+        <p className="text-muted-foreground">
+          Apenas o administrador configura o link. Os pedidos de visita aparecem no Calendário.
         </p>
-        <PageViewSwitcher className="mt-3" />
-      </div>
-
-      <div className="max-w-4xl">
-        {permLoading || planLoading ? (
-          <BookingCardSkeleton />
-        ) : canConfigure ? (
-          <BookingSettingsCard />
-        ) : isDemo ? (
-          <BookingSettingsCard readOnly demoDefaults={demoDefaults} />
-        ) : (
-          <div className="flex flex-col items-center justify-center min-h-[400px] text-center">
-            <Shield className="w-16 h-16 text-muted-foreground mb-4" />
-            <h2 className="text-2xl font-bold mb-2">Acesso Restrito</h2>
-            <p className="text-muted-foreground">
-              Apenas o administrador configura o link. Os pedidos de visita aparecem no Calendário.
-            </p>
-          </div>
-        )}
       </div>
     </div>
   );

@@ -18,7 +18,7 @@ vi.mock("@/services/booking-service", () => ({
   },
 }));
 
-import { BookingSettingsCard } from "../booking-settings-card";
+import { BookingSettingsPanel } from "../booking-settings-panel";
 import { demoBookingSettings } from "@/lib/booking/booking-format";
 
 const SETTINGS = {
@@ -38,9 +38,9 @@ beforeEach(() => {
   m.save.mockImplementation(async (input: typeof SETTINGS) => ({ ...input, publicToken: "abcDEF123456" }));
 });
 
-describe("link de agendamento nas configurações", () => {
+describe("tela do link de agendamento", () => {
   it("liga, tira o sábado que não estava e salva; o link aparece depois", async () => {
-    render(<BookingSettingsCard />);
+    render(<BookingSettingsPanel />);
     await userEvent.click(await screen.findByRole("switch", { name: "Ligar o link de agendamento" }));
     await userEvent.click(screen.getByRole("button", { name: "Seg" }));
     await userEvent.click(screen.getByRole("button", { name: "Salvar" }));
@@ -52,7 +52,7 @@ describe("link de agendamento nas configurações", () => {
   });
 
   it("acrescenta e remove tipo de visita", async () => {
-    render(<BookingSettingsCard />);
+    render(<BookingSettingsPanel />);
     await userEvent.click(await screen.findByRole("button", { name: "Adicionar tipo de visita" }));
     await userEvent.type(screen.getByLabelText("Nome do tipo de visita 2"), "Orçamento");
     await userEvent.click(screen.getByRole("button", { name: "Remover Visita técnica" }));
@@ -65,7 +65,7 @@ describe("link de agendamento nas configurações", () => {
   });
 
   it("a duração tem rótulo próprio, como os tipos de visita", async () => {
-    render(<BookingSettingsCard />);
+    render(<BookingSettingsPanel />);
     await screen.findByText("Tipos de visita");
     expect(screen.getAllByText("Tempo de duração").length).toBeGreaterThan(0);
     expect(screen.getByLabelText("Tempo de duração do tipo de visita 1")).toBeInTheDocument();
@@ -73,7 +73,7 @@ describe("link de agendamento nas configurações", () => {
 
   it("acrescenta uma exceção por horário e salva a faixa", async () => {
     m.get.mockResolvedValue({ ...SETTINGS, exceptions: [] });
-    render(<BookingSettingsCard />);
+    render(<BookingSettingsPanel />);
     expect(await screen.findByText(/Nenhuma exceção/)).toBeInTheDocument();
 
     await userEvent.click(screen.getByRole("button", { name: "Adicionar exceção" }));
@@ -95,7 +95,7 @@ describe("link de agendamento nas configurações", () => {
       ...SETTINGS,
       exceptions: [{ id: "exc_20301012_dia", date: "2030-10-12", allDay: true, startMin: null, endMin: null, note: null }],
     });
-    render(<BookingSettingsCard />);
+    render(<BookingSettingsPanel />);
     await userEvent.click(await screen.findByRole("button", { name: /Remover a exceção de .*dia inteiro/ }));
     expect(screen.getByText(/Nenhuma exceção/)).toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: "Salvar" }));
@@ -103,7 +103,7 @@ describe("link de agendamento nas configurações", () => {
   });
 
   it("backend sem exceções: o editor não aparece", async () => {
-    render(<BookingSettingsCard />);
+    render(<BookingSettingsPanel />);
     await screen.findByText("Tipos de visita");
     expect(screen.queryByText("Exceções")).toBeNull();
     expect(screen.queryByRole("button", { name: "Adicionar exceção" })).toBeNull();
@@ -111,7 +111,7 @@ describe("link de agendamento nas configurações", () => {
 
   it("na demonstração mostra o padrão sem chamar a API e sem salvar", () => {
     render(
-      <BookingSettingsCard
+      <BookingSettingsPanel
         readOnly
         demoDefaults={demoBookingSettings({ id: "medicao", label: "Medição", durationMin: 60 })}
       />,

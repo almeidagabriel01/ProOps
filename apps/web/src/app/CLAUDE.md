@@ -22,9 +22,9 @@ Segmentos de rota: proposals, contacts, products, transactions, calendar, crm, d
 ## Rotas existentes
 ```
 403, admin, agendar, ambientes, aplicativo, api, auth,
-automacao-residencial, automation, calendar, cash-flow, checkout-success,
+automacao-residencial, automation, booking, calendar, cash-flow, checkout-success,
 commissions, contacts, contato, cookies, crm, dashboard, data-deletion, dre,
-decoracao, fale-conosco, forgot-password, funcionalidades, institucional, invoices, login,
+decoracao, fale-conosco, forgot-password, funcionalidades, goals, institucional, invoices, login,
 manifesto, notifications, privacy, products, produtos, profile, projects, proposals,
 register, reset,
 services, settings, share, sobre, solutions, spreadsheets, subscribe,
@@ -65,9 +65,9 @@ recebe sai do catálogo (`lib/notifications/catalog.ts`, espelho do backend com
 teste de paridade). Regras no `apps/functions/src/api/services/CLAUDE.md`.
 
 `tasks` são as **tarefas**: o "a fazer" com responsável, prazo e @menção, em
-todos os planos, com `pageId` próprio (`tasks`) e ícone próprio na dock, ao
-lado do Calendário. A tarefa é DA PESSOA: o membro lê as que criou, as dele e as em que
-foi citado (`audienceUids`, que as rules leem); dono e administradores leem
+todos os planos, com `pageId` próprio (`tasks`), visão do grupo Agenda da
+dock, junto do Calendário e do Link de agendamento. A tarefa é DA PESSOA: o
+membro lê as que criou, as dele e as em que foi citado (`audienceUids`, que as rules leem); dono e administradores leem
 todas (`useTaskReader`). Coleção própria `tasks`, e não as atividades do CRM,
 porque o histórico do lead é da equipe e as rules não liberariam uma lista que
 misturasse os dois; por isso o tipo "Tarefa" saiu da criação de atividade, e o
@@ -93,7 +93,15 @@ As **metas de vendas** ficam em `/goals`, visão do grupo Financeiro: a meta do
 mês da empresa e de cada pessoa da equipe, definida pelo master (o membro vê
 "Acesso Restrito" e acompanha a dele no Dashboard). Na proposta o campo se
 chama "Responsável pela venda", e não "Vendedor", porque "vendedor" já é o
-parceiro da comissão.
+parceiro da comissão. Ao lado da meta de cada pessoa a tela mostra o que ela
+já vendeu no mês (`GET /v1/sales-goals/progress`), com a porcentagem calculada
+sobre a meta que está sendo digitada; se essa leitura falhar, a tela continua
+servindo para definir as metas.
+
+As duas são telas de módulo, na largura toda, com as ações (mês e salvar nas
+metas; ligar e salvar no link) à direita do título, e o conteúdo em cards:
+Empresa e Equipe nas metas; Link, Expediente, Tipos de visita e Exceções no
+agendamento.
 
 As duas telas moravam em Configurações até 2026-09-28; os endereços antigos
 (`/settings/goals`, `/settings/booking`) só redirecionam. O portão de plano e

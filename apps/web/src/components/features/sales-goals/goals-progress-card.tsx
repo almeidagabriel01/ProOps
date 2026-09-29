@@ -8,6 +8,7 @@ import { usePlanLimits } from "@/hooks/usePlanLimits";
 import { usePermissions } from "@/providers/permissions-provider";
 import { formatMonthLabel } from "@/lib/month-key";
 import { cn } from "@/lib/utils";
+import { goalPercent } from "@/lib/sales-goals/goal-percent";
 import { SalesGoalsService, type GoalProgress } from "@/services/sales-goals-service";
 
 interface GoalsProgressCardProps {
@@ -19,11 +20,7 @@ function money(value: number): string {
   return value.toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 });
 }
 
-/** Percentual atingido, ou null sem meta. Passa de 100 quando a meta é batida. */
-export function goalPercent(achieved: number, target: number | null): number | null {
-  if (!target || target <= 0) return null;
-  return Math.round((achieved / target) * 100);
-}
+export { goalPercent };
 
 function ProgressRow({
   label,
