@@ -58,7 +58,13 @@ Runs in parallel on every push to non-main branches:
 Runs on PRs and Merge Queue events:
 - `type-check` — TypeScript on the merge commit (reusable)
 - `lint` — ESLint on the merge commit (reusable)
-- `unit-tests` — Vitest frontend unit tests `npm run test:web` (reusable)
+- `unit-tests` — Vitest frontend unit tests `npm run test:web` e, em job paralelo
+  do mesmo arquivo, o Jest do backend `npm run test:functions` (sem infra; os
+  `*.integration.test.ts` ficam de fora). O Jest do backend entrou no CI em
+  2026-09-29: até ali só rodava na máquina de quem lembrasse, e a cobrança dos
+  contratos (rotina diária que grava lançamentos) não podia depender disso.
+  Localmente, rode por arquivo com `--runInBand`: a suíte inteira em paralelo
+  trava uma máquina de desenvolvimento (em série, ~25 min)
 - `firestore-rules` — Jest security rules (reusable)
 - `e2e` — Playwright E2E **sharded across 4 parallel runners** (`--shard=N/4`), ~7 min
 - `e2e-mobile` — Playwright no projeto `mobile-chrome` (Pixel 5, 393x851, `hasTouch`), **em 2 shards** (`--shard=N/2`). Roda **em paralelo** com `e2e`, não depende dele. Cobre `tests/e2e/mobile/**` + `smoke.spec.ts`.
