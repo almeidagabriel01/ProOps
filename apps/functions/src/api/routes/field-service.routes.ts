@@ -10,6 +10,7 @@ import {
   deleteServiceOrderPhoto,
   downloadServiceOrderPdf,
   getSharedServiceOrder,
+  launchServiceOrderTransaction,
   listTechnicians,
   reopenServiceOrder,
   updateEquipment,
@@ -42,6 +43,7 @@ router.post("/service-orders/:id/reopen", reopenServiceOrder);
 router.post("/service-orders/:id/photos", uploadServiceOrderPhoto);
 router.delete("/service-orders/:id/photos/:photoId", deleteServiceOrderPhoto);
 router.post("/service-orders/:id/share-link", createServiceOrderShareLink);
+router.post("/service-orders/:id/transaction", launchServiceOrderTransaction);
 // Fallback: o proxy manda os caminhos terminados em /pdf para a função `pdf`.
 router.get("/service-orders/:id/pdf", pdfRateLimiter, downloadServiceOrderPdf);
 

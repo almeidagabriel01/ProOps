@@ -23,7 +23,9 @@ vi.mock("next/link", () => ({
 vi.mock("@/providers/tenant-provider", () => ({ useTenant: () => ({ tenant: { id: "t1" }, isReadOnly: false }) }));
 vi.mock("@/providers/auth-provider", () => ({ useAuth: () => ({ user: { id: "diego", role: "member" } }) }));
 vi.mock("@/providers/permissions-provider", () => ({ usePermissions: () => ({ isMaster: m.isMaster }) }));
-vi.mock("@/hooks/usePlanLimits", () => ({ usePlanLimits: () => ({ hasFieldService: true, isLoading: false }) }));
+vi.mock("@/hooks/usePlanLimits", () => ({
+  usePlanLimits: () => ({ hasFieldService: true, hasFinancial: true, isLoading: false }),
+}));
 vi.mock("@/hooks/usePagePermission", () => ({ usePagePermission: () => m.perms }));
 vi.mock("@/hooks/useServiceOrders", () => ({
   useServiceOrderScope: () => ({ seesAll: m.seesAll, uid: "diego", isLoading: false }),
@@ -44,6 +46,7 @@ vi.mock("@/services/field-service-service", () => ({
 }));
 
 vi.mock("@/services/pdf/download-service-order-pdf", () => ({ downloadServiceOrderPdf: vi.fn() }));
+vi.mock("@/services/wallet-service", () => ({ WalletService: { getWallets: async () => [] } }));
 vi.mock("@/services/product-service", () => ({ ProductService: { getProducts: async () => [] } }));
 vi.mock("@/services/service-service", () => ({ ServiceService: { getServices: async () => [] } }));
 vi.mock("@/services/client-service", () => ({ ClientService: { getClientsPaginated: async () => ({ data: [] }) } }));
@@ -82,6 +85,7 @@ const ORDER = {
   noSignatureReason: null,
   completedAt: null,
   canceledAt: null,
+  transactionId: null,
   createdAt: null,
   updatedAt: null,
 };
@@ -137,6 +141,22 @@ describe("detalhe da OS", () => {
     expect(screen.queryByRole("textbox", { name: "Relatório do técnico" })).not.toBeInTheDocument();
     expect(screen.getByAltText("Assinatura de Ana Souza")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Reabrir/ })).toBeInTheDocument();
+  });
+
+  it("concluída com valor e sem lançamento oferece lançar no financeiro; lançada, leva ao lançamento", () => {
+    open({ status: "completed", noSignatureReason: "Cliente ausente", totals: { products: 0, services: 150, total: 150 } });
+    expect(screen.getByRole("button", { name: /Lançar no financeiro/ })).toBeInTheDocument();
+    act(() =>
+      m.emit?.({
+        ...ORDER,
+        status: "completed",
+        noSignatureReason: "Cliente ausente",
+        totals: { products: 0, services: 150, total: 150 },
+        transactionId: "tx1",
+      }),
+    );
+    expect(screen.queryByRole("button", { name: /Lançar no financeiro/ })).not.toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Ver lançamento/ })).toHaveAttribute("href", "/transactions/tx1");
   });
 
   it("membro que não é dono não reabre OS concluída", () => {

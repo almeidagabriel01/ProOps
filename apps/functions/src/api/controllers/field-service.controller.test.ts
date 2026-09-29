@@ -25,8 +25,20 @@ jest.mock("../services/projects/project.service", () => ({
   isStorageOverQuota: async () => false,
 }));
 let capability = true;
+let financial = true;
 jest.mock("../../lib/tenant-capabilities", () => ({
-  tenantHasCapability: async () => capability,
+  tenantHasCapability: async (_t: string, key: string) => (key === "financial" ? financial : capability),
+}));
+const createdTransactions: Doc[] = [];
+let transactionError: Error | null = null;
+jest.mock("../services/transaction.service", () => ({
+  TransactionService: {
+    createTransaction: async (_uid: string, _user: unknown, dto: Doc) => {
+      if (transactionError) throw transactionError;
+      createdTransactions.push(dto);
+      return { transactionId: `tx_${createdTransactions.length}`, count: 1 };
+    },
+  },
 }));
 const rendered: string[] = [];
 jest.mock("../services/core-pdf.service", () => ({
@@ -130,6 +142,7 @@ import {
   deleteServiceOrder,
   downloadServiceOrderPdf,
   getSharedServiceOrder,
+  launchServiceOrderTransaction,
   reopenServiceOrder,
   updateServiceOrder,
 } from "./field-service.controller";
@@ -204,6 +217,9 @@ beforeEach(() => {
   rendered.length = 0;
   notifications.length = 0;
   googleDeletes.length = 0;
+  financial = true;
+  createdTransactions.length = 0;
+  transactionError = null;
   permissions.clear();
   savedFiles.length = 0;
   deletedFiles.length = 0;
@@ -568,5 +584,65 @@ describe("Agenda e aviso ao técnico", () => {
     const { id } = res.body as { id: string };
     expect(eventsOf(id)).toHaveLength(0);
     expect(store.service_orders[id].calendarEventId).toBeUndefined();
+  });
+});
+
+describe("lançar no financeiro", () => {
+  const body = { wallet: "w1", status: "pending", dueDate: "2026-10-10" };
+  const launch = async () => {
+    const res = mockRes();
+    await launchServiceOrderTransaction(req({ params: { id: "o1" }, body }), res);
+    return res;
+  };
+
+  it("só OS concluída vira lançamento", async () => {
+    const res = await launch();
+    expect(res.statusCode).toBe(409);
+    expect(createdTransactions).toHaveLength(0);
+  });
+
+  it("vira uma receita com o total, e só uma vez", async () => {
+    store.service_orders.o1.status = "completed";
+    store.service_orders.o1.totals = { products: 60, services: 150, total: 210 };
+    store.service_orders.o1.title = "Não gela";
+    const first = await launch();
+    expect(first.statusCode).toBe(201);
+    expect(createdTransactions[0]).toMatchObject({
+      type: "income",
+      amount: 210,
+      wallet: "w1",
+      status: "pending",
+      dueDate: "2026-10-10",
+      clientId: "c1",
+      category: "Ordens de serviço",
+      description: "OS-0001: Não gela",
+    });
+    expect(store.service_orders.o1).toMatchObject({ transactionId: "tx_1", transactionClaimAt: null });
+    const second = await launch();
+    expect(second.statusCode).toBe(409);
+    expect(createdTransactions).toHaveLength(1);
+  });
+
+  it("empresa sem o financeiro leva 402", async () => {
+    store.service_orders.o1.status = "completed";
+    store.service_orders.o1.totals = { total: 210 };
+    financial = false;
+    expect((await launch()).statusCode).toBe(402);
+  });
+
+  it("sem permissão de lançamentos dá 403 e libera a trava", async () => {
+    store.service_orders.o1.status = "completed";
+    store.service_orders.o1.totals = { total: 210 };
+    transactionError = new Error("Sem permissão financeira.");
+    expect((await launch()).statusCode).toBe(403);
+    expect(store.service_orders.o1.transactionClaimAt).toBeNull();
+    transactionError = null;
+    expect((await launch()).statusCode).toBe(201);
+  });
+
+  it("OS sem valor não é lançada", async () => {
+    store.service_orders.o1.status = "completed";
+    store.service_orders.o1.totals = { total: 0 };
+    expect((await launch()).statusCode).toBe(400);
   });
 });

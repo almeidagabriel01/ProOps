@@ -60,6 +60,7 @@ it.each([
   ["POST", "/service-orders/o1/photos", "uploadServiceOrderPhoto"],
   ["DELETE", "/service-orders/o1/photos/f1", "deleteServiceOrderPhoto"],
   ["POST", "/service-orders/o1/share-link", "createServiceOrderShareLink"],
+  ["POST", "/service-orders/o1/transaction", "launchServiceOrderTransaction"],
   ["GET", "/service-orders/o1/pdf", "downloadServiceOrderPdf"],
 ])("%s %s exige a capacidade fieldService e chega no handler certo", async (method, path, handler) => {
   hits.length = 0;

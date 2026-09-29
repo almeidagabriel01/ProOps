@@ -317,6 +317,18 @@ export const ReopenServiceOrderSchema = z
   .object({ reason: z.string().trim().min(3, "Diga por que a OS foi reaberta.").max(300) })
   .strict();
 
+/** Lançar a OS concluída no financeiro: uma receita com o total da OS. */
+export const LaunchTransactionSchema = z
+  .object({
+    wallet: z.string().trim().min(1, "Escolha a carteira."),
+    status: z.enum(["paid", "pending"]),
+    dueDate: z.string().regex(ISO_DAY, "Data inválida."),
+  })
+  .strict();
+
+/** Categoria da receita da OS no DRE (fora da lista da empresa, cai em Receita bruta). */
+export const SERVICE_ORDER_INCOME_CATEGORY = "Ordens de serviço";
+
 export const PhotoUploadSchema = z
   .object({
     dataUrl: z.string().min(1).max(1_000_000),

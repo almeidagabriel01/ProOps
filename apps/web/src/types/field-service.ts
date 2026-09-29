@@ -114,6 +114,8 @@ export interface ServiceOrder {
   noSignatureReason: string | null;
   completedAt: string | null;
   canceledAt: string | null;
+  /** Receita lançada no financeiro a partir da OS concluída. */
+  transactionId: string | null;
   createdAt: string | null;
   updatedAt: string | null;
 }

@@ -9,6 +9,7 @@ import {
   CheckCircle2,
   ClipboardList,
   Download,
+  Landmark,
   Link2,
   MapPin,
   Pencil,
@@ -55,6 +56,7 @@ import { ItemsEditor } from "../_components/items-editor";
 import { PhotosSection } from "../_components/photos-section";
 import { CompleteDialog } from "../_components/complete-dialog";
 import { SignatureCard } from "../_components/signature-card";
+import { LaunchTransactionDialog } from "../_components/launch-transaction-dialog";
 import { useExecutionDraft } from "../_components/use-execution-draft";
 import { PRIORITY_LABELS, TYPE_LABELS, formatWhen, isClosed } from "@/lib/field-service/service-orders";
 
@@ -65,8 +67,9 @@ export default function ServiceOrderDetailPage() {
   const { isReadOnly } = useTenant();
   const { user } = useAuth();
   const { isMaster } = usePermissions();
-  const { hasFieldService, isLoading: isPlanLoading } = usePlanLimits();
+  const { hasFieldService, hasFinancial, isLoading: isPlanLoading } = usePlanLimits();
   const { canEdit, canDelete } = usePagePermission("service_orders");
+  const { canCreate: canCreateTransaction } = usePagePermission("transactions");
   const scope = useServiceOrderScope();
   const allowed = hasFieldService || user?.role === "superadmin";
 
@@ -77,6 +80,7 @@ export default function ServiceOrderDetailPage() {
   const [cancelOpen, setCancelOpen] = React.useState(false);
   const [deleteOpen, setDeleteOpen] = React.useState(false);
   const [reopenOpen, setReopenOpen] = React.useState(false);
+  const [launchOpen, setLaunchOpen] = React.useState(false);
   const [busy, setBusy] = React.useState(false);
   const execution = useExecutionDraft(order);
 
@@ -207,6 +211,25 @@ export default function ServiceOrderDetailPage() {
                 Reabrir
               </Button>
             )}
+            {order.status === "completed" && order.transactionId && (
+              <Button variant="outline" asChild>
+                <Link href={`/transactions/${order.transactionId}`}>
+                  <Landmark className="mr-2 h-4 w-4" />
+                  Ver lançamento
+                </Link>
+              </Button>
+            )}
+            {!isReadOnly &&
+              hasFinancial &&
+              canCreateTransaction &&
+              order.status === "completed" &&
+              !order.transactionId &&
+              order.totals.total > 0 && (
+                <Button variant="outline" onClick={() => setLaunchOpen(true)} disabled={busy}>
+                  <Landmark className="mr-2 h-4 w-4" />
+                  Lançar no financeiro
+                </Button>
+              )}
             {!isReadOnly && isMaster && order.status === "completed" && (
               <Button variant="outline" onClick={() => setReopenOpen(true)} disabled={busy}>
                 <RotateCcw className="mr-2 h-4 w-4" />
@@ -427,6 +450,7 @@ export default function ServiceOrderDetailPage() {
         }}
       />
       <ReopenDialog open={reopenOpen} onOpenChange={setReopenOpen} order={order} />
+      <LaunchTransactionDialog open={launchOpen} onOpenChange={setLaunchOpen} order={order} />
     </div>
   );
 }

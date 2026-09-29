@@ -661,6 +661,13 @@ nichos: chamado de alarme, manutenção de ar-condicionado, suporte de automaç�
   encerrada. O vínculo atravessa a regravação do evento (`pickEventLinks`).
 - **Aviso ao técnico** (`service_order_assigned`, direto): quando a OS passa
   para ele ou a data muda; quem fez a mudança não é avisado.
+- **Lançar no financeiro** (`POST /v1/service-orders/:id/transaction`): a OS
+  concluída vira UMA receita com o total, pelo `TransactionService.createTransaction`
+  (que confere a permissão de Lançamentos e o saldo da carteira), na categoria
+  "Ordens de serviço". O id fica em `transactionId`; uma trava de dois minutos
+  (`transactionClaimAt`) impede duas abas de lançarem duas vezes. Pede o
+  financeiro no plano (402). A nota de serviço sai pelo lançamento, como
+  qualquer outro.
 - **Link do cliente e PDF.** Um link por OS (`shareToken` na OS, e
   `shared_service_orders/{token}` com o token como id, Admin SDK only), aberto
   em `GET /v1/share/service-order/:token` (público; token desconhecido, OS

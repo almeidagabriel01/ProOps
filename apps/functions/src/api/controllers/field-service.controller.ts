@@ -10,6 +10,8 @@ import { buildPdfContentDisposition, buildPdfFilename } from "../services/pdf-fi
 import { decodePhotoDataUrl } from "../services/projects/project-model";
 import { isStorageOverQuota } from "../services/projects/project.service";
 import { NotificationService } from "../services/notification.service";
+import { TransactionService } from "../services/transaction.service";
+import { validateTransactionData, type CreateTransactionDTO } from "../helpers/transaction-validation";
 import { resolveFrontendAppOrigin } from "../../lib/frontend-app-url";
 import {
   buildCalendarEventDocument,
@@ -23,10 +25,12 @@ import {
   EQUIPMENT_COLLECTION,
   EquipmentSchema,
   ExecutionUpdateSchema,
+  LaunchTransactionSchema,
   MAX_ORDER_PHOTOS,
   PhotoUploadSchema,
   ReopenServiceOrderSchema,
   SERVICE_ORDERS_COLLECTION,
+  SERVICE_ORDER_INCOME_CATEGORY,
   ServiceOrderStatusSchema,
   UpdateEquipmentSchema,
   UpdateServiceOrderSchema,
@@ -872,5 +876,76 @@ export async function downloadServiceOrderPdf(req: Request, res: Response) {
     return res.status(200).send(result.buffer);
   } catch (error) {
     return fail(res, error, "Erro ao gerar o PDF da OS.", "service_order_pdf_failed");
+  }
+}
+
+/** Trava de lançamento: duas abas clicando ao mesmo tempo não lançam duas receitas. */
+const TRANSACTION_CLAIM_MS = 2 * 60 * 1000;
+
+/**
+ * POST /v1/service-orders/:id/transaction
+ *
+ * A OS concluída vira uma receita no financeiro, com o total dela, pelo
+ * mesmo serviço de lançamentos da tela (que confere a permissão de
+ * Lançamentos e mexe no saldo da carteira quando já nasce paga). Uma receita
+ * por OS: o id fica gravado nela.
+ */
+export async function launchServiceOrderTransaction(req: Request, res: Response) {
+  const parsed = LaunchTransactionSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ message: firstIssue(parsed.error) });
+  try {
+    const { tenantId, uid } = await requireAccess(req, "service_orders", "canView");
+    if (!(await tenantHasCapability(tenantId, "financial"))) {
+      return res.status(402).json({ message: "O plano da empresa não inclui o financeiro." });
+    }
+    const found = await loadOrderForUser(req, tenantId, uid);
+    if (orderStatus(found.data) !== "completed") {
+      return res.status(409).json({ message: "Conclua a OS antes de lançar no financeiro." });
+    }
+    const total = Number((found.data.totals as { total?: number } | undefined)?.total ?? 0);
+    if (!(total > 0)) return res.status(400).json({ message: "A OS não tem valor para lançar." });
+
+    await db.runTransaction(async (t) => {
+      const snap = await t.get(found.ref);
+      const data = snap.data() ?? {};
+      if (data.transactionId) throw new HttpError(409, "Esta OS já foi lançada no financeiro.");
+      const claim = Date.parse(String(data.transactionClaimAt ?? ""));
+      if (!Number.isNaN(claim) && Date.now() - claim < TRANSACTION_CLAIM_MS) {
+        throw new HttpError(409, "O lançamento desta OS já está em andamento.");
+      }
+      t.update(found.ref, { transactionClaimAt: new Date().toISOString() });
+    });
+
+    try {
+      const today = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(new Date());
+      const dto: CreateTransactionDTO = {
+        type: "income",
+        description: `${String(found.data.code ?? "OS")}: ${String(found.data.title ?? "")}`.slice(0, 200),
+        amount: total,
+        date: today,
+        dueDate: parsed.data.dueDate,
+        status: parsed.data.status,
+        wallet: parsed.data.wallet,
+        clientId: String(found.data.clientId ?? ""),
+        clientName: String(found.data.clientName ?? ""),
+        category: SERVICE_ORDER_INCOME_CATEGORY,
+        installmentCount: 1,
+      };
+      const validation = validateTransactionData(dto);
+      if (!validation.isValid) throw new HttpError(400, validation.message ?? "Dados inválidos.");
+      const result = await TransactionService.createTransaction(uid, req.user, dto);
+      await found.ref.update({ transactionId: result.transactionId, transactionClaimAt: null });
+      return res.status(201).json({ transactionId: result.transactionId });
+    } catch (error) {
+      await found.ref.update({ transactionClaimAt: null });
+      if (error instanceof HttpError) throw error;
+      const message = error instanceof Error ? error.message : "";
+      // O serviço de lançamentos sinaliza permissão e carteira por mensagem.
+      if (/permiss|FORBIDDEN/i.test(message)) throw new HttpError(403, "Sem permissão para criar lançamentos.");
+      if (/carteira|wallet/i.test(message)) throw new HttpError(400, message);
+      throw error;
+    }
+  } catch (error) {
+    return fail(res, error, "Erro ao lançar a OS no financeiro.", "service_order_transaction_failed");
   }
 }

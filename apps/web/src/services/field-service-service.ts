@@ -98,6 +98,7 @@ export function toServiceOrder(id: string, data: DocumentData): ServiceOrder {
     noSignatureReason: str(data.noSignatureReason),
     completedAt: str(data.completedAt),
     canceledAt: str(data.canceledAt),
+    transactionId: str(data.transactionId),
     createdAt: str(data.createdAt),
     updatedAt: str(data.updatedAt),
   };
@@ -180,6 +181,8 @@ export const FieldService = {
     callApi<{ photo: ServiceOrderPhoto }>(`/v1/service-orders/${id}/photos`, "POST", { dataUrl, caption }),
   removePhoto: (id: string, photoId: string) => callApi(`/v1/service-orders/${id}/photos/${photoId}`, "DELETE"),
   shareLink: (id: string) => callApi<{ url: string }>(`/v1/service-orders/${id}/share-link`, "POST"),
+  launchTransaction: (id: string, input: { wallet: string; status: "paid" | "pending"; dueDate: string }) =>
+    callApi<{ transactionId: string }>(`/v1/service-orders/${id}/transaction`, "POST", input),
 };
 
 /** O que o link público da OS mostra (`toClientOrderView` no backend). */

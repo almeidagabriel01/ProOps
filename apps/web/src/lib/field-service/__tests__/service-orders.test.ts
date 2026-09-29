@@ -42,6 +42,7 @@ function order(over: Partial<ServiceOrder>): ServiceOrder {
     noSignatureReason: null,
     completedAt: null,
     canceledAt: null,
+    transactionId: null,
     createdAt: "2026-09-01T10:00:00.000Z",
     updatedAt: null,
     ...over,
