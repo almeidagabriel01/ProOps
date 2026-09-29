@@ -8,7 +8,9 @@ import {
   LayoutGrid,
   ListTodo,
   Package,
+  PenLine,
   Ruler,
+  ServerCog,
   Wrench,
 } from "lucide-react";
 
@@ -155,5 +157,28 @@ export const RECURSOS_DE_ENTREGA: readonly Recurso[] = [
     requisito: { tipo: "plano", recursos: ["hasProjects"] },
     rota: "/projects",
     ondeFica: "Obras › Link da entrega",
+  },
+  {
+    id: "ordens-de-servico",
+    titulo: "Ordem de serviço",
+    resumo: "O chamado técnico do começo ao fim: agenda, checklist, peças, fotos e assinatura.",
+    detalhes: [
+      "O técnico preenche no celular, na casa do cliente.",
+      "O cliente assina com o dedo na tela, e a OS sai em PDF.",
+      "As peças usadas saem do estoque, com histórico.",
+    ],
+    icone: PenLine,
+    requisito: { tipo: "plano", recursos: ["hasFieldService"] },
+  },
+  {
+    id: "equipamentos-do-cliente",
+    titulo: "Equipamentos do cliente",
+    resumo: "O que está instalado em cada cliente, com garantia e histórico de atendimentos.",
+    detalhes: [
+      "Marca, modelo, número de série e local de cada aparelho.",
+      "A garantia e o último atendimento à vista na ficha do contato.",
+    ],
+    icone: ServerCog,
+    requisito: { tipo: "plano", recursos: ["hasFieldService"] },
   },
 ];

@@ -16,6 +16,7 @@ import { AI_LIMITS } from "../../ai/ai.types";
 import {
   applyAddonsToCapabilities,
   isAddonAvailableForTier,
+  addonsGrantingCapability,
   missingRequiredAddons,
 } from "../addon-definitions";
 
@@ -44,6 +45,7 @@ describe("PLAN_CATALOG — matriz alvo", () => {
           "salesGoals",
           "bookingLink",
           "clientPortal",
+          "fieldService",
         ],
       ],
       [
@@ -63,6 +65,7 @@ describe("PLAN_CATALOG — matriz alvo", () => {
           "salesGoals",
           "bookingLink",
           "clientPortal",
+          "fieldService",
           "fiscalReceiving",
         ],
       ],
@@ -108,6 +111,15 @@ describe("PLAN_CATALOG — matriz alvo", () => {
     expect(buildPublicPlanFeatures("pro").hasClientPortal).toBe(true);
     expect(buildPublicPlanFeatures("enterprise").hasClientPortal).toBe(true);
     expect(buildPublicPlanFeatures("starter").hasClientPortal).toBe(false);
+  });
+
+  it("ordens de servico e equipamentos: Pro e Enterprise, Starter pelo add-on", () => {
+    expect(minimumTierForCapability("fieldService")).toBe("pro");
+    expect(PLAN_CATALOG.starter.capabilities.fieldService).toBe(false);
+    expect(PLAN_CATALOG.pro.capabilities.fieldService).toBe(true);
+    expect(PLAN_CATALOG.enterprise.capabilities.fieldService).toBe(true);
+    expect(buildPublicPlanFeatures("pro").hasFieldService).toBe(true);
+    expect(buildPublicPlanFeatures("starter").hasFieldService).toBe(false);
   });
 
   it("planilhas: Starter 5, Pro 50, Enterprise ilimitado", () => {
@@ -279,6 +291,16 @@ describe("applyAddonsToCapabilities", () => {
     );
     expect(out.capabilities.onlinePayments).toBe(true);
     expect(out.capabilities.fiscal).toBe(false);
+  });
+
+  it("o add-on de ordens de servico abre so a assistencia tecnica, e so no Starter", () => {
+    const out = applyAddonsToCapabilities(base(), ["field_service"]);
+    expect(out.capabilities.fieldService).toBe(true);
+    expect(out.capabilities.projects).toBe(false);
+    expect(out.capabilities.financial).toBe(false);
+    expect(isAddonAvailableForTier("field_service", "starter")).toBe(true);
+    expect(isAddonAvailableForTier("field_service", "pro")).toBe(false);
+    expect(addonsGrantingCapability("fieldService")).toEqual(["field_service"]);
   });
 
   it("nao muta a entrada e ignora id desconhecido", () => {

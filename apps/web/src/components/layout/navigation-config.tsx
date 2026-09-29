@@ -42,7 +42,8 @@ export type MenuCapability =
   | "fiscal"
   | "projects"
   | "salesGoals"
-  | "bookingLink";
+  | "bookingLink"
+  | "fieldService";
 
 /**
  * Quais capacidades o plano do tenant abre. Mora aqui, e não em

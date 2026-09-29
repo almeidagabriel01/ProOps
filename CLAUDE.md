@@ -177,9 +177,9 @@ aconteceu com o fiscal, o calendário e o Asaas, que existiram meses com
 qualquer chamada HTTP direta passava.
 
 Matriz atual: **Starter** sem módulo premium nativo (compra `financial`, `crm`,
-`fiscal`, `online_payments` e `pdf_editor_*` como add-on; o pagamento online no
+`fiscal`, `online_payments`, `field_service` e `pdf_editor_*` como add-on; o pagamento online no
 Starter exige o financeiro); **Pro** com financeiro, editor de PDF, cores,
-Google Agenda, Google Drive, aceite online da proposta pelo link, projetos de instalação, metas de vendas, link de agendamento e portal do cliente (compra `crm`, `fiscal` e `online_payments`);
+Google Agenda, Google Drive, aceite online da proposta pelo link, projetos de instalação, metas de vendas, link de agendamento, portal do cliente e ordens de serviço com equipamentos do cliente (compra `crm`, `fiscal` e `online_payments`);
 **Enterprise** com tudo, mais CRM, Notas Fiscais sem franquia, recepção de notas
 de entrada, Pagamento Online e WhatsApp. O add-on fiscal emite até 100 notas por
 mês e não inclui a recepção. Planilhas: 5 / 50 / ilimitado. Add-ons somam por

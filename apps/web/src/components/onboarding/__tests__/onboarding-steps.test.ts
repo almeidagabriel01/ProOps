@@ -40,13 +40,14 @@ const NONE: OnboardingCapabilityMap = {
   salesGoals: false,
   bookingLink: false,
   clientPortal: false,
+  fieldService: false,
 };
 
 /** O que o `PlanProvider` entrega por tier, sem add-ons. */
 const PLAN: Record<"free" | "starter" | "pro" | "enterprise", OnboardingCapabilityMap> = {
   // A conta free destrava financeiro, CRM, projetos e editor de PDF para a
   // demonstração, e deixa fiscal e Drive de fora.
-  free: { ...NONE, financial: true, crm: true, pdfEditor: true, projects: true, salesGoals: true, bookingLink: true, clientPortal: true },
+  free: { ...NONE, financial: true, crm: true, pdfEditor: true, projects: true, salesGoals: true, bookingLink: true, clientPortal: true, fieldService: true },
   starter: NONE,
   pro: {
     ...NONE,
@@ -58,6 +59,7 @@ const PLAN: Record<"free" | "starter" | "pro" | "enterprise", OnboardingCapabili
     salesGoals: true,
     bookingLink: true,
     clientPortal: true,
+    fieldService: true,
   },
   enterprise: {
     financial: true,
@@ -72,6 +74,7 @@ const PLAN: Record<"free" | "starter" | "pro" | "enterprise", OnboardingCapabili
     salesGoals: true,
     bookingLink: true,
     clientPortal: true,
+    fieldService: true,
   },
 };
 

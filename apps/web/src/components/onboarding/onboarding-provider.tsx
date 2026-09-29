@@ -158,6 +158,7 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
       salesGoals: plan.hasSalesGoals,
       bookingLink: plan.hasBookingLink,
       clientPortal: plan.hasClientPortal,
+      fieldService: plan.hasFieldService,
     }),
     [
       plan.hasFinancial,
@@ -172,6 +173,7 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
       plan.hasSalesGoals,
       plan.hasBookingLink,
       plan.hasClientPortal,
+      plan.hasFieldService,
     ],
   );
 

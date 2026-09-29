@@ -213,7 +213,13 @@ const CONTEUDO: Record<FuncionalidadeSlug, Omit<Funcionalidade, "slug">> = {
     icone: ClipboardCheck,
     grupo: "entregar",
     principal: "projetos",
-    recursos: ["projetos", "visita-da-etapa", "aceite-da-entrega"],
+    recursos: [
+      "projetos",
+      "visita-da-etapa",
+      "aceite-da-entrega",
+      "ordens-de-servico",
+      "equipamentos-do-cliente",
+    ],
     pagina: {
       titulo: "Da venda aprovada à",
       destaque: "entrega aceita",

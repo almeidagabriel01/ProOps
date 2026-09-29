@@ -56,10 +56,12 @@ Exceção: `createCheckoutSession` e `confirmCheckoutSession` aceitam `allowFree
 | `crm` | CRM avulso (Starter e Pro) |
 | `fiscal` | Notas fiscais, 100 por mes, sem recepcao de notas de entrada (Starter e Pro) |
 | `online_payments` | Pagamento online pelo Asaas (Starter e Pro; no Starter exige `financial`) |
+| `field_service` | Ordens de serviço e equipamentos do cliente (Starter; Pro e Enterprise já têm) |
 
 Pre-requisito entre add-ons: `requiresAddons` em `shared/addon-definitions.ts`,
 checado no checkout (403 `ADDON_REQUIRES_ADDON`) e na cortesia do superadmin.
-Envs: `STRIPE_ADDON_FISCAL_MONTHLY` e `STRIPE_ADDON_ONLINE_PAYMENTS_MONTHLY`.
+Envs: `STRIPE_ADDON_FISCAL_MONTHLY`, `STRIPE_ADDON_ONLINE_PAYMENTS_MONTHLY` e
+`STRIPE_ADDON_FIELD_SERVICE_MONTHLY`.
 Reajuste de preco = price novo no Stripe e troca da env; quem ja assinava fica
 no price antigo, e a assinatura continua reconhecida como add-on pela metadata.
 
@@ -170,7 +172,7 @@ whatsappOverageSubscriptionItemId?: string  // item ID do Stripe para overage me
 
 ```
 tenantId: string
-addonType: string               // financial | pdf_editor_partial | pdf_editor_full | crm | fiscal | online_payments
+addonType: string               // financial | pdf_editor_partial | pdf_editor_full | crm | fiscal | online_payments | field_service
 stripeSubscriptionId: string
 status: "active" | "past_due" | "canceled"
 cancelAtPeriodEnd: boolean

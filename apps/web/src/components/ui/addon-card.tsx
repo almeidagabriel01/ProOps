@@ -15,6 +15,7 @@ import {
   Kanban,
   Receipt,
   CreditCard,
+  Wrench,
 } from "lucide-react";
 import { useThemePrimaryColor } from "@/hooks/useThemePrimaryColor";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -51,6 +52,7 @@ const iconMap: Record<string, typeof DollarSign> = {
   Kanban,
   Receipt,
   CreditCard,
+  Wrench,
 };
 
 export function AddonCard({

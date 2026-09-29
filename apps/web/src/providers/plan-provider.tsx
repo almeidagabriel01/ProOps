@@ -54,6 +54,7 @@ const FREE_PLAN_FEATURES: PlanFeatures = {
   hasSalesGoals: false,
   hasBookingLink: false,
   hasClientPortal: false,
+  hasFieldService: false,
   hasFiscalReceiving: false,
   hasWhatsApp: false,
   canCustomizeTheme: false,
@@ -105,6 +106,8 @@ export interface PlanContextValue {
   hasSalesGoals: boolean;
   hasBookingLink: boolean;
   hasClientPortal: boolean;
+  /** Ordens de serviço e equipamentos do cliente (Pro e Enterprise, ou add-on). */
+  hasFieldService: boolean;
   hasFiscal: boolean;
   hasDriveSync: boolean;
   hasCalendarSync: boolean;
@@ -211,6 +214,7 @@ export function PlanProvider({ children }: { children: React.ReactNode }) {
           hasSalesGoals: true,
           hasBookingLink: true,
           hasClientPortal: true,
+          hasFieldService: true,
           hasFiscalReceiving: true,
           hasWhatsApp: true,
           canCustomizeTheme: true,
@@ -242,6 +246,7 @@ export function PlanProvider({ children }: { children: React.ReactNode }) {
           hasSalesGoals: true,
           hasBookingLink: true,
           hasClientPortal: true,
+          hasFieldService: true,
           canEditPdfSections: true,
           canCustomizeTheme: true,
           maxPdfTemplates: -1,
@@ -616,6 +621,7 @@ export function PlanProvider({ children }: { children: React.ReactNode }) {
       hasSalesGoals: mergedFeatures?.hasSalesGoals ?? false,
       hasBookingLink: mergedFeatures?.hasBookingLink ?? false,
       hasClientPortal: mergedFeatures?.hasClientPortal ?? false,
+      hasFieldService: mergedFeatures?.hasFieldService ?? false,
       hasFiscal: mergedFeatures?.hasFiscal ?? false,
       hasDriveSync: mergedFeatures?.hasDriveSync ?? false,
       hasCalendarSync: mergedFeatures?.hasCalendarSync ?? false,

@@ -19,10 +19,10 @@ import {
  */
 
 const CAPS = {
-  starter: { financial: false, crm: false, fiscal: false, projects: false, salesGoals: false, bookingLink: false },
-  starterComAddonFinancial: { financial: true, crm: false, fiscal: false, projects: false, salesGoals: false, bookingLink: false },
-  pro: { financial: true, crm: false, fiscal: false, projects: true, salesGoals: true, bookingLink: true },
-  enterprise: { financial: true, crm: true, fiscal: true, projects: true, salesGoals: true, bookingLink: true },
+  starter: { financial: false, crm: false, fiscal: false, projects: false, salesGoals: false, bookingLink: false, fieldService: false },
+  starterComAddonFinancial: { financial: true, crm: false, fiscal: false, projects: false, salesGoals: false, bookingLink: false, fieldService: false },
+  pro: { financial: true, crm: false, fiscal: false, projects: true, salesGoals: true, bookingLink: true, fieldService: true },
+  enterprise: { financial: true, crm: true, fiscal: true, projects: true, salesGoals: true, bookingLink: true, fieldService: true },
 } satisfies Record<string, MenuCapabilityMap>;
 
 const LANCAMENTOS: SubMenuItem = {

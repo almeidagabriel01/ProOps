@@ -70,6 +70,9 @@ export function buildPlanFeatureList(plan: UserPlan): string[] {
     f.hasClientPortal
       ? "Portal do cliente: propostas, pagamentos, obra e documentos num link só"
       : null,
+    f.hasFieldService
+      ? "Ordens de serviço: o técnico atende no celular e o cliente assina na tela"
+      : null,
     f.hasOnlinePayments
       ? "Pagamento online: o cliente paga a parcela por Pix ou boleto no link"
       : null,

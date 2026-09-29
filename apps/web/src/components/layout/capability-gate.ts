@@ -29,6 +29,7 @@ export function useMenuCapabilities(): MenuCapabilityMap {
     hasProjects,
     hasSalesGoals,
     hasBookingLink,
+    hasFieldService,
   } = usePlanLimits();
   return React.useMemo(
     () => ({
@@ -38,8 +39,17 @@ export function useMenuCapabilities(): MenuCapabilityMap {
       projects: hasProjects,
       salesGoals: hasSalesGoals,
       bookingLink: hasBookingLink,
+      fieldService: hasFieldService,
     }),
-    [hasFinancial, hasKanban, hasFiscal, hasProjects, hasSalesGoals, hasBookingLink],
+    [
+      hasFinancial,
+      hasKanban,
+      hasFiscal,
+      hasProjects,
+      hasSalesGoals,
+      hasBookingLink,
+      hasFieldService,
+    ],
   );
 }
 
@@ -82,6 +92,11 @@ const CAPABILITY_COPY: Record<
     requiredPlan: "pro",
     description:
       "Mande ao cliente um link para ele escolher um horário livre e pedir a visita, que entra na Agenda para você confirmar.",
+  },
+  fieldService: {
+    requiredPlan: "pro",
+    description:
+      "Registre os equipamentos de cada cliente e atenda chamados com ordem de serviço: o técnico preenche no celular e o cliente assina na tela.",
   },
 };
 

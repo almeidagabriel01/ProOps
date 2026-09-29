@@ -12,7 +12,8 @@ export type AddonId =
   | "pdf_editor_full"
   | "crm"
   | "fiscal"
-  | "online_payments";
+  | "online_payments"
+  | "field_service";
 
 export interface AddonDefinitionBackend {
   id: AddonId;
@@ -58,6 +59,10 @@ export const ADDON_DEFINITIONS_BACKEND: AddonDefinitionBackend[] = [
     id: "online_payments",
     availableForTiers: ["starter", "pro"],
     requiresAddons: { starter: ["financial"] },
+  },
+  {
+    id: "field_service",
+    availableForTiers: ["starter"],
   },
 ];
 
@@ -160,6 +165,9 @@ export function applyAddonsToCapabilities(
         break;
       case "online_payments":
         capabilities.onlinePayments = true;
+        break;
+      case "field_service":
+        capabilities.fieldService = true;
         break;
       default:
         break;

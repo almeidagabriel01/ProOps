@@ -30,6 +30,7 @@ export interface SeedPlanTenant {
     | "pdf_editor_partial"
     | "fiscal"
     | "online_payments"
+    | "field_service"
   >;
 }
 

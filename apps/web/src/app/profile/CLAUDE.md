@@ -171,6 +171,7 @@ Definidos em `ADDON_DEFINITIONS` (`src/services/addon-service.ts`):
 | `crm` | Módulo CRM | `hasKanban: true` | Starter, Pro |
 | `fiscal` | Notas Fiscais | `hasFiscal: true`, `maxInvoicesPerMonth: 100` (sem a recepção de notas de entrada) | Starter, Pro |
 | `online_payments` | Pagamento Online | `hasOnlinePayments: true` | Starter (exige `financial`), Pro |
+| `field_service` | Ordens de Serviço | `hasFieldService: true` | Starter |
 
 `requiresAddons` declara pré-requisito por tier: o card mostra "Contrate antes:
 Módulo Financeiro" e desabilita a compra, e o backend recusa com
