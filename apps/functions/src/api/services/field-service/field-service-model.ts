@@ -330,14 +330,79 @@ export const ReopenServiceOrderSchema = z
   .object({ reason: z.string().trim().min(3, "Diga por que a OS foi reaberta.").max(300) })
   .strict();
 
-/** Lançar a OS concluída no financeiro: uma receita com o total da OS. */
+export const MAX_LAUNCH_INSTALLMENTS = 60;
+
+/**
+ * Lançar a OS concluída no financeiro: à vista, parcelado, com ou sem entrada.
+ * `status` e `dueDate` são da parcela única, ou da primeira parcela quando é
+ * parcelado (as seguintes nascem pendentes, mês a mês).
+ */
 export const LaunchTransactionSchema = z
   .object({
     wallet: z.string().trim().min(1, "Escolha a carteira."),
     status: z.enum(["paid", "pending"]),
     dueDate: z.string().regex(ISO_DAY, "Data inválida."),
+    installments: z
+      .number()
+      .int()
+      .min(1)
+      .max(MAX_LAUNCH_INSTALLMENTS, `No máximo ${MAX_LAUNCH_INSTALLMENTS} parcelas.`)
+      .optional(),
+    downPayment: z
+      .object({
+        amount: z.number().positive("Informe o valor da entrada."),
+        dueDate: z.string().regex(ISO_DAY, "Data inválida."),
+        status: z.enum(["paid", "pending"]),
+      })
+      .strict()
+      .optional(),
   })
   .strict();
+
+export type LaunchTransactionInput = z.infer<typeof LaunchTransactionSchema>;
+
+/**
+ * O que o serviço de lançamentos recebe, montado como a tela de Novo
+ * lançamento monta (`useTransactionForm`): o restante (total menos a entrada)
+ * dividido pelas parcelas, arredondado uma vez em centavos, e a entrada como
+ * `downPayment` no mesmo grupo. Montar igual à tela é o que faz a série
+ * aparecer do mesmo jeito na aba Agrupados e nos cartões de parcela.
+ */
+export function buildLaunchPlan(params: {
+  total: number;
+  input: LaunchTransactionInput;
+  groupId: string;
+}): {
+  amount: number;
+  installmentCount: number;
+  isInstallment: boolean;
+  installmentGroupId?: string;
+  installmentNumber?: number;
+  downPayment?: { amount: number; dueDate: string; status: "paid" | "pending"; installmentCount: number };
+} {
+  const { total, input } = params;
+  const down = input.downPayment?.amount ?? 0;
+  if (down >= total) throw new Error("A entrada precisa ser menor que o total da OS.");
+  const count = input.installments ?? 1;
+  const amount = Math.round(((total - down) / count) * 100) / 100;
+  const grouped = count > 1 || down > 0;
+  return {
+    amount,
+    installmentCount: count,
+    isInstallment: count > 1,
+    installmentGroupId: grouped ? params.groupId : undefined,
+    // Só entrada e o restante à vista: a tela numera o restante como 1.
+    installmentNumber: count === 1 && down > 0 ? 1 : undefined,
+    downPayment: input.downPayment
+      ? {
+          amount: down,
+          dueDate: input.downPayment.dueDate,
+          status: input.downPayment.status,
+          installmentCount: count + 1,
+        }
+      : undefined,
+  };
+}
 
 /** Categoria da receita da OS no DRE (fora da lista da empresa, cai em Receita bruta). */
 export const SERVICE_ORDER_INCOME_CATEGORY = "Ordens de serviço";

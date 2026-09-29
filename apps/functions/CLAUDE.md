@@ -664,7 +664,10 @@ nichos: chamado de alarme, manutenção de ar-condicionado, suporte de automaç�
 - **Equipamentos da obra** (`POST /v1/equipment/batch`, até 50): a tela da obra
   manda os aparelhos escolhidos da proposta, ligados ao `projectId`.
 - **Lançar no financeiro** (`POST /v1/service-orders/:id/transaction`): a OS
-  concluída vira UMA receita com o total, pelo `TransactionService.createTransaction`
+  concluída vira receita à vista ou parcelada, com ou sem entrada, montada por
+  `buildLaunchPlan` do MESMO jeito que a tela de Novo lançamento (restante
+  dividido e arredondado uma vez em centavos, entrada como `downPayment` no
+  mesmo grupo), pelo `TransactionService.createTransaction`
   (que confere a permissão de Lançamentos e o saldo da carteira), na categoria
   "Ordens de serviço". O id fica em `transactionId`; uma trava de dois minutos
   (`transactionClaimAt`) impede duas abas de lançarem duas vezes. Pede o

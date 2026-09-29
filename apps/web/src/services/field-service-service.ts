@@ -186,9 +186,18 @@ export const FieldService = {
     callApi<{ photo: ServiceOrderPhoto }>(`/v1/service-orders/${id}/photos`, "POST", { dataUrl, caption }),
   removePhoto: (id: string, photoId: string) => callApi(`/v1/service-orders/${id}/photos/${photoId}`, "DELETE"),
   shareLink: (id: string) => callApi<{ url: string }>(`/v1/service-orders/${id}/share-link`, "POST"),
-  launchTransaction: (id: string, input: { wallet: string; status: "paid" | "pending"; dueDate: string }) =>
+  launchTransaction: (id: string, input: LaunchTransactionInput) =>
     callApi<{ transactionId: string }>(`/v1/service-orders/${id}/transaction`, "POST", input),
 };
+
+/** Como a OS concluída entra no financeiro: à vista ou parcelada, com ou sem entrada. */
+export interface LaunchTransactionInput {
+  wallet: string;
+  status: "paid" | "pending";
+  dueDate: string;
+  installments?: number;
+  downPayment?: { amount: number; dueDate: string; status: "paid" | "pending" };
+}
 
 /** O que o link público da OS mostra (`toClientOrderView` no backend). */
 export interface SharedServiceOrderView {

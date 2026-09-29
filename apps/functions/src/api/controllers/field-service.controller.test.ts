@@ -648,6 +648,46 @@ describe("lançar no financeiro", () => {
     expect((await launch()).statusCode).toBe(201);
   });
 
+  it("parcelado com entrada vai ao serviço de lançamentos no formato da tela", async () => {
+    store.service_orders.o1.status = "completed";
+    store.service_orders.o1.totals = { total: 1000 };
+    const res = mockRes();
+    await launchServiceOrderTransaction(
+      req({
+        params: { id: "o1" },
+        body: {
+          wallet: "w1",
+          status: "pending",
+          dueDate: "2026-11-10",
+          installments: 4,
+          downPayment: { amount: 200, dueDate: "2026-10-10", status: "paid" },
+        },
+      }),
+      res,
+    );
+    expect(res.statusCode).toBe(201);
+    expect(createdTransactions[0]).toMatchObject({
+      amount: 200,
+      isInstallment: true,
+      installmentCount: 4,
+      installmentGroupId: expect.stringMatching(/^installment_/),
+      downPayment: expect.objectContaining({ amount: 200, status: "paid", installmentNumber: 0, installmentCount: 5 }),
+    });
+  });
+
+  it("entrada maior que o total dá 400 e libera a trava", async () => {
+    store.service_orders.o1.status = "completed";
+    store.service_orders.o1.totals = { total: 100 };
+    const res = mockRes();
+    await launchServiceOrderTransaction(
+      req({ params: { id: "o1" }, body: { ...body, downPayment: { amount: 150, dueDate: "2026-10-10", status: "paid" } } }),
+      res,
+    );
+    expect(res.statusCode).toBe(400);
+    expect(store.service_orders.o1.transactionClaimAt).toBeNull();
+    expect(createdTransactions).toHaveLength(0);
+  });
+
   it("OS sem valor não é lançada", async () => {
     store.service_orders.o1.status = "completed";
     store.service_orders.o1.totals = { total: 0 };

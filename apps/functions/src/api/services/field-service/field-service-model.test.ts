@@ -1,5 +1,6 @@
 import {
   CompleteServiceOrderSchema,
+  buildLaunchPlan,
   ExecutionUpdateSchema,
   UpdateServiceOrderSchema,
   canTransition,
@@ -129,4 +130,54 @@ describe("edição", () => {
 it("código com quatro dígitos, sem cortar os maiores", () => {
   expect(formatOrderCode(7)).toBe("OS-0007");
   expect(formatOrderCode(12345)).toBe("OS-12345");
+});
+
+describe("lançar no financeiro: entrada e parcelas", () => {
+  const base = { wallet: "w1", status: "pending" as const, dueDate: "2026-10-10" };
+
+  it("à vista: uma receita com o total, sem grupo", () => {
+    expect(buildLaunchPlan({ total: 800, input: base, groupId: "g" })).toEqual({
+      amount: 800,
+      installmentCount: 1,
+      isInstallment: false,
+      installmentGroupId: undefined,
+      installmentNumber: undefined,
+      downPayment: undefined,
+    });
+  });
+
+  it("parcelado sem entrada: o total dividido, arredondado em centavos, num grupo", () => {
+    const plan = buildLaunchPlan({ total: 800, input: { ...base, installments: 3 }, groupId: "g" });
+    expect(plan).toMatchObject({ amount: 266.67, installmentCount: 3, isInstallment: true, installmentGroupId: "g" });
+    expect(plan.downPayment).toBeUndefined();
+  });
+
+  it("entrada e o restante parcelado: a entrada sai do total antes da divisão", () => {
+    const plan = buildLaunchPlan({
+      total: 1000,
+      input: { ...base, installments: 4, downPayment: { amount: 200, dueDate: "2026-10-01", status: "paid" } },
+      groupId: "g",
+    });
+    expect(plan).toMatchObject({ amount: 200, installmentCount: 4, isInstallment: true, installmentGroupId: "g" });
+    expect(plan.downPayment).toEqual({ amount: 200, dueDate: "2026-10-01", status: "paid", installmentCount: 5 });
+  });
+
+  it("entrada e o restante à vista: o restante vira a parcela 1 do grupo", () => {
+    const plan = buildLaunchPlan({
+      total: 1000,
+      input: { ...base, downPayment: { amount: 300, dueDate: "2026-10-01", status: "pending" } },
+      groupId: "g",
+    });
+    expect(plan).toMatchObject({ amount: 700, installmentCount: 1, isInstallment: false, installmentGroupId: "g", installmentNumber: 1 });
+  });
+
+  it("entrada igual ou maior que o total é recusada", () => {
+    expect(() =>
+      buildLaunchPlan({
+        total: 500,
+        input: { ...base, downPayment: { amount: 500, dueDate: "2026-10-01", status: "paid" } },
+        groupId: "g",
+      }),
+    ).toThrow(/entrada/);
+  });
 });

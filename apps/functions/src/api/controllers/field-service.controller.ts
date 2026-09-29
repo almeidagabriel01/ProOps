@@ -32,6 +32,7 @@ import {
   ReopenServiceOrderSchema,
   SERVICE_ORDERS_COLLECTION,
   SERVICE_ORDER_INCOME_CATEGORY,
+  buildLaunchPlan,
   ServiceOrderStatusSchema,
   UpdateEquipmentSchema,
   UpdateServiceOrderSchema,
@@ -919,18 +920,45 @@ export async function launchServiceOrderTransaction(req: Request, res: Response)
 
     try {
       const today = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(new Date());
+      let plan: ReturnType<typeof buildLaunchPlan>;
+      try {
+        plan = buildLaunchPlan({ total, input: parsed.data, groupId: `installment_${Date.now()}` });
+      } catch (error) {
+        throw new HttpError(400, error instanceof Error ? error.message : "Parcelamento inválido.");
+      }
       const dto: CreateTransactionDTO = {
         type: "income",
         description: `${String(found.data.code ?? "OS")}: ${String(found.data.title ?? "")}`.slice(0, 200),
-        amount: total,
+        amount: plan.amount,
         date: today,
         dueDate: parsed.data.dueDate,
+        // Parcelado: a primeira parcela leva a situação escolhida, as outras
+        // nascem pendentes (é o serviço de lançamentos que faz isso).
         status: parsed.data.status,
         wallet: parsed.data.wallet,
         clientId: String(found.data.clientId ?? ""),
         clientName: String(found.data.clientName ?? ""),
         category: SERVICE_ORDER_INCOME_CATEGORY,
-        installmentCount: 1,
+        isInstallment: plan.isInstallment,
+        installmentCount: plan.installmentCount,
+        installmentGroupId: plan.installmentGroupId,
+        installmentNumber: plan.installmentNumber,
+        installmentInterval: 1,
+        paymentMode: "total",
+        downPayment: plan.downPayment
+          ? {
+              amount: plan.downPayment.amount,
+              date: today,
+              dueDate: plan.downPayment.dueDate,
+              status: plan.downPayment.status,
+              wallet: parsed.data.wallet,
+              downPaymentType: "value",
+              downPaymentPercentage: 0,
+              installmentNumber: 0,
+              installmentCount: plan.downPayment.installmentCount,
+              paymentMode: "total",
+            }
+          : undefined,
       };
       const validation = validateTransactionData(dto);
       if (!validation.isValid) throw new HttpError(400, validation.message ?? "Dados inválidos.");

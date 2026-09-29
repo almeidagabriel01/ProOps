@@ -3,6 +3,7 @@ import type { ServiceOrder } from "@/types/field-service";
 import {
   filterOrders,
   isoToSchedule,
+  launchSummary,
   orderTotal,
   scheduleToIso,
   sortQueue,
@@ -121,5 +122,19 @@ describe("garantia", () => {
     ["2027-03-01", "valid"],
   ] as const)("%s -> %s", (until, expected) => {
     expect(warrantyState(until, "2026-09-29")).toBe(expected);
+  });
+});
+
+describe("resumo do lançamento", () => {
+  it("à vista é o total", () => {
+    expect(launchSummary(800, 1, 0)).toEqual({ installment: 800, launchedTotal: 800, roundingDiff: 0 });
+  });
+
+  it("parcelado avisa o centavo do arredondamento, como no financeiro", () => {
+    expect(launchSummary(800, 3, 0)).toEqual({ installment: 266.67, launchedTotal: 800.01, roundingDiff: 0.01 });
+  });
+
+  it("a entrada sai do total antes da divisão", () => {
+    expect(launchSummary(1000, 4, 200)).toEqual({ installment: 200, launchedTotal: 1000, roundingDiff: 0 });
   });
 });

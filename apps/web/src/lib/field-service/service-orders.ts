@@ -141,3 +141,16 @@ export function warrantyState(warrantyUntil: string | null, today: string): "non
   limit.setUTCDate(limit.getUTCDate() + 30);
   return warrantyUntil <= limit.toISOString().slice(0, 10) ? "expiring" : "valid";
 }
+
+/**
+ * O que o lançamento da OS vai gerar, com a mesma conta do backend
+ * (`buildLaunchPlan`): o restante dividido pelas parcelas e arredondado uma
+ * vez em centavos. `roundingDiff` é o que o arredondamento soma ou tira do
+ * total, para a tela avisar.
+ */
+export function launchSummary(total: number, installments: number, downPayment: number) {
+  const count = Math.max(1, installments);
+  const installment = Math.round(((total - downPayment) / count) * 100) / 100;
+  const launchedTotal = Math.round((downPayment + installment * count) * 100) / 100;
+  return { installment, launchedTotal, roundingDiff: Math.round((launchedTotal - total) * 100) / 100 };
+}
