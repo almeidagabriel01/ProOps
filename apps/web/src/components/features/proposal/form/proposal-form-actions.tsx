@@ -28,7 +28,7 @@ export function ProposalFormActions({
             >
                 {isSaving ? (
                     <>
-                        <Loader size="sm" />
+                        <Loader size="sm" variant="button" />
                         Salvando...
                     </>
                 ) : (

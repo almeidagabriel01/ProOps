@@ -275,7 +275,7 @@ export function TransactionInstallmentsList({
             >
               {isUpdating ? (
                 <>
-                  <Loader size="sm" />
+                  <Loader size="sm" variant="button" />
                   <span>Atualizando...</span>
                 </>
               ) : (
@@ -555,7 +555,7 @@ export function TransactionInstallmentsList({
                               disabled={!!undoingId || isReadOnly}
                             >
                               {undoingId === partialPaymentTx.id ? (
-                                <Loader size="sm" />
+                                <Loader size="sm" variant="button" />
                               ) : (
                                 <Split className="w-3.5 h-3.5 rotate-180" />
                               )}

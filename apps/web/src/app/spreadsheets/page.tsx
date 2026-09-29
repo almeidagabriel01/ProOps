@@ -29,7 +29,6 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
-import { Spinner } from "@/components/ui/spinner";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -53,6 +52,7 @@ import {
 } from "@/lib/spreadsheet-import";
 import { DEFAULT_SPREADSHEET_LOCALE } from "@/lib/univer-pt-br";
 import { formatDateBR } from "@/utils/date-format";
+import { Loader } from "@/components/ui/loader";
 
 /**
  * O 402 do teto de planilhas é desfecho de plano, não falha: sem este caso a
@@ -370,7 +370,7 @@ export default function SpreadsheetsPage() {
                 disabled={creating || importing}
               >
                 {importing ? (
-                  <Spinner className="w-4 h-4" />
+                  <Loader size="sm" variant="button" />
                 ) : (
                   <Upload className="w-5 h-5" />
                 )}
@@ -385,7 +385,7 @@ export default function SpreadsheetsPage() {
                 disabled={creating || importing}
               >
                 {creating ? (
-                  <Spinner className="w-4 h-4" />
+                  <Loader size="sm" variant="button" />
                 ) : (
                   <Plus className="w-5 h-5" />
                 )}
@@ -404,7 +404,7 @@ export default function SpreadsheetsPage() {
               onChange={(e) => setSearchTerm(e.target.value)}
               icon={
                 isFiltering && isLoadingAll ? (
-                  <Spinner className="w-4 h-4" />
+                  <Loader size="sm" variant="button" />
                 ) : (
                   <Search className="w-4 h-4" />
                 )
@@ -433,7 +433,7 @@ export default function SpreadsheetsPage() {
                   disabled={creating || importing}
                 >
                   {importing ? (
-                    <Spinner className="w-4 h-4" />
+                    <Loader size="sm" variant="button" />
                   ) : (
                     <Upload className="w-4 h-4" />
                   )}
@@ -445,7 +445,7 @@ export default function SpreadsheetsPage() {
                   disabled={creating || importing}
                 >
                   {creating ? (
-                    <Spinner className="w-4 h-4" />
+                    <Loader size="sm" variant="button" />
                   ) : (
                     <Plus className="w-4 h-4" />
                   )}
@@ -525,7 +525,7 @@ export default function SpreadsheetsPage() {
               className="bg-destructive hover:bg-destructive/90 gap-2"
               disabled={isDeleting}
             >
-              {isDeleting && <Spinner className="w-4 h-4 text-white" />}
+              {isDeleting && <Loader size="sm" variant="button" className="text-white" />}
               {isDeleting ? "Excluindo..." : "Excluir"}
             </AlertDialogAction>
           </AlertDialogFooter>

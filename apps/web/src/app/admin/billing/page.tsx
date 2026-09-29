@@ -21,6 +21,7 @@ import {
 import { AdminService, TenantBillingInfo } from "@/services/admin-service";
 import { useAuth } from "@/providers/auth-provider";
 import { toast } from "@/lib/toast";
+import { Loader } from "@/components/ui/loader";
 
 function formatBRL(centavos: number | null | undefined): string {
   if (centavos == null) return "—";
@@ -192,9 +193,7 @@ export default function AdminBillingMigrationPage() {
             disabled={isLoading}
             className="shadow-sm hover:shadow transition-all"
           >
-            <RefreshCw
-              className={`w-4 h-4 mr-2 ${isLoading ? "animate-spin" : ""}`}
-            />
+            {isLoading ? <Loader size="sm" variant="button" className="mr-2" /> : <RefreshCw className="w-4 h-4 mr-2" />}
             Atualizar
           </Button>
           <Button
@@ -203,6 +202,7 @@ export default function AdminBillingMigrationPage() {
             disabled={selectedCount === 0 || isMigrating}
             className="shadow-sm"
           >
+            {isMigrating && <Loader size="sm" variant="button" className="mr-2" />}
             <ArrowRightLeft className="w-4 h-4 mr-2" />
             {isMigrating
               ? "Migrando..."
@@ -287,6 +287,7 @@ export default function AdminBillingMigrationPage() {
                         disabled={isBusy || isMigrating}
                         className="mt-3 w-full text-amber-600 border-amber-200 hover:bg-amber-50 hover:border-amber-400"
                       >
+                        {isBusy && <Loader size="sm" variant="button" className="mr-2" />}
                         <ArrowRightLeft className="w-3.5 h-3.5 mr-1.5" />
                         {isBusy ? "Migrando..." : "Migrar"}
                       </Button>
@@ -399,6 +400,7 @@ export default function AdminBillingMigrationPage() {
                             disabled={isBusy || isMigrating}
                             className="text-amber-600 border-amber-200 hover:bg-amber-50 hover:border-amber-400"
                           >
+                            {isBusy && <Loader size="sm" variant="button" className="mr-2" />}
                             <ArrowRightLeft className="w-3.5 h-3.5 mr-1.5" />
                             {isBusy ? "Migrando..." : "Migrar"}
                           </Button>

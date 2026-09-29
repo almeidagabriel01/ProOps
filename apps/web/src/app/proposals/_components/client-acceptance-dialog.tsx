@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/button";
 import { formatDocumento } from "@/lib/format-document";
 import { formatDateBR } from "@/utils/date-format";
 import type { ClientAcceptance } from "@/lib/client-acceptance";
+import { Loader } from "@/components/ui/loader";
 
 interface ClientAcceptanceDialogProps {
   proposalTitle: string;
@@ -82,10 +83,12 @@ export function ClientAcceptanceDialog({
         {canDecide ? (
           <DialogFooter className="gap-2 sm:gap-0">
             <Button variant="outline" onClick={() => void run("adjust")} disabled={busy !== null}>
+              {busy === "adjust" && <Loader size="sm" variant="button" className="mr-2" />}
               <PencilLine className="mr-2 h-4 w-4" />
               {busy === "adjust" ? "Descartando..." : "Ajustar a proposta"}
             </Button>
             <Button onClick={() => void run("confirm")} disabled={busy !== null}>
+              {busy === "confirm" && <Loader size="sm" variant="button" className="mr-2" />}
               <CheckCircle2 className="mr-2 h-4 w-4" />
               {busy === "confirm" ? "Confirmando..." : "Confirmar aprovação"}
             </Button>

@@ -296,7 +296,7 @@ export function PixQrCodeView({
           className="w-full max-w-xs text-muted-foreground text-xs"
         >
           {isSimulating ? (
-            <Loader size="sm" className="mr-2" />
+            <Loader size="sm" variant="button" className="mr-2" />
           ) : null}
           {isSimulating ? "Simulando..." : "Simular pagamento (sandbox)"}
         </Button>

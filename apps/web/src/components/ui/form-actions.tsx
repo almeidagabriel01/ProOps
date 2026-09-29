@@ -93,7 +93,7 @@ const FormActions = React.forwardRef<HTMLDivElement, FormActionsProps>(
                 <Button type="submit" disabled={isSubmitting} className="gap-2">
                     {isSubmitting ? (
                         <>
-                            <Loader size="sm" />
+                            <Loader size="sm" variant="button" />
                             {submitLoadingLabel}
                         </>
                     ) : (

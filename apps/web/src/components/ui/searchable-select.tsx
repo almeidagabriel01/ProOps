@@ -5,6 +5,7 @@ import { Check, ChevronDown, Search, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { compareDisplayText } from "@/lib/sort-text";
 import { normalize } from "@/utils/text";
+import { Loader } from "@/components/ui/loader";
 
 export interface SearchableSelectOption {
   value: string;
@@ -286,8 +287,9 @@ export const SearchableSelect = React.forwardRef<
                   type="button"
                   onClick={() => void handleCreateOption()}
                   disabled={isCreatingOption}
-                  className="w-full px-3 py-2 text-left text-sm rounded-sm border-b hover:bg-accent hover:text-accent-foreground transition-colors disabled:cursor-not-allowed disabled:opacity-50"
+                  className="flex w-full items-center px-3 py-2 text-left text-sm rounded-sm border-b hover:bg-accent hover:text-accent-foreground transition-colors disabled:cursor-not-allowed disabled:opacity-50"
                 >
+                  {isCreatingOption && <Loader size="sm" variant="button" className="mr-2" />}
                   <span className="font-medium">
                     {isCreatingOption
                       ? creatingOptionLabel

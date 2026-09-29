@@ -63,7 +63,7 @@ export function ArchiveWalletDialog({
                         disabled={isLoading}
                         variant={isArchiving ? "default" : "default"}
                     >
-                        {isLoading && <Loader size="sm" className="mr-2" />}
+                        {isLoading && <Loader size="sm" variant="button" className="mr-2" />}
                         {isArchiving ? "Arquivar" : "Restaurar"}
                     </Button>
                 </AlertDialogFooter>

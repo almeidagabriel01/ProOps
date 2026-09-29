@@ -322,7 +322,7 @@ export default function ViewProposalPage() {
           >
             {isGenerating ? (
               <>
-                <Loader size="sm" />
+                <Loader size="sm" variant="button" />
                 Gerando...
               </>
             ) : (

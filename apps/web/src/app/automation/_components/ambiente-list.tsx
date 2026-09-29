@@ -4,7 +4,6 @@ import * as React from "react";
 import { Ambiente } from "@/types/automation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Spinner } from "@/components/ui/spinner";
 import {
   Pencil,
   Trash2,
@@ -180,7 +179,7 @@ export function AmbienteList({
             size="sm"
           >
             {isCreating ? (
-              <Spinner className="h-4 w-4" />
+              <Loader size="sm" variant="button" />
             ) : (
               <>
                 <Plus className="h-4 w-4 mr-2" /> Adicionar
@@ -244,7 +243,7 @@ export function AmbienteList({
                       className="h-8 px-3"
                     >
                       {isUpdating ? (
-                        <Spinner className="h-3 w-3" />
+                        <Loader size="sm" variant="button" />
                       ) : (
                         <Check className="h-4 w-4" />
                       )}

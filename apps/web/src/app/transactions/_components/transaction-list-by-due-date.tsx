@@ -713,7 +713,7 @@ export function TransactionListByDueDate({
                               disabled={isRowUpdating || isReadOnly}
                             >
                               {isUpdatingWallet ? (
-                                <Loader size="sm" />
+                                <Loader size="sm" variant="button" />
                               ) : (
                                 <>
                                   <span className="truncate">
@@ -777,7 +777,7 @@ export function TransactionListByDueDate({
                               disabled={isRowUpdating || isReadOnly}
                             >
                               {isUpdatingStatus ? (
-                                <Loader size="sm" />
+                                <Loader size="sm" variant="button" />
                               ) : (
                                 <>
                                   {(() => {

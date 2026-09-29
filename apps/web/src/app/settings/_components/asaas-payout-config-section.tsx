@@ -159,7 +159,7 @@ export function AsaasPayoutConfigSection({
         onClick={handleSave}
         disabled={disabled || isSaving || (payoutEnabled && !pixAddressKey.trim())}
       >
-        {isSaving && <Loader size="sm" className="mr-2" />}
+        {isSaving && <Loader size="sm" variant="button" className="mr-2" />}
         Salvar configuração de repasse
       </Button>
     </div>

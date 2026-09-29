@@ -284,7 +284,11 @@ function GoogleCalendarCompanyCard(props: {
                 onClick={props.onDisconnect}
                 disabled={props.isLoading}
               >
-                <Unlink2 className="mr-2 h-4 w-4" />
+                {props.isLoading ? (
+                  <Loader size="sm" variant="button" className="mr-2" />
+                ) : (
+                  <Unlink2 className="mr-2 h-4 w-4" />
+                )}
                 Desconectar
               </Button>
             </div>
@@ -1074,9 +1078,11 @@ export function CalendarPage() {
                         disabled={isRefreshing || isLoadingEvents}
                         title="Atualizar compromissos"
                       >
-                        <RefreshCcw
-                          className={`h-4 w-4 ${isRefreshing ? "animate-spin" : ""}`}
-                        />
+                        {isRefreshing ? (
+                          <Loader size="sm" variant="button" />
+                        ) : (
+                          <RefreshCcw className="h-4 w-4" />
+                        )}
                       </Button>
 
                       <BookingRequestsButton

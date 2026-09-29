@@ -964,7 +964,7 @@ export default function ProposalsPage() {
                       className="text-xs cursor-pointer hover:brightness-110 transition-all gap-1 pr-1.5 min-w-[100px] justify-start border"
                     >
                       {updatingStatusId === proposal.id ? (
-                        <Loader size="sm" />
+                        <Loader size="sm" variant="button" />
                       ) : null}
                       {getStatusLabel(proposal.status)}
                       <ChevronDown className="w-3 h-3 opacity-60 ml-1" />
@@ -1174,7 +1174,7 @@ export default function ProposalsPage() {
                 }
               >
                 {downloadingId === proposal.id ? (
-                  <Loader size="sm" />
+                  <Loader size="sm" variant="button" />
                 ) : (
                   <FileDown className="w-4 h-4" />
                 )}
@@ -1226,7 +1226,7 @@ export default function ProposalsPage() {
                   disabled={editingId === proposal.id}
                 >
                   {editingId === proposal.id ? (
-                    <Loader size="sm" />
+                    <Loader size="sm" variant="button" />
                   ) : (
                     <Pencil className="w-4 h-4" />
                   )}

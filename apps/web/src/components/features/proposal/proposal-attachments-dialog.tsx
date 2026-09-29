@@ -428,7 +428,7 @@ export function ProposalAttachmentsDialog({
                         title="Excluir"
                       >
                         {deletingId === attachment.id ? (
-                          <Loader size="sm" />
+                          <Loader size="sm" variant="button" />
                         ) : (
                           <Trash2 className="w-4 h-4" />
                         )}

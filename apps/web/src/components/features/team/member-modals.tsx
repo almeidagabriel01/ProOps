@@ -5,7 +5,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { PhoneInput } from "@/components/ui/phone-input";
 import { Label } from "@/components/ui/label";
-import { Spinner } from "@/components/ui/spinner";
 import {
   Dialog,
   DialogContent,
@@ -27,6 +26,7 @@ import {
 import { Eye, EyeOff } from "lucide-react";
 import { useMemberActions } from "@/hooks/useMemberActions";
 import { TeamMember } from "./team-types";
+import { Loader } from "@/components/ui/loader";
 
 const buildMemberEditSnapshot = (data: {
   name: string;
@@ -280,7 +280,7 @@ export function EditMemberModal({
               }
               className="gap-2"
             >
-              {isLoading && <Spinner className="w-4 h-4 text-white" />}
+              {isLoading && <Loader size="sm" variant="button" className="text-white" />}
               {isLoading ? "Salvando..." : "Salvar Alterações"}
             </Button>
           </DialogFooter>
@@ -337,7 +337,7 @@ export function DeleteMemberDialog({
             disabled={isLoading}
             className="bg-red-600 hover:bg-red-700 focus:ring-red-600 gap-2"
           >
-            {isLoading && <Spinner className="w-4 h-4 text-white" />}
+            {isLoading && <Loader size="sm" variant="button" className="text-white" />}
             {isLoading ? "Removendo..." : "Sim, Remover"}
           </AlertDialogAction>
         </AlertDialogFooter>
@@ -394,7 +394,7 @@ export function ResetMfaDialog({
             disabled={isLoading}
             className="gap-2"
           >
-            {isLoading && <Spinner className="w-4 h-4 text-white" />}
+            {isLoading && <Loader size="sm" variant="button" className="text-white" />}
             {isLoading ? "Resetando..." : "Sim, resetar"}
           </AlertDialogAction>
         </AlertDialogFooter>

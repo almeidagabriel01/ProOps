@@ -175,6 +175,7 @@ export default function AdminAuditPage() {
           ))}
         </Select>
         <Button variant="outline" onClick={() => void load()} disabled={isLoading}>
+          {isLoading && <Loader size="sm" variant="button" className="mr-2" />}
           Atualizar
         </Button>
       </div>

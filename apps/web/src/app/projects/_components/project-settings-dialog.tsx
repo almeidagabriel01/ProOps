@@ -18,6 +18,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/lib/toast";
 import { ProjectsService } from "@/services/projects-service";
 import type { ProjectOnApproval, StageTemplate } from "@/types/project";
+import { Loader } from "@/components/ui/loader";
 
 const ON_APPROVAL_OPTIONS: Array<{ value: ProjectOnApproval; label: string }> = [
   { value: "ask", label: "Perguntar se a venda tem instalação" },
@@ -218,6 +219,7 @@ export function ProjectSettingsDialog({ open, onOpenChange }: ProjectSettingsDia
             Cancelar
           </Button>
           <Button onClick={() => void save()} disabled={saving || loading || template.length === 0}>
+            {saving && <Loader size="sm" variant="button" className="mr-2" />}
             {saving ? "Salvando..." : "Salvar"}
           </Button>
         </DialogFooter>

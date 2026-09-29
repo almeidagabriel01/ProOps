@@ -15,6 +15,7 @@ import { Input } from "@/components/ui/input";
 import { CurrencyInput } from "@/components/ui/currency-input";
 import { Transaction } from "@/services/transaction-service";
 import { WalletSelect } from "@/components/features/wallet-select";
+import { Loader } from "@/components/ui/loader";
 
 interface ExtraCostDialogProps {
   isOpen: boolean;
@@ -142,6 +143,7 @@ export function ExtraCostDialog({
               Cancelar
             </Button>
             <Button type="submit" disabled={!isFormValid || isSubmitting}>
+              {isSubmitting && <Loader size="sm" variant="button" className="mr-2" />}
               {isSubmitting ? "Adicionando..." : "Confirmar"}
             </Button>
           </DialogFooter>

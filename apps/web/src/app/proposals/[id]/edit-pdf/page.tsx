@@ -147,7 +147,7 @@ export default function EditPdfPage() {
             className="gap-2"
           >
             {isGenerating ? (
-              <Loader size="sm" />
+              <Loader size="sm" variant="button" />
             ) : (
               <FileDown className="w-4 h-4" />
             )}
@@ -160,7 +160,7 @@ export default function EditPdfPage() {
             className="gap-2"
           >
             {isSavingDefault ? (
-              <Loader size="sm" />
+              <Loader size="sm" variant="button" />
             ) : (
               <Save className="w-4 h-4" />
             )}
@@ -173,7 +173,7 @@ export default function EditPdfPage() {
             className="gap-2"
           >
             {isSaving ? (
-              <Loader size="sm" />
+              <Loader size="sm" variant="button" />
             ) : (
               <Save className="w-4 h-4" />
             )}

@@ -29,7 +29,6 @@ import { SelectTenantState } from "@/components/shared/select-tenant-state";
 import { PageUnavailableState } from "@/components/shared/page-unavailable-state";
 import { getNicheConfig } from "@/lib/niches/config";
 import { cap, nele, nenhum, novo, o, pick, primeiro } from "@/lib/niches/vocabulary";
-import { Spinner } from "@/components/ui/spinner";
 import { Card, CardContent } from "@/components/ui/card";
 import { useSearchParams, useRouter } from "next/navigation";
 import { compareDisplayText } from "@/lib/sort-text";
@@ -334,7 +333,7 @@ export default function AmbientesPage() {
             >
               {isDeleting ? (
                 <>
-                  <Spinner className="w-4 h-4 mr-2" /> Excluindo...
+                  <Loader size="sm" variant="button" className="mr-2" /> Excluindo...
                 </>
               ) : (
                 "Confirmar Exclusão"

@@ -396,6 +396,7 @@ function LoginContent() {
               }
               className="cursor-pointer"
             >
+              {isVerifyingWhatsappFallback && <Loader size="sm" variant="button" className="mr-2" />}
               {isVerifyingWhatsappFallback ? "Verificando..." : "Entrar"}
             </Button>
             <button
@@ -406,6 +407,7 @@ function LoginContent() {
               }
               className="text-sm text-muted-foreground underline-offset-4 hover:text-foreground hover:underline disabled:opacity-60 cursor-pointer"
             >
+              {isResendingWhatsappFallback && <Loader size="sm" variant="button" className="mr-2" />}
               {isResendingWhatsappFallback
                 ? "Reenviando..."
                 : formatResendLabel(whatsappResendSecondsLeft)}
@@ -497,6 +499,7 @@ function LoginContent() {
               disabled={isRecoveringTotp}
               className="cursor-pointer"
             >
+              {isRecoveringTotp && <Loader size="sm" variant="button" className="mr-2" />}
               {isRecoveringTotp ? "Entrando..." : "Entrar"}
             </Button>
           </form>
@@ -542,6 +545,7 @@ function LoginContent() {
               disabled={isVerifyingMfaCode || mfaLoginCode.trim().length !== 6}
               className="cursor-pointer"
             >
+              {isVerifyingMfaCode && <Loader size="sm" variant="button" className="mr-2" />}
               {isVerifyingMfaCode ? "Verificando..." : "Entrar"}
             </Button>
           </form>
@@ -554,6 +558,7 @@ function LoginContent() {
                 disabled={isSendingWhatsappFallback}
                 className="w-full justify-start gap-2 cursor-pointer"
               >
+                {isSendingWhatsappFallback && <Loader size="sm" variant="button" className="mr-2" />}
                 <MessageCircle className="h-4 w-4" />
                 {isSendingWhatsappFallback
                   ? "Enviando código..."
@@ -609,6 +614,7 @@ function LoginContent() {
               disabled={isRecoveringWhatsapp}
               className="cursor-pointer"
             >
+              {isRecoveringWhatsapp && <Loader size="sm" variant="button" className="mr-2" />}
               {isRecoveringWhatsapp ? "Entrando..." : "Entrar"}
             </Button>
           </form>
@@ -662,6 +668,7 @@ function LoginContent() {
               }
               className="cursor-pointer"
             >
+              {isVerifyingWhatsappOtp && <Loader size="sm" variant="button" className="mr-2" />}
               {isVerifyingWhatsappOtp ? "Verificando..." : "Entrar"}
             </Button>
             <button
@@ -672,6 +679,7 @@ function LoginContent() {
               }
               className="text-sm text-muted-foreground underline-offset-4 hover:text-foreground hover:underline disabled:opacity-60 cursor-pointer"
             >
+              {isResendingWhatsappOtp && <Loader size="sm" variant="button" className="mr-2" />}
               {isResendingWhatsappOtp
                 ? "Reenviando..."
                 : formatResendLabel(whatsappResendSecondsLeft)}
@@ -851,7 +859,7 @@ function LoginContent() {
                       disabled={isGoogleLoading || isRegistering}
                     >
                       {isGoogleLoading ? (
-                        <Loader size="sm" className="mr-2" />
+                        <Loader size="sm" variant="button" className="mr-2" />
                       ) : (
                         <svg
                           aria-hidden="true"
@@ -1040,6 +1048,7 @@ function LoginContent() {
                             disabled={isVerifyingSmsCode || !smsCode.trim()}
                             className="flex-1"
                           >
+                            {isVerifyingSmsCode && <Loader size="sm" variant="button" className="mr-2" />}
                             {isVerifyingSmsCode
                               ? "Confirmando..."
                               : "Confirmar"}
@@ -1050,6 +1059,7 @@ function LoginContent() {
                             onClick={handleResendPhoneCode}
                             disabled={isSendingSms}
                           >
+                            {isSendingSms && <Loader size="sm" variant="button" className="mr-2" />}
                             {isSendingSms ? "Enviando..." : "Reenviar"}
                           </Button>
                         </div>
@@ -1137,7 +1147,7 @@ function LoginContent() {
                       disabled={isResetting}
                     >
                       {isResetting ? (
-                        <Loader size="sm" className="mr-2" />
+                        <Loader size="sm" variant="button" className="mr-2" />
                       ) : (
                         "Enviar Link de Redefinição"
                       )}
@@ -1218,7 +1228,7 @@ function LoginContent() {
                     disabled={isLoggingIn || isGoogleLoading}
                   >
                     {isLoggingIn ? (
-                      <Loader size="sm" className="mr-2" />
+                      <Loader size="sm" variant="button" className="mr-2" />
                     ) : (
                       "Entrar"
                     )}
@@ -1243,7 +1253,7 @@ function LoginContent() {
                     disabled={isGoogleLoading || isLoggingIn}
                   >
                     {isGoogleLoading ? (
-                      <Loader size="sm" className="mr-2" />
+                      <Loader size="sm" variant="button" className="mr-2" />
                     ) : (
                       <svg
                         aria-hidden="true"

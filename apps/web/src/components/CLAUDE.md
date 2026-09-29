@@ -87,8 +87,21 @@ o spinner sai no `md` (32px) enquanto quem escreveu acha que ajustou. Foi assim
 que o botão "Salvar" da numeração de propostas nasceu com um spinner do dobro
 da altura do texto. `className` serve para margem e cor, não para tamanho.
 
-Guard: `src/__tests__/loader-consistency.test.ts` falha se `Loader2` reaparecer
-ou se algum `<Loader>` tentar se dimensionar por classe.
+**Botão em carregamento é sempre o `Loader` com `variant="button"`**, junto
+do texto (que pode virar "Salvando..."). Até 2026-09-29 conviviam três formas:
+esta, o `Loader`/`Spinner` na variante `inline` (cor primária fixa, que some
+num botão primário e faz o botão parecer sem loader) e botões que só trocavam
+o texto. O `Spinner` (`ui/spinner.tsx`) foi removido, e ícone girando
+(`animate-spin`) também não se usa: o ícone dá lugar ao `Loader` enquanto a
+ação roda. Quando vários botões dividem o mesmo estado de "ocupado", o loader
+vai só no que foi clicado (o detalhe da OS guarda a ação em `busyAction`).
+Botão que só abre um diálogo de confirmação não precisa: o `ConfirmDialog` é
+que mostra o carregamento.
+
+Guard: `src/__tests__/loader-consistency.test.ts` falha se `Loader2` reaparecer,
+se algum `<Loader>` tentar se dimensionar por classe, se um `<Loader>` dentro
+de botão não for `variant="button"`, se um botão trocar o texto para
+"...ndo..." sem o `Loader`, ou se voltar o `Spinner` ou um `animate-spin`.
 
 ## Componentes compartilhados de estado (`shared/`)
 

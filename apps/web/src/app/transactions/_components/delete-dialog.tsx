@@ -12,7 +12,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Transaction } from "@/services/transaction-service";
-import { Spinner } from "@/components/ui/spinner";
+import { Loader } from "@/components/ui/loader";
 
 interface DeleteTransactionDialogProps {
   open: boolean;
@@ -101,7 +101,7 @@ export function DeleteTransactionDialog({
                 disabled={isDeleting}
                 className="bg-red-600 hover:bg-red-700 focus:ring-red-600 gap-2"
               >
-                {isDeleting && <Spinner className="h-4 w-4 text-white" />}
+                {isDeleting && <Loader size="sm" variant="button" className="text-white" />}
                 {isDeleting
                   ? "Excluindo..."
                   : isInstallment

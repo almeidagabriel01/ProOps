@@ -142,7 +142,7 @@ export function PersonalForm({ user }: PersonalFormProps) {
             <Button onClick={handleSave} disabled={!hasChanges || isLoading}>
               {isLoading ? (
                 <>
-                  <Loader size="sm" className="mr-2" />
+                  <Loader size="sm" variant="button" className="mr-2" />
                   Salvando...
                 </>
               ) : (

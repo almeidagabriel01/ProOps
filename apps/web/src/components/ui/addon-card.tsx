@@ -203,7 +203,7 @@ export function AddonCard({
               style={{ backgroundColor: primaryColor }}
             >
               {isLoading ? (
-                <Loader size="sm" />
+                <Loader size="sm" variant="button" />
               ) : (
                 <>
                   <Crown className="w-4 h-4" />

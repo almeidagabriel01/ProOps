@@ -131,7 +131,7 @@ function PixPaymentForm({
           style={primaryColor ? { backgroundColor: primaryColor, color: computePrimaryForeground(primaryColor) } : undefined}
         >
           {isLoading ? (
-            <Loader size="sm" className="mr-2" />
+            <Loader size="sm" variant="button" className="mr-2" />
           ) : (
             <QrCode className="mr-2 h-4 w-4" aria-hidden="true" />
           )}
@@ -182,7 +182,7 @@ function PixPaymentForm({
         style={primaryColor ? { backgroundColor: primaryColor, color: computePrimaryForeground(primaryColor) } : undefined}
       >
         {isLoading ? (
-          <Loader size="sm" className="mr-2" />
+          <Loader size="sm" variant="button" className="mr-2" />
         ) : (
           <QrCode className="mr-2 h-4 w-4" aria-hidden="true" />
         )}
@@ -239,7 +239,7 @@ function BoletoPaymentForm({
           className="w-full"
           style={primaryColor ? { backgroundColor: primaryColor, color: computePrimaryForeground(primaryColor) } : undefined}
         >
-          {isLoading ? <Loader size="sm" className="mr-2" /> : <FileText className="mr-2 h-4 w-4" aria-hidden="true" />}
+          {isLoading ? <Loader size="sm" variant="button" className="mr-2" /> : <FileText className="mr-2 h-4 w-4" aria-hidden="true" />}
           {isLoading ? "Gerando boleto..." : `Gerar Boleto para ${clientName}`}
         </Button>
       </div>
@@ -287,7 +287,7 @@ function BoletoPaymentForm({
         style={primaryColor ? { backgroundColor: primaryColor, color: computePrimaryForeground(primaryColor) } : undefined}
       >
         {isLoading ? (
-          <Loader size="sm" className="mr-2" />
+          <Loader size="sm" variant="button" className="mr-2" />
         ) : (
           <FileText className="mr-2 h-4 w-4" aria-hidden="true" />
         )}

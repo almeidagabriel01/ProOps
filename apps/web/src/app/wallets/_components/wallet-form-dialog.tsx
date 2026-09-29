@@ -285,7 +285,7 @@ export function WalletFormDialog({
             </Button>
             <Button type="submit" disabled={isSubmitting || !canSubmit}>
               {isSubmitting && (
-                <Loader size="sm" className="mr-2" />
+                <Loader size="sm" variant="button" className="mr-2" />
               )}
               {isEditMode ? "Salvar" : "Criar Carteira"}
             </Button>

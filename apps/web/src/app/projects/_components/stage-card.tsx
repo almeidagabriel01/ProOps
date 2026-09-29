@@ -258,7 +258,11 @@ export function StageCard({
             maxLength={200}
           />
           <Button type="submit" variant="outline" disabled={!newItem.trim() || busy === "add"}>
-            <Plus className="h-4 w-4 md:mr-2" />
+            {busy === "add" ? (
+              <Loader size="sm" variant="button" className="md:mr-2" />
+            ) : (
+              <Plus className="h-4 w-4 md:mr-2" />
+            )}
             <span className="hidden md:inline">Incluir</span>
           </Button>
         </form>

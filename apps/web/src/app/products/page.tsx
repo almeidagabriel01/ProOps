@@ -27,7 +27,6 @@ import { ProposalService } from "@/services/proposal-service";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
-import { Spinner } from "@/components/ui/spinner";
 import { Tooltip } from "@/components/ui/tooltip";
 import {
   AlertDialog,
@@ -66,6 +65,7 @@ import {
   summarizeDimensionInventoryBalance,
   type ProductInventoryBalanceSummary,
 } from "@/lib/product-inventory-summary";
+import { Loader } from "@/components/ui/loader";
 
 function buildDimensionBalanceTooltipContent(
   summary: ProductInventoryBalanceSummary,
@@ -521,7 +521,7 @@ export default function ProductsPage() {
             className="bg-destructive hover:bg-destructive/90 gap-2"
             disabled={isDeleting}
           >
-            {isDeleting && <Spinner className="w-4 h-4 text-white" />}
+            {isDeleting && <Loader size="sm" variant="button" className="text-white" />}
             {isDeleting ? "Excluindo..." : "Excluir"}
           </AlertDialogAction>
         </AlertDialogFooter>
@@ -613,7 +613,7 @@ export default function ProductsPage() {
                       <p className="text-2xl sm:text-3xl font-bold tracking-tight">
                         {allProducts === null && hasAnyProducts !== false ? (
                           <span className="inline-flex items-center gap-2 text-lg text-muted-foreground">
-                            <Spinner className="w-4 h-4" />
+                            <Loader size="sm" variant="button" />
                             Calculando...
                           </span>
                         ) : (
@@ -660,7 +660,7 @@ export default function ProductsPage() {
                       <p className="text-2xl sm:text-3xl font-bold tracking-tight">
                         {allProducts === null && hasAnyProducts !== false ? (
                           <span className="inline-flex items-center gap-2 text-lg text-muted-foreground">
-                            <Spinner className="w-4 h-4" />
+                            <Loader size="sm" variant="button" />
                             Calculando...
                           </span>
                         ) : (
@@ -688,7 +688,7 @@ export default function ProductsPage() {
                       <p className="text-2xl sm:text-3xl font-bold tracking-tight">
                         {allProducts === null && hasAnyProducts !== false ? (
                           <span className="inline-flex items-center gap-2 text-lg text-muted-foreground">
-                            <Spinner className="w-4 h-4" />
+                            <Loader size="sm" variant="button" />
                             Calculando...
                           </span>
                         ) : (
@@ -711,7 +711,7 @@ export default function ProductsPage() {
                       <p className="text-2xl sm:text-3xl font-bold tracking-tight">
                         {allProducts === null && hasAnyProducts !== false ? (
                           <span className="inline-flex items-center gap-2 text-lg text-muted-foreground">
-                            <Spinner className="w-4 h-4" />
+                            <Loader size="sm" variant="button" />
                             Calculando...
                           </span>
                         ) : (
@@ -735,7 +735,7 @@ export default function ProductsPage() {
                   onChange={(e) => setSearchTerm(e.target.value)}
                   icon={
                     isFiltering && isLoadingAll ? (
-                      <Spinner className="w-4 h-4" />
+                      <Loader size="sm" variant="button" />
                     ) : (
                       <Search className="w-4 h-4" />
                     )

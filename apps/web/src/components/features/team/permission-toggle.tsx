@@ -1,7 +1,7 @@
 "use client";
 
 import { Check } from "lucide-react";
-import { Spinner } from "@/components/ui/spinner";
+import { Loader } from "@/components/ui/loader";
 
 interface PermissionToggleProps {
     enabled: boolean;
@@ -36,7 +36,7 @@ export function PermissionToggle({
       `}
         >
             {loading ? (
-                <Spinner className="w-3.5 h-3.5" />
+                <Loader size="sm" variant="button" />
             ) : (
                 <Icon className="w-3.5 h-3.5" />
             )}

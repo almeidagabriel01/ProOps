@@ -13,7 +13,6 @@ import { toast } from "@/lib/toast";
 import { Button } from "@/components/ui/button";
 import { VerificationCodeInput } from "@/components/shared/verification-code-input";
 import { Label } from "@/components/ui/label";
-import { Spinner } from "@/components/ui/spinner";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
   AlertDialog,
@@ -25,6 +24,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { Loader } from "@/components/ui/loader";
 
 interface MfaSectionProps {
   /** Fires once when a TOTP enrollment completes (stage transitions to "done"). */
@@ -165,7 +165,7 @@ export function MfaSection({ onEnrolled, onDisabled }: MfaSectionProps = {}) {
                 disabled={resending}
                 className="w-fit gap-2 cursor-pointer"
               >
-                {resending && <Spinner className="h-4 w-4" />}
+                {resending && <Loader size="sm" variant="button" />}
                 {resending ? "Enviando..." : "Reenviar verificação"}
               </Button>
             </AlertDescription>
@@ -201,7 +201,7 @@ export function MfaSection({ onEnrolled, onDisabled }: MfaSectionProps = {}) {
             disabled={busy || !emailGate.ok}
             className="w-fit gap-2 cursor-pointer"
           >
-            {busy && <Spinner className="h-4 w-4 text-white" />}
+            {busy && <Loader size="sm" variant="button" className="text-white" />}
             {busy ? "Gerando..." : "Ativar verificação"}
           </Button>
         ) : null}
@@ -249,7 +249,7 @@ export function MfaSection({ onEnrolled, onDisabled }: MfaSectionProps = {}) {
               disabled={busy}
               className="w-fit gap-2 cursor-pointer"
             >
-              {busy && <Spinner className="h-4 w-4 text-white" />}
+              {busy && <Loader size="sm" variant="button" className="text-white" />}
               {busy ? "Validando..." : "Ativar"}
             </Button>
           </div>
@@ -299,7 +299,7 @@ export function MfaSection({ onEnrolled, onDisabled }: MfaSectionProps = {}) {
               disabled={busy}
               className="bg-red-600 hover:bg-red-700 focus:ring-red-600 gap-2"
             >
-              {busy && <Spinner className="h-4 w-4 text-white" />}
+              {busy && <Loader size="sm" variant="button" className="text-white" />}
               {busy ? "Desativando..." : "Sim, desativar"}
             </AlertDialogAction>
           </AlertDialogFooter>

@@ -8,8 +8,8 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Spinner } from "@/components/ui/spinner";
 import { type Client } from "@/services/client-service";
+import { Loader } from "@/components/ui/loader";
 
 interface DeleteClientDialogProps {
   client: Client | null;
@@ -48,7 +48,7 @@ export function DeleteClientDialog({
             className="bg-destructive hover:bg-destructive/90 gap-2"
             disabled={isDeleting}
           >
-            {isDeleting && <Spinner className="w-4 h-4 text-white" />}
+            {isDeleting && <Loader size="sm" variant="button" className="text-white" />}
             {isDeleting ? "Excluindo..." : "Excluir"}
           </AlertDialogAction>
         </AlertDialogFooter>

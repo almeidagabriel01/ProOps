@@ -277,7 +277,7 @@ export function TenantCard({
                   title="Reativar empresa"
               aria-label="Reativar empresa"
                 >
-                  {isDeleting ? <Loader size="sm" /> : <RotateCcw className="w-4 h-4" />}
+                  {isDeleting ? <Loader size="sm" variant="button" /> : <RotateCcw className="w-4 h-4" />}
                 </Button>
                 <Button
                   variant="ghost"
@@ -503,7 +503,7 @@ export function TenantCard({
               disabled={isDeleting}
               variant="destructive"
             >
-              {isDeleting && <Loader size="sm" className="mr-2" />}
+              {isDeleting && <Loader size="sm" variant="button" className="mr-2" />}
               {isDeleting ? "Desativando..." : "Desativar"}
             </Button>
           </AlertDialogFooter>
@@ -552,7 +552,7 @@ export function TenantCard({
               disabled={isDeleting || !nameMatches}
               variant="destructive"
             >
-              {isDeleting && <Loader size="sm" className="mr-2" />}
+              {isDeleting && <Loader size="sm" variant="button" className="mr-2" />}
               {isDeleting ? "Iniciando..." : "Excluir definitivamente"}
             </Button>
           </AlertDialogFooter>
@@ -581,7 +581,7 @@ export function TenantCard({
               Cancelar
             </AlertDialogCancel>
             <Button onClick={handleResetMfa} disabled={isResettingMfa}>
-              {isResettingMfa && <Loader size="sm" className="mr-2" />}
+              {isResettingMfa && <Loader size="sm" variant="button" className="mr-2" />}
               {isResettingMfa ? "Resetando..." : "Resetar MFA"}
             </Button>
           </AlertDialogFooter>

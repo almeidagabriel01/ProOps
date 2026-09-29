@@ -44,6 +44,7 @@ import { ServiceOrdersSkeleton } from "../../service-orders/_components/service-
 import { ServiceOrderStatusBadge } from "../../service-orders/_components/status-badge";
 import { ContractStatusBadge } from "../_components/contract-status-badge";
 import { ActivateContractDialog } from "../_components/activate-contract-dialog";
+import { Loader } from "@/components/ui/loader";
 
 /** O contrato: o que se cobra, o que já foi cobrado e as visitas que ele abriu. */
 export default function ContractDetailPage() {
@@ -201,7 +202,7 @@ export default function ContractDetailPage() {
                 onClick={() => run(() => FieldService.resumeContract(contract.id), "Contrato retomado.")}
                 disabled={busy}
               >
-                <Play className="mr-2 h-4 w-4" />
+                {busy ? <Loader size="sm" variant="button" className="mr-2" /> : <Play className="mr-2 h-4 w-4" />}
                 Retomar
               </Button>
             )}

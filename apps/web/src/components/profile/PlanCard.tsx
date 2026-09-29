@@ -343,7 +343,7 @@ export function PlanCard({
                     >
                       {processingTier === plan.tier ? (
                         <>
-                          <Loader size="sm" className="mr-2" />
+                          <Loader size="sm" variant="button" className="mr-2" />
                           Processando...
                         </>
                       ) : (
@@ -374,7 +374,7 @@ export function PlanCard({
                   >
                     {processingTier === plan.tier ? (
                       <>
-                        <Loader size="sm" className="mr-2" />
+                        <Loader size="sm" variant="button" className="mr-2" />
                         Processando...
                       </>
                     ) : isEnterprise ? (
@@ -391,6 +391,7 @@ export function PlanCard({
                   onClick={() => onDowngrade(plan)}
                   disabled={isProcessing}
                 >
+                  {processingTier === plan.tier && <Loader size="sm" variant="button" className="mr-2" />}
                   {processingTier === plan.tier
                     ? "Processando..."
                     : "Mudar para este plano"}

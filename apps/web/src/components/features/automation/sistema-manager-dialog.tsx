@@ -15,12 +15,12 @@ import { Sistema, Ambiente } from "@/types/automation";
 import { SistemaService } from "@/services/sistema-service";
 import { AmbienteService } from "@/services/ambiente-service";
 import { useTenant } from "@/providers/tenant-provider";
-import { Spinner } from "@/components/ui/spinner";
 import { toast } from "@/lib/toast";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { MasterDataAction } from "@/hooks/proposal/useMasterDataTransaction";
 import { useNicheVocabulary } from "@/hooks/useNicheVocabulary";
 import { cap, do_, pick } from "@/lib/niches/vocabulary";
+import { Loader } from "@/components/ui/loader";
 
 interface SistemaManagerDialogProps {
   isOpen: boolean;
@@ -178,7 +178,7 @@ export function SistemaManagerDialog({
         <div className="space-y-3 py-2">
           {isLoading ? (
             <div className="flex justify-center py-8">
-              <Spinner className="h-8 w-8" />
+              <Loader size="md" />
             </div>
           ) : sistemas.length === 0 ? (
             <div className="text-center py-8 text-muted-foreground">
@@ -236,7 +236,7 @@ export function SistemaManagerDialog({
                   </Button>
                   {deletingId === sistema.id ? (
                     <div className="h-8 w-8 flex items-center justify-center">
-                      <Spinner className="h-4 w-4 text-destructive" />
+                      <Loader size="sm" variant="button" className="text-destructive" />
                     </div>
                   ) : (
                     <Button

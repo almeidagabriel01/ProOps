@@ -16,7 +16,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { Spinner } from "@/components/ui/spinner";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   ArrowLeft,
@@ -60,6 +59,7 @@ import { useWindowFocus } from "@/hooks/use-window-focus";
 import { AIFieldButton } from "@/components/shared/ai-field-button";
 import { useCurrentNicheConfig } from "@/hooks/useCurrentNicheConfig";
 import { cap, do_, este, neste, nenhum, novo, outros, pick, um } from "@/lib/niches/vocabulary";
+import { Loader } from "@/components/ui/loader";
 
 interface SistemaEditorProps {
   sistema: Sistema | null;
@@ -542,7 +542,7 @@ export function SistemaEditor({
             inert={isReadOnly || undefined}
           >
             {isSaving ? (
-              <Spinner className="mr-2" />
+              <Loader size="sm" variant="button" className="mr-2" />
             ) : (
               <Save className="mr-2 h-4 w-4" />
             )}
@@ -1045,7 +1045,7 @@ export function SistemaEditor({
               onClick={handleCreateAmbiente}
               disabled={!newAmbienteName.trim() || isSubmittingAmbiente}
             >
-              {isSubmittingAmbiente && <Spinner className="mr-2 h-4 w-4" />}
+              {isSubmittingAmbiente && <Loader size="sm" variant="button" className="mr-2" />}
               Criar {cap(v.place.singular)}
             </Button>
           </DialogFooter>

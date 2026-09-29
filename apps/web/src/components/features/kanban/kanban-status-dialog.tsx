@@ -231,7 +231,7 @@ export function KanbanStatusDialog({
               Cancelar
             </Button>
             <Button type="submit" disabled={!canSubmit}>
-              {isSaving && <Loader size="sm" className="mr-2" />}
+              {isSaving && <Loader size="sm" variant="button" className="mr-2" />}
               {isEditing ? "Salvar" : "Criar"}
             </Button>
           </div>

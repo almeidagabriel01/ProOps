@@ -622,7 +622,7 @@ export function TenantDialog({
                         className="text-xs"
                       >
                         {isRecomputing ? (
-                          <RefreshCw className="h-3 w-3 mr-1.5 animate-spin" />
+                          <Loader size="sm" variant="button" className="mr-1.5" />
                         ) : (
                           <RefreshCw className="h-3 w-3 mr-1.5" />
                         )}
@@ -651,7 +651,7 @@ export function TenantDialog({
               type="submit"
               disabled={isSaving || (isEditing && !hasChanges)}
             >
-              {isSaving && <Loader size="sm" className="mr-2" />}
+              {isSaving && <Loader size="sm" variant="button" className="mr-2" />}
               {isEditing ? "Salvar Alterações" : "Criar Empresa"}
             </Button>
           </DialogFooter>

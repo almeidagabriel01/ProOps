@@ -522,6 +522,7 @@ export function CalendarEventDialog({
             </Button>
             {canEdit ? (
               <Button onClick={onSubmit} disabled={isSubmitting || isDeleting}>
+                {isSubmitting && <Loader size="sm" variant="button" className="mr-2" />}
                 {isSubmitting ? "Salvando..." : "Salvar compromisso"}
               </Button>
             ) : null}

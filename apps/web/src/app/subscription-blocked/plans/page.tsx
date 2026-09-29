@@ -156,7 +156,7 @@ export default function SubscriptionBlockedPlansPage() {
           >
             {isLoggingOut ? (
               <>
-                <Loader size="sm" className="mr-2" />
+                <Loader size="sm" variant="button" className="mr-2" />
                 Saindo...
               </>
             ) : (
@@ -218,7 +218,7 @@ export default function SubscriptionBlockedPlansPage() {
                 >
                   {processingTier === plan.tier ? (
                     <>
-                      <Loader size="sm" className="mr-2" />
+                      <Loader size="sm" variant="button" className="mr-2" />
                       Abrindo checkout...
                     </>
                   ) : (

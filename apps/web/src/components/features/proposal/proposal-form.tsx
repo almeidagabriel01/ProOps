@@ -179,7 +179,7 @@ export function ProposalForm({ proposalId }: ProposalFormProps) {
           <Button onClick={handleSubmit} disabled={isSaving} className="gap-2">
             {isSaving ? (
               <>
-                <Loader size="sm" />
+                <Loader size="sm" variant="button" />
                 Salvando...
               </>
             ) : (

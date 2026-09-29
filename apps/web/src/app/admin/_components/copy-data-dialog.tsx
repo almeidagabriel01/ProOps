@@ -130,7 +130,7 @@ export function CopyDataDialog({
           >
             {isCopying ? (
               <>
-                <Loader size="sm" />
+                <Loader size="sm" variant="button" />
                 Copiando...
               </>
             ) : (

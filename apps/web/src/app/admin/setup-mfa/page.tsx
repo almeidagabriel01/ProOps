@@ -29,6 +29,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { toast } from "@/lib/toast";
+import { Loader } from "@/components/ui/loader";
 
 const STEPS = [
   {
@@ -211,6 +212,7 @@ export default function SetupMfaPage() {
                   disabled={busy}
                   className="w-fit cursor-pointer"
                 >
+                  {busy && <Loader size="sm" variant="button" className="mr-2" />}
                   {busy ? "Gerando..." : "Gerar chave do autenticador"}
                 </Button>
               </div>
@@ -265,6 +267,7 @@ export default function SetupMfaPage() {
                   disabled={busy}
                   className="w-fit cursor-pointer"
                 >
+                  {busy && <Loader size="sm" variant="button" className="mr-2" />}
                   {busy ? "Validando..." : "Ativar MFA"}
                 </Button>
               </div>

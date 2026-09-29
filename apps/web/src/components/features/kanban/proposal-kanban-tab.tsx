@@ -1106,7 +1106,7 @@ export function ProposalKanbanTab() {
           disabled={meta.isLoadingMore}
           onClick={() => handleLoadMore(column.id)}
         >
-          {meta.isLoadingMore && <Loader size="sm" />}
+          {meta.isLoadingMore && <Loader size="sm" variant="button" />}
           {meta.isLoadingMore ? "Carregando..." : "Carregar mais"}
         </Button>
       );

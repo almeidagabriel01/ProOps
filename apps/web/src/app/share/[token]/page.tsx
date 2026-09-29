@@ -250,7 +250,7 @@ export default function SharedProposalPage() {
               disabled={isGenerating}
             >
               {isGenerating ? (
-                <Loader size="sm" />
+                <Loader size="sm" variant="button" />
               ) : (
                 <FileDown className="w-4 h-4" />
               )}
@@ -275,7 +275,7 @@ export default function SharedProposalPage() {
             disabled={isGenerating}
           >
             {isGenerating ? (
-              <Loader size="sm" />
+              <Loader size="sm" variant="button" />
             ) : (
               <FileDown className="w-4 h-4" />
             )}

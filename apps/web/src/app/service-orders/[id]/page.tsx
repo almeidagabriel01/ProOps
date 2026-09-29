@@ -82,6 +82,9 @@ export default function ServiceOrderDetailPage() {
   const [reopenOpen, setReopenOpen] = React.useState(false);
   const [launchOpen, setLaunchOpen] = React.useState(false);
   const [busy, setBusy] = React.useState(false);
+  // Qual ação está rodando: os botões dividem o `busy`, mas o loader aparece
+  // só no que foi clicado.
+  const [busyAction, setBusyAction] = React.useState<string | null>(null);
   const execution = useExecutionDraft(order);
 
   React.useEffect(() => {
@@ -131,8 +134,9 @@ export default function ServiceOrderDetailPage() {
   const canWork = writable && !closed;
   const when = formatWhen(order.scheduledStart);
 
-  const run = async (action: () => Promise<unknown>, success: string) => {
+  const run = async (action: () => Promise<unknown>, success: string, key?: string) => {
     setBusy(true);
+    setBusyAction(key ?? null);
     try {
       await action();
       toast.success(success);
@@ -140,6 +144,7 @@ export default function ServiceOrderDetailPage() {
       toast.error(error instanceof Error ? error.message : "Não foi possível concluir a ação.");
     } finally {
       setBusy(false);
+      setBusyAction(null);
     }
   };
 
@@ -175,9 +180,9 @@ export default function ServiceOrderDetailPage() {
               <Button
                 variant="outline"
                 disabled={busy}
-                onClick={() => run(() => FieldService.changeStatus(order.id, "in_progress"), "Atendimento iniciado.")}
+                onClick={() => run(() => FieldService.changeStatus(order.id, "in_progress"), "Atendimento iniciado.", "start")}
               >
-                <Play className="mr-2 h-4 w-4" />
+                {busyAction === "start" ? <Loader size="sm" variant="button" className="mr-2" /> : <Play className="mr-2 h-4 w-4" />}
                 Iniciar atendimento
               </Button>
             )}
@@ -205,9 +210,9 @@ export default function ServiceOrderDetailPage() {
               <Button
                 variant="outline"
                 disabled={busy}
-                onClick={() => run(() => FieldService.changeStatus(order.id, "open"), "OS reaberta.")}
+                onClick={() => run(() => FieldService.changeStatus(order.id, "open"), "OS reaberta.", "reopen")}
               >
-                <RotateCcw className="mr-2 h-4 w-4" />
+                {busyAction === "reopen" ? <Loader size="sm" variant="button" className="mr-2" /> : <RotateCcw className="mr-2 h-4 w-4" />}
                 Reabrir
               </Button>
             )}
@@ -240,9 +245,9 @@ export default function ServiceOrderDetailPage() {
               <Button
                 variant="outline"
                 disabled={busy}
-                onClick={() => run(() => downloadServiceOrderPdf(order.id, order.code), "PDF gerado.")}
+                onClick={() => run(() => downloadServiceOrderPdf(order.id, order.code), "PDF gerado.", "pdf")}
               >
-                <Download className="mr-2 h-4 w-4" />
+                {busyAction === "pdf" ? <Loader size="sm" variant="button" className="mr-2" /> : <Download className="mr-2 h-4 w-4" />}
                 PDF
               </Button>
             )}
@@ -254,10 +259,10 @@ export default function ServiceOrderDetailPage() {
                   run(async () => {
                     const { url } = await FieldService.shareLink(order.id);
                     await navigator.clipboard.writeText(url);
-                  }, "Link da OS copiado. Mande ao cliente.")
+                  }, "Link da OS copiado. Mande ao cliente.", "share")
                 }
               >
-                <Link2 className="mr-2 h-4 w-4" />
+                {busyAction === "share" ? <Loader size="sm" variant="button" className="mr-2" /> : <Link2 className="mr-2 h-4 w-4" />}
                 Link do cliente
               </Button>
             )}

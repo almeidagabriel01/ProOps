@@ -318,7 +318,7 @@ export function ShareLinkModal({
           >
             {isCopying ? (
               <>
-                <Loader size="sm" className="mr-2" />
+                <Loader size="sm" variant="button" className="mr-2" />
                 Gerando...
               </>
             ) : (

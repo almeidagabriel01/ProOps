@@ -66,4 +66,50 @@ describe("spinner padronizado", () => {
 
     expect(infratores).toEqual([]);
   });
+
+  // ---------------------------------------------------------------------
+  // Botão em carregamento (2026-09-29). Três formas conviviam: o `Loader` com
+  // `variant="button"`, o `Loader`/`Spinner` na variante `inline` (cor fixa:
+  // num botão primário ele some no fundo, e o botão parece não ter loader) e
+  // botões que só trocavam o texto para "Salvando...". Agora é uma só.
+  // ---------------------------------------------------------------------
+
+  const BUTTON = /<(Button|button|LandingButton)\b((?:[^>{]|\{(?:[^{}]|\{[^{}]*\})*\})*)>([\s\S]*?)<\/\1>/g;
+
+  function buttons(): { where: string; inner: string }[] {
+    const out: { where: string; inner: string }[] = [];
+    for (const file of walk(SRC).filter((f) => f.endsWith(".tsx"))) {
+      const source = fs.readFileSync(file, "utf8");
+      for (const m of source.matchAll(BUTTON)) {
+        const line = source.slice(0, m.index).split("\n").length;
+        out.push({ where: `${path.relative(SRC, file)}:${line}`, inner: m[3] });
+      }
+    }
+    return out;
+  }
+
+  it("dentro de botão, o Loader é sempre variant=\"button\" (herda a cor do texto)", () => {
+    const infratores = buttons()
+      .filter(({ inner }) => (inner.match(/<Loader\b[^>]*\/>/g) ?? []).some((tag) => !tag.includes('variant="button"')))
+      .map(({ where }) => where);
+    expect(infratores).toEqual([]);
+  });
+
+  it("botão que troca o texto para \"...ndo...\" mostra também o Loader", () => {
+    const infratores = buttons()
+      .filter(({ inner }) => /\?\s*"[^"]*ndo[^"]*\.\.\."/.test(inner) && !inner.includes("<Loader"))
+      .map(({ where }) => where);
+    expect(infratores).toEqual([]);
+  });
+
+  it("nem Spinner nem ícone girando: o carregamento é o Loader", () => {
+    const infratores = walk(SRC)
+      .filter((file) => file.endsWith(".tsx"))
+      .filter((file) => {
+        const source = fs.readFileSync(file, "utf8");
+        return /from "@\/components\/ui\/spinner"/.test(source) || /animate-spin/.test(source);
+      })
+      .map((file) => path.relative(SRC, file));
+    expect(infratores).toEqual([]);
+  });
 });
