@@ -32,6 +32,10 @@ const ROUTES = [
   "/dre",
   "/cash-flow",
   "/calendar",
+  "/tasks",
+  // Metas e Link de agendamento saíram de Configurações para os grupos.
+  "/goals",
+  "/booking",
   "/spreadsheets",
   "/automation",
   "/crm",

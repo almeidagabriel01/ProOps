@@ -11,8 +11,6 @@ import {
   SettingsSecuritySkeleton,
   SettingsPaymentsSkeleton,
   SettingsProposalsSkeleton,
-  SettingsGoalsSkeleton,
-  SettingsBookingSkeleton,
   SettingsFiscalSkeleton,
   SettingsDriveSkeleton,
   SettingsLinkedAccountsSkeleton,
@@ -36,6 +34,8 @@ import { CommissionsSkeleton } from "@/app/commissions/_components/commissions-s
 import { DreSkeleton } from "@/app/dre/_components/dre-skeleton";
 import { CashFlowSkeleton } from "@/app/cash-flow/_components/cash-flow-skeleton";
 import { CalendarSkeleton } from "@/app/calendar/_components/calendar-skeleton";
+import { GoalsSkeleton } from "@/app/goals/_components/goals-skeleton";
+import { BookingSkeleton } from "@/app/booking/_components/booking-skeleton";
 import { useTenant } from "@/providers/tenant-provider";
 import { isPageEnabledForNiche } from "@/lib/niches/config";
 
@@ -49,8 +49,6 @@ export function SettingsSectionSkeleton({ pathname }: { pathname: string }) {
   if (pathname.startsWith("/settings/security")) return <SettingsSecuritySkeleton />;
   if (pathname.startsWith("/settings/payments")) return <SettingsPaymentsSkeleton />;
   if (pathname.startsWith("/settings/proposals")) return <SettingsProposalsSkeleton />;
-  if (pathname.startsWith("/settings/goals")) return <SettingsGoalsSkeleton />;
-  if (pathname.startsWith("/settings/booking")) return <SettingsBookingSkeleton />;
   if (pathname.startsWith("/settings/fiscal")) return <SettingsFiscalSkeleton />;
   if (pathname.startsWith("/settings/drive")) return <SettingsDriveSkeleton />;
   if (pathname.startsWith("/settings/linked-accounts")) {
@@ -179,6 +177,14 @@ export function RouteContentSkeleton({ pathname }: { pathname: string }) {
 
   if (pathname.startsWith("/calendar")) {
     return <CalendarSkeleton />;
+  }
+
+  if (pathname.startsWith("/goals")) {
+    return <GoalsSkeleton />;
+  }
+
+  if (pathname.startsWith("/booking")) {
+    return <BookingSkeleton />;
   }
 
   return <DashboardSkeleton />;

@@ -18,7 +18,7 @@ describe("caminho do link de agendamento", () => {
   });
 
   it("a tela de configuração monta o link nessa rota", () => {
-    const card = readFileSync(path.join(WEB_SRC, "app", "settings", "_components", "booking-settings-card.tsx"), "utf8");
+    const card = readFileSync(path.join(WEB_SRC, "app", "booking", "_components", "booking-settings-card.tsx"), "utf8");
     expect(card).toContain("/share/visita/${settings.publicToken}");
   });
 

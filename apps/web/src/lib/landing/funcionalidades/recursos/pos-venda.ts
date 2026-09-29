@@ -72,8 +72,8 @@ export const RECURSOS_DE_POS_VENDA: readonly Recurso[] = [
     ],
     icone: CalendarClock,
     requisito: { tipo: "plano", recursos: ["hasBookingLink"] },
-    rota: "/settings/booking",
-    ondeFica: "Configurações › Agendamento",
+    rota: "/booking",
+    ondeFica: "Agenda › Link de agendamento",
   },
   {
     id: "portal-do-cliente",

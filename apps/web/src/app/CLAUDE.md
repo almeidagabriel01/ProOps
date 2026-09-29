@@ -78,11 +78,27 @@ e no Dashboard ("Minhas tarefas de hoje").
 A menção vale pelo que continua escrito (`mentionedUids`): apagar "@Nome"
 desfaz. A leitura é sem `orderBy`, então não precisa de índice composto.
 
-O **link de agendamento** tem duas pontas: a configuração em
-`/settings/booking` e a página do cliente em `/share/visita/[token]`. O pedido
-entra na Agenda (`calendar`) como "a confirmar" (status `pending`), e a Agenda
-ganha o botão "Pedidos de visita" para confirmar ou recusar. Detalhes em
-`settings/CLAUDE.md` e `share/CLAUDE.md`.
+O **link de agendamento** tem duas pontas: a configuração em `/booking` (visão
+do grupo Agenda da dock, ao lado de Calendário e Tarefas) e a página do cliente
+em `/share/visita/[token]`. O pedido entra no Calendário (`calendar`) como "a
+confirmar" (status `pending`), e o Calendário ganha o botão "Pedidos de visita"
+para confirmar ou recusar. A configuração cobre o expediente (dias, horário,
+antecedência, horizonte), os tipos de visita com a duração, as exceções (dias
+ou faixas sem atendimento, com motivo que só a empresa vê; o editor só aparece
+quando o GET devolve `exceptions`) e o link para copiar. É do master (o membro
+vê "Acesso Restrito"; a conta free vê o padrão do nicho, só para ler, sem
+chamar a API). Detalhes da página pública em `share/CLAUDE.md`.
+
+As **metas de vendas** ficam em `/goals`, visão do grupo Financeiro: a meta do
+mês da empresa e de cada pessoa da equipe, definida pelo master (o membro vê
+"Acesso Restrito" e acompanha a dele no Dashboard). Na proposta o campo se
+chama "Responsável pela venda", e não "Vendedor", porque "vendedor" já é o
+parceiro da comissão.
+
+As duas telas moravam em Configurações até 2026-09-28; os endereços antigos
+(`/settings/goals`, `/settings/booking`) só redirecionam. O portão de plano e
+de administrador continua dentro da tela, e não em `page-config.ts`, para o
+membro que abrir pela URL ler o motivo em vez de cair em `/403`.
 
 O **portal do cliente** também tem duas pontas: o botão "Portal do cliente"
 na ficha do contato (`/contacts/[id]`, ao lado das abas) e a página pública em

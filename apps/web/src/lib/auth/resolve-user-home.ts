@@ -134,6 +134,9 @@ const DEMO_ACCESSIBLE_PREFIXES = [
   "/projects",
   // Tarefas: o tenant de demonstração tem três de exemplo.
   "/tasks",
+  // Link de agendamento: mostra o expediente padrão do nicho, sem salvar.
+  // `/goals` fica fora: as metas da demonstração aparecem só no Dashboard.
+  "/booking",
   // Central de notificações: lê as notificações de exemplo do tenant demo, e
   // as preferências aparecem só para ver.
   "/notifications",

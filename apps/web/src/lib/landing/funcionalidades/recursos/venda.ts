@@ -202,7 +202,7 @@ export const RECURSOS_DE_VENDA: readonly Recurso[] = [
     ],
     icone: Target,
     requisito: { tipo: "plano", recursos: ["hasSalesGoals"] },
-    rota: "/settings/goals",
-    ondeFica: "Configurações › Metas",
+    rota: "/goals",
+    ondeFica: "Financeiro › Metas de vendas",
   },
 ];

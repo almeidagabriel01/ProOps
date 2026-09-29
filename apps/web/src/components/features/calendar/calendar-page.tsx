@@ -49,6 +49,7 @@ import { usePermissions } from "@/providers/permissions-provider";
 import { usePlanLimits } from "@/hooks/usePlanLimits";
 import { CalendarService } from "@/services/calendar-service";
 import { BookingRequestsButton } from "@/components/features/booking/booking-requests-button";
+import { PageViewSwitcher } from "@/components/layout/page-view-switcher";
 import type {
   CalendarEvent,
   CalendarEventFormValues,
@@ -937,6 +938,7 @@ export function CalendarPage() {
                       Visualize, organize e reagende compromissos sem perder
                       contexto.
                     </p>
+                    <PageViewSwitcher className="mt-3" />
                   </div>
 
                   <div className="flex flex-wrap items-center gap-2 xl:justify-end">

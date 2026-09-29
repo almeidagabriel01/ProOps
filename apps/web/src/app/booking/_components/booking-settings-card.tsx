@@ -13,7 +13,7 @@ import { toast } from "@/lib/toast";
 import { cn } from "@/lib/utils";
 import { WEEKDAY_OPTIONS, formatDuration, formatMinutes } from "@/lib/booking/booking-format";
 import { BookingService, type BookingSettings } from "@/services/booking-service";
-import { BookingCardSkeleton } from "./settings-skeleton";
+import { BookingCardSkeleton } from "./booking-skeleton";
 import { BookingExceptionsEditor } from "./booking-exceptions-editor";
 
 interface BookingSettingsCardProps {

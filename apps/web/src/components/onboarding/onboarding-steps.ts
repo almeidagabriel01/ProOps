@@ -235,6 +235,24 @@ export const MENU_STEP_TEMPLATES: Record<string, OnboardingStepTemplate> = {
     ],
     actionLabel: "Abrir a Agenda",
   },
+  "/booking": {
+    // O id ficou o de quando a tela morava em Configurações: é por ele que o
+    // progresso do tutorial de cada pessoa foi gravado.
+    id: "settings-booking",
+    route: "/booking",
+    chapter: "sales",
+    title: "Link de agendamento",
+    description:
+      "Um link para o cliente escolher um horário livre e pedir a visita. O pedido entra no Calendário como a confirmar, e você responde.",
+    checklist: [
+      { text: "Escolha os dias e o horário em que a equipe atende." },
+      { text: "Ajuste os tipos de visita e quanto tempo cada uma leva." },
+      { text: "Ligue o link, copie e mande ao cliente ou ponha no seu site." },
+    ],
+    actionLabel: "Abrir o agendamento",
+    // A demonstração navega a tela, mas não tem o que configurar.
+    excludeFromDemo: true,
+  },
   "/products": {
     id: "products",
     route: "/products",
@@ -386,6 +404,23 @@ export const MENU_STEP_TEMPLATES: Record<string, OnboardingStepTemplate> = {
     ],
     actionLabel: "Abrir Notas Fiscais",
   },
+  "/goals": {
+    // O id ficou o de quando a tela morava em Configurações: é por ele que o
+    // progresso do tutorial de cada pessoa foi gravado.
+    id: "settings-goals",
+    route: "/goals",
+    chapter: "financial",
+    title: "Metas de vendas",
+    description:
+      "A meta do mês da empresa e de cada pessoa da equipe. O progresso aparece no Dashboard, pelo valor das propostas aprovadas.",
+    checklist: [
+      { text: "Defina a meta da empresa para este mês." },
+      { text: "Dê a cada pessoa da equipe a meta dela; em branco é sem meta." },
+      { text: "Na proposta, confira o responsável pela venda: é para ele que a venda conta." },
+    ],
+    actionLabel: "Abrir as metas",
+    excludeFromDemo: true,
+  },
   "/spreadsheets": {
     id: "spreadsheets",
     route: "/spreadsheets",
@@ -445,40 +480,6 @@ export const SETTINGS_STEP_TEMPLATES: Record<string, OnboardingStepTemplate> = {
     actionLabel: "Abrir a numeração",
     masterOnly: true,
     excludeFromDemo: true,
-  },
-  "/settings/goals": {
-    id: "settings-goals",
-    route: "/settings/goals",
-    chapter: "settings",
-    title: "Metas de vendas",
-    description:
-      "A meta do mês da empresa e de cada pessoa da equipe. O progresso aparece no Dashboard, pelo valor das propostas aprovadas.",
-    checklist: [
-      { text: "Defina a meta da empresa para este mês." },
-      { text: "Dê a cada pessoa da equipe a meta dela; em branco é sem meta." },
-      { text: "Na proposta, confira o responsável pela venda: é para ele que a venda conta." },
-    ],
-    actionLabel: "Abrir as metas",
-    masterOnly: true,
-    excludeFromDemo: true,
-    requiresAnyCapability: ["salesGoals"],
-  },
-  "/settings/booking": {
-    id: "settings-booking",
-    route: "/settings/booking",
-    chapter: "settings",
-    title: "Link de agendamento",
-    description:
-      "Um link para o cliente escolher um horário livre e pedir a visita. O pedido entra na Agenda como a confirmar, e você responde.",
-    checklist: [
-      { text: "Escolha os dias e o horário em que a equipe atende." },
-      { text: "Ajuste os tipos de visita e quanto tempo cada uma leva." },
-      { text: "Ligue o link, copie e mande ao cliente ou ponha no seu site." },
-    ],
-    actionLabel: "Abrir o agendamento",
-    masterOnly: true,
-    excludeFromDemo: true,
-    requiresAnyCapability: ["bookingLink"],
   },
   "/settings/linked-accounts": {
     id: "settings-integrations",

@@ -189,7 +189,7 @@ export function GoalsProgressCard({ month }: GoalsProgressCardProps) {
           </CardDescription>
         </div>
         {isMaster && !isDemo && (
-          <Link href="/settings/goals" className="text-sm text-muted-foreground hover:text-foreground">
+          <Link href="/goals" className="text-sm text-muted-foreground hover:text-foreground">
             {hasAnyGoal ? "Editar metas" : "Definir metas"}
           </Link>
         )}

@@ -51,11 +51,14 @@ Os itens são agrupados por categoria na sidebar — grupo **Conta** (pessoal) e
 | Organização | `/settings/team` | Equipe | Master (membro vê "Acesso Restrito") |
 | Organização | `/settings/payments` | Pagamento Online (Asaas) | Master (membro vê "Acesso Restrito") |
 | Organização | `/settings/proposals` | Propostas (numeração e validade padrão) | Master (membro vê "Acesso Restrito") |
-| Organização | `/settings/goals` | Metas de vendas: a meta do mês da empresa e de cada pessoa da equipe (Pro e Enterprise; sem o plano, `UpgradeRequired`). Na proposta o campo se chama "Responsável pela venda", e não "Vendedor", porque "vendedor" já é o parceiro da comissão | Master (membro vê "Acesso Restrito"; o progresso dele aparece no Dashboard) |
-| Organização | `/settings/booking` | Link de agendamento: expediente (dias, horário, antecedência, horizonte), tipos de visita com o tempo de duração, exceções (dias ou faixas sem atendimento, com motivo que só a empresa vê; o editor só aparece quando o GET devolve `exceptions`) e o link para copiar (Pro e Enterprise; sem o plano, `UpgradeRequired`). Os pedidos são respondidos na Agenda, no botão "Pedidos de visita" | Master (membro vê "Acesso Restrito"; a conta free vê o padrão do nicho, só para ler, sem chamar a API) |
 | Organização | `/settings/fiscal` | Notas Fiscais (Focus NFe) | Master (membro vê "Acesso Restrito") |
 | Organização | `/settings/drive` | Google Drive | Master (membro vê "Acesso Restrito") |
 | Organização | `/settings/linked-accounts` | Contas vinculadas | Todos veem; ação só para quem pode conectar |
+
+> **Metas de vendas e Link de agendamento saíram daqui** (2026-09-28): são
+> visões dos grupos Financeiro (`/goals`) e Agenda (`/booking`) da dock, com o
+> mesmo portão dentro da tela. `/settings/goals` e `/settings/booking` só
+> redirecionam, para quem guardou o endereço. Ver `app/CLAUDE.md`.
 
 > Os itens master-only permanecem visíveis na sidebar para todos os usuários (cada página gateia o conteúdo); não esconder por permissão sem reavaliar os testes de acesso a `/settings/*`.
 

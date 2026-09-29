@@ -111,7 +111,7 @@ export const RECURSOS_DE_ENTREGA: readonly Recurso[] = [
     icone: CalendarDays,
     requisito: { tipo: "livre" },
     rota: "/calendar",
-    ondeFica: "Agenda",
+    ondeFica: "Agenda › Calendário",
   },
   {
     id: "google-agenda",
@@ -134,7 +134,7 @@ export const RECURSOS_DE_ENTREGA: readonly Recurso[] = [
     icone: ListTodo,
     requisito: { tipo: "livre" },
     rota: "/tasks",
-    ondeFica: "Tarefas",
+    ondeFica: "Agenda › Tarefas",
   },
   {
     id: "google-drive",

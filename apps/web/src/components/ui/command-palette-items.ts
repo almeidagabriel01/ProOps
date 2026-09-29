@@ -22,6 +22,8 @@ import {
   ListTodo,
   BarChart3,
   TrendingUp,
+  Target,
+  CalendarClock,
 } from "lucide-react";
 
 import {
@@ -100,6 +102,16 @@ export const searchItems: SearchItem[] = [
     icon: ListTodo,
     requiresView: "tasks",
     keywords: ["tarefa", "a fazer", "pendência", "lembrete", "responsável", "menção"],
+  },
+  {
+    id: "booking",
+    label: "Link de agendamento",
+    description: "O cliente escolhe um horário livre e pede a visita",
+    path: "/booking",
+    icon: CalendarClock,
+    masterOnly: true,
+    requiresCapability: "bookingLink",
+    keywords: ["agendamento", "agendar", "link", "horário", "visita", "expediente", "reserva"],
   },
   {
     id: "projects",
@@ -239,6 +251,16 @@ export const searchItems: SearchItem[] = [
     requiresView: "transactions",
     requiresCapability: "financial",
     keywords: ["fluxo", "caixa", "projecao", "projeção", "previsao", "previsão", "saldo", "cenarios", "cenários"],
+  },
+  {
+    id: "goals",
+    label: "Metas de vendas",
+    description: "A meta do mês da empresa e de cada pessoa da equipe",
+    path: "/goals",
+    icon: Target,
+    masterOnly: true,
+    requiresCapability: "salesGoals",
+    keywords: ["meta", "metas", "objetivo", "vendas", "desempenho", "equipe"],
   },
   {
     id: "commissions",

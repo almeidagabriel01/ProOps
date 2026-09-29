@@ -75,6 +75,12 @@ describe("isPathAllowedForUser", () => {
       expect(isPathAllowedForUser("/crm", user)).toBe(true));
     it("allows /transactions/new sub-path (startsWith)", () =>
       expect(isPathAllowedForUser("/transactions/new", user)).toBe(true));
+    // Link de agendamento é visão da Agenda e mostra o padrão do nicho. As
+    // metas não: na demonstração elas ficam só no Dashboard.
+    it("allows /booking (Agenda, read-only demo)", () =>
+      expect(isPathAllowedForUser("/booking", user)).toBe(true));
+    it("rejects /goals (metas só no Dashboard da demo)", () =>
+      expect(isPathAllowedForUser("/goals", user)).toBe(false));
     it("still rejects /admin (superadmin-only, never in the demo allowlist)", () =>
       expect(isPathAllowedForUser("/admin", user)).toBe(false));
     it("still rejects an unknown non-ERP route", () =>

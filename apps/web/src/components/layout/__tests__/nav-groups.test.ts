@@ -19,10 +19,10 @@ import {
  */
 
 const CAPS = {
-  starter: { financial: false, crm: false, fiscal: false, projects: false },
-  starterComAddonFinancial: { financial: true, crm: false, fiscal: false, projects: false },
-  pro: { financial: true, crm: false, fiscal: false, projects: true },
-  enterprise: { financial: true, crm: true, fiscal: true, projects: true },
+  starter: { financial: false, crm: false, fiscal: false, projects: false, salesGoals: false, bookingLink: false },
+  starterComAddonFinancial: { financial: true, crm: false, fiscal: false, projects: false, salesGoals: false, bookingLink: false },
+  pro: { financial: true, crm: false, fiscal: false, projects: true, salesGoals: true, bookingLink: true },
+  enterprise: { financial: true, crm: true, fiscal: true, projects: true, salesGoals: true, bookingLink: true },
 } satisfies Record<string, MenuCapabilityMap>;
 
 const LANCAMENTOS: SubMenuItem = {
@@ -234,5 +234,68 @@ describe("filterVisibleChildren: permissão antes de plano", () => {
 
     expect(hrefs).toContain("/ambientes");
     expect(hrefs).not.toContain("/solutions");
+  });
+});
+
+describe("grupo Agenda: Calendário, Tarefas e Link de agendamento", () => {
+  const AGENDA = menuItems.find((item) => item.label === "Agenda")!;
+  const FINANCEIRO_REAL = menuItems.find((item) => item.label === "Financeiro")!;
+
+  const viewer = (papel: "master" | "membro" | "demo") => ({
+    isMaster: papel === "master",
+    isDemo: papel === "demo",
+    hasPermission: () => true,
+    isPageEnabled: () => true,
+  });
+  const hrefs = (item: MenuItem, papel: "master" | "membro" | "demo") =>
+    filterVisibleChildren(item, viewer(papel)).map((child) => child.href);
+
+  it("o master vê as três visões", () => {
+    expect(hrefs(AGENDA, "master")).toEqual(["/calendar", "/tasks", "/booking"]);
+  });
+
+  it("o membro não vê o Link de agendamento: o expediente é do dono", () => {
+    expect(hrefs(AGENDA, "membro")).toEqual(["/calendar", "/tasks"]);
+  });
+
+  it("a demonstração vê o Link de agendamento, que mostra o padrão do nicho", () => {
+    expect(hrefs(AGENDA, "demo")).toContain("/booking");
+  });
+
+  it("a exceção da demonstração não abre Comissões nem Metas", () => {
+    const financeiro = hrefs(FINANCEIRO_REAL, "demo");
+    expect(financeiro).not.toContain("/commissions");
+    expect(financeiro).not.toContain("/goals");
+  });
+
+  it("a Agenda aponta para o Calendário e só o Link de agendamento coroa", () => {
+    const children = filterVisibleChildren(AGENDA, viewer("master"));
+    expect(resolveGroupTarget(AGENDA, children, CAPS.starter)).toEqual({
+      href: "/calendar",
+      requiresCapability: undefined,
+    });
+    const link = children.find((child) => child.href === "/booking")!;
+    expect(estaCoroado(resolveGroupTarget(AGENDA, [link], CAPS.starter), CAPS.starter)).toBe(true);
+    expect(estaCoroado(resolveGroupTarget(AGENDA, [link], CAPS.pro), CAPS.pro)).toBe(false);
+  });
+
+  it("membro só com Tarefas cai direto em /tasks", () => {
+    const children = filterVisibleChildren(AGENDA, {
+      ...viewer("membro"),
+      hasPermission: (pageId: string) => pageId === "tasks",
+    });
+    expect(children.map((child) => child.href)).toEqual(["/tasks"]);
+  });
+
+  it("Metas de vendas é visão do Financeiro, do master, com capacidade própria", () => {
+    expect(hrefs(FINANCEIRO_REAL, "master")).toContain("/goals");
+    expect(hrefs(FINANCEIRO_REAL, "membro")).not.toContain("/goals");
+
+    // O Starter com o add-on financeiro abre o Financeiro, mas não as metas.
+    const metas = FINANCEIRO_REAL.children!.find((child) => child.href === "/goals")!;
+    const alvo = resolveGroupTarget(FINANCEIRO_REAL, [metas], CAPS.starterComAddonFinancial);
+    expect(alvo?.requiresCapability).toBe("salesGoals");
+    expect(estaCoroado(alvo, CAPS.starterComAddonFinancial)).toBe(true);
+    expect(estaCoroado(alvo, CAPS.pro)).toBe(false);
   });
 });

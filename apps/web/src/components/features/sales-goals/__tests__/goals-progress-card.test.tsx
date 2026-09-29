@@ -47,7 +47,7 @@ describe("metas no Dashboard", () => {
     // Meta batida passa de 100%.
     expect(screen.getByText("110%")).toBeInTheDocument();
     expect(screen.getByText(/em propostas sem responsável pela venda/)).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Editar metas" })).toHaveAttribute("href", "/settings/goals");
+    expect(screen.getByRole("link", { name: "Editar metas" })).toHaveAttribute("href", "/goals");
   });
 
   it("o membro vê só o próprio número", async () => {

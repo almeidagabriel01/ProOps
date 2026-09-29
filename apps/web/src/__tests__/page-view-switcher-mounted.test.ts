@@ -21,6 +21,7 @@ const ARQUIVO_DA_ROTA: Record<string, string> = {
   // /solutions e /ambientes delegam para AutomationPage, que tem dois
   // cabeçalhos: o modo só-ambientes e o padrão.
   "/solutions": "app/automation/page.tsx",
+  "/calendar": "components/features/calendar/calendar-page.tsx",
 };
 
 function arquivoDaRota(href: string): string {
