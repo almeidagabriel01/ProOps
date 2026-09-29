@@ -74,6 +74,7 @@ const DEMO_READABLE_PREFIXES = [
   "/v1/service-orders",
   "/v1/equipment",
   "/v1/service-contracts",
+  "/v1/technical-responsibles",
   // Tarefas (tasks.routes.ts): a lista é lida no Firestore; aqui só /people
   "/v1/tasks",
   "/v1/calendar",

@@ -186,5 +186,12 @@ export interface NicheConfig {
      */
     defaultContractType: "monitoring" | "maintenance" | "support" | "pmoc" | "other";
     contractTitlePlaceholder: string;
+    /**
+     * PMOC (Lei 13.589/2018): o plano de manutenção que prédio climatizado é
+     * obrigado a ter, com responsável técnico e ART. Liga o tipo de contrato
+     * `pmoc` e a tela de responsáveis técnicos em Configurações. Só
+     * climatização: nos outros nichos o PMOC não existe.
+     */
+    pmoc: boolean;
   };
 }

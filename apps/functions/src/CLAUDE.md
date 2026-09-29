@@ -323,6 +323,7 @@ Funcao HTTP separada (nao faz parte do monolito `api`):
 | `service_order_counters/{tenantId}` | Assistencia tecnica | Proximo numero da OS (`OS-0001`, `nextNumber`) e do contrato (`CT-0001`, `nextContractNumber`), alocados na transacao que cria cada um. Admin SDK only |
 | `contract_invoice_claims/{transactionId}` | Assistencia tecnica | Trava da NFS-e da mensalidade: gravada com `create` antes de emitir, para o gatilho repetido nao emitir duas notas. Admin SDK only |
 | `service_contracts/{id}` | Assistencia tecnica | Contrato de manutencao: linhas da mensalidade, dia de cobranca, carteira, plano de visitas. Id `proposal_{proposalId}` quando nasce da proposta. Tenant le; escrita so via Cloud Functions |
+| `technical_responsibles/{id}` | Assistencia tecnica | Responsavel tecnico do PMOC (conselho, registro, ART e o PDF dela). Tenant le; escrita so via Cloud Functions, pelo dono e pelos admins |
 | `stock_movements/{id}` | Estoque | Historico de estoque, gravado na mesma transacao que ajusta `inventoryValue`. Id `so_{ordem}_{revisao}_{produto}`. Tenant le; escrita so via Cloud Functions |
 | `proposal_counters/{tenantId}` | Propostas | Configuracao e contador da numeracao (o codigo `0018926SP`). Admin SDK only |
 | `proposals/{proposalId}` | Propostas | Propostas (com `pdf.storagePath` e `pdfGenerationLock`) |

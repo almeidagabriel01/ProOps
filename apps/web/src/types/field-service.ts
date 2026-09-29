@@ -221,3 +221,41 @@ export interface ContractCharge {
   status: "paid" | "pending" | "overdue";
   period: string | null;
 }
+
+// ---------------------------------------------------------------------------
+// Responsáveis técnicos (PMOC)
+// ---------------------------------------------------------------------------
+
+export type Council = "CREA" | "CFT" | "CAU";
+
+export interface ArtFile {
+  path: string;
+  url: string;
+  name: string;
+  size: number;
+  uploadedAt: string;
+}
+
+/** Quem assina o PMOC: registro no conselho e a ART. */
+export interface TechnicalResponsible {
+  id: string;
+  tenantId: string;
+  name: string;
+  profession: string;
+  council: Council;
+  registryNumber: string;
+  artNumber: string | null;
+  artValidUntil: string | null;
+  artFile: ArtFile | null;
+  active: boolean;
+}
+
+export interface TechnicalResponsibleInput {
+  name: string;
+  profession: string;
+  council: Council;
+  registryNumber: string;
+  artNumber: string | null;
+  artValidUntil: string | null;
+  active?: boolean;
+}

@@ -518,6 +518,13 @@ service cloud.firestore {
       allow write: if false;
     }
 
+    // Responsáveis técnicos do PMOC (CREA/CFT, ART). A empresa lê (o contrato
+    // PMOC escolhe um); escrita só pelo backend, que confere dono ou admin.
+    match /technical_responsibles/{responsibleId} {
+      allow read: if isSuperAdmin() || isDemoRead(resource.data.tenantId) || (isAuthenticated() && belongsToTenant(resource.data.tenantId) && tenantSubscriptionAllowsRead(resource.data.tenantId));
+      allow write: if false;
+    }
+
     // Trava da nota da mensalidade (uma por lançamento). Admin SDK only.
     match /contract_invoice_claims/{transactionId} {
       allow read, write: if false;

@@ -106,6 +106,7 @@ export const nicheConfig: NicheConfig = {
     ],
     defaultContractType: "monitoring",
     contractTitlePlaceholder: "Ex.: Monitoramento 24h",
+    pmoc: false,
   },
   booking: {
     defaultVisitType: NICHE_REGISTRY.seguranca_eletronica.defaultVisitType,

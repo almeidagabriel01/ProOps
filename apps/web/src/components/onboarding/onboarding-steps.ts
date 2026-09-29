@@ -562,6 +562,8 @@ export const ROUTES_WITHOUT_OWN_STEP: Record<string, string> = {
   "/settings/payments": "Apresentado dentro do passo Integrações.",
   "/settings/fiscal": "Apresentado dentro do passo Integrações.",
   "/settings/drive": "Apresentado dentro do passo Integrações.",
+  "/settings/technical-responsibles":
+    "Só climatização e só para quem monta PMOC: cadastro de uma vez, pedido pelo próprio contrato PMOC quando falta.",
   "/notifications":
     "Fora do menu: abre pelo \"Ver todas\" do sino, e as preferências são uma aba da própria central.",
 };

@@ -39,6 +39,7 @@ export const TENANT_PURGE_BY_FIELD = [
   "customer_equipment",
   "service_orders",
   "service_contracts",
+  "technical_responsibles",
   "contract_invoice_claims",
   "shared_service_orders",
   "stock_movements",

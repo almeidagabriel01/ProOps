@@ -749,6 +749,24 @@ Firestore falso), `contract-invoice.test.ts`, os blocos de contrato em
 `invoice-issue.auto.test.ts` e `onTransactionTotals.test.ts` e os blocos de contratos em `field-service.routes.gates.test.ts`
 e `tests/firestore-rules/field-service.test.ts`.
 
+#### Responsáveis técnicos do PMOC (`technical-responsible-model.ts`)
+
+O engenheiro ou técnico que assina o PMOC, com a ART. Rotas em
+`/v1/technical-responsibles` (mesmo gate `fieldService`), cadastradas **só pelo
+dono e pelos administradores** (`isTenantAdminRole`), como as demais
+Configurações. Só o nicho de climatização mostra a tela, mas o backend não
+conhece nicho.
+
+- **A ART é um PDF de verdade:** data URL `application/pdf` com a assinatura
+  `%PDF-`, até 700 KB (o corpo da API tem 1 MB). Vai para
+  `tenants/{t}/technical_responsibles/{id}/art.pdf` e conta no armazenamento do
+  plano (402 com a cota cheia). O novo substitui o anterior.
+- **Não se exclui quem assina um contrato PMOC que não está encerrado**
+  (`pmoc.responsibleId`, 409): desative o cadastro.
+
+Guards: `technical-responsibles.test.ts`, o bloco dele em
+`field-service.routes.gates.test.ts` e `tests/firestore-rules/field-service.test.ts`.
+
 ### Vendedor e metas de vendas
 
 A proposta guarda **`sellerId`/`sellerName`** (quem vendeu: membro da empresa,

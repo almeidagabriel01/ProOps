@@ -22,6 +22,7 @@ src/app/settings/
 ├── goals/page.tsx            # Metas de vendas (master, Pro e Enterprise) ou "Acesso Restrito"
 ├── booking/page.tsx          # Link de agendamento (master, Pro e Enterprise) ou "Acesso Restrito"
 ├── drive/page.tsx            # Google Drive (master) ou "Acesso Restrito"
+├── technical-responsibles/page.tsx # Responsaveis tecnicos do PMOC (so climatizacao; dono e admins)
 ├── linked-accounts/page.tsx  # Contas vinculadas: resumo de todas as integracoes (todos)
 ├── _components/
 │   ├── settings-nav.tsx      # Client — sidebar vertical agrupada (usePathname + <Link>)
@@ -53,6 +54,7 @@ Os itens são agrupados por categoria na sidebar — grupo **Conta** (pessoal) e
 | Organização | `/settings/proposals` | Propostas (numeração e validade padrão) | Master (membro vê "Acesso Restrito") |
 | Organização | `/settings/fiscal` | Notas Fiscais (Focus NFe) | Master (membro vê "Acesso Restrito") |
 | Organização | `/settings/drive` | Google Drive | Master (membro vê "Acesso Restrito") |
+| Organização | `/settings/technical-responsibles` | Responsáveis técnicos do PMOC | Só climatização; dono e admins (membro vê "Acesso Restrito") |
 | Organização | `/settings/linked-accounts` | Contas vinculadas | Todos veem; ação só para quem pode conectar |
 
 > **Metas de vendas e Link de agendamento saíram daqui** (2026-09-28): são
@@ -61,6 +63,12 @@ Os itens são agrupados por categoria na sidebar — grupo **Conta** (pessoal) e
 > redirecionam, para quem guardou o endereço. Ver `app/CLAUDE.md`.
 
 > Os itens master-only permanecem visíveis na sidebar para todos os usuários (cada página gateia o conteúdo); não esconder por permissão sem reavaliar os testes de acesso a `/settings/*`.
+
+> **Nicho é a exceção.** Item com `nicheFeature` (hoje só "Responsáveis
+> técnicos", `pmoc`) só aparece no nicho que liga o recurso em
+> `NicheConfig.fieldService`, porque em outro nicho a tela não tem sentido
+> nenhum. A página confere o nicho de novo. Guard:
+> `_components/__tests__/settings-nav-niche.test.tsx`.
 
 A rota legada `/team` faz `redirect("/settings/team")`. O conteúdo de equipe vive em
 `components/features/team/team-management.tsx` (extraído da antiga page `/team`).
@@ -293,6 +301,17 @@ conectado, fora do plano. Lê `GET /v1/linked-accounts` (regra no backend,
   `LINKED_ACCOUNT_META` (`_components/linked-account-row.tsx`).
 
 Guard: `_components/__tests__/linked-account-row.test.tsx`.
+
+## Responsáveis técnicos (`/settings/technical-responsibles`)
+
+Quem assina o PMOC (Lei 13.589/2018): nome, profissão, conselho (CREA, CFT ou
+CAU), registro, número e validade da ART e o PDF dela. O contrato PMOC escolhe
+um. A lista é lida no Firestore (`technical_responsibles`, a empresa lê); a
+gravação vai pela API, só do dono e dos administradores. A situação da ART
+(em dia, vencendo em 30 dias, vencida) segue a régua do backend, com paridade
+em `lib/field-service/__tests__/technical-responsibles.test.ts`. A conta free
+vê a da demonstração, só para ler. Fora do tutorial (`ROUTES_WITHOUT_OWN_STEP`).
+Regra do backend em `apps/functions/CLAUDE.md`, seção Assistência técnica.
 
 ## Carregamento: só skeleton
 

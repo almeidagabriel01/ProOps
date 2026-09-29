@@ -1,6 +1,6 @@
 /**
  * Assistência técnica vende no Pro e no Enterprise (e no Starter pelo add-on):
- * toda rota de equipamentos, OS e contratos passa pelo gate `fieldService`, por prefixo.
+ * toda rota de equipamentos, OS, contratos e responsáveis técnicos passa pelo gate `fieldService`, por prefixo.
  */
 
 import express from "express";
@@ -29,6 +29,18 @@ jest.mock("../controllers/field-service.controller", () =>
   ),
 );
 jest.mock("../controllers/service-contracts.controller", () =>
+  new Proxy(
+    {},
+    {
+      get: (_t, name) =>
+        name === "__esModule"
+          ? false
+          : (_req: express.Request, res: express.Response) => res.json({ handler: String(name) }),
+    },
+  ),
+);
+
+jest.mock("../controllers/technical-responsibles.controller", () =>
   new Proxy(
     {},
     {
@@ -81,6 +93,11 @@ it.each([
   ["POST", "/service-contracts/c1/suspend", "suspendServiceContract"],
   ["POST", "/service-contracts/c1/resume", "resumeServiceContract"],
   ["POST", "/service-contracts/c1/end", "endServiceContract"],
+  ["POST", "/technical-responsibles", "createTechnicalResponsible"],
+  ["PUT", "/technical-responsibles/r1", "updateTechnicalResponsible"],
+  ["DELETE", "/technical-responsibles/r1", "deleteTechnicalResponsible"],
+  ["POST", "/technical-responsibles/r1/art", "uploadTechnicalResponsibleArt"],
+  ["DELETE", "/technical-responsibles/r1/art", "removeTechnicalResponsibleArt"],
 ])("%s %s exige a capacidade fieldService e chega no handler certo", async (method, path, handler) => {
   hits.length = 0;
   const res = await fetch(`${base}${path}`, { method });

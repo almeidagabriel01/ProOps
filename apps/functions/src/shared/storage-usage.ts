@@ -17,7 +17,14 @@
 
 export const STORAGE_USAGE_COLLECTION = "tenant_storage_usage";
 
-const COUNTED_FOLDERS = new Set(["products", "services", "proposals", "projects", "service_orders"]);
+const COUNTED_FOLDERS = new Set([
+  "products",
+  "services",
+  "proposals",
+  "projects",
+  "service_orders",
+  "technical_responsibles",
+]);
 
 const BYTES_PER_MB = 1024 * 1024;
 

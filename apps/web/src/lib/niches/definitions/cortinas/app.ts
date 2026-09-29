@@ -102,6 +102,7 @@ export const nicheConfig: NicheConfig = {
     ],
     defaultContractType: "maintenance",
     contractTitlePlaceholder: "Ex.: Manutenção anual dos toldos",
+    pmoc: false,
   },
   booking: {
     defaultVisitType: NICHE_REGISTRY.cortinas.defaultVisitType,

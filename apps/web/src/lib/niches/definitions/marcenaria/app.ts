@@ -121,6 +121,7 @@ export const nicheConfig: NicheConfig = {
     ],
     defaultContractType: "maintenance",
     contractTitlePlaceholder: "Ex.: Manutenção dos móveis planejados",
+    pmoc: false,
   },
   booking: {
     defaultVisitType: NICHE_REGISTRY.marcenaria.defaultVisitType,

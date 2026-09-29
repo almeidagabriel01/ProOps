@@ -9,6 +9,7 @@ import { useHeaderPresentation } from "@/hooks/useHeaderPresentation";
 import { getUserColor, getInitials } from "@/lib/avatar-utils";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useCurrentNicheConfig } from "@/hooks/useCurrentNicheConfig";
 import { SETTINGS_NAV_GROUPS } from "./settings-nav-items";
 
 export function SettingsNav() {
@@ -16,6 +17,7 @@ export function SettingsNav() {
   const reduceMotion = useReducedMotion();
   const { user, isLoading: authLoading } = useAuth();
   const { companyName, logoUrl, avatarSeed } = useHeaderPresentation();
+  const niche = useCurrentNicheConfig();
 
   const userName = user?.name?.trim() || companyName;
 
@@ -35,7 +37,7 @@ export function SettingsNav() {
               <span className="hidden px-3 pb-1 text-xs font-medium uppercase tracking-wider text-muted-foreground/60 lg:block">
                 {group.label}
               </span>
-              {group.items.map((item) => {
+              {group.items.filter((item) => !item.nicheFeature || niche.fieldService[item.nicheFeature]).map((item) => {
                 const isActive = pathname.startsWith(item.href);
                 const Icon = item.icon;
 

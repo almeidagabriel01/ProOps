@@ -57,6 +57,9 @@ beforeEach(async () => {
     await setDoc(doc(db, "service_contracts", "ct1"), { tenantId: ALPHA, status: "active", monthlyAmount: 129 });
     await setDoc(doc(db, "service_contracts", "ct-beta"), { tenantId: BETA, status: "active", monthlyAmount: 90 });
     await setDoc(doc(db, "service_contracts", "ct-demo"), { tenantId: "demo-seguranca", status: "active" });
+    await setDoc(doc(db, "technical_responsibles", "rt1"), { tenantId: ALPHA, name: "Eng. Carla", council: "CREA" });
+    await setDoc(doc(db, "technical_responsibles", "rt-beta"), { tenantId: BETA, name: "Eng. Beto", council: "CREA" });
+    await setDoc(doc(db, "technical_responsibles", "rt-demo"), { tenantId: "demo-climatizacao", name: "Eng. Demo" });
   });
 });
 
@@ -160,6 +163,26 @@ describe("service_contracts", () => {
       setDoc(doc(ctx("dono", "MASTER"), "service_contracts", "ct1"), { tenantId: ALPHA, status: "active", monthlyAmount: 1 }),
     );
     await assertFails(deleteDoc(doc(ctx("dono", "MASTER"), "service_contracts", "ct1")));
+  });
+});
+
+describe("technical_responsibles", () => {
+  it("membro da empresa lê (o contrato PMOC escolhe um); outra empresa não", async () => {
+    await assertSucceeds(getDoc(doc(ctx("diego"), "technical_responsibles", "rt1")));
+    await assertFails(getDoc(doc(ctx("diego"), "technical_responsibles", "rt-beta")));
+    await assertSucceeds(
+      getDocs(query(collection(ctx("diego"), "technical_responsibles"), where("tenantId", "==", ALPHA), limit(50))),
+    );
+  });
+
+  it("conta free lê o da demonstração e não o de uma empresa", async () => {
+    await assertSucceeds(getDoc(doc(ctx("free-1", "free", "tenant_free1"), "technical_responsibles", "rt-demo")));
+    await assertFails(getDoc(doc(ctx("free-1", "free", "tenant_free1"), "technical_responsibles", "rt1")));
+  });
+
+  it("escrita só pelo backend, nem o dono grava", async () => {
+    await assertFails(setDoc(doc(ctx("dono", "MASTER"), "technical_responsibles", "novo"), { tenantId: ALPHA }));
+    await assertFails(deleteDoc(doc(ctx("dono", "MASTER"), "technical_responsibles", "rt1")));
   });
 });
 

@@ -121,6 +121,7 @@ export const nicheConfig: NicheConfig = {
     ],
     defaultContractType: "maintenance",
     contractTitlePlaceholder: "Ex.: Manutenção das esquadrias",
+    pmoc: false,
   },
   booking: {
     defaultVisitType: NICHE_REGISTRY.vidracaria_esquadrias.defaultVisitType,

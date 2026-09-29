@@ -25,6 +25,7 @@ const CASOS: Array<[string, string]> = [
   ["/settings/proposals", "settings-skeleton-proposals"],
   ["/settings/fiscal", "settings-skeleton-fiscal"],
   ["/settings/drive", "settings-skeleton-drive"],
+  ["/settings/technical-responsibles", "settings-skeleton-technical-responsibles"],
   ["/settings/linked-accounts", "settings-skeleton-linked-accounts"],
 ];
 

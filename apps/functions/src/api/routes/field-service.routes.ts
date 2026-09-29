@@ -27,6 +27,13 @@ import {
   suspendServiceContract,
   updateServiceContract,
 } from "../controllers/service-contracts.controller";
+import {
+  createTechnicalResponsible,
+  deleteTechnicalResponsible,
+  removeTechnicalResponsibleArt,
+  updateTechnicalResponsible,
+  uploadTechnicalResponsibleArt,
+} from "../controllers/technical-responsibles.controller";
 import { requirePlanCapability } from "../middleware/require-plan-capability";
 import { pdfRateLimiter } from "../middleware/pdf-rate-limiter";
 
@@ -38,6 +45,7 @@ const gate = requirePlanCapability("fieldService");
 router.use("/equipment", gate);
 router.use("/service-orders", gate);
 router.use("/service-contracts", gate);
+router.use("/technical-responsibles", gate);
 
 router.post("/equipment", createEquipment);
 // `/batch` antes de `/:id`: o Express casa por ordem.
@@ -67,6 +75,12 @@ router.post("/service-contracts/:id/activate", activateServiceContract);
 router.post("/service-contracts/:id/suspend", suspendServiceContract);
 router.post("/service-contracts/:id/resume", resumeServiceContract);
 router.post("/service-contracts/:id/end", endServiceContract);
+
+router.post("/technical-responsibles", createTechnicalResponsible);
+router.put("/technical-responsibles/:id", updateTechnicalResponsible);
+router.delete("/technical-responsibles/:id", deleteTechnicalResponsible);
+router.post("/technical-responsibles/:id/art", uploadTechnicalResponsibleArt);
+router.delete("/technical-responsibles/:id/art", removeTechnicalResponsibleArt);
 
 export const fieldServiceRoutes = router;
 

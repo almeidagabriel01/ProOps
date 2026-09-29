@@ -123,6 +123,7 @@ export const nicheConfig: NicheConfig = {
     ],
     defaultContractType: "maintenance",
     contractTitlePlaceholder: "Ex.: Manutenção preventiva dos splits",
+    pmoc: true,
   },
   booking: {
     defaultVisitType: NICHE_REGISTRY.climatizacao.defaultVisitType,

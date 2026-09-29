@@ -103,6 +103,7 @@ export const nicheConfig: NicheConfig = {
     ],
     defaultContractType: "support",
     contractTitlePlaceholder: "Ex.: Suporte mensal da automação",
+    pmoc: false,
   },
   booking: {
     defaultVisitType: NICHE_REGISTRY.automacao_residencial.defaultVisitType,

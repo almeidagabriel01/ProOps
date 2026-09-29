@@ -2,6 +2,7 @@ import {
   CreditCard,
   FileText,
   FolderOpen,
+  HardHat,
   Hash,
   Link2,
   ShieldCheck,
@@ -15,6 +16,11 @@ export interface SettingsNavItem {
   shortLabel?: string;
   href: string;
   icon: LucideIcon;
+  /**
+   * Só aparece no nicho que liga este recurso (`NicheConfig.fieldService`).
+   * A tela confere de novo: o item escondido não impede quem digita o endereço.
+   */
+  nicheFeature?: "pmoc";
 }
 
 export interface SettingsNavGroup {
@@ -50,6 +56,13 @@ export const SETTINGS_NAV_GROUPS: SettingsNavGroup[] = [
         shortLabel: "Notas",
         href: "/settings/fiscal",
         icon: FileText,
+      },
+      {
+        label: "Responsáveis técnicos",
+        shortLabel: "Responsáveis",
+        href: "/settings/technical-responsibles",
+        icon: HardHat,
+        nicheFeature: "pmoc",
       },
       {
         label: "Google Drive",
