@@ -43,6 +43,18 @@ components/
   registry e são editados normalmente: `data-table.tsx`, `step-wizard.tsx`,
   `dock.tsx`, `command-palette.tsx`, `form-components.tsx`, `date-picker.tsx`,
   `upgrade-modal.tsx`, entre outros.
+- **`DialogContent` limita a altura à da tela e rola por dentro**
+  (`max-h-[calc(100dvh-2rem)] overflow-y-auto`, sem prefixo). Até 2026-09-29
+  isso valia só no celular, e janela alta no desktop saía da tela com o
+  "Salvar" inalcançável. Sem prefixo de propósito: a janela que define a
+  própria altura ou `overflow-hidden` vence pelo `twMerge`. Seletor que abre a
+  lista DENTRO da janela, sem portal (`ClientSelect`, `SearchableSelect`),
+  rola junto com ela.
+- **A lista do `Select` do ERP abre num portal fora da janela**, e a trava de
+  rolagem do Radix (que escuta no `document`) cancelava a roda do mouse nela.
+  A lista para a propagação de `wheel` e `touchmove` e rola normalmente.
+  Guard dos dois: `tests/e2e/field-service/service-contracts.spec.ts`
+  (CONTRATO-02, em duas alturas de tela).
 - Para adicionar novo componente do registry: `npx shadcn@latest add [componente]`
 - Componentes disponíveis incluem: button, card, dialog, alert-dialog, badge, checkbox, avatar, command-palette, e muitos outros
 

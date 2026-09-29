@@ -261,6 +261,23 @@ export const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
       };
     }, [isOpen]);
 
+    // Dentro de uma janela (Dialog do Radix) a lista abre num portal FORA
+    // dela, e a trava de rolagem da janela cancela a roda do mouse e o toque
+    // em tudo o que está fora. A trava escuta no document: parar a
+    // propagação na própria lista faz o evento nunca chegar lá, e a lista
+    // rola normalmente. Fora de janela nada muda.
+    React.useEffect(() => {
+      const el = portalContentRef.current;
+      if (!isOpen || !el) return;
+      const stop = (event: Event) => event.stopPropagation();
+      el.addEventListener("wheel", stop, { passive: true });
+      el.addEventListener("touchmove", stop, { passive: true });
+      return () => {
+        el.removeEventListener("wheel", stop);
+        el.removeEventListener("touchmove", stop);
+      };
+    }, [isOpen]);
+
     const selectedOption = options.find(
       (opt) => String(opt.value) === String(value),
     );

@@ -101,3 +101,48 @@ test.describe("CONTRATO-01: do rascunho à primeira mensalidade", () => {
     expect((await request.delete(`/api/backend/v1/service-contracts/${contractId}`, { headers })).status()).toBe(409);
   });
 });
+
+test.describe("CONTRATO-02: a janela de Novo contrato cabe na tela", () => {
+  for (const viewport of [
+    { width: 1280, height: 720 },
+    { width: 1366, height: 600 },
+  ]) {
+    test(`${viewport.width}x${viewport.height}: rola por dentro até o Salvar, e a lista do vencimento rola com a roda`, async ({ page }) => {
+      await page.setViewportSize(viewport);
+      await interceptFirebaseRequests(page);
+      const loginPage = new LoginPage(page);
+      await loginPage.goto();
+      await loginPage.login(PLAN_CONTRACTS.email, PLAN_PASSWORD);
+      await page.waitForURL(/dashboard/, { timeout: 30_000 });
+
+      await page.goto("/contracts");
+      await page.getByRole("button", { name: "Novo contrato" }).first().click();
+      const dialog = page.getByRole("dialog");
+      await expect(dialog).toBeVisible();
+
+      // A janela nunca passa da altura da tela: antes o rodapé ficava fora.
+      const box = (await dialog.boundingBox())!;
+      expect(box.y).toBeGreaterThanOrEqual(0);
+      expect(box.y + box.height).toBeLessThanOrEqual(viewport.height);
+
+      const save = dialog.getByRole("button", { name: "Salvar" });
+      await save.scrollIntoViewIfNeeded();
+      await expect(save).toBeInViewport();
+
+      // A lista do dia do vencimento abre num portal fora da janela, e a
+      // trava de rolagem da janela engolia a roda do mouse.
+      const dayField = dialog.locator("#contractBillingDay").locator("xpath=..");
+      await dayField.scrollIntoViewIfNeeded();
+      await dayField.click();
+      // O texto da opção fica num <span> do portal; o <option> do select
+      // nativo escondido também tem o texto, por isso a busca pelo span.
+      const option = page.locator("span", { hasText: /^Todo dia 1$/ });
+      await expect(option).toBeVisible();
+      const list = option.locator("xpath=../..");
+      const before = await list.evaluate((el) => el.scrollTop);
+      await option.hover();
+      await page.mouse.wheel(0, 400);
+      await expect.poll(() => list.evaluate((el) => el.scrollTop)).toBeGreaterThan(before);
+    });
+  }
+});
