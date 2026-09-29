@@ -185,8 +185,53 @@ export interface DemoDataset {
     leadId?: string;
     leadName?: string;
   }>;
+  /**
+   * Assistência técnica: os aparelhos dos clientes e as OS. Uma concluída e
+   * assinada (com peça do estoque), uma agendada e uma aberta, para a lista
+   * mostrar a fila e o detalhe mostrar a assinatura.
+   */
+  fieldService: {
+    equipment: DemoEquipment[];
+    orders: DemoServiceOrder[];
+  };
   /** Documentos de versões antigas da demonstração que não existem mais. */
   legacyDeletes?: string[];
+}
+
+export interface DemoEquipment {
+  id: string;
+  clientId: string;
+  name: string;
+  type: string;
+  brand: string;
+  model: string;
+  serialNumber?: string;
+  capacity?: string;
+  location: string;
+  /** Dias antes de hoje. */
+  installedDaysAgo: number;
+  warrantyMonths: number;
+}
+
+export interface DemoServiceOrder {
+  id: string;
+  number: number;
+  clientId: string;
+  type: "corrective" | "preventive" | "installation" | "inspection";
+  priority: "low" | "normal" | "high" | "urgent";
+  status: "open" | "scheduled" | "completed";
+  title: string;
+  description: string;
+  equipmentIds: string[];
+  /** Dias a partir de hoje e hora de Brasília da visita. */
+  schedule?: { dayOffset: number; hour: number; durationMin: number };
+  checklist: Array<{ text: string; done: boolean }>;
+  /** Preço de venda sai do catálogo do dataset. */
+  items: Array<{ kind: "product" | "service"; refId: string; quantity: number }>;
+  report?: string;
+  /** Só na concluída: quem assinou. */
+  signedBy?: string;
+  createdDaysAgo: number;
 }
 
 export interface SeedDemoResult {
@@ -205,4 +250,6 @@ export interface SeedDemoResult {
   projects: number;
   notifications: number;
   tasks: number;
+  equipment: number;
+  serviceOrders: number;
 }
