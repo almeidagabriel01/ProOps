@@ -197,6 +197,71 @@ export function signatureContentHash(order: {
   return createHash("sha256").update(canonical).digest("hex");
 }
 
+/**
+ * O documento da OS recém-aberta. Um só formato para a OS aberta pela tela e
+ * para a visita preventiva que o contrato abre sozinho.
+ */
+export function newServiceOrderDoc(p: {
+  tenantId: string;
+  number: number;
+  code: string;
+  client: { id: string; name: string; phone: string | null };
+  address: string | null;
+  type: ServiceOrderType;
+  priority: ServiceOrderPriority;
+  title: string;
+  description: string | null;
+  equipment: { id: string; label: string }[];
+  projectId: string | null;
+  contractId: string | null;
+  technician: { technicianUids: string[]; technicianName: string | null };
+  scheduledStart: string | null;
+  scheduledEnd: string | null;
+  checklist: ServiceOrderChecklistItem[];
+  items: ServiceOrderItem[];
+  createdBy: string;
+  now: string;
+}): Record<string, unknown> {
+  return {
+    tenantId: p.tenantId,
+    number: p.number,
+    code: p.code,
+    clientId: p.client.id,
+    clientName: p.client.name,
+    clientPhone: p.client.phone,
+    address: p.address,
+    type: p.type,
+    priority: p.priority,
+    status: p.scheduledStart ? "scheduled" : "open",
+    title: p.title,
+    description: p.description,
+    equipmentIds: p.equipment.map((e) => e.id),
+    equipmentLabels: p.equipment.map((e) => e.label),
+    projectId: p.projectId,
+    contractId: p.contractId,
+    ...p.technician,
+    scheduledStart: p.scheduledStart,
+    scheduledEnd: p.scheduledEnd,
+    checklist: p.checklist,
+    items: p.items,
+    totals: computeOrderTotals(p.items),
+    photos: [],
+    report: null,
+    checkInAt: null,
+    checkOutAt: null,
+    signature: null,
+    noSignatureReason: null,
+    stockApplied: {},
+    stockRevision: 0,
+    completedAt: null,
+    canceledAt: null,
+    reopenLog: [],
+    createdAt: p.now,
+    updatedAt: p.now,
+    createdBy: p.createdBy,
+  };
+}
+
 // ---------------------------------------------------------------------------
 // Entrada da API
 // ---------------------------------------------------------------------------

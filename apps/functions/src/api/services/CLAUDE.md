@@ -340,6 +340,7 @@ interface Notification {
 | `task_mentioned` | Alguem citado com @ numa tarefa; so quem foi citado AGORA, e nao o responsavel ja avisado | so os citados | ligado |
 | `task_reminder` | Cron `checkDueDates` (2d), tarefa com prazo hoje, id `task_{id}_{dia}` | o responsavel, ou quem criou | nao |
 | `service_order_assigned` | OS passada para um tecnico, ou remarcada (`field-service.controller.ts`); quem fez a acao nunca e avisado | so o tecnico (`targetUids`) | ligado |
+| `service_contract_suspended` | Rotina `processServiceContracts`: a empresa perdeu o modulo ou o financeiro e o contrato parou de cobrar | dono e admins | ligado |
 
 ### Metodos publicos
 

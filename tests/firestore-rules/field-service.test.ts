@@ -54,6 +54,9 @@ beforeEach(async () => {
     await setDoc(doc(db, "customer_equipment", "e-demo"), { tenantId: "demo-seguranca", name: "Central" });
     await setDoc(doc(db, "stock_movements", "m1"), { tenantId: ALPHA, productId: "p1", quantity: -1 });
     await setDoc(doc(db, "service_order_counters", ALPHA), { tenantId: ALPHA, nextNumber: 3 });
+    await setDoc(doc(db, "service_contracts", "ct1"), { tenantId: ALPHA, status: "active", monthlyAmount: 129 });
+    await setDoc(doc(db, "service_contracts", "ct-beta"), { tenantId: BETA, status: "active", monthlyAmount: 90 });
+    await setDoc(doc(db, "service_contracts", "ct-demo"), { tenantId: "demo-seguranca", status: "active" });
   });
 });
 
@@ -134,6 +137,29 @@ describe("customer_equipment e stock_movements", () => {
   it("escrita só pelo backend", async () => {
     await assertFails(setDoc(doc(ctx("dono", "MASTER"), "customer_equipment", "novo"), { tenantId: ALPHA }));
     await assertFails(setDoc(doc(ctx("dono", "MASTER"), "stock_movements", "novo"), { tenantId: ALPHA }));
+  });
+});
+
+describe("service_contracts", () => {
+  it("membro da empresa lê; outra empresa não", async () => {
+    await assertSucceeds(getDoc(doc(ctx("diego"), "service_contracts", "ct1")));
+    await assertFails(getDoc(doc(ctx("diego"), "service_contracts", "ct-beta")));
+    await assertSucceeds(
+      getDocs(query(collection(ctx("diego"), "service_contracts"), where("tenantId", "==", ALPHA), limit(200))),
+    );
+  });
+
+  it("conta free lê o contrato de demonstração e não o de uma empresa", async () => {
+    await assertSucceeds(getDoc(doc(ctx("free-1", "free", "tenant_free1"), "service_contracts", "ct-demo")));
+    await assertFails(getDoc(doc(ctx("free-1", "free", "tenant_free1"), "service_contracts", "ct1")));
+  });
+
+  it("escrita só pelo backend, nem o dono grava", async () => {
+    await assertFails(setDoc(doc(ctx("dono", "MASTER"), "service_contracts", "novo"), { tenantId: ALPHA }));
+    await assertFails(
+      setDoc(doc(ctx("dono", "MASTER"), "service_contracts", "ct1"), { tenantId: ALPHA, status: "active", monthlyAmount: 1 }),
+    );
+    await assertFails(deleteDoc(doc(ctx("dono", "MASTER"), "service_contracts", "ct1")));
   });
 });
 

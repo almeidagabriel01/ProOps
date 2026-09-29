@@ -1,6 +1,6 @@
 /**
  * Assistência técnica vende no Pro e no Enterprise (e no Starter pelo add-on):
- * toda rota de equipamentos e OS passa pelo gate `fieldService`, por prefixo.
+ * toda rota de equipamentos, OS e contratos passa pelo gate `fieldService`, por prefixo.
  */
 
 import express from "express";
@@ -18,6 +18,17 @@ jest.mock("../middleware/require-plan-capability", () => ({
     },
 }));
 jest.mock("../controllers/field-service.controller", () =>
+  new Proxy(
+    {},
+    {
+      get: (_t, name) =>
+        name === "__esModule"
+          ? false
+          : (_req: express.Request, res: express.Response) => res.json({ handler: String(name) }),
+    },
+  ),
+);
+jest.mock("../controllers/service-contracts.controller", () =>
   new Proxy(
     {},
     {
@@ -63,6 +74,13 @@ it.each([
   ["POST", "/service-orders/o1/share-link", "createServiceOrderShareLink"],
   ["POST", "/service-orders/o1/transaction", "launchServiceOrderTransaction"],
   ["GET", "/service-orders/o1/pdf", "downloadServiceOrderPdf"],
+  ["POST", "/service-contracts", "createServiceContract"],
+  ["PUT", "/service-contracts/c1", "updateServiceContract"],
+  ["DELETE", "/service-contracts/c1", "deleteServiceContract"],
+  ["POST", "/service-contracts/c1/activate", "activateServiceContract"],
+  ["POST", "/service-contracts/c1/suspend", "suspendServiceContract"],
+  ["POST", "/service-contracts/c1/resume", "resumeServiceContract"],
+  ["POST", "/service-contracts/c1/end", "endServiceContract"],
 ])("%s %s exige a capacidade fieldService e chega no handler certo", async (method, path, handler) => {
   hits.length = 0;
   const res = await fetch(`${base}${path}`, { method });

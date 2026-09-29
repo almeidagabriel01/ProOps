@@ -17,6 +17,7 @@ import {
   cleanupSecurityAuditEventsManual,
   remindNoSubscriptionSignupsManual,
   processDriveDeliveriesManual,
+  processServiceContractsManual,
 } from "../controllers/internal.controller";
 
 const router = Router();
@@ -29,5 +30,6 @@ router.post("/cron/mark-overdue", markOverdueTransactionsManual);
 router.post("/cron/cleanup-security-audit-events", cleanupSecurityAuditEventsManual);
 router.post("/cron/remind-no-subscription", remindNoSubscriptionSignupsManual);
 router.post("/cron/drive-deliveries", processDriveDeliveriesManual);
+router.post("/cron/service-contracts", processServiceContractsManual);
 
 export { router as internalDebugRoutes };

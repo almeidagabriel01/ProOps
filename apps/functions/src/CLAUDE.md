@@ -29,6 +29,7 @@
 | `reconcileAddons` | Scheduled | Reconciliacao de add-ons |
 | `processPayoutRetries` | Scheduled | Retries de payout (Asaas) |
 | `processDriveDeliveries` | Scheduled | Entrega as propostas pendentes no Google Drive (a cada 3 min; `cpu: 1`, `concurrency: 1`) — tira o Chromium da request de salvar |
+| `processServiceContracts` | Scheduled | Contratos de manutencao (06:00): lanca a mensalidade 10 dias antes do vencimento e abre a OS da visita preventiva 7 dias antes; suspende e avisa quem perdeu o modulo. Idempotente por id (`contract_{id}_{AAAAMM}`). Manual: `POST /internal/cron/service-contracts` (`dryRun`) |
 | `processInvoiceRetries` | Scheduled | Consulta notas fiscais pendentes (a cada 15 min) — backstop do webhook do Focus |
 | `checkFiscalCertificateExpiry` | Scheduled | Avisa vencimento do certificado A1 em D-30/15/7/1 e diariamente apos vencer |
 | `syncReceivedInvoices` | Scheduled | Busca notas de ENTRADA (de hora em hora), incremental por `versao` |
@@ -319,13 +320,14 @@ Funcao HTTP separada (nao faz parte do monolito `api`):
 | `customer_equipment/{id}` | Assistencia tecnica | Aparelhos instalados em cada cliente (garantia, ultimo atendimento). Tenant le; escrita so via Cloud Functions (`field-service.controller.ts`) |
 | `service_orders/{id}` | Assistencia tecnica | Ordem de servico (checklist, pecas, fotos, assinatura). Do TECNICO: as rules leem `technicianUids`; dono, admins e o escopo `service_orders_all` leem todas. Escrita so via Cloud Functions |
 | `shared_service_orders/{token}` | Assistencia tecnica | Link publico da OS (o id e o token). Admin SDK only |
-| `service_order_counters/{tenantId}` | Assistencia tecnica | Proximo numero da OS (`OS-0001`), alocado na transacao que cria a OS. Admin SDK only |
+| `service_order_counters/{tenantId}` | Assistencia tecnica | Proximo numero da OS (`OS-0001`, `nextNumber`) e do contrato (`CT-0001`, `nextContractNumber`), alocados na transacao que cria cada um. Admin SDK only |
+| `service_contracts/{id}` | Assistencia tecnica | Contrato de manutencao: linhas da mensalidade, dia de cobranca, carteira, plano de visitas. Id `proposal_{proposalId}` quando nasce da proposta. Tenant le; escrita so via Cloud Functions |
 | `stock_movements/{id}` | Estoque | Historico de estoque, gravado na mesma transacao que ajusta `inventoryValue`. Id `so_{ordem}_{revisao}_{produto}`. Tenant le; escrita so via Cloud Functions |
 | `proposal_counters/{tenantId}` | Propostas | Configuracao e contador da numeracao (o codigo `0018926SP`). Admin SDK only |
 | `proposals/{proposalId}` | Propostas | Propostas (com `pdf.storagePath` e `pdfGenerationLock`) |
 | `transactions/{transactionId}` | Financeiro | Lancamentos financeiros |
 | `wallets/{walletId}` | Financeiro | Carteiras com saldo desnormalizado |
-| `cron_cursors/{cronId}` | Crons | Onde um cron longo parou (`runRotatingCursor`): `checkStripeSubscriptions`, `reconcileAddons`. Admin SDK only |
+| `cron_cursors/{cronId}` | Crons | Onde um cron longo parou (`runRotatingCursor`): `checkStripeSubscriptions`, `reconcileAddons`, `processServiceContracts`. Admin SDK only |
 | `transaction_group_sync/{groupDocId}` | Financeiro | `readTime` em que cada resumo de `transaction_groups` se baseou; ordena e coalesce os recalculos do `onTransactionTotals`. Admin SDK only |
 | `shared_proposals/{id}` | Share Links | Links publicos de propostas (id automatico; o token e campo) |
 | `shared_transactions/{id}` | Share Links | Links publicos de lancamentos (id automatico; o token e campo) |

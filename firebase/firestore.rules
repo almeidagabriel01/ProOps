@@ -511,6 +511,13 @@ service cloud.firestore {
       allow write: if false;
     }
 
+    // Contratos de manutenção: da empresa inteira, como os equipamentos. A
+    // mensalidade e a visita preventiva são gravadas pela rotina diária.
+    match /service_contracts/{contractId} {
+      allow read: if isSuperAdmin() || isDemoRead(resource.data.tenantId) || (isAuthenticated() && belongsToTenant(resource.data.tenantId) && tenantSubscriptionAllowsRead(resource.data.tenantId));
+      allow write: if false;
+    }
+
     // Histórico de estoque: gravado só pelo backend, na mesma transação que
     // ajusta o saldo do produto.
     match /stock_movements/{movementId} {

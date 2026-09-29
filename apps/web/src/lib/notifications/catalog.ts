@@ -149,6 +149,14 @@ export const NOTIFICATION_CATALOG = {
     emailable: true,
     defaultEmail: true,
   },
+  service_contract_suspended: {
+    label: "Contrato suspenso pelo plano",
+    description: "O plano deixou de incluir contratos ou o financeiro, e a mensalidade parou de ser lançada.",
+    group: "service_orders",
+    audience: "admins",
+    emailable: true,
+    defaultEmail: true,
+  },
   price_change: {
     label: "Mudança de preço do plano",
     description: "Já chega por e-mail com os valores e o prazo.",

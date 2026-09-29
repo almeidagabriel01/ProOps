@@ -17,6 +17,7 @@ export function notificationLinkPath(
     | "taskId"
     | "bookingRequestId"
     | "serviceOrderId"
+    | "serviceContractId"
   >,
 ): string {
   switch (n.type) {
@@ -45,6 +46,8 @@ export function notificationLinkPath(
       return n.bookingRequestId ? `/calendar?pedido=${n.bookingRequestId}` : "/calendar";
     case "service_order_assigned":
       return n.serviceOrderId ? `/service-orders/${n.serviceOrderId}` : "/service-orders";
+    case "service_contract_suspended":
+      return n.serviceContractId ? `/contracts/${n.serviceContractId}` : "/contracts";
     default:
       return n.proposalId ? `/proposals/${n.proposalId}/view` : "/notifications";
   }

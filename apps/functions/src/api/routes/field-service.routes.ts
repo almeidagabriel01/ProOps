@@ -18,6 +18,15 @@ import {
   updateServiceOrder,
   uploadServiceOrderPhoto,
 } from "../controllers/field-service.controller";
+import {
+  activateServiceContract,
+  createServiceContract,
+  deleteServiceContract,
+  endServiceContract,
+  resumeServiceContract,
+  suspendServiceContract,
+  updateServiceContract,
+} from "../controllers/service-contracts.controller";
 import { requirePlanCapability } from "../middleware/require-plan-capability";
 import { pdfRateLimiter } from "../middleware/pdf-rate-limiter";
 
@@ -28,6 +37,7 @@ const router = Router();
 const gate = requirePlanCapability("fieldService");
 router.use("/equipment", gate);
 router.use("/service-orders", gate);
+router.use("/service-contracts", gate);
 
 router.post("/equipment", createEquipment);
 // `/batch` antes de `/:id`: o Express casa por ordem.
@@ -49,6 +59,14 @@ router.post("/service-orders/:id/share-link", createServiceOrderShareLink);
 router.post("/service-orders/:id/transaction", launchServiceOrderTransaction);
 // Fallback: o proxy manda os caminhos terminados em /pdf para a função `pdf`.
 router.get("/service-orders/:id/pdf", pdfRateLimiter, downloadServiceOrderPdf);
+
+router.post("/service-contracts", createServiceContract);
+router.put("/service-contracts/:id", updateServiceContract);
+router.delete("/service-contracts/:id", deleteServiceContract);
+router.post("/service-contracts/:id/activate", activateServiceContract);
+router.post("/service-contracts/:id/suspend", suspendServiceContract);
+router.post("/service-contracts/:id/resume", resumeServiceContract);
+router.post("/service-contracts/:id/end", endServiceContract);
 
 export const fieldServiceRoutes = router;
 

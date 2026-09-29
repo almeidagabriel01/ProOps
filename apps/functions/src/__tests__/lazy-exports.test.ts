@@ -20,7 +20,7 @@ const EXPECTED = [
   "checkManualSubscriptions", "checkDueDates", "markOverdueTransactions",
   "checkStripeSubscriptions", "reportWhatsappOverage", "applyScheduledPlanChanges",
   "checkPriceChanges", "cleanupStorageAndSharedLinks", "reconcileAddons",
-  "processPayoutRetries", "processDriveDeliveries", "processInvoiceRetries",
+  "processPayoutRetries", "processDriveDeliveries", "processServiceContracts", "processInvoiceRetries",
   "checkFiscalCertificateExpiry", "syncReceivedInvoices", "cleanupSecurityAuditEvents",
   "remindNoSubscriptionSignups",
   "onWalletCascadeJob", "onTenantPurgeJob", "onTransactionTotals",

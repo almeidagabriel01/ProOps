@@ -73,6 +73,7 @@ const DEMO_READABLE_PREFIXES = [
   // Firestore; aqui só as consultas de apoio da tela.
   "/v1/service-orders",
   "/v1/equipment",
+  "/v1/service-contracts",
   // Tarefas (tasks.routes.ts): a lista é lida no Firestore; aqui só /people
   "/v1/tasks",
   "/v1/calendar",

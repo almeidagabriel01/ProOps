@@ -1,0 +1,387 @@
+import { Request, Response } from "express";
+import { db } from "../../init";
+import { logger } from "../../lib/logger";
+import { hasPagePermission } from "../../lib/auth-helpers";
+import { tenantHasCapability } from "../../lib/tenant-capabilities";
+import {
+  ActivateContractSchema,
+  CreateContractSchema,
+  MAX_START_DAYS_AGO,
+  SERVICE_CONTRACTS_COLLECTION,
+  UpdateContractSchema,
+  addDays,
+  addMonthsOnDay,
+  canContractTransition,
+  computeMonthlyAmount,
+  firstBillingDate,
+  resumeBillingDate,
+  todayInBrazil,
+  type ContractStatus,
+  type ServiceContract,
+  type VisitPlan,
+} from "../services/field-service/contract-model";
+import {
+  allocateContractNumber,
+  billContract,
+  openContractVisit,
+  readContract,
+} from "../services/field-service/contract.service";
+import { loadClientSnapshot, loadEquipmentLabels, loadOfTenant, loadTechnician } from "../services/field-service/field-service.service";
+import { notifyTechnician, syncOrderAgenda } from "./field-service.controller";
+import { SERVICE_ORDERS_COLLECTION } from "../services/field-service/field-service-model";
+
+/**
+ * Contratos de manutenção. Capacidade `fieldService` (montada por prefixo em
+ * `field-service.routes.ts`), pageId `contracts`. A lista e o detalhe são
+ * lidos direto no Firestore pelo front; aqui ficam as escritas. A cobrança do
+ * mês é da rotina diária (`contract-billing-run.ts`); ativar e retomar só
+ * adiantam a primeira execução para o contrato em questão.
+ */
+
+type Action = "canView" | "canCreate" | "canEdit" | "canDelete";
+
+class HttpError extends Error {
+  constructor(
+    public status: number,
+    message: string,
+  ) {
+    super(message);
+  }
+}
+
+function firstIssue(error: { issues: { message: string }[] }): string {
+  return error.issues[0]?.message || "Dados inválidos.";
+}
+
+function fail(res: Response, error: unknown, fallback: string, event: string) {
+  if (error instanceof HttpError) return res.status(error.status).json({ message: error.message });
+  logger.error(event, { error: error instanceof Error ? error.message : String(error) });
+  return res.status(500).json({ message: fallback });
+}
+
+async function requireAccess(req: Request, action: Action): Promise<{ tenantId: string; uid: string }> {
+  const tenantId = req.user?.tenantId;
+  const uid = req.user?.uid;
+  if (!tenantId || !uid) throw new HttpError(403, "Tenant não identificado.");
+  if (!(await hasPagePermission(req.user, "contracts", action))) {
+    throw new HttpError(403, "Sem permissão para esta ação em Contratos.");
+  }
+  return { tenantId, uid };
+}
+
+async function loadContract(req: Request, tenantId: string) {
+  const found = await loadOfTenant(SERVICE_CONTRACTS_COLLECTION, req.params.id, tenantId);
+  if (!found) throw new HttpError(404, "Contrato não encontrado.");
+  return { ref: found.ref, contract: readContract(found.ref.id, found.data) };
+}
+
+async function assertWallet(walletId: string, tenantId: string) {
+  if (!(await loadOfTenant("wallets", walletId, tenantId))) {
+    throw new HttpError(400, "Escolha uma carteira da empresa.");
+  }
+}
+
+async function assertTechnician(technicianId: string | null | undefined, tenantId: string) {
+  if (technicianId && !(await loadTechnician(technicianId, tenantId))) {
+    throw new HttpError(400, "O técnico precisa ser da sua equipe.");
+  }
+}
+
+/** A mensalidade vira lançamento: sem o financeiro no plano, não há onde cobrar. */
+async function assertFinancial(tenantId: string) {
+  if (!(await tenantHasCapability(tenantId, "financial"))) {
+    throw new HttpError(402, "A cobrança do contrato vai para o financeiro, que o seu plano não inclui.");
+  }
+}
+
+function assertTransition(from: ContractStatus, to: ContractStatus) {
+  if (!canContractTransition(from, to)) {
+    throw new HttpError(409, "Este contrato não pode passar para essa situação.");
+  }
+}
+
+/**
+ * Adianta a rotina diária para um contrato recém-ativado ou retomado: a
+ * mensalidade que já está na janela aparece na hora, e não amanhã cedo. Falhar
+ * aqui não desfaz a ativação: a rotina tenta de novo.
+ */
+async function runNow(contractId: string, tenantId: string, uid: string) {
+  const today = todayInBrazil();
+  try {
+    await billContract(contractId, today, false);
+    const orderId = await openContractVisit(contractId, today, false);
+    if (orderId) {
+      await syncOrderAgenda(orderId, tenantId, uid);
+      const created = (await db.collection(SERVICE_ORDERS_COLLECTION).doc(orderId).get()).data();
+      if (created) await notifyTechnician({ tenantId, orderId, uid, before: null, after: created });
+    }
+  } catch (error) {
+    logger.warn("service_contract_run_now_failed", {
+      contractId,
+      error: error instanceof Error ? error.message : String(error),
+    });
+  }
+}
+
+/** POST /v1/service-contracts */
+export async function createServiceContract(req: Request, res: Response) {
+  const parsed = CreateContractSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ message: firstIssue(parsed.error) });
+  try {
+    const { tenantId, uid } = await requireAccess(req, "canCreate");
+    const input = parsed.data;
+    const client = await loadClientSnapshot(input.clientId, tenantId);
+    if (!client) return res.status(404).json({ message: "Contato não encontrado." });
+    const equipment = await loadEquipmentLabels(input.equipmentIds ?? [], tenantId, client.id);
+    if (!equipment) return res.status(400).json({ message: "Escolha equipamentos deste cliente." });
+    await assertWallet(input.wallet, tenantId);
+    await assertTechnician(input.visitPlan?.technicianId, tenantId);
+
+    const now = new Date().toISOString();
+    const ref = db.collection(SERVICE_CONTRACTS_COLLECTION).doc();
+    const visitPlan: VisitPlan = {
+      enabled: input.visitPlan?.enabled ?? false,
+      intervalMonths: input.visitPlan?.intervalMonths ?? 3,
+      technicianId: input.visitPlan?.technicianId ?? null,
+      checklist: input.visitPlan?.checklist ?? [],
+      nextVisitDate: null,
+    };
+    const code = await db.runTransaction(async (t) => {
+      const allocated = await allocateContractNumber(t, tenantId);
+      t.set(ref, {
+        tenantId,
+        number: allocated.number,
+        code: allocated.code,
+        clientId: client.id,
+        clientName: client.name,
+        title: input.title,
+        type: input.type,
+        status: "draft",
+        lines: input.lines,
+        monthlyAmount: computeMonthlyAmount(input.lines),
+        billingDay: input.billingDay,
+        wallet: input.wallet,
+        issueNfse: input.issueNfse,
+        equipmentIds: equipment.map((e) => e.id),
+        visitPlan,
+        notes: input.notes ?? null,
+        startDate: null,
+        endDate: input.endDate ?? null,
+        nextBillingDate: null,
+        lastBilledPeriod: null,
+        suspendedReason: null,
+        proposalId: null,
+        createdAt: now,
+        updatedAt: now,
+        createdBy: uid,
+      });
+      return allocated.code;
+    });
+    return res.status(201).json({ id: ref.id, code });
+  } catch (error) {
+    return fail(res, error, "Erro ao criar o contrato.", "service_contract_create_failed");
+  }
+}
+
+/**
+ * PUT /v1/service-contracts/:id
+ *
+ * Valor e itens valem para as próximas mensalidades: a que já foi lançada fica
+ * como está (ajuste o lançamento no financeiro, se precisar). Mudar o dia de
+ * cobrança de um contrato ativo recalcula a próxima sem cobrar de novo um mês
+ * que já foi cobrado.
+ */
+export async function updateServiceContract(req: Request, res: Response) {
+  const parsed = UpdateContractSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ message: firstIssue(parsed.error) });
+  try {
+    const { tenantId } = await requireAccess(req, "canEdit");
+    const { ref, contract } = await loadContract(req, tenantId);
+    if (contract.status === "ended") throw new HttpError(409, "Este contrato está encerrado.");
+    const input = parsed.data;
+
+    const update: Record<string, unknown> = { updatedAt: new Date().toISOString() };
+    for (const key of ["title", "type", "lines", "billingDay", "wallet", "issueNfse", "notes", "endDate"] as const) {
+      if (input[key] !== undefined) update[key] = input[key];
+    }
+    if (input.lines) update.monthlyAmount = computeMonthlyAmount(input.lines);
+    if (input.wallet) await assertWallet(input.wallet, tenantId);
+
+    let clientId = contract.clientId;
+    if (input.clientId && input.clientId !== contract.clientId) {
+      if (contract.status !== "draft") throw new HttpError(409, "O cliente só muda enquanto o contrato é rascunho.");
+      const client = await loadClientSnapshot(input.clientId, tenantId);
+      if (!client) return res.status(404).json({ message: "Contato não encontrado." });
+      clientId = client.id;
+      update.clientId = client.id;
+      update.clientName = client.name;
+    }
+    if (input.equipmentIds || update.clientId) {
+      const ids = input.equipmentIds ?? (update.clientId ? [] : contract.equipmentIds);
+      const equipment = await loadEquipmentLabels(ids, tenantId, clientId);
+      if (!equipment) return res.status(400).json({ message: "Escolha equipamentos deste cliente." });
+      update.equipmentIds = equipment.map((e) => e.id);
+    }
+    if (input.visitPlan) {
+      await assertTechnician(input.visitPlan.technicianId, tenantId);
+      const current = contract.visitPlan;
+      const intervalChanged = input.visitPlan.intervalMonths !== current.intervalMonths;
+      const turnedOn = input.visitPlan.enabled && !current.enabled;
+      let nextVisitDate = current.nextVisitDate;
+      if (contract.status !== "draft" && input.visitPlan.enabled && (turnedOn || intervalChanged || !nextVisitDate)) {
+        const today = todayInBrazil();
+        nextVisitDate = addMonthsOnDay(today, input.visitPlan.intervalMonths, Math.min(Number(today.slice(8, 10)), 28));
+      }
+      update.visitPlan = { ...input.visitPlan, nextVisitDate: input.visitPlan.enabled ? nextVisitDate : null };
+    }
+    if (input.billingDay !== undefined && input.billingDay !== contract.billingDay && contract.status === "active") {
+      update.nextBillingDate = resumeBillingDate(todayInBrazil(), input.billingDay, contract.lastBilledPeriod);
+    }
+    await ref.update(update);
+    return res.json({ success: true });
+  } catch (error) {
+    return fail(res, error, "Erro ao atualizar o contrato.", "service_contract_update_failed");
+  }
+}
+
+/**
+ * POST /v1/service-contracts/:id/activate
+ *
+ * A empresa escolhe o início; a primeira mensalidade é o primeiro dia de
+ * cobrança a partir dele. O início pode estar no passado por até um mês, para
+ * registrar um contrato que já estava valendo, sem despejar cobranças antigas.
+ */
+export async function activateServiceContract(req: Request, res: Response) {
+  const parsed = ActivateContractSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ message: firstIssue(parsed.error) });
+  try {
+    const { tenantId, uid } = await requireAccess(req, "canEdit");
+    await assertFinancial(tenantId);
+    const { ref, contract } = await loadContract(req, tenantId);
+    assertTransition(contract.status, "active");
+    if (contract.lines.length === 0 || contract.monthlyAmount <= 0) {
+      throw new HttpError(400, "Defina o valor da mensalidade antes de ativar.");
+    }
+    if (!contract.wallet) throw new HttpError(400, "Escolha a carteira que recebe a mensalidade.");
+
+    const today = todayInBrazil();
+    const { startDate, firstVisitDate } = parsed.data;
+    if (startDate < addDays(today, -MAX_START_DAYS_AGO)) {
+      throw new HttpError(400, `O início pode ser de até ${MAX_START_DAYS_AGO} dias atrás.`);
+    }
+    if (contract.endDate && contract.endDate < startDate) {
+      throw new HttpError(400, "O fim do contrato é antes do início.");
+    }
+    const plan = contract.visitPlan;
+    const nextVisitDate = plan.enabled
+      ? (firstVisitDate ?? addMonthsOnDay(startDate, plan.intervalMonths, Math.min(Number(startDate.slice(8, 10)), 28)))
+      : null;
+
+    await ref.update({
+      status: "active",
+      startDate,
+      nextBillingDate: firstBillingDate(startDate, contract.billingDay),
+      lastBilledPeriod: null,
+      "visitPlan.nextVisitDate": nextVisitDate,
+      suspendedReason: null,
+      activatedAt: new Date().toISOString(),
+      activatedBy: uid,
+      updatedAt: new Date().toISOString(),
+    });
+    await runNow(contract.id, tenantId, uid);
+    return res.json({ success: true });
+  } catch (error) {
+    return fail(res, error, "Erro ao ativar o contrato.", "service_contract_activate_failed");
+  }
+}
+
+/** POST /v1/service-contracts/:id/suspend. A mensalidade para de ser lançada. */
+export async function suspendServiceContract(req: Request, res: Response) {
+  try {
+    const { tenantId, uid } = await requireAccess(req, "canEdit");
+    const { ref, contract } = await loadContract(req, tenantId);
+    assertTransition(contract.status, "suspended");
+    await ref.update({
+      status: "suspended",
+      suspendedReason: "manual",
+      suspendedAt: new Date().toISOString(),
+      suspendedBy: uid,
+      updatedAt: new Date().toISOString(),
+    });
+    return res.json({ success: true });
+  } catch (error) {
+    return fail(res, error, "Erro ao suspender o contrato.", "service_contract_suspend_failed");
+  }
+}
+
+/**
+ * POST /v1/service-contracts/:id/resume
+ *
+ * Volta a cobrar a partir de hoje: o período em que ficou parado não é
+ * cobrado, e um mês já cobrado não é cobrado de novo.
+ */
+export async function resumeServiceContract(req: Request, res: Response) {
+  try {
+    const { tenantId, uid } = await requireAccess(req, "canEdit");
+    await assertFinancial(tenantId);
+    if (!(await tenantHasCapability(tenantId, "fieldService"))) {
+      throw new HttpError(402, "O seu plano não inclui contratos de manutenção.");
+    }
+    const { ref, contract } = await loadContract(req, tenantId);
+    assertTransition(contract.status, "active");
+    const today = todayInBrazil();
+    const plan = contract.visitPlan;
+    const nextVisitDate =
+      plan.enabled && (!plan.nextVisitDate || plan.nextVisitDate < today)
+        ? addMonthsOnDay(today, plan.intervalMonths, Math.min(Number(today.slice(8, 10)), 28))
+        : plan.nextVisitDate;
+    await ref.update({
+      status: "active",
+      nextBillingDate: resumeBillingDate(today, contract.billingDay, contract.lastBilledPeriod),
+      "visitPlan.nextVisitDate": plan.enabled ? nextVisitDate : null,
+      suspendedReason: null,
+      resumedAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    });
+    await runNow(contract.id, tenantId, uid);
+    return res.json({ success: true });
+  } catch (error) {
+    return fail(res, error, "Erro ao retomar o contrato.", "service_contract_resume_failed");
+  }
+}
+
+/** POST /v1/service-contracts/:id/end. Mensalidades já lançadas ficam no financeiro. */
+export async function endServiceContract(req: Request, res: Response) {
+  try {
+    const { tenantId, uid } = await requireAccess(req, "canEdit");
+    const { ref, contract } = await loadContract(req, tenantId);
+    assertTransition(contract.status, "ended");
+    await ref.update({
+      status: "ended",
+      endedAt: new Date().toISOString(),
+      endedBy: uid,
+      endedReason: "manual",
+      updatedAt: new Date().toISOString(),
+    });
+    return res.json({ success: true });
+  } catch (error) {
+    return fail(res, error, "Erro ao encerrar o contrato.", "service_contract_end_failed");
+  }
+}
+
+/** DELETE /v1/service-contracts/:id. Só rascunho: contrato que já cobrou se encerra. */
+export async function deleteServiceContract(req: Request, res: Response) {
+  try {
+    const { tenantId } = await requireAccess(req, "canDelete");
+    const { ref, contract } = await loadContract(req, tenantId);
+    if (contract.status !== "draft") {
+      throw new HttpError(409, "Só o rascunho pode ser excluído. Encerre o contrato para parar de cobrar.");
+    }
+    await ref.delete();
+    return res.json({ success: true });
+  } catch (error) {
+    return fail(res, error, "Erro ao excluir o contrato.", "service_contract_delete_failed");
+  }
+}
+
+export type { ServiceContract };

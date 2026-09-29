@@ -40,6 +40,7 @@ import {
   computeOrderTotals,
   decodeSignatureDataUrl,
   isClosedStatus,
+  newServiceOrderDoc,
   signatureContentHash,
   type ServiceOrderItem,
   type ServiceOrderPhoto,
@@ -176,7 +177,7 @@ async function removeOrderEvent(eventId: string | null, tenantId: string, orderI
  * (`order-schedule-store.ts`). Falhar aqui não desfaz a OS: a data dela já
  * foi gravada, e o próximo salvamento tenta de novo.
  */
-async function syncOrderAgenda(orderId: string, tenantId: string, uid: string): Promise<void> {
+export async function syncOrderAgenda(orderId: string, tenantId: string, uid: string): Promise<void> {
   try {
     const ref = db.collection(SERVICE_ORDERS_COLLECTION).doc(orderId);
     const order = (await ref.get()).data();
@@ -230,7 +231,7 @@ async function syncOrderAgenda(orderId: string, tenantId: string, uid: string): 
  * Avisa o técnico quando a OS passa a ser dele ou quando a data dela muda.
  * Quem fez a mudança nunca é avisado de si mesmo.
  */
-async function notifyTechnician(params: {
+export async function notifyTechnician(params: {
   tenantId: string;
   orderId: string;
   uid: string;
@@ -400,43 +401,30 @@ export async function createServiceOrder(req: Request, res: Response) {
     const ref = db.collection(SERVICE_ORDERS_COLLECTION).doc();
     const code = await db.runTransaction(async (t) => {
       const allocated = await allocateOrderNumber(t, tenantId);
-      t.set(ref, {
-        tenantId,
-        number: allocated.number,
-        code: allocated.code,
-        clientId: client.id,
-        clientName: client.name,
-        clientPhone: client.phone,
-        address: input.address ?? client.address,
-        type: input.type,
-        priority: input.priority ?? "normal",
-        status: input.scheduledStart ? "scheduled" : "open",
-        title: input.title,
-        description: input.description ?? null,
-        equipmentIds: equipment.map((e) => e.id),
-        equipmentLabels: equipment.map((e) => e.label),
-        projectId: input.projectId ?? null,
-        ...technician,
-        scheduledStart: input.scheduledStart ?? null,
-        scheduledEnd: input.scheduledEnd ?? null,
-        checklist: input.checklist ?? [],
-        items,
-        totals: computeOrderTotals(items),
-        photos: [],
-        report: null,
-        checkInAt: null,
-        checkOutAt: null,
-        signature: null,
-        noSignatureReason: null,
-        stockApplied: {},
-        stockRevision: 0,
-        completedAt: null,
-        canceledAt: null,
-        reopenLog: [],
-        createdAt: now,
-        updatedAt: now,
-        createdBy: uid,
-      });
+      t.set(
+        ref,
+        newServiceOrderDoc({
+          tenantId,
+          number: allocated.number,
+          code: allocated.code,
+          client,
+          address: input.address ?? client.address,
+          type: input.type,
+          priority: input.priority ?? "normal",
+          title: input.title,
+          description: input.description ?? null,
+          equipment,
+          projectId: input.projectId ?? null,
+          contractId: null,
+          technician,
+          scheduledStart: input.scheduledStart ?? null,
+          scheduledEnd: input.scheduledEnd ?? null,
+          checklist: input.checklist ?? [],
+          items,
+          createdBy: uid,
+          now,
+        }),
+      );
       return allocated.code;
     });
     if (input.scheduledStart) await syncOrderAgenda(ref.id, tenantId, uid);

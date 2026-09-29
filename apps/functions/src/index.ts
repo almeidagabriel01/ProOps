@@ -49,6 +49,7 @@ lazyExport("cleanupStorageAndSharedLinks", () => require("./cleanupStorageAndSha
 lazyExport("reconcileAddons", () => require("./reconcileAddons").reconcileAddons);
 lazyExport("processPayoutRetries", () => require("./processPayoutRetries").processPayoutRetries);
 lazyExport("processDriveDeliveries", () => require("./processDriveDeliveries").processDriveDeliveries);
+lazyExport("processServiceContracts", () => require("./processServiceContracts").processServiceContracts);
 lazyExport("processInvoiceRetries", () => require("./processInvoiceRetries").processInvoiceRetries);
 lazyExport("checkFiscalCertificateExpiry", () => require("./checkFiscalCertificateExpiry").checkFiscalCertificateExpiry);
 lazyExport("syncReceivedInvoices", () => require("./syncReceivedInvoices").syncReceivedInvoices);

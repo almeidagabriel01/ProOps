@@ -688,6 +688,49 @@ nichos: chamado de alarme, manutenção de ar-condicionado, suporte de automaç�
 Guards: `field-service-model.test.ts`, `field-service.controller.test.ts`,
 `field-service.routes.gates.test.ts` e `tests/firestore-rules/field-service.test.ts`.
 
+#### Contratos de manutenção (`contract-model.ts`, `contract.service.ts`)
+
+A mensalidade que a empresa cobra todo mês (monitoramento, manutenção,
+suporte, PMOC) e as visitas preventivas que o contrato promete. Mesma
+capacidade `fieldService`, pageId `contracts`, rotas em `/v1/service-contracts`.
+
+- **Rascunho → ativo → suspenso → encerrado.** O rascunho não cobra. Ativar
+  pede a data de início (até 31 dias no passado) e o financeiro no plano
+  (402): a primeira cobrança é o primeiro dia de cobrança (1 a 28) a partir do
+  início. Só o rascunho se exclui; o resto se encerra.
+- **A rotina diária cobra** (`processServiceContracts`, 06:00,
+  `contract-billing-run.ts`): cada vencimento que entrou na janela de 10 dias
+  vira um lançamento `pending` na categoria "Contratos", com id
+  `contract_{id}_{AAAAMM}`, gravado com `create` numa transação que relê o id
+  antes e avança `nextBillingDate` junto. Rodar duas vezes não cobra em dobro;
+  no máximo 3 meses por execução.
+- **Não passa pelo `TransactionService.createTransaction`**, que exige um
+  usuário. A mensalidade nasce pendente, então não mexe em saldo.
+- **O lançamento não leva `proposalId`** (a sincronização da proposta aprovada
+  apagaria lançamento com esse campo que ela mesma não gerou) **nem
+  `isRecurring`** (a recorrência do financeiro criaria outra parcela ao pagar).
+  O vínculo é `serviceContractId` + `contractPeriod`.
+- **Suspender não deixa dívida para trás:** ao retomar, a próxima cobrança é o
+  primeiro dia de cobrança a partir de hoje cujo mês ainda não foi cobrado
+  (`resumeBillingDate`). Mudar o dia de cobrança de um ativo usa a mesma regra.
+- **Perder o módulo ou o financeiro suspende** (`suspendedReason: "plan"`) e
+  avisa dono e admins (`service_contract_suspended`); nunca apaga. Retomar
+  exige o plano de volta.
+- **Visita preventiva:** com o plano de visitas ligado, a OS nasce 7 dias
+  antes (`preventive`, agendada às 8h, técnico, aparelhos e o checklist do
+  contrato, que a tela preenche com o do nicho), com id
+  `contract_{id}_visit_{AAAAMMDD}`, e vai para a Agenda com aviso ao técnico.
+  Uma por execução. A OS guarda `contractId`.
+- **Proposta:** `ensureContractFromProposal` cria o rascunho
+  `proposal_{proposalId}` com as linhas marcadas como mensalidade
+  (`isMonthly`), com `create`: aprovar de novo não cria outro.
+- **Link de pagamento:** o de qualquer lançamento (compartilhar), que abre o
+  Pix e o boleto do Asaas quando a empresa tem pagamento online.
+
+Guards: `contract-model.test.ts`, `service-contracts.test.ts` (API e rotina com
+Firestore falso) e os blocos de contratos em `field-service.routes.gates.test.ts`
+e `tests/firestore-rules/field-service.test.ts`.
+
 ### Vendedor e metas de vendas
 
 A proposta guarda **`sellerId`/`sellerName`** (quem vendeu: membro da empresa,

@@ -38,6 +38,7 @@ export const TENANT_PURGE_BY_FIELD = [
   "shared_projects",
   "customer_equipment",
   "service_orders",
+  "service_contracts",
   "shared_service_orders",
   "stock_movements",
   "tasks",

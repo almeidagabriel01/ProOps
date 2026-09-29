@@ -31,6 +31,8 @@ export enum NotificationType {
   BOOKING_REQUESTED = "booking_requested",
   /** Passaram uma OS para você, ou mudaram a data dela. */
   SERVICE_ORDER_ASSIGNED = "service_order_assigned",
+  /** O plano perdeu o módulo e um contrato parou de cobrar. */
+  SERVICE_CONTRACT_SUSPENDED = "service_contract_suspended",
 }
 
 export interface Notification {
@@ -49,6 +51,7 @@ export interface Notification {
   taskId?: string;
   bookingRequestId?: string;
   serviceOrderId?: string;
+  serviceContractId?: string;
   /** Quem vê esta notificação (as rules leem este campo). */
   recipientUids?: string[];
   /** Quem já leu: a leitura é por pessoa. */
