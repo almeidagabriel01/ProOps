@@ -26,6 +26,10 @@ const mirror = jest.fn();
 jest.mock("../services/projects/project-schedule-store", () => ({
   mirrorStageScheduleFromEvent: (...a: unknown[]) => mirror(...a),
 }));
+const orderMirror = jest.fn();
+jest.mock("../services/field-service/order-schedule-store", () => ({
+  mirrorOrderScheduleFromEvent: (...a: unknown[]) => orderMirror(...a),
+}));
 
 let events: Record<string, Record<string, unknown>>;
 const sets: Array<{ id: string; data: Record<string, unknown> }> = [];
@@ -111,6 +115,7 @@ beforeEach(() => {
     obra: { ...base, projectId: "p1", projectStageId: "s1" },
     pedido: { ...base, title: "Visita", status: "pending", bookingRequestId: "req1" },
     solto: { ...base, title: "Reunião" },
+    os: { ...base, title: "OS-0001: Limpeza", serviceOrderId: "o1" },
   };
 });
 
@@ -120,6 +125,7 @@ describe("pickEventLinks", () => {
     expect(pickEventLinks({ bookingRequestId: "req1" })).toEqual({ bookingRequestId: "req1" });
     expect(pickEventLinks(null)).toEqual({});
     expect(pickEventLinks({ projectStageId: "s1" })).toEqual({});
+    expect(pickEventLinks({ serviceOrderId: "o1" })).toEqual({ serviceOrderId: "o1" });
   });
 
   it("buildCalendarEventDocument herda o vínculo do existente e ignora o do corpo", () => {
@@ -195,5 +201,37 @@ describe("Agenda x obra", () => {
     const res = fakeRes();
     await updateCalendarEvent(req({ id: "obra" }, { title: "Instalação: Casa (2ª visita)" }), res);
     expect(res.statusCode).toBe(200);
+  });
+});
+
+describe("Agenda x ordem de serviço", () => {
+  beforeEach(() => orderMirror.mockReset());
+
+  it("arrastar a visita da OS mantém o vínculo e leva a data para a OS", async () => {
+    await updateCalendarEvent(
+      req({ id: "os" }, { startsAt: "2026-10-22T11:00:00.000Z", endsAt: "2026-10-22T13:00:00.000Z" }),
+      fakeRes(),
+    );
+    expect(sets[0].data.serviceOrderId).toBe("o1");
+    expect(orderMirror).toHaveBeenCalledWith({
+      tenantId: "t1",
+      serviceOrderId: "o1",
+      eventId: "os",
+      event: { startMs: Date.parse("2026-10-22T11:00:00.000Z"), endMs: Date.parse("2026-10-22T13:00:00.000Z") },
+    });
+    expect(mirror).not.toHaveBeenCalled();
+  });
+
+  it("excluir ou cancelar na Agenda tira a data da OS", async () => {
+    await updateCalendarEvent(req({ id: "os" }, { status: "canceled" }), fakeRes());
+    expect(orderMirror).toHaveBeenLastCalledWith(expect.objectContaining({ eventId: "os", event: null }));
+    await deleteCalendarEvent(req({ id: "os" }), fakeRes());
+    expect(orderMirror).toHaveBeenLastCalledWith(expect.objectContaining({ eventId: "os", event: null }));
+  });
+
+  it("o corpo não liga um evento a uma OS", async () => {
+    await createCalendarEvent(req({}, { ...base, serviceOrderId: "o1" }), fakeRes());
+    expect(sets[0].data.serviceOrderId).toBeUndefined();
+    expect(orderMirror).not.toHaveBeenCalled();
   });
 });

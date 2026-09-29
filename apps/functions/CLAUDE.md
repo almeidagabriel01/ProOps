@@ -654,6 +654,13 @@ nichos: chamado de alarme, manutenção de ar-condicionado, suporte de automaç�
   Cancelar devolve tudo. Estoque negativo é avisado na resposta, nunca
   bloqueia. Produto sem `inventoryValue` numérico não ganha movimento.
 - **OS que mexeu no estoque não se exclui**: reabra e cancele.
+- **Agenda.** OS agendada e aberta tem um evento em `calendar_events` com
+  `serviceOrderId` (`calendarEventId` na OS), criado, movido e apagado por
+  `syncOrderAgenda`. A data mora no evento: mover na Agenda ou no Google volta
+  para a OS por `mirrorOrderScheduleFromEvent`, que ignora evento antigo e OS
+  encerrada. O vínculo atravessa a regravação do evento (`pickEventLinks`).
+- **Aviso ao técnico** (`service_order_assigned`, direto): quando a OS passa
+  para ele ou a data muda; quem fez a mudança não é avisado.
 - **Link do cliente e PDF.** Um link por OS (`shareToken` na OS, e
   `shared_service_orders/{token}` com o token como id, Admin SDK only), aberto
   em `GET /v1/share/service-order/:token` (público; token desconhecido, OS

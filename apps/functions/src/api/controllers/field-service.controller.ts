@@ -9,6 +9,14 @@ import { tenantHasCapability } from "../../lib/tenant-capabilities";
 import { buildPdfContentDisposition, buildPdfFilename } from "../services/pdf-filename";
 import { decodePhotoDataUrl } from "../services/projects/project-model";
 import { isStorageOverQuota } from "../services/projects/project.service";
+import { NotificationService } from "../services/notification.service";
+import { resolveFrontendAppOrigin } from "../../lib/frontend-app-url";
+import {
+  buildCalendarEventDocument,
+  deleteEventFromGoogleIfNeeded,
+  syncEventToGoogle,
+  type CalendarEventDocument,
+} from "./calendar.controller";
 import {
   CompleteServiceOrderSchema,
   CreateServiceOrderSchema,
@@ -119,6 +127,132 @@ function orderStatus(data: Record<string, unknown>): ServiceOrderStatus {
 function assertEditable(data: Record<string, unknown>) {
   if (isClosedStatus(orderStatus(data))) {
     throw new HttpError(409, "Esta OS está encerrada. Reabra para alterar.");
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Agenda e aviso ao técnico
+// ---------------------------------------------------------------------------
+
+const CALENDAR_EVENTS_COLLECTION = "calendar_events";
+/** Uma das seis cores da Agenda: toda visita de OS sai igual. */
+const ORDER_EVENT_COLOR = "#7c3aed";
+
+function formatVisit(iso: string): string {
+  return new Date(iso).toLocaleString("pt-BR", {
+    timeZone: "America/Sao_Paulo",
+    day: "2-digit",
+    month: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+async function loadOrderEvent(eventId: string | null, tenantId: string, orderId: string) {
+  if (!eventId) return null;
+  const snap = await db.collection(CALENDAR_EVENTS_COLLECTION).doc(eventId).get();
+  const data = snap.data() as CalendarEventDocument | undefined;
+  if (!snap.exists || data?.tenantId !== tenantId || data.serviceOrderId !== orderId) return null;
+  return { ref: snap.ref, data };
+}
+
+async function removeOrderEvent(eventId: string | null, tenantId: string, orderId: string) {
+  const event = await loadOrderEvent(eventId, tenantId, orderId);
+  if (!event) return;
+  await deleteEventFromGoogleIfNeeded(event.data);
+  await event.ref.delete();
+}
+
+/**
+ * Leva a OS para a Agenda: agendada e aberta, ela tem um evento (criado ou
+ * atualizado); sem data ou encerrada, o evento sai. A data mora no evento, e
+ * mover o evento na Agenda volta para a OS pelo espelho
+ * (`order-schedule-store.ts`). Falhar aqui não desfaz a OS: a data dela já
+ * foi gravada, e o próximo salvamento tenta de novo.
+ */
+async function syncOrderAgenda(orderId: string, tenantId: string, uid: string): Promise<void> {
+  try {
+    const ref = db.collection(SERVICE_ORDERS_COLLECTION).doc(orderId);
+    const order = (await ref.get()).data();
+    if (!order || order.tenantId !== tenantId) return;
+    const eventId = (order.calendarEventId as string | null) ?? null;
+    const wantsEvent = Boolean(order.scheduledStart && order.scheduledEnd) && !isClosedStatus(orderStatus(order));
+
+    if (!wantsEvent) {
+      await removeOrderEvent(eventId, tenantId, orderId);
+      if (eventId) await ref.update({ calendarEventId: null });
+      return;
+    }
+
+    const existing = await loadOrderEvent(eventId, tenantId, orderId);
+    const eventRef = existing?.ref ?? db.collection(CALENDAR_EVENTS_COLLECTION).doc();
+    const description = [
+      `Cliente: ${String(order.clientName ?? "")}`,
+      order.clientPhone ? `Telefone: ${String(order.clientPhone)}` : null,
+      order.technicianName ? `Técnico: ${String(order.technicianName)}` : null,
+      `OS: ${new URL(`/service-orders/${orderId}`, resolveFrontendAppOrigin()).toString()}`,
+    ].filter(Boolean);
+    const event = buildCalendarEventDocument({
+      input: {
+        title: `${String(order.code ?? "OS")}: ${String(order.title ?? "")}`.slice(0, 140),
+        description: description.join("\n"),
+        location: (order.address as string | null) ?? null,
+        status: "scheduled",
+        color: existing?.data.color ?? ORDER_EVENT_COLOR,
+        isAllDay: false,
+        startsAt: order.scheduledStart,
+        endsAt: order.scheduledEnd,
+      },
+      tenantId,
+      ownerUserId: existing?.data.ownerUserId ?? (order.technicianUids as string[] | undefined)?.[0] ?? uid,
+      actingUserId: uid,
+      existing: existing?.data,
+      links: { serviceOrderId: orderId },
+    });
+    const googleSync = await syncEventToGoogle(eventRef.id, event);
+    await eventRef.set({ ...event, googleSync }, { merge: false });
+    if (eventId !== eventRef.id) await ref.update({ calendarEventId: eventRef.id });
+  } catch (error) {
+    logger.warn("service_order_agenda_sync_failed", {
+      orderId,
+      error: error instanceof Error ? error.message : String(error),
+    });
+  }
+}
+
+/**
+ * Avisa o técnico quando a OS passa a ser dele ou quando a data dela muda.
+ * Quem fez a mudança nunca é avisado de si mesmo.
+ */
+async function notifyTechnician(params: {
+  tenantId: string;
+  orderId: string;
+  uid: string;
+  before: Record<string, unknown> | null;
+  after: Record<string, unknown>;
+}): Promise<void> {
+  const technician = (params.after.technicianUids as string[] | undefined)?.[0];
+  if (!technician || technician === params.uid) return;
+  const previous = (params.before?.technicianUids as string[] | undefined)?.[0];
+  const start = (params.after.scheduledStart as string | null) ?? null;
+  const assigned = technician !== previous;
+  const rescheduled = !assigned && Boolean(start) && start !== ((params.before?.scheduledStart as string | null) ?? null);
+  if (!assigned && !rescheduled) return;
+  const code = String(params.after.code ?? "OS");
+  const when = start ? ` para ${formatVisit(start)}` : "";
+  try {
+    await NotificationService.createNotification({
+      tenantId: params.tenantId,
+      type: "service_order_assigned",
+      title: assigned ? `${code} passou para você` : `${code} remarcada`,
+      message: assigned
+        ? `${String(params.after.title ?? "")}, em ${String(params.after.clientName ?? "")}${when}.`
+        : `${String(params.after.title ?? "")} ficou${when}.`,
+      serviceOrderId: params.orderId,
+      targetUids: [technician],
+    });
+  } catch (error) {
+    logger.warn("service_order_notify_failed", { error: error instanceof Error ? error.message : String(error) });
   }
 }
 
@@ -299,6 +433,9 @@ export async function createServiceOrder(req: Request, res: Response) {
       });
       return allocated.code;
     });
+    if (input.scheduledStart) await syncOrderAgenda(ref.id, tenantId, uid);
+    const created = (await ref.get()).data();
+    if (created) await notifyTechnician({ tenantId, orderId: ref.id, uid, before: null, after: created });
     return res.status(201).json({ id: ref.id, code });
   } catch (error) {
     return fail(res, error, "Erro ao abrir a ordem de serviço.", "service_order_create_failed");
@@ -372,6 +509,11 @@ export async function updateServiceOrder(req: Request, res: Response) {
     }
 
     await found.ref.update(update);
+    const agendaFields = ["scheduledStart", "scheduledEnd", "technicianUids", "title", "address", "clientId"];
+    if (agendaFields.some((key) => key in update)) {
+      await syncOrderAgenda(found.ref.id, tenantId, uid);
+      await notifyTechnician({ tenantId, orderId: found.ref.id, uid, before: found.data, after: { ...found.data, ...update } });
+    }
     return res.json({ success: true });
   } catch (error) {
     return fail(res, error, "Erro ao atualizar a ordem de serviço.", "service_order_update_failed");
@@ -427,6 +569,10 @@ export async function changeServiceOrderStatus(req: Request, res: Response) {
       t.update(found.ref, update);
       return update;
     });
+    // Cancelar tira a visita da Agenda; reabrir uma cancelada com data a devolve.
+    if (target === "canceled" || found.data.status === "canceled") {
+      await syncOrderAgenda(found.ref.id, tenantId, uid);
+    }
     return res.json({ success: true, status: result.status });
   } catch (error) {
     return fail(res, error, "Erro ao mudar o status da OS.", "service_order_status_failed");
@@ -654,6 +800,7 @@ export async function deleteServiceOrder(req: Request, res: Response) {
     const signature = (found.data.signature as ServiceOrderSignature | null)?.storagePath;
     await found.ref.delete();
     await deleteOrderFiles(signature ? [...photos, signature] : photos);
+    await removeOrderEvent((found.data.calendarEventId as string | null) ?? null, tenantId, found.ref.id);
     return res.json({ success: true });
   } catch (error) {
     return fail(res, error, "Erro ao excluir a ordem de serviço.", "service_order_delete_failed");

@@ -49,6 +49,8 @@ export interface CalendarEvent {
    */
   projectId?: string | null;
   projectStageId?: string | null;
+  /** Visita de uma ordem de serviço. Mudar a data aqui muda a da OS. */
+  serviceOrderId?: string | null;
 }
 
 export interface CalendarEventFormValues {

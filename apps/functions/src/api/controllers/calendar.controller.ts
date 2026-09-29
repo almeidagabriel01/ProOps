@@ -18,6 +18,7 @@ import {
 import { encryptToken, decryptToken } from "../../lib/token-encryption";
 import { stageScheduleFromEvent } from "../services/projects/project-schedule";
 import { mirrorStageScheduleFromEvent } from "../services/projects/project-schedule-store";
+import { mirrorOrderScheduleFromEvent } from "../services/field-service/order-schedule-store";
 
 // Pacotes scoped (@googleapis/calendar + @googleapis/oauth2) substituem o
 // metapackage `googleapis` (~60MB instalado, ~0.9s de require — carregava a
@@ -148,6 +149,8 @@ export interface CalendarEventDocument {
   projectStageId?: string | null;
   /** Pedido de visita que originou o evento (link de agendamento). */
   bookingRequestId?: string | null;
+  /** Visita de uma ordem de serviço (`order-schedule-store.ts`). */
+  serviceOrderId?: string | null;
 }
 
 /** Vínculos do evento com outras telas; nunca vêm do corpo da requisição. */
@@ -155,6 +158,7 @@ export interface CalendarEventLinks {
   projectId?: string | null;
   projectStageId?: string | null;
   bookingRequestId?: string | null;
+  serviceOrderId?: string | null;
 }
 
 /**
@@ -170,7 +174,29 @@ export function pickEventLinks(source: CalendarEventLinks | undefined | null): C
     links.projectStageId = source.projectStageId ?? null;
   }
   if (source?.bookingRequestId) links.bookingRequestId = source.bookingRequestId;
+  if (source?.serviceOrderId) links.serviceOrderId = source.serviceOrderId;
   return links;
+}
+
+/** Evento de OS: a OS espelha a data dele. */
+async function mirrorServiceOrder(eventId: string, event: CalendarEventDocument | null, previous: CalendarEventDocument) {
+  if (!previous.serviceOrderId) return;
+  try {
+    await mirrorOrderScheduleFromEvent({
+      tenantId: previous.tenantId,
+      serviceOrderId: previous.serviceOrderId,
+      eventId,
+      event: event && event.status !== "canceled" ? { startMs: event.startMs, endMs: event.endMs } : null,
+    });
+  } catch (error) {
+    console.error("[CalendarController] Error mirroring service order schedule:", error);
+  }
+}
+
+/** Obra e OS guardam um espelho da data do evento: toda escrita do evento passa aqui. */
+async function mirrorLinkedSchedules(eventId: string, event: CalendarEventDocument | null, previous: CalendarEventDocument) {
+  await mirrorProjectStage(eventId, event, previous);
+  await mirrorServiceOrder(eventId, event, previous);
 }
 
 /** Evento de etapa de obra: a etapa espelha a data dele. */
@@ -846,7 +872,7 @@ function pickCalendarEventToKeep(
   const rank = (copy: LinkedCalendarEvent) => {
     if (copy.id === deterministicId) return 0;
     const links = pickEventLinks(copy.data);
-    if (links.projectId || links.bookingRequestId) return 1;
+    if (links.projectId || links.bookingRequestId || links.serviceOrderId) return 1;
     if (copy.data.googleSync?.origin !== "imported") return 2;
     return 3;
   };
@@ -926,7 +952,8 @@ async function listGoogleLinkedCalendarEventsByExternalId(params: {
         copy.id !== keep.id &&
         copy.data.googleSync?.origin === "imported" &&
         !links.projectId &&
-        !links.bookingRequestId
+        !links.bookingRequestId &&
+        !links.serviceOrderId
       ) {
         duplicateIds.push(copy.id);
       }
@@ -1080,7 +1107,7 @@ export async function syncGoogleEventsToLocalCalendar(params: {
 
     // Visita de obra mudada no Google: a data da etapa acompanha.
     for (const { ref, data } of writes) {
-      if (data.projectId) await mirrorProjectStage(ref.id, data, data);
+      if (data.projectId || data.serviceOrderId) await mirrorLinkedSchedules(ref.id, data, data);
     }
 
     await persistGoogleIntegrationStatus(integrationRecord.id, {
@@ -2093,7 +2120,7 @@ export async function updateCalendarEvent(req: Request, res: Response) {
     };
 
     await docRef.set(persistedEvent, { merge: false });
-    await mirrorProjectStage(id, persistedEvent, existingData);
+    await mirrorLinkedSchedules(id, persistedEvent, existingData);
 
     return res.json({
       success: true,
@@ -2154,7 +2181,7 @@ export async function deleteCalendarEvent(req: Request, res: Response) {
 
     await deleteEventFromGoogleIfNeeded(existingData);
     await docRef.delete();
-    await mirrorProjectStage(id, null, existingData);
+    await mirrorLinkedSchedules(id, null, existingData);
 
     return res.status(204).send();
   } catch (error) {

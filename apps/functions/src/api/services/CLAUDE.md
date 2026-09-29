@@ -339,6 +339,7 @@ interface Notification {
 | `task_updated` | Outra pessoa mudou (ou tirou) o prazo de uma tarefa que ja tinha responsavel; com atribuicao nova na mesma edicao, vale so o `task_assigned` | so o responsavel | pode, desligado |
 | `task_mentioned` | Alguem citado com @ numa tarefa; so quem foi citado AGORA, e nao o responsavel ja avisado | so os citados | ligado |
 | `task_reminder` | Cron `checkDueDates` (2d), tarefa com prazo hoje, id `task_{id}_{dia}` | o responsavel, ou quem criou | nao |
+| `service_order_assigned` | OS passada para um tecnico, ou remarcada (`field-service.controller.ts`); quem fez a acao nunca e avisado | so o tecnico (`targetUids`) | ligado |
 
 ### Metodos publicos
 

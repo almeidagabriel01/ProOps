@@ -23,6 +23,7 @@ export type NotificationGroup =
   | "projects"
   | "tasks"
   | "calendar"
+  | "service_orders"
   | "system";
 
 export interface NotificationCatalogEntry {
@@ -97,6 +98,16 @@ export const NOTIFICATION_CATALOG = {
     defaultEmail: true,
     // Vai para o técnico da obra, que precisa enxergar Projetos.
     directPageId: "projects",
+  },
+  service_order_assigned: {
+    label: "Ordem de serviço para você",
+    description: "Passaram uma OS para você atender, ou mudaram a data dela.",
+    group: "service_orders",
+    audience: "direct",
+    emailable: true,
+    defaultEmail: true,
+    // Vai para o técnico da OS, que precisa enxergar Ordens de serviço.
+    directPageId: "service_orders",
   },
   lead_reminder: {
     label: "Lembrete do CRM",
@@ -199,6 +210,7 @@ export const NOTIFICATION_GROUPS: Array<{ id: NotificationGroup; label: string }
   { id: "projects", label: "Projetos" },
   { id: "tasks", label: "Tarefas" },
   { id: "calendar", label: "Agenda" },
+  { id: "service_orders", label: "Assistência" },
   { id: "system", label: "Conta" },
 ];
 

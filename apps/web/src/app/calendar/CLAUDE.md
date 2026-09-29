@@ -35,6 +35,14 @@ vínculo no corpo). O diálogo avisa e leva à obra ("Abrir obra"), e mover,
 cancelar ou excluir o evento aqui muda a data que a obra mostra. Ver
 `app/projects/CLAUDE.md`.
 
+## Visita de ordem de serviço
+
+Evento com `serviceOrderId` é a visita de uma OS, criado e mantido pela OS
+(data, técnico, título e endereço), com a cor roxa da Agenda e o técnico como
+dono. O diálogo leva à OS ("Abrir OS"); mover o evento aqui ou no Google muda a
+data da OS, e excluir ou cancelar a devolve para "aberta"
+(`order-schedule-store.ts`). OS concluída não muda mais, nem pela Agenda.
+
 ## Biblioteca de Calendário
 
 O componente usa **FullCalendar** (`@fullcalendar/react`) com os seguintes plugins:

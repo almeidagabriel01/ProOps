@@ -2,6 +2,7 @@ import {
   AlertTriangle,
   CalendarClock,
   CheckCircle2,
+  ClipboardList,
   Clock,
   FileText,
   HardHat,
@@ -41,6 +42,8 @@ export function getNotificationIcon(type: NotificationType) {
     case NotificationType.BOOKING_REQUESTED:
     case NotificationType.PROJECT_VISIT_SCHEDULED:
       return CalendarClock;
+    case NotificationType.SERVICE_ORDER_ASSIGNED:
+      return ClipboardList;
     default:
       return FileText;
   }

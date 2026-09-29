@@ -38,6 +38,31 @@ jest.mock("../services/core-pdf.service", () => ({
 }));
 jest.mock("../../lib/frontend-app-url", () => ({
   resolveFrontendAppUrl: () => "https://erp.test/",
+  resolveFrontendAppOrigin: () => "https://erp.test",
+}));
+const notifications: Doc[] = [];
+jest.mock("../services/notification.service", () => ({
+  NotificationService: {
+    createNotification: async (data: Doc) => {
+      notifications.push(data);
+    },
+  },
+}));
+const googleDeletes: string[] = [];
+jest.mock("./calendar.controller", () => ({
+  buildCalendarEventDocument: (p: { input: Doc; tenantId: string; ownerUserId: string; links?: Doc }) => ({
+    tenantId: p.tenantId,
+    ownerUserId: p.ownerUserId,
+    title: p.input.title,
+    location: p.input.location,
+    startsAt: p.input.startsAt,
+    endsAt: p.input.endsAt,
+    ...(p.links ?? {}),
+  }),
+  syncEventToGoogle: async () => ({ enabled: false }),
+  deleteEventFromGoogleIfNeeded: async (event: Doc) => {
+    googleDeletes.push(String(event.title));
+  },
 }));
 jest.mock("firebase-admin/storage", () => ({
   getStorage: () => ({
@@ -177,6 +202,8 @@ beforeEach(() => {
   autoId = 0;
   capability = true;
   rendered.length = 0;
+  notifications.length = 0;
+  googleDeletes.length = 0;
   permissions.clear();
   savedFiles.length = 0;
   deletedFiles.length = 0;
@@ -470,5 +497,76 @@ describe("link público e PDF", () => {
     await downloadServiceOrderPdf(req({ params: { id: "o1" } }), res);
     expect(res.statusCode).toBe(402);
     expect(rendered).toHaveLength(0);
+  });
+});
+
+describe("Agenda e aviso ao técnico", () => {
+  const scheduled = {
+    clientId: "c1",
+    type: "preventive",
+    title: "Limpeza semestral",
+    technicianId: "tec",
+    scheduledStart: "2026-10-02T12:00:00.000Z",
+    scheduledEnd: "2026-10-02T14:00:00.000Z",
+  };
+
+  function eventsOf(orderId: string) {
+    return Object.entries(store.calendar_events ?? {}).filter(([, e]) => e.serviceOrderId === orderId);
+  }
+
+  it("OS agendada entra na Agenda, ligada a ela, e o técnico é avisado", async () => {
+    const res = mockRes();
+    await createServiceOrder(req({ body: scheduled }), res);
+    const { id } = res.body as { id: string };
+    const events = eventsOf(id);
+    expect(events).toHaveLength(1);
+    expect(events[0][1]).toMatchObject({ startsAt: scheduled.scheduledStart, ownerUserId: "tec" });
+    expect(store.service_orders[id].calendarEventId).toBe(events[0][0]);
+    expect(notifications).toEqual([
+      expect.objectContaining({ type: "service_order_assigned", targetUids: ["tec"], serviceOrderId: id }),
+    ]);
+  });
+
+  it("remarcar move o mesmo evento e avisa de novo; tirar a data apaga o evento", async () => {
+    const res = mockRes();
+    await createServiceOrder(req({ body: scheduled }), res);
+    const { id } = res.body as { id: string };
+    const eventId = store.service_orders[id].calendarEventId;
+    notifications.length = 0;
+
+    await updateServiceOrder(
+      req({ params: { id }, body: { scheduledStart: "2026-10-03T12:00:00.000Z", scheduledEnd: "2026-10-03T13:00:00.000Z" } }),
+      mockRes(),
+    );
+    expect(eventsOf(id)).toHaveLength(1);
+    expect(store.calendar_events[eventId as string].startsAt).toBe("2026-10-03T12:00:00.000Z");
+    expect(notifications).toEqual([expect.objectContaining({ title: expect.stringContaining("remarcada") })]);
+
+    await updateServiceOrder(req({ params: { id }, body: { scheduledStart: null, scheduledEnd: null } }), mockRes());
+    expect(eventsOf(id)).toHaveLength(0);
+    expect(store.service_orders[id]).toMatchObject({ calendarEventId: null, status: "open" });
+  });
+
+  it("cancelar tira a visita da Agenda", async () => {
+    const res = mockRes();
+    await createServiceOrder(req({ body: scheduled }), res);
+    const { id } = res.body as { id: string };
+    await changeServiceOrderStatus(req({ params: { id }, body: { status: "canceled" } }), mockRes());
+    expect(eventsOf(id)).toHaveLength(0);
+    expect(googleDeletes).toHaveLength(1);
+  });
+
+  it("quem se atribui a própria OS não é avisado de si mesmo", async () => {
+    const res = mockRes();
+    await createServiceOrder(req({ uid: "tec", role: "MASTER", body: scheduled }), res);
+    expect(notifications).toEqual([]);
+  });
+
+  it("OS sem data não cria evento", async () => {
+    const res = mockRes();
+    await createServiceOrder(req({ body: { clientId: "c1", type: "corrective", title: "Não gela" } }), res);
+    const { id } = res.body as { id: string };
+    expect(eventsOf(id)).toHaveLength(0);
+    expect(store.service_orders[id].calendarEventId).toBeUndefined();
   });
 });

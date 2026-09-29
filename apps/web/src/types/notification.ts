@@ -29,6 +29,8 @@ export enum NotificationType {
   TASK_UPDATED = "task_updated",
   /** Cliente pediu uma visita pelo link de agendamento. */
   BOOKING_REQUESTED = "booking_requested",
+  /** Passaram uma OS para você, ou mudaram a data dela. */
+  SERVICE_ORDER_ASSIGNED = "service_order_assigned",
 }
 
 export interface Notification {
@@ -46,6 +48,7 @@ export interface Notification {
   projectId?: string;
   taskId?: string;
   bookingRequestId?: string;
+  serviceOrderId?: string;
   /** Quem vê esta notificação (as rules leem este campo). */
   recipientUids?: string[];
   /** Quem já leu: a leitura é por pessoa. */
