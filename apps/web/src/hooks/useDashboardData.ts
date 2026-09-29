@@ -272,8 +272,8 @@ export function useDashboardData() {
   const isCurrentMonth = selectedMonth === currentMonth;
   const monthStats = React.useMemo(() => {
     const source = isCurrentMonth ? finance.transactions : monthData.transactions;
-    return source ? computeMonthStats(source, selectedMonth) : EMPTY_MONTH_STATS;
-  }, [isCurrentMonth, finance.transactions, monthData.transactions, selectedMonth]);
+    return source ? computeMonthStats(source, selectedMonth, finance.wallets) : EMPTY_MONTH_STATS;
+  }, [isCurrentMonth, finance.transactions, monthData.transactions, selectedMonth, finance.wallets]);
 
   return {
     ...overview,

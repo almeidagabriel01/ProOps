@@ -2,6 +2,7 @@ import type { Transaction } from "@/services/transaction-service";
 import type { Wallet } from "@/types";
 import type { BarChartDataItem } from "@/components/charts/simple-bar-chart";
 import { parseDateValue } from "@/utils/date-format";
+import { walletLabel } from "@/lib/wallet-label";
 
 /**
  * Cálculos do dashboard, fora do hook para poderem ser testados e para o bloco
@@ -86,6 +87,7 @@ export function toMonthKey(date: Date): string {
 export function computeMonthStats(
   transactions: Transaction[],
   month: string,
+  wallets: ReadonlyArray<{ id: string; name: string }> = [],
 ): MonthStats {
   const stats: MonthStats = {
     expensesByCategory: {},
@@ -104,7 +106,8 @@ export function computeMonthStats(
         (stats.expensesByCategory[category] || 0) + entry.amount;
     }
 
-    const walletName = entry.wallet || "Sem Carteira";
+    // Agrupado pelo NOME: o lançamento pode guardar o id ou o nome da carteira.
+    const walletName = walletLabel(entry.wallet, wallets) || "Sem Carteira";
     const target =
       entry.type === "income" ? stats.incomeByWallet : stats.expensesByWallet;
     target[walletName] = (target[walletName] || 0) + entry.amount;

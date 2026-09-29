@@ -42,6 +42,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Loader } from "@/components/ui/loader";
+import { isSameWallet, walletLabel } from "@/lib/wallet-label";
 
 type SyncTx = Transaction & {
   isExtraCostSync?: boolean;
@@ -739,7 +740,7 @@ export function TransactionListByDueDate({
                                 className="gap-2 cursor-pointer text-xs"
                               >
                                 <span>{wallet.name}</span>
-                                {tx.wallet === wallet.name && (
+                                {isSameWallet(tx.wallet, wallet) && (
                                   <Check className="h-3 w-3 ml-auto opacity-50" />
                                 )}
                               </DropdownMenuItem>
@@ -748,7 +749,7 @@ export function TransactionListByDueDate({
                         </DropdownMenu>
                       ) : (
                         <span className="text-xs text-muted-foreground truncate max-w-[100px]">
-                          {tx.wallet || "-"}
+                          {walletLabel(tx.wallet, wallets) || "-"}
                         </span>
                       )}
                     </div>
