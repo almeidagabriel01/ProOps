@@ -119,6 +119,11 @@ export const nicheLanding: NicheLandingConfig = {
         "A ProOps é uma plataforma web responsiva que funciona bem em smartphones e tablets. Um app nativo está no roadmap.",
     },
     {
+      question: "Dá para cobrar o suporte mensal da automação?",
+      answer:
+        "Sim. O contrato de suporte lança a mensalidade no financeiro todo mês, com o link de Pix ou boleto, e a visita de manutenção abre a ordem de serviço com o checklist. O técnico atende pelo celular e o cliente assina na tela.",
+    },
+    {
       question: "Qual o custo para começar?",
       answer:
         "Você cria uma conta gratuita e navega a ProOps em modo demonstração antes de assinar. Os planos pagos começam com preço acessível para pequenas empresas e integradores independentes.",
