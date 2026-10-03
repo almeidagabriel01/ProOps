@@ -2,7 +2,9 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
-import { FileSignature, Receipt, Wrench } from "lucide-react";
+import Link from "next/link";
+import { FileSignature, HardHat, Receipt, RefreshCw, Wrench } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { DatePicker } from "@/components/ui/date-picker";
 import { Input } from "@/components/ui/input";
@@ -12,6 +14,7 @@ import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { ClientSelect } from "@/components/features/client-select";
 import { ItemsEditor } from "@/components/features/field-service/items-editor";
+import { PmocItemsEditor } from "@/components/features/field-service/pmoc-items-editor";
 import { useTenant } from "@/providers/tenant-provider";
 import { useCurrentNicheConfig } from "@/hooks/useCurrentNicheConfig";
 import { usePlanLimits } from "@/hooks/usePlanLimits";
@@ -24,7 +27,10 @@ import {
   CONTRACT_TYPE_LABELS,
   VISIT_INTERVAL_OPTIONS,
 } from "@/lib/field-service/contracts";
+import { buildPmocItems, type PmocItem } from "@/lib/field-service/pmoc";
+import { parseOptionalNumber, validatePmocForm, type PmocFormErrors } from "@/lib/field-service/pmoc-form";
 import { FieldService } from "@/services/field-service-service";
+import { TechnicalResponsiblesService } from "@/services/technical-responsibles-service";
 import { WalletService } from "@/services/wallet-service";
 import type { Wallet } from "@/types";
 import type {
@@ -34,6 +40,7 @@ import type {
   ServiceContract,
   ServiceContractInput,
   ServiceOrderItem,
+  TechnicalResponsible,
 } from "@/types/field-service";
 
 interface ContractFormProps {
@@ -45,6 +52,14 @@ const STEPS = [
   { id: "contract", title: "Contrato", description: "Cliente e itens", icon: FileSignature },
   { id: "billing", title: "Cobrança", description: "Vencimento e carteira", icon: Receipt },
   { id: "visits", title: "Visitas", description: "Preventivas e equipamentos", icon: Wrench },
+];
+
+// O PMOC mora no terceiro passo, junto das visitas que ele organiza: a trilha
+// tem o mesmo tamanho nos dois tipos (guard step-wizard-children-parity).
+const PMOC_STEPS = [
+  { id: "contract", title: "Contrato", description: "Cliente e itens", icon: FileSignature },
+  { id: "billing", title: "Cobrança", description: "Vencimento e carteira", icon: Receipt },
+  { id: "visits", title: "Visitas e PMOC", description: "Plano, prédio e responsável", icon: HardHat },
 ];
 
 interface FormState {
@@ -63,6 +78,13 @@ interface FormState {
   technicianId: string;
   checklistText: string;
   notes: string;
+  responsibleId: string;
+  buildingName: string;
+  buildingAddress: string;
+  occupants: string;
+  climatizedArea: string;
+  buildingUse: string;
+  pmocItems: PmocItem[];
 }
 
 function toItems(lines: ContractLine[]): ServiceOrderItem[] {
@@ -100,6 +122,14 @@ function initialState(
     technicianId: contract?.visitPlan.technicianId ?? "",
     checklistText: (contract ? contract.visitPlan.checklist : defaults.checklist).join("\n"),
     notes: contract?.notes ?? "",
+    responsibleId: contract?.pmoc?.responsibleId ?? "",
+    buildingName: contract?.pmoc?.building.name ?? "",
+    buildingAddress: contract?.pmoc?.building.address ?? "",
+    occupants: contract?.pmoc?.building.occupants != null ? String(contract.pmoc.building.occupants) : "",
+    climatizedArea:
+      contract?.pmoc?.building.climatizedArea != null ? String(contract.pmoc.building.climatizedArea) : "",
+    buildingUse: contract?.pmoc?.building.use ?? "",
+    pmocItems: contract?.pmoc?.items ?? [],
   };
 }
 
@@ -125,6 +155,15 @@ export function ContractForm({ contract }: ContractFormProps) {
   const [wallets, setWallets] = React.useState<Wallet[]>([]);
   const [equipment, setEquipment] = React.useState<CustomerEquipment[]>([]);
   const [technicians, setTechnicians] = React.useState<{ id: string; name: string }[]>([]);
+  const [responsibles, setResponsibles] = React.useState<TechnicalResponsible[]>([]);
+  const [pmocErrors, setPmocErrors] = React.useState<PmocFormErrors>({});
+  const isPmoc = form.type === "pmoc";
+  const steps = form.type === "pmoc" ? PMOC_STEPS : STEPS;
+  // O tipo PMOC só existe no nicho que o liga; um contrato que já é PMOC
+  // continua editável mesmo assim.
+  const typeOptions = (Object.keys(CONTRACT_TYPE_LABELS) as ContractType[]).filter(
+    (type) => type !== "pmoc" || niche.fieldService.pmoc || contract?.type === "pmoc",
+  );
 
   React.useEffect(() => {
     if (!tenant?.id) return;
@@ -139,6 +178,14 @@ export function ContractForm({ contract }: ContractFormProps) {
       .then(({ technicians: list }) => setTechnicians(list))
       .catch(() => setTechnicians([]));
   }, [tenant?.id]);
+
+  const pmocEnabled = niche.fieldService.pmoc;
+  React.useEffect(() => {
+    if (!tenant?.id || !pmocEnabled) return;
+    TechnicalResponsiblesService.list(tenant.id)
+      .then(setResponsibles)
+      .catch(() => setResponsibles([]));
+  }, [tenant?.id, pmocEnabled]);
 
   React.useEffect(() => {
     if (!tenant?.id || !form.clientId) {
@@ -155,6 +202,26 @@ export function ContractForm({ contract }: ContractFormProps) {
   }, [tenant?.id, form.clientId]);
 
   const set = <K extends keyof FormState>(key: K, value: FormState[K]) => setForm((f) => ({ ...f, [key]: value }));
+
+  const coveredTypes = (ids: string[]) =>
+    equipment.filter((item) => ids.includes(item.id)).map((item) => item.type);
+
+  /** O plano parte do modelo dos aparelhos cobertos; sem aparelho, o do split. */
+  const rebuildPmocItems = () => set("pmocItems", buildPmocItems(coveredTypes(form.equipmentIds)));
+
+  const changeType = (type: ContractType) =>
+    setForm((f) => {
+      if (type !== "pmoc") return { ...f, type };
+      return {
+        ...f,
+        type,
+        // Sem visitas não há PMOC: o plano é executado nelas.
+        visitsEnabled: true,
+        pmocItems: f.pmocItems.length > 0 ? f.pmocItems : buildPmocItems(coveredTypes(f.equipmentIds)),
+      };
+    });
+
+  const activeResponsibles = responsibles.filter((r) => r.active || r.id === form.responsibleId);
   const clientLocked = Boolean(contract && contract.status !== "draft");
   const [errors, setErrors] = React.useState<Partial<Record<"client" | "title" | "items" | "wallet", string>>>({});
   const back = () => router.push(contract ? `/contracts/${contract.id}` : "/contracts");
@@ -174,8 +241,19 @@ export function ContractForm({ contract }: ContractFormProps) {
     return false;
   };
 
+  const validatePmoc = (): boolean => {
+    if (!isPmoc) return true;
+    const next = validatePmocForm({
+      items: form.pmocItems,
+      occupants: form.occupants,
+      climatizedArea: form.climatizedArea,
+    });
+    setPmocErrors(next);
+    return Object.keys(next).length === 0;
+  };
+
   const submit = async () => {
-    if (!validateContract() || !validateBilling()) return;
+    if (!validateContract() || !validateBilling() || !validatePmoc()) return;
     setSaving(true);
     const input: ServiceContractInput = {
       clientId: form.clientId,
@@ -198,6 +276,19 @@ export function ContractForm({ contract }: ContractFormProps) {
       },
       notes: form.notes.trim() || null,
       endDate: form.endDate || null,
+      pmoc: isPmoc
+        ? {
+            responsibleId: form.responsibleId || null,
+            building: {
+              name: form.buildingName.trim() || null,
+              address: form.buildingAddress.trim() || null,
+              occupants: parseOptionalNumber(form.occupants, true) ?? null,
+              climatizedArea: parseOptionalNumber(form.climatizedArea) ?? null,
+              use: form.buildingUse.trim() || null,
+            },
+            items: form.pmocItems.map((item) => ({ ...item, text: item.text.trim() })),
+          }
+        : null,
     };
     try {
       if (contract) {
@@ -226,7 +317,7 @@ export function ContractForm({ contract }: ContractFormProps) {
         onBack={back}
       />
 
-      <StepWizard steps={STEPS} allowClickAhead={Boolean(contract)}>
+      <StepWizard steps={steps} allowClickAhead={Boolean(contract)}>
         <FormStepCard>
           <div className="space-y-6">
           <div className="grid gap-4 sm:grid-cols-2">
@@ -264,11 +355,11 @@ export function ContractForm({ contract }: ContractFormProps) {
               <Select
                 id="contractType"
                 value={form.type}
-                onChange={(e) => set("type", e.target.value as ContractType)}
+                onChange={(e) => changeType(e.target.value as ContractType)}
                 disableSort
                 disabled={saving}
               >
-                {(Object.keys(CONTRACT_TYPE_LABELS) as ContractType[]).map((type) => (
+                {typeOptions.map((type) => (
                   <option key={type} value={type}>
                     {CONTRACT_TYPE_LABELS[type]}
                   </option>
@@ -374,14 +465,16 @@ export function ContractForm({ contract }: ContractFormProps) {
                   Visitas preventivas
                 </Label>
                 <p className="text-xs text-muted-foreground">
-                  A OS da visita abre sozinha uma semana antes, com o técnico e o checklist abaixo.
+                  {isPmoc
+                    ? "No PMOC as visitas são obrigatórias: cada uma leva os itens do plano que venceram."
+                    : "A OS da visita abre sozinha uma semana antes, com o técnico e o checklist abaixo."}
                 </p>
               </div>
               <Switch
                 id="contractVisits"
                 checked={form.visitsEnabled}
                 onCheckedChange={(checked) => set("visitsEnabled", checked)}
-                disabled={saving}
+                disabled={saving || isPmoc}
               />
             </div>
             {form.visitsEnabled && (
@@ -419,6 +512,7 @@ export function ContractForm({ contract }: ContractFormProps) {
                     ))}
                   </Select>
                 </div>
+                {!isPmoc && (
                 <div className="space-y-2 sm:col-span-2">
                   <Label htmlFor="contractChecklist">Checklist da visita (um item por linha)</Label>
                   <Textarea
@@ -430,6 +524,7 @@ export function ContractForm({ contract }: ContractFormProps) {
                     disabled={saving}
                   />
                 </div>
+                )}
               </div>
             )}
           </div>
@@ -462,6 +557,132 @@ export function ContractForm({ contract }: ContractFormProps) {
                     </label>
                   );
                 })}
+              </div>
+            </div>
+          )}
+
+
+          {isPmoc && (
+            <div className="space-y-6 rounded-xl border p-4">
+              <div className="space-y-1">
+                <p className="font-medium">PMOC</p>
+                <p className="text-xs text-muted-foreground">
+                  O plano que a Lei 13.589/2018 exige do prédio climatizado, assinado pelo responsável técnico.
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="pmocResponsible">Responsável técnico</Label>
+                <Select
+                  id="pmocResponsible"
+                  value={form.responsibleId}
+                  onChange={(e) => set("responsibleId", e.target.value)}
+                  disabled={saving}
+                  placeholder="Escolha quem assina o PMOC"
+                >
+                  <option value="">Escolha quem assina o PMOC</option>
+                  {activeResponsibles.map((r) => (
+                    <option key={r.id} value={r.id}>
+                      {r.name} ({r.council} {r.registryNumber})
+                    </option>
+                  ))}
+                </Select>
+                <p className="text-xs text-muted-foreground">
+                  {activeResponsibles.length === 0 ? (
+                    <>
+                      Nenhum responsável cadastrado.{" "}
+                      <Link href="/settings/technical-responsibles" className="text-primary underline-offset-4 hover:underline">
+                        Cadastre em Configurações
+                      </Link>
+                      . O rascunho salva sem ele, mas só ativa com ele.
+                    </>
+                  ) : (
+                    "Obrigatório para ativar o contrato."
+                  )}
+                </p>
+              </div>
+
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <Label htmlFor="pmocBuildingName">Prédio ou estabelecimento</Label>
+                  <Input
+                    id="pmocBuildingName"
+                    value={form.buildingName}
+                    onChange={(e) => set("buildingName", e.target.value)}
+                    placeholder="Ex.: Clínica Centro"
+                    maxLength={160}
+                    disabled={saving}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="pmocBuildingUse">Uso do ambiente</Label>
+                  <Input
+                    id="pmocBuildingUse"
+                    value={form.buildingUse}
+                    onChange={(e) => set("buildingUse", e.target.value)}
+                    placeholder="Ex.: escritório, loja, clínica"
+                    maxLength={120}
+                    disabled={saving}
+                  />
+                </div>
+                <div className="space-y-2 sm:col-span-2">
+                  <Label htmlFor="pmocBuildingAddress">Endereço do prédio</Label>
+                  <Input
+                    id="pmocBuildingAddress"
+                    value={form.buildingAddress}
+                    onChange={(e) => set("buildingAddress", e.target.value)}
+                    placeholder="Em branco, vale o endereço do cliente"
+                    maxLength={300}
+                    disabled={saving}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="pmocOccupants">Ocupantes (fixos e flutuantes)</Label>
+                  <Input
+                    id="pmocOccupants"
+                    inputMode="numeric"
+                    value={form.occupants}
+                    onChange={(e) => set("occupants", e.target.value)}
+                    maxLength={9}
+                    disabled={saving}
+                  />
+                  {pmocErrors.occupants && <p className="text-xs text-destructive">{pmocErrors.occupants}</p>}
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="pmocArea">Área climatizada (m²)</Label>
+                  <Input
+                    id="pmocArea"
+                    inputMode="decimal"
+                    value={form.climatizedArea}
+                    onChange={(e) => set("climatizedArea", e.target.value)}
+                    maxLength={12}
+                    disabled={saving}
+                  />
+                  {pmocErrors.climatizedArea && (
+                    <p className="text-xs text-destructive">{pmocErrors.climatizedArea}</p>
+                  )}
+                </div>
+              </div>
+
+              <div className="space-y-3">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div>
+                    <Label>Itens do plano</Label>
+                    <p className="text-xs text-muted-foreground">
+                      Cada visita leva os itens cuja frequência venceu. A primeira leva todos.
+                    </p>
+                  </div>
+                  <Button type="button" variant="outline" size="sm" onClick={rebuildPmocItems} disabled={saving}>
+                    <RefreshCw className="mr-2 h-4 w-4" />
+                    Montar pelos equipamentos
+                  </Button>
+                </div>
+                <PmocItemsEditor
+                  items={form.pmocItems}
+                  onChange={(items) => set("pmocItems", items)}
+                  disabled={saving}
+                />
+                {pmocErrors.items && <p className="text-xs text-destructive">{pmocErrors.items}</p>}
               </div>
             </div>
           )}

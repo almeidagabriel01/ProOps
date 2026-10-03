@@ -62,6 +62,16 @@ describe("contratos na tela", () => {
     expect(nextStepLabel(contract({ status: "suspended", suspendedReason: "plan" }))).toContain("plano");
     expect(nextStepLabel(contract({ status: "active" }))).toContain("10/11/2026");
     expect(nextStepLabel(contract({ status: "draft" }))).toContain("ative");
+    expect(nextStepLabel(contract({ status: "draft", type: "pmoc", pmoc: null }))).toContain("responsável técnico");
+    expect(
+      nextStepLabel(
+        contract({
+          status: "draft",
+          type: "pmoc",
+          pmoc: { responsibleId: "rt1", building: { name: null, address: null, occupants: null, climatizedArea: null, use: null }, items: [], anchorDate: null },
+        }),
+      ),
+    ).not.toContain("responsável técnico");
   });
 
   it("formata o dia e ignora valor fora do formato", () => {

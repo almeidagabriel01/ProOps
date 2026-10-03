@@ -43,6 +43,7 @@ import { ServiceOrdersSkeleton } from "../../service-orders/_components/service-
 import { ServiceOrderStatusBadge } from "../../service-orders/_components/status-badge";
 import { ContractStatusBadge } from "../_components/contract-status-badge";
 import { ActivateContractDialog } from "../_components/activate-contract-dialog";
+import { PmocCard } from "../_components/pmoc-card";
 import { Loader } from "@/components/ui/loader";
 
 /** O contrato: o que se cobra, o que já foi cobrado e as visitas que ele abriu. */
@@ -308,6 +309,10 @@ export default function ContractDetailPage() {
           </CardContent>
         </Card>
       </div>
+
+      {contract.type === "pmoc" && tenant?.id && (
+        <PmocCard contract={contract} tenantId={tenant.id} showSettingsLink={writable} />
+      )}
 
       <Card>
         <CardHeader>

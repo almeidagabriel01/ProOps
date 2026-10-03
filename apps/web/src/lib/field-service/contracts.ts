@@ -65,6 +65,9 @@ export function formatDay(day: string | null): string {
 export function nextStepLabel(contract: ServiceContract): string {
   switch (contract.status) {
     case "draft":
+      if (contract.type === "pmoc" && !contract.pmoc?.responsibleId) {
+        return "Rascunho: escolha o responsável técnico do PMOC (em Editar) e ative para começar a cobrar.";
+      }
       return "Rascunho: ative escolhendo a data de início para começar a cobrar.";
     case "active":
       return contract.nextBillingDate

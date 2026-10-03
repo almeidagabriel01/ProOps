@@ -117,7 +117,12 @@ a assinatura), `/equipment` (o parque instalado, também como aba
 etapas em `/contracts/new` e `/contracts/[id]/edit`, o detalhe
 `/contracts/[id]` com ativar, suspender, retomar e encerrar, as mensalidades
 lançadas com o link de pagamento de cada uma e as visitas que o contrato
-abriu). A lista e o
+abriu). Em climatização o contrato pode ser do tipo PMOC
+(`NicheConfig.fieldService.pmoc`): o terceiro passo do cadastro vira "Visitas
+e PMOC", com o responsável técnico, o prédio e os itens do plano (montados
+pelo modelo dos aparelhos cobertos, em `lib/field-service/pmoc.ts`, espelho do
+backend), as visitas ficam obrigatórias, e o detalhe ganha o card do PMOC. A
+trilha tem três passos nos dois tipos, pelo guard do `StepWizard`. A lista e o
 detalhe são lidos no Firestore; o técnico sem o escopo `service_orders_all`
 consulta filtrando por ele mesmo (`serviceOrdersQuery`), senão as rules recusam
 a lista. O que muda por nicho (tipos de equipamento, exemplo de nome e o
