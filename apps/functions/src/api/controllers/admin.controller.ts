@@ -1713,7 +1713,7 @@ export const createTenant = async (req: Request, res: Response) => {
     }
     const subscriptionStatus = isFreePlan
       ? "free"
-      : deriveManualStatusFromPeriodEnd(periodEnd as Date, new Date());
+      : deriveManualStatusFromPeriodEnd(periodEndRaw, new Date());
     // Conta free criada pelo painel tem que cair no mesmo gate de uma conta free
     // do cadastro (role "free"): com "admin" ela ganhava o ERP inteiro de graca.
     const userRole = isFreePlan ? "free" : "admin";

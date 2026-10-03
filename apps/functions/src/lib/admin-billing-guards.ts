@@ -9,7 +9,15 @@
  * seja, cortava o acesso de quem estava pagando.
  */
 
-type DocData = Record<string, unknown> | null | undefined;
+import {
+  manualPhase,
+  pastDueSinceFor,
+  periodEndDay,
+  todayInBrazil,
+  type ManualPhase,
+} from "./manual-subscription-phase";
+
+type DocData =Record<string, unknown> | null | undefined;
 
 function hasText(value: unknown): boolean {
   return typeof value === "string" && value.trim().length > 0;
@@ -41,15 +49,24 @@ export type ManualSubscriptionDecision =
   | { ok: true; updates: Record<string, unknown> }
   | { ok: false; status: 400 | 409; code: string; message: string };
 
-const GRACE_PERIOD_MS = 7 * 24 * 60 * 60 * 1000;
+/**
+ * Status derivado da data, com a mesma regra do cron `checkManualSubscriptions`
+ * (`manualPhase`: o dia do vencimento ainda é ativo, depois 7 dias de carência).
+ */
+export function deriveManualStatusFromPeriodEnd(periodEnd: Date | string, now: Date): ManualPhase {
+  const endDay = periodEndDay(periodEnd);
+  if (!endDay) return "canceled";
+  return manualPhase(endDay, todayInBrazil(now));
+}
 
 /**
- * Status derivado da data, com a mesma regra do cron `checkManualSubscriptions`.
+ * `pastDueSince` que acompanha o status derivado. Sem ele um contrato em
+ * carência é tratado como carência vencida e bloqueado na hora; renovado, o
+ * campo sai para a carência antiga não valer numa próxima.
  */
-export function deriveManualStatusFromPeriodEnd(periodEnd: Date, now: Date): string {
-  if (periodEnd > now) return "active";
-  if (now.getTime() - periodEnd.getTime() <= GRACE_PERIOD_MS) return "past_due";
-  return "canceled";
+export function manualPastDueSince(periodEnd: Date | string, status: ManualPhase): string | null {
+  const endDay = periodEndDay(periodEnd);
+  return status === "past_due" && endDay ? pastDueSinceFor(endDay) : null;
 }
 
 /**
@@ -83,11 +100,10 @@ export function buildManualSubscriptionUpdate(
         message: "Data de vencimento inválida.",
       };
     }
+    const status = deriveManualStatusFromPeriodEnd(raw, options.now ?? new Date());
     updates.currentPeriodEnd = raw;
-    updates.subscriptionStatus = deriveManualStatusFromPeriodEnd(
-      periodEnd,
-      options.now ?? new Date(),
-    );
+    updates.subscriptionStatus = status;
+    updates.pastDueSince = manualPastDueSince(raw, status);
   }
 
   if (Object.keys(updates).length === 0) {
