@@ -792,6 +792,12 @@ um com a frequência (mensal, trimestral, semestral, anual).
   de plano: o controller confere a capacidade. Quem vê contratos gera o link e
   o PDF.
 
+- **Demonstração:** o contrato de exemplo da climatização é um PMOC
+  (`datasets/climatizacao.ts`): responsável técnico com ART, prédio, três
+  aparelhos e duas visitas mensais já feitas, geradas pelo motor
+  (`buildDemoPmocPlan` em `scripts/demo/engine.ts`) com o mesmo id e o mesmo
+  checklist que a rotina daria, para o relatório de execução ter conteúdo.
+
 Guards: `shared/__tests__/pmoc.test.ts`, o bloco PMOC de
 `service-contracts.test.ts`, `pmoc-report.test.ts`, `pmoc.controller.test.ts`
 (o que o link público não pode levar) e `pdfApp.test.ts`.

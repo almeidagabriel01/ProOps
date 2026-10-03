@@ -21,6 +21,8 @@ jest.mock("../../lib/logger", () => ({ logger: { info: jest.fn(), error: jest.fn
 import { DEMO_TENANT_IDS } from "../../shared/demo-tenant";
 import { seedDemo } from "../demo/seed";
 import { DEMO_DATASETS } from "../demo/datasets";
+import { itemExecutions } from "../../api/services/field-service/pmoc-report";
+import type { PmocItem } from "../../shared/pmoc";
 
 const TENANT_ID = DEMO_TENANT_IDS.climatizacao;
 const seed = () => seedDemo(DEMO_DATASETS.climatizacao);
@@ -105,5 +107,58 @@ describe("demonstração de climatização e ar-condicionado", () => {
       "Vácuo, carga de gás e testes",
       "Entrega e start-up",
     ]);
+  });
+
+  describe("PMOC de exemplo", () => {
+    const pmocContract = () => written().find((w) => w.path === "service_contracts/demo_clim_ct_escritorio")!.data;
+    const visits = () =>
+      written()
+        .filter((w) => w.path.startsWith("service_orders/") && w.data.contractId === "demo_clim_ct_escritorio")
+        .map((w) => ({ id: w.path.split("/")[1], ...w.data }) as Record<string, unknown> & { id: string })
+        .sort((a, b) => String(a.completedAt).localeCompare(String(b.completedAt)));
+
+    it("o contrato é PMOC, com prédio, itens dos aparelhos cobertos e visitas mensais", async () => {
+      await seed();
+      const contract = pmocContract();
+      expect(contract.type).toBe("pmoc");
+      expect((contract.visitPlan as { enabled: boolean; intervalMonths: number }).enabled).toBe(true);
+      const pmoc = contract.pmoc as { responsibleId: string; building: Record<string, unknown>; items: PmocItem[] };
+      expect(pmoc.building).toMatchObject({ occupants: 28, climatizedArea: 210, use: "Escritório" });
+      expect(new Set(pmoc.items.map((i) => i.category))).toEqual(new Set(["split", "environment"]));
+    });
+
+    it("o responsável existe na demonstração, com a ART em dia", async () => {
+      await seed();
+      const pmoc = pmocContract().pmoc as { responsibleId: string };
+      const responsible = written().find((w) => w.path === `technical_responsibles/${pmoc.responsibleId}`);
+      expect(responsible?.data).toMatchObject({ tenantId: TENANT_ID, council: "CREA", active: true });
+      expect(String(responsible?.data.artValidUntil) > new Date().toISOString().slice(0, 10)).toBe(true);
+    });
+
+    it("duas visitas feitas no id que a rotina usaria, a primeira com tudo e a âncora nela", async () => {
+      await seed();
+      const done = visits();
+      expect(done).toHaveLength(2);
+      const pmoc = pmocContract().pmoc as { items: PmocItem[]; anchorDate: string };
+      expect(done[0].id).toBe(`contract_demo_clim_ct_escritorio_visit_${pmoc.anchorDate.replace(/-/g, "")}`);
+      expect((done[0].checklist as unknown[]).length).toBe(pmoc.items.length);
+      expect((done[1].checklist as unknown[]).length).toBeLessThan(pmoc.items.length);
+      for (const visit of done) {
+        expect(visit.status).toBe("completed");
+        expect((visit.checklist as Array<{ id: string; done: boolean }>).every((c) => c.id.startsWith("pmoc_") && c.done)).toBe(true);
+      }
+      const next = (pmocContract().visitPlan as { nextVisitDate: string }).nextVisitDate;
+      expect(next > new Date().toISOString().slice(0, 10)).toBe(true);
+    });
+
+    it("o relatório de execução tem o que mostrar: o mensal feito duas vezes", async () => {
+      await seed();
+      const pmoc = pmocContract().pmoc as { items: PmocItem[] };
+      const executions = itemExecutions(pmoc.items, visits(), { from: "2000-01-01", to: "2100-12-31" });
+      const monthly = executions.filter((e) => e.frequency === "Mensal");
+      expect(monthly.length).toBeGreaterThan(0);
+      expect(monthly.every((e) => e.timesDone === 2)).toBe(true);
+      expect(executions.filter((e) => e.frequency === "Semestral").every((e) => e.timesDone === 1)).toBe(true);
+    });
   });
 });

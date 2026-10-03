@@ -37,6 +37,7 @@ export const climatizacaoDemo: DemoDataset = {
     { id: "demo_clim_svc_visita", name: "Visita Técnica", description: "Vistoria dos ambientes, da insolação e do ponto elétrico.", price: 150, category: "Visita" },
     { id: "demo_clim_svc_instalacao", name: "Instalação com Vácuo e Carga", description: "Instalação das unidades, vácuo na tubulação, carga de gás e testes.", price: 450, category: "Instalação" },
     { id: "demo_clim_svc_limpeza", name: "Higienização", description: "Limpeza de filtros, serpentina e bandeja, com bactericida.", price: 220, category: "Manutenção" },
+    { id: "demo_clim_svc_pmoc", name: "Manutenção PMOC", description: "Visitas do plano de manutenção, operação e controle, com relatório e responsável técnico.", price: 890, category: "Manutenção" },
   ],
   clients: [
     { id: "demo_clim_client_fernanda", name: "Fernanda Lopes", email: "fernanda.demo@exemplo.com", phone: "11999994001" },
@@ -153,6 +154,8 @@ export const climatizacaoDemo: DemoDataset = {
       { id: "demo_clim_equip_sala", clientId: "demo_clim_client_fernanda", name: "Split da sala", type: "Split hi-wall", brand: "Frioteck", model: "Inverter 18.000", serialNumber: "FT18-40291", capacity: "18.000 BTUs", location: "Sala", installedDaysAgo: 90, warrantyMonths: 12 },
       { id: "demo_clim_equip_suite", clientId: "demo_clim_client_fernanda", name: "Split da suíte", type: "Split hi-wall", brand: "Frioteck", model: "Inverter 12.000", serialNumber: "FT12-40318", capacity: "12.000 BTUs", location: "Suíte", installedDaysAgo: 90, warrantyMonths: 12 },
       { id: "demo_clim_equip_cassete", clientId: "demo_clim_client_escritorio", name: "Cassete do atendimento", type: "Cassete", brand: "Frioteck", model: "4 Vias 36.000", serialNumber: "FC36-10077", capacity: "36.000 BTUs", location: "Sala de atendimento", installedDaysAgo: 400, warrantyMonths: 12 },
+      { id: "demo_clim_equip_reuniao", clientId: "demo_clim_client_escritorio", name: "Split da sala de reunião", type: "Split hi-wall", brand: "Frioteck", model: "Inverter 24.000", serialNumber: "FT24-10102", capacity: "24.000 BTUs", location: "Sala de reunião", installedDaysAgo: 400, warrantyMonths: 12 },
+      { id: "demo_clim_equip_diretoria", clientId: "demo_clim_client_escritorio", name: "Split da diretoria", type: "Split hi-wall", brand: "Frioteck", model: "Inverter 12.000", serialNumber: "FT12-10113", capacity: "12.000 BTUs", location: "Diretoria", installedDaysAgo: 400, warrantyMonths: 12 },
     ],
     orders: [
       {
@@ -203,7 +206,35 @@ export const climatizacaoDemo: DemoDataset = {
       },
     ],
     contracts: [
-      { id: "demo_clim_ct_escritorio", number: 1, clientId: "demo_clim_client_escritorio", title: "Manutenção preventiva do escritório", type: "maintenance", lines: [{ refId: "demo_clim_svc_limpeza", quantity: 1, unitPrice: 220 }], billingDay: 15, equipmentIds: ["demo_clim_equip_cassete"], visitIntervalMonths: 3, visitChecklist: ["Limpar filtros e serpentina", "Verificar a drenagem", "Medir a temperatura de insuflamento"] },
+      {
+        id: "demo_clim_ct_escritorio",
+        number: 1,
+        clientId: "demo_clim_client_escritorio",
+        title: "PMOC do escritório",
+        type: "pmoc",
+        lines: [{ refId: "demo_clim_svc_pmoc", quantity: 1, unitPrice: 890 }],
+        billingDay: 15,
+        equipmentIds: ["demo_clim_equip_cassete", "demo_clim_equip_reuniao", "demo_clim_equip_diretoria"],
+        visitIntervalMonths: 1,
+        visitChecklist: [],
+        pmoc: {
+          responsibleId: "demo_clim_rt_carla",
+          building: { name: "Escritório Contábil Andrade", occupants: 28, climatizedArea: 210, use: "Escritório" },
+          visitsDone: 2,
+          signedBy: "Renata Andrade",
+        },
+      },
+    ],
+    technicalResponsibles: [
+      {
+        id: "demo_clim_rt_carla",
+        name: "Carla Mendes",
+        profession: "Engenheira mecânica",
+        council: "CREA",
+        registryNumber: "SP-5061234567",
+        artNumber: "28027230210987654",
+        artValidMonths: 8,
+      },
     ],
   },
 };

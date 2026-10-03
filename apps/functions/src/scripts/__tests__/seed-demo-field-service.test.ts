@@ -21,7 +21,9 @@ describe.each(Object.values(DEMO_DATASETS).map((ds) => [ds.niche, ds] as const))
   const equipment = docs("customer_equipment/");
 
   it("tem uma OS de cada estado da fila", () => {
-    expect(orders.map((o) => o.status).sort()).toEqual(["completed", "open", "scheduled"]);
+    // As visitas que um contrato abriu (o PMOC de exemplo) ficam fora da conta.
+    const ownOrders = orders.filter((o) => !o.contractId);
+    expect(ownOrders.map((o) => o.status).sort()).toEqual(["completed", "open", "scheduled"]);
     expect(new Set(orders.map((o) => o.code)).size).toBe(orders.length);
   });
 

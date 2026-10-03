@@ -198,6 +198,8 @@ export interface DemoDataset {
      * recebidas: a lista mostra a receita recorrente e o detalhe, o histórico.
      */
     contracts: DemoContract[];
+    /** Quem assina o PMOC, com a ART. Só no nicho que tem PMOC. */
+    technicalResponsibles?: DemoTechnicalResponsible[];
   };
   /** Documentos de versões antigas da demonstração que não existem mais. */
   legacyDeletes?: string[];
@@ -239,6 +241,32 @@ export interface DemoServiceOrder {
   createdDaysAgo: number;
 }
 
+export interface DemoTechnicalResponsible {
+  id: string;
+  name: string;
+  profession: string;
+  council: "CREA" | "CFT" | "CAU";
+  registryNumber: string;
+  artNumber: string;
+  /** Meses de hoje até o fim da validade da ART. */
+  artValidMonths: number;
+}
+
+/**
+ * O PMOC do contrato de exemplo. Os itens saem do modelo da norma pelos
+ * aparelhos cobertos (`buildPmocItems`), e as visitas já feitas viram OS
+ * concluídas com o checklist que a rotina teria aberto, para o relatório de
+ * execução ter o que mostrar.
+ */
+export interface DemoPmoc {
+  responsibleId: string;
+  building: { name: string; occupants: number; climatizedArea: number; use: string };
+  /** Visitas já feitas (mensais, contando para trás a partir da próxima). */
+  visitsDone: number;
+  /** Quem assinou as visitas. */
+  signedBy: string;
+}
+
 export interface DemoContract {
   id: string;
   number: number;
@@ -251,6 +279,7 @@ export interface DemoContract {
   equipmentIds: string[];
   visitIntervalMonths: number | null;
   visitChecklist: string[];
+  pmoc?: DemoPmoc;
 }
 
 export interface SeedDemoResult {
@@ -272,4 +301,5 @@ export interface SeedDemoResult {
   equipment: number;
   serviceOrders: number;
   contracts: number;
+  technicalResponsibles?: number;
 }

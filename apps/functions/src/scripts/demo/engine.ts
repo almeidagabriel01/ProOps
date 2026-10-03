@@ -17,8 +17,11 @@ import {
   formatPeriod,
   periodOf,
 } from "../../api/services/field-service/contract-model";
+import { buildPmocItems, pmocItemsForVisit, pmocOrderChecklist, type PmocItem } from "../../shared/pmoc";
 import type {
+  DemoContract,
   DemoDataset,
+  DemoServiceOrder,
   DemoLine,
   DemoProduct,
   SeedDemoResult,
@@ -42,6 +45,73 @@ export interface BuildDemoOptions {
 
 /** Mensalidades já recebidas em cada contrato de exemplo. */
 const DEMO_PAID_CHARGES = 2;
+
+/** A próxima visita do PMOC de exemplo, em dias a partir de hoje. */
+const PMOC_NEXT_VISIT_DAYS = 12;
+
+/** OS gerada pelo motor (a visita do PMOC), com o contrato e os ids do checklist. */
+type EngineOrder = DemoServiceOrder & { contractId?: string; checklistIds?: string[] };
+
+interface DemoPmocPlan {
+  items: PmocItem[];
+  anchorDate: string;
+  nextVisitDate: string;
+  visits: EngineOrder[];
+}
+
+function daysFrom(from: string, to: string): number {
+  return Math.round((Date.parse(`${to}T12:00:00Z`) - Date.parse(`${from}T12:00:00Z`)) / DAY_MS);
+}
+
+/**
+ * O plano e as visitas já feitas do PMOC de exemplo. Visitas mensais contadas
+ * para trás a partir da próxima, no mesmo dia do mês (até o 28, que existe em
+ * todo mês), com o checklist que `pmocItemsForVisit` daria à rotina.
+ */
+function buildDemoPmocPlan(params: {
+  contract: DemoContract;
+  equipmentTypes: string[];
+  today: string;
+  firstOrderNumber: number;
+}): DemoPmocPlan | null {
+  const { contract, today } = params;
+  const pmoc = contract.pmoc;
+  if (!pmoc) return null;
+  const interval = contract.visitIntervalMonths ?? 1;
+  const nextRaw = new Date(`${today}T12:00:00Z`);
+  nextRaw.setUTCDate(nextRaw.getUTCDate() + PMOC_NEXT_VISIT_DAYS);
+  const day = Math.min(nextRaw.getUTCDate(), 28);
+  const nextVisitDate = addMonthsOnDay(nextRaw.toISOString().slice(0, 10), 0, day);
+  const items = buildPmocItems(params.equipmentTypes);
+  const dates = Array.from({ length: pmoc.visitsDone }, (_, i) =>
+    addMonthsOnDay(nextVisitDate, -(pmoc.visitsDone - i) * interval, day),
+  );
+  const anchorDate = dates[0] ?? nextVisitDate;
+  const visits: EngineOrder[] = dates.map((visitDate, i) => {
+    const checklist = pmocOrderChecklist(pmocItemsForVisit({ items, anchorDate, visitDate, intervalMonths: interval }));
+    const dayOffset = daysFrom(today, visitDate);
+    return {
+      id: `contract_${contract.id}_visit_${visitDate.replace(/-/g, "")}`,
+      number: params.firstOrderNumber + i,
+      clientId: contract.clientId,
+      type: "preventive",
+      priority: "normal",
+      status: "completed",
+      title: `Visita do PMOC: ${contract.title}`,
+      description: `Visita prevista no contrato ${formatContractCode(contract.number)}.`,
+      equipmentIds: contract.equipmentIds,
+      schedule: { dayOffset, hour: 8, durationMin: 120 },
+      checklist: checklist.map((c) => ({ text: c.text, done: true })),
+      checklistIds: checklist.map((c) => c.id),
+      items: [],
+      report: `Plano do mês executado: ${checklist.length} itens conferidos, sem pendências.`,
+      signedBy: pmoc.signedBy,
+      createdDaysAgo: Math.max(0, -dayOffset + 7),
+      contractId: contract.id,
+    };
+  });
+  return { items, anchorDate, nextVisitDate, visits };
+}
 
 /** Datas fixas: re-semear e ordenar por createdAt é determinístico. */
 const BASE_MS = Date.UTC(2026, 0, 1, 12, 0, 0);
@@ -623,7 +693,25 @@ export function buildDemoDocs(ds: DemoDataset, opts: BuildDemoOptions): DemoWrit
     return d.toISOString().slice(0, 10);
   };
   const lastService = new Map<string, { at: string; orderId: string }>();
-  ds.fieldService.orders.forEach((o) => {
+  // O PMOC de exemplo: o plano e as visitas já feitas, que entram na fila de OS.
+  const pmocPlans = new Map<string, DemoPmocPlan>();
+  let nextVisitNumber = Math.max(0, ...ds.fieldService.orders.map((o) => o.number)) + 1;
+  for (const c of ds.fieldService.contracts) {
+    const plan = buildDemoPmocPlan({
+      contract: c,
+      equipmentTypes: c.equipmentIds.map((id) => equipmentById.get(id)?.type ?? null).filter((t): t is string => Boolean(t)),
+      today: ymd(0),
+      firstOrderNumber: nextVisitNumber,
+    });
+    if (!plan) continue;
+    pmocPlans.set(c.id, plan);
+    nextVisitNumber += plan.visits.length;
+  }
+  const allOrders: EngineOrder[] = [
+    ...ds.fieldService.orders,
+    ...Array.from(pmocPlans.values()).flatMap((plan) => plan.visits),
+  ];
+  allOrders.forEach((o) => {
     const c = client(o.clientId);
     const items: ServiceOrderItem[] = o.items.map((item, i) => {
       const priced = sellingPrice(item.kind, item.refId);
@@ -637,7 +725,12 @@ export function buildDemoDocs(ds: DemoDataset, opts: BuildDemoOptions): DemoWrit
         fromStock: item.kind === "product",
       };
     });
-    const checklist = o.checklist.map((entry, i) => ({ id: `${o.id}_check_${i + 1}`, text: entry.text, done: entry.done, note: null }));
+    const checklist = o.checklist.map((entry, i) => ({
+      id: o.checklistIds?.[i] ?? `${o.id}_check_${i + 1}`,
+      text: entry.text,
+      done: entry.done,
+      note: null,
+    }));
     const equipmentLabels = o.equipmentIds.map((id) => {
       const e = equipmentById.get(id);
       if (!e) throw new Error(`Demo ${ds.niche}: equipamento ${id} não existe no dataset.`);
@@ -674,6 +767,7 @@ export function buildDemoDocs(ds: DemoDataset, opts: BuildDemoOptions): DemoWrit
       equipmentIds: o.equipmentIds,
       equipmentLabels,
       projectId: null,
+      ...(o.contractId ? { contractId: o.contractId } : {}),
       technicianUids: [],
       technicianName: "Diego Lima",
       scheduledStart,
@@ -762,6 +856,9 @@ export function buildDemoDocs(ds: DemoDataset, opts: BuildDemoOptions): DemoWrit
       addMonthsOnDay(lastDue, i - (DEMO_PAID_CHARGES - 1), c.billingDay),
     );
     const startDate = addMonthsOnDay(lastDue, -2, c.billingDay);
+    const pmocPlan = pmocPlans.get(c.id);
+    const defaultNextVisit =
+      c.visitIntervalMonths !== null ? addMonthsOnDay(today, 1, Math.min(Number(today.slice(8, 10)), 28)) : null;
     set(`service_contracts/${c.id}`, {
       ...tenantTag,
       number: c.number,
@@ -783,8 +880,18 @@ export function buildDemoDocs(ds: DemoDataset, opts: BuildDemoOptions): DemoWrit
         intervalMonths: c.visitIntervalMonths ?? 3,
         technicianId: null,
         checklist: c.visitChecklist,
-        nextVisitDate: c.visitIntervalMonths !== null ? addMonthsOnDay(today, 1, Math.min(Number(today.slice(8, 10)), 28)) : null,
+        nextVisitDate: pmocPlan ? pmocPlan.nextVisitDate : defaultNextVisit,
       },
+      ...(pmocPlan && c.pmoc
+        ? {
+            pmoc: {
+              responsibleId: c.pmoc.responsibleId,
+              building: { ...c.pmoc.building, address: null },
+              items: pmocPlan.items,
+              anchorDate: pmocPlan.anchorDate,
+            },
+          }
+        : {}),
       notes: null,
       startDate,
       endDate: null,
@@ -832,9 +939,26 @@ export function buildDemoDocs(ds: DemoDataset, opts: BuildDemoOptions): DemoWrit
     }
   });
 
+  for (const r of ds.fieldService.technicalResponsibles ?? []) {
+    set(`technical_responsibles/${r.id}`, {
+      ...tenantTag,
+      name: r.name,
+      profession: r.profession,
+      council: r.council,
+      registryNumber: r.registryNumber,
+      artNumber: r.artNumber,
+      artValidUntil: addMonthsOnDay(ymd(0), r.artValidMonths, Math.min(Number(ymd(0).slice(8, 10)), 28)),
+      artFile: null,
+      active: true,
+      createdAt: isoAt(-120),
+      updatedAt: isoAt(-120),
+      createdBy: null,
+    });
+  }
+
   set(`service_order_counters/${ds.tenantId}`, {
     ...tenantTag,
-    nextNumber: Math.max(0, ...ds.fieldService.orders.map((o) => o.number)) + 1,
+    nextNumber: Math.max(0, ...allOrders.map((o) => o.number)) + 1,
     nextContractNumber: Math.max(0, ...ds.fieldService.contracts.map((c) => c.number)) + 1,
   });
 
@@ -866,7 +990,12 @@ export function demoResultCounts(ds: DemoDataset): SeedDemoResult {
     notifications: ds.notifications.length,
     tasks: ds.tasks.length,
     equipment: ds.fieldService.equipment.length,
-    serviceOrders: ds.fieldService.orders.length,
+    serviceOrders:
+      ds.fieldService.orders.length +
+      ds.fieldService.contracts.reduce((sum, c) => sum + (c.pmoc?.visitsDone ?? 0), 0),
     contracts: ds.fieldService.contracts.length,
+    ...(ds.fieldService.technicalResponsibles
+      ? { technicalResponsibles: ds.fieldService.technicalResponsibles.length }
+      : {}),
   };
 }
