@@ -33,6 +33,7 @@ function contract(over: Partial<ServiceContract>): ServiceContract {
     suspendedReason: null,
     proposalId: null,
     createdAt: null,
+    pmoc: null,
     ...over,
   };
 }

@@ -1,14 +1,8 @@
 /**
- * PMOC (Plano de Manutenção, Operação e Controle), obrigatório pela Lei
- * 13.589/2018 para ar-condicionado de uso coletivo. Os itens seguem a Portaria
- * MS 3.523/1998, a RE ANVISA 09/2003 e a ABNT NBR 13971, com a frequência de
- * cada um.
- *
- * **Os itens precisam da revisão de um engenheiro de climatização antes de ir
- * para produção**: é o que a fiscalização cobra do responsável técnico.
- *
- * Puro e sem import: o front espelha os modelos em
- * `apps/web/src/lib/field-service/pmoc.ts`, com paridade testada.
+ * Espelho dos modelos do PMOC de `apps/functions/src/shared/pmoc.ts`, para o
+ * formulário montar o plano antes de salvar. A regra de quais itens entram em
+ * cada visita é só do backend (rotina diária). Paridade em
+ * `__tests__/pmoc-parity.test.ts`: mude os dois juntos.
  */
 
 export const PMOC_FREQUENCIES = ["monthly", "quarterly", "semiannual", "annual"] as const;
@@ -135,42 +129,4 @@ export function buildPmocItems(equipmentTypes: ReadonlyArray<string | null | und
   return PMOC_CATEGORIES.filter((c) => categories.has(c)).flatMap((category) =>
     PMOC_TEMPLATES[category].map((item) => ({ ...item, category })),
   );
-}
-
-/** Meses inteiros de `from` até `to` ("AAAA-MM-DD"), pelo calendário. */
-export function monthsBetween(from: string, to: string): number {
-  const [fy, fm] = from.split("-").map(Number);
-  const [ty, tm] = to.split("-").map(Number);
-  return ty * 12 + tm - (fy * 12 + fm);
-}
-
-/**
- * O item entra na visita se a frequência dele venceu desde a visita anterior.
- * A primeira visita leva tudo. Com visitas a cada 2 meses, o trimestral cai
- * nos meses 4, 6, 10 e 12: nunca depois do prazo, às vezes antes.
- */
-export function isPmocItemDue(frequency: PmocFrequency, offsetMonths: number, intervalMonths: number): boolean {
-  if (offsetMonths <= 0) return true;
-  const every = PMOC_FREQUENCY_MONTHS[frequency];
-  return Math.floor(offsetMonths / every) !== Math.floor((offsetMonths - intervalMonths) / every);
-}
-
-export function pmocItemsForVisit(params: {
-  items: readonly PmocItem[];
-  anchorDate: string | null;
-  visitDate: string;
-  intervalMonths: number;
-}): PmocItem[] {
-  const offset = params.anchorDate ? monthsBetween(params.anchorDate, params.visitDate) : 0;
-  return params.items.filter((item) => isPmocItemDue(item.frequency, offset, params.intervalMonths));
-}
-
-/** A lista da OS: o id do item fica, para o relatório juntar as visitas. */
-export function pmocOrderChecklist(items: readonly PmocItem[]) {
-  return items.map((item) => ({
-    id: `pmoc_${item.id}`.slice(0, 64),
-    text: `${PMOC_CATEGORY_LABELS[item.category]}: ${item.text}`.slice(0, 200),
-    done: false,
-    note: null as string | null,
-  }));
 }

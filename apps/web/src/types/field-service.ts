@@ -1,3 +1,5 @@
+import type { PmocItem } from "@/lib/field-service/pmoc";
+
 /**
  * Assistência técnica: equipamentos do cliente e ordens de serviço. Espelha o
  * que `apps/functions/src/api/services/field-service/field-service-model.ts`
@@ -172,6 +174,24 @@ export interface ContractVisitPlan {
   nextVisitDate: string | null;
 }
 
+export interface PmocBuilding {
+  name: string | null;
+  address: string | null;
+  occupants: number | null;
+  /** Área climatizada, em m². */
+  climatizedArea: number | null;
+  use: string | null;
+}
+
+/** O PMOC do contrato: quem assina, o prédio e os itens com a frequência de cada um. */
+export interface PmocData {
+  responsibleId: string | null;
+  building: PmocBuilding;
+  items: PmocItem[];
+  /** A primeira visita; a frequência de cada item conta dali. */
+  anchorDate: string | null;
+}
+
 export interface ServiceContract {
   id: string;
   tenantId: string;
@@ -196,6 +216,7 @@ export interface ServiceContract {
   suspendedReason: "manual" | "plan" | null;
   proposalId: string | null;
   createdAt: string | null;
+  pmoc: PmocData | null;
 }
 
 export interface ServiceContractInput {
@@ -210,6 +231,7 @@ export interface ServiceContractInput {
   visitPlan?: Omit<ContractVisitPlan, "nextVisitDate">;
   notes?: string | null;
   endDate?: string | null;
+  pmoc?: Omit<PmocData, "anchorDate"> | null;
 }
 
 /** A mensalidade lançada no financeiro por um contrato. */

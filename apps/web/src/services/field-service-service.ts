@@ -13,6 +13,7 @@ import {
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { callApi, callPublicApi } from "@/lib/api-client";
+import type { PmocItem } from "@/lib/field-service/pmoc";
 import type {
   CompleteServiceOrderInput,
   CompleteServiceOrderResult,
@@ -23,6 +24,7 @@ import type {
   ServiceContract,
   ServiceContractInput,
   EquipmentInput,
+  PmocData,
   ServiceOrder,
   ServiceOrderInput,
   ServiceOrderPhoto,
@@ -143,6 +145,29 @@ export function toContract(id: string, data: DocumentData): ServiceContract {
     suspendedReason: data.suspendedReason === "plan" || data.suspendedReason === "manual" ? data.suspendedReason : null,
     proposalId: str(data.proposalId),
     createdAt: str(data.createdAt),
+    pmoc: toPmoc(data.pmoc),
+  };
+}
+
+function num(value: unknown): number | null {
+  return typeof value === "number" && Number.isFinite(value) ? value : null;
+}
+
+function toPmoc(value: unknown): PmocData | null {
+  if (!value || typeof value !== "object") return null;
+  const raw = value as Record<string, unknown>;
+  const building = (raw.building ?? {}) as Record<string, unknown>;
+  return {
+    responsibleId: str(raw.responsibleId),
+    building: {
+      name: str(building.name),
+      address: str(building.address),
+      occupants: num(building.occupants),
+      climatizedArea: num(building.climatizedArea),
+      use: str(building.use),
+    },
+    items: arr<PmocItem>(raw.items),
+    anchorDate: str(raw.anchorDate),
   };
 }
 
