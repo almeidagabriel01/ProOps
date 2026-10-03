@@ -269,7 +269,7 @@ a chave principal; `sm` (640px) onde ajuda. Regras ao mexer em UI autenticada:
 
 | Package | Version |
 |---|---|
-| Next.js | 16.3.4 |
+| Next.js | 16.3.8 |
 | React | 19.2.1 |
 | TypeScript | 5.x |
 | Firebase (client) | 12.6.0 |
