@@ -126,6 +126,12 @@ Os upserts das partes 1 e 2 vao por um `BulkWriter` (paralelo, com retentativa),
 - Notificacao `task_reminder` com id `task_{taskId}_{dia}`, para o responsavel ou, sem ele, para quem criou
 - Falha nao-fatal
 
+**Parte 2e — ART do responsavel tecnico do PMOC (2026-10-03):**
+- `runArtExpiryReminders` (`art-expiry-reminders.ts`): responsaveis tecnicos ativos com `artValidUntil` na janela de hoje - 90 dias a hoje + 30 (faixa num campo so, indice automatico)
+- Marcos D-30, D-15, D-7 e D-1, e depois de vencida um aviso por semana (1, 8, 15... dias) ate 90 dias, no desenho do aviso do certificado A1
+- Notificacao `system` (dono e admins, com e-mail) gravada com `create` no id `art_{responsavel}_{validade}_{marco}`: rodar de novo no mesmo dia nao duplica nem reenvia o e-mail, e renovar a ART (validade nova) recomeca os marcos
+- Falha nao-fatal
+
 **Parte 3 — Limpeza de sessoes WhatsApp:**
 - Remove documentos de `whatsappSessions` com `expiresAt < (agora - 24h)`
 - Limite de 200 por execucao (para nao travar o cron)

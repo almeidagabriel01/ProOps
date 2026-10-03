@@ -6,6 +6,7 @@ import { captureError } from "./lib/observability/error-logger";
 import { runProposalFollowUps } from "./proposal-follow-up";
 import { runLeadReminders } from "./lead-reminders";
 import { runTaskReminders } from "./task-reminders";
+import { runArtExpiryReminders } from "./art-expiry-reminders";
 import { NotificationService } from "./api/services/notification.service";
 
 /**
@@ -213,6 +214,16 @@ export async function runDueDateCheck(now: Date): Promise<void> {
       console.log(`Created ${taskReminders} task reminders.`);
     } catch (taskReminderError) {
       console.warn("Task reminders failed (non-fatal):", taskReminderError);
+    }
+
+    // ================================================================
+    // 2e. ART do responsável técnico do PMOC vencendo ou vencida
+    // ================================================================
+    try {
+      const artReminders = await runArtExpiryReminders(now);
+      console.log(`Created ${artReminders} ART expiry reminders.`);
+    } catch (artReminderError) {
+      console.warn("ART expiry reminders failed (non-fatal):", artReminderError);
     }
     console.log(
       `Due date check complete. Total reminders: ${transactionReminders + proposalReminders}.`,

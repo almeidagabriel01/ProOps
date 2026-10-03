@@ -810,6 +810,9 @@ conhece nicho.
   plano (402 com a cota cheia). O novo substitui o anterior.
 - **Não se exclui quem assina um contrato PMOC que não está encerrado**
   (`pmoc.responsibleId`, 409): desative o cadastro.
+- **ART vencendo:** a rotina `checkDueDates` (parte 2e,
+  `art-expiry-reminders.ts`) avisa dono e admins em D-30, D-15, D-7 e D-1, e
+  uma vez por semana depois de vencida, por até 90 dias.
 
 Guards: `technical-responsibles.test.ts`, o bloco dele em
 `field-service.routes.gates.test.ts` e `tests/firestore-rules/field-service.test.ts`.

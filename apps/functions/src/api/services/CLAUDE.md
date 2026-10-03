@@ -332,7 +332,7 @@ interface Notification {
 | `transaction_due_reminder` | Cron `checkDueDates`, diario | ve lancamentos | nao |
 | `transaction_viewed` | Lancamento compartilhado visualizado | ve lancamentos | pode, desligado |
 | `transaction_paid_online` | Webhook do Asaas | ve lancamentos | ligado |
-| `system` | Repasse do Asaas que falhou, certificado A1 vencendo; e os do superadmin (`tenantId: "system"`) | dono e admins | ligado |
+| `system` | Repasse do Asaas que falhou, certificado A1 vencendo, ART do PMOC vencendo; e os do superadmin (`tenantId: "system"`) | dono e admins | ligado |
 | `price_change` | Cron `checkPriceChanges` | dono e admins | nao (tem e-mail proprio) |
 | `task_assigned` | Tarefa passada para alguem (`tasks.controller.ts`); quem fez a acao nunca e avisado. O texto NAO leva o prazo: a notificacao e uma foto do momento e ficaria com a data velha na primeira edicao | so o responsavel (`targetUids`) | ligado |
 | `booking_requested` | Cliente pediu visita pelo link de agendamento (`booking.service.ts`) | ve a Agenda (`calendar`) | ligado |
