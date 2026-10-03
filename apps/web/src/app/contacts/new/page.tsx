@@ -204,7 +204,7 @@ export default function NewCustomerPage() {
         types: formData.types,
         commissionPercentage: formData.commissionPercentage,
         // Só vendedor fica ligado a um membro.
-        linkedMemberId: formData.types.includes("vendedor") ? formData.linkedMemberId : null,
+        linkedMemberId: isCommissionPartner(formData) ? formData.linkedMemberId : null,
         enderecoFiscal: {
           cep: formData.fiscal.cep.replace(/\D/g, ""),
           logradouro: formData.fiscal.logradouro.trim(),

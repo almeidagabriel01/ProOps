@@ -11,6 +11,7 @@ import {
   monthWindowUtc,
   type SoldProposal,
 } from "../services/sales-goals";
+import { getMyCommissions as loadMyCommissions } from "../services/my-commissions.service";
 
 /**
  * Metas de vendas (capacidade `salesGoals`, montada por prefixo em
@@ -164,5 +165,24 @@ export async function listSellers(req: Request, res: Response) {
   } catch (error) {
     logger.error("sales_goals_sellers_failed", { error: error instanceof Error ? error.message : String(error) });
     return res.status(500).json({ message: "Erro ao carregar a equipe." });
+  }
+}
+
+/**
+ * GET /v1/sales-goals/my-commissions?month=AAAA-MM: as comissões do mês do
+ * contato parceiro ligado a quem chama. Qualquer pessoa da equipe, sem a
+ * permissão do financeiro: a resposta só tem o que é dela.
+ */
+export async function getMyCommissions(req: Request, res: Response) {
+  try {
+    const tenantId = req.user?.tenantId;
+    const uid = req.user?.uid;
+    if (!tenantId || !uid) return res.status(403).json({ message: "Tenant não identificado." });
+    const month = readMonth(req, res);
+    if (!month) return;
+    return res.json(await loadMyCommissions(tenantId, uid, month));
+  } catch (error) {
+    logger.error("sales_goals_my_commissions_failed", { error: error instanceof Error ? error.message : String(error) });
+    return res.status(500).json({ message: "Erro ao carregar suas comissões." });
   }
 }

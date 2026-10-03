@@ -52,6 +52,7 @@ import { SelectTenantState } from "@/components/shared/select-tenant-state";
 import { FirstStepsCard } from "@/components/onboarding/first-steps-card";
 import { MyTasksCard } from "@/components/features/tasks/my-tasks-card";
 import { GoalsProgressCard } from "@/components/features/sales-goals/goals-progress-card";
+import { MyCommissionsCard } from "@/components/features/sales-goals/my-commissions-card";
 import { usePagePermission } from "@/hooks/usePagePermission";
 import { useProposalAttention, useSalesSummary } from "@/hooks/use-dashboard-sales";
 import { canSeeCompanySales } from "@/lib/sales/dashboard-sales";
@@ -267,13 +268,15 @@ export default function DashboardPage() {
             card dela, então não sobra vão fora dos cards. Com colunas, uma
             meta curta ao lado dos dois cards de resumo deixava um buraco
             embaixo, e colunas balanceadas só diminuíam o buraco.
-            Linha 1: Metas e Comissões (somem sem dado; sobrando uma, ela ocupa
-            a largura toda; sem nenhuma, a linha some pelo :empty).
+            Linha 1: Metas, Comissões e Minhas comissões (somem sem dado;
+            sobrando uma, ela ocupa a largura toda; sem nenhuma, a linha some
+            pelo :empty).
             Linha 2: Despesas por categoria e Carteiras. */}
         <div className="grid gap-6 lg:grid-cols-2">
           <div className="grid gap-6 empty:hidden lg:col-span-2 lg:grid-cols-2 lg:[&:has(>:only-child)]:grid-cols-1">
             <GoalsProgressCard month={selectedMonth} />
             {!loading.month && <CommissionsPanel report={commissionReport} />}
+            <MyCommissionsCard month={selectedMonth} />
           </div>
           {loading.month ? (
             <>

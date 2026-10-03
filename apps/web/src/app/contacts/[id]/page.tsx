@@ -310,7 +310,7 @@ export default function EditCustomerPage() {
         document: formData.document ? formData.document.replace(/\D/g, "") : undefined,
         types: formData.types,
         commissionPercentage: formData.commissionPercentage,
-        linkedMemberId: formData.types.includes("vendedor") ? formData.linkedMemberId : null,
+        linkedMemberId: isCommissionPartner(formData) ? formData.linkedMemberId : null,
         enderecoFiscal: {
           cep: formData.fiscal.cep.replace(/\D/g, ""),
           logradouro: formData.fiscal.logradouro.trim(),

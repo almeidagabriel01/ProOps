@@ -101,20 +101,39 @@ export async function getCommissionReport(
   }
 
   const range = resolveMonthRange(options.month || "");
+  const docs = await loadMonthCommissionDocs(effectiveTenantId, range);
+  return { month: range.month, ...aggregateCommissionDocs(docs) };
+}
 
+interface CommissionDoc {
+  id: string;
+  data: () => Record<string, unknown>;
+}
+
+/** As comissões que vencem no mês, da empresa inteira. */
+export async function loadMonthCommissionDocs(
+  tenantId: string,
+  range: { start: string; end: string },
+): Promise<CommissionDoc[]> {
   const snapshot = await db
     .collection(COLLECTION_NAME)
-    .where("tenantId", "==", effectiveTenantId)
+    .where("tenantId", "==", tenantId)
     .where("isCommission", "==", true)
     .where("dueDate", ">=", range.start)
     .where("dueDate", "<=", range.end)
     .orderBy("dueDate", "asc")
     .limit(MAX_COMMISSIONS_PER_MONTH)
     .get();
+  return snapshot.docs as unknown as CommissionDoc[];
+}
 
+/** Agrupa as comissões por parceiro (contato e papel) e soma. */
+export function aggregateCommissionDocs(
+  docs: readonly CommissionDoc[],
+): Omit<CommissionReport, "month"> {
   const byPartner = new Map<string, CommissionReportPartner>();
 
-  for (const doc of snapshot.docs) {
+  for (const doc of docs) {
     const data = doc.data();
     const contactId = String(data.commissionContactId || "").trim();
     if (!contactId) continue;
@@ -165,7 +184,6 @@ export async function getCommissionReport(
   );
 
   return {
-    month: range.month,
     aPagar: partners.reduce((sum, p) => sum + p.aPagar, 0),
     pago: partners.reduce((sum, p) => sum + p.pago, 0),
     total: partners.reduce((sum, p) => sum + p.total, 0),

@@ -845,13 +845,27 @@ estão em `PDF_IRRELEVANT_PROPOSAL_FIELDS`: não aparecem no PDF.
 **Responsável pela venda x vendedor da comissão.** São duas coisas: o
 responsável é um MEMBRO (conta na meta); o vendedor da comissão é um CONTATO
 (parceiro que recebe). Por isso a tela chama o primeiro de "Responsável pela
-venda". O vendedor interno que também ganha comissão é um contato vendedor com
-`linkedMemberId` (o membro), validado por `validateMemberLink`
-(`api/services/contact-member-link.ts`): o membro precisa ser da empresa e só
-liga a um contato. Com a ligação, a comissão dele entra sozinha na proposta
-quando ele é o responsável (`applySellerCommission`, no front, em
-`lib/contacts/seller-commission.ts`), e sai quando o responsável muda. Arquiteto
-e vendedor externo não são tocados. Só nos planos com metas.
+venda". O parceiro interno que também ganha comissão (vendedor ou arquiteto da
+equipe) é um contato parceiro com `linkedMemberId` (o membro), validado por
+`validateMemberLink` (`api/services/contact-member-link.ts`): o contato precisa
+ser vendedor ou arquiteto, o membro precisa ser da empresa e só liga a um
+contato. Tirar os dois papéis do contato apaga o vínculo. Com a ligação, a
+comissão do VENDEDOR entra sozinha na proposta quando ele é o responsável
+(`applySellerCommission`, no front, em `lib/contacts/seller-commission.ts`), e
+sai quando o responsável muda; a do arquiteto continua escolhida à mão. Só nos
+planos com metas.
+
+**Minhas comissões** (`GET /v1/sales-goals/my-commissions?month=`,
+`api/services/my-commissions.service.ts`): as comissões do mês do contato
+ligado a quem chama, para o card do Dashboard. Atrás do gate `salesGoals` (o
+mesmo prefixo das metas) e **sem** a permissão do financeiro: o filtro pelo
+próprio uid é a permissão, e a resposta nunca traz outro parceiro. Reaproveita
+a consulta e a agregação do relatório geral (`loadMonthCommissionDocs` e
+`aggregateCommissionDocs`, em `commission-report.service.ts`) e filtra pelo
+contato em memória, sem índice novo. Fora de `DEMO_READABLE_PREFIXES` como o
+resto das metas: o card não chama a API na conta de demonstração. Guards:
+`my-commissions.service.test.ts`, `contact-member-link.test.ts` e
+`sales-goals.routes.gates.test.ts`.
 
 Propostas aprovadas antes do campo: `npx tsx src/scripts/backfill-proposal-approved-at.ts`
 (dry-run; `--apply` grava), que usa o `updatedAt` como data da aprovação. O

@@ -62,3 +62,17 @@ it("salvar de novo o próprio contato ligado não conta como duplicado", async (
 it("erro desconhecido não vira mensagem de tela", () => {
   expect(memberLinkErrorMessage(new Error("firestore caiu"))).toBeNull();
 });
+
+it("arquiteto também pode ser ligado a um membro", async () => {
+  await expect(validateMemberLink("t1", "ana", undefined, ["arquiteto"])).resolves.toBeUndefined();
+});
+
+it("vendedor que também é cliente pode ser ligado", async () => {
+  await expect(validateMemberLink("t1", "ana", "c1", ["cliente", "vendedor"])).resolves.toBeUndefined();
+});
+
+it("contato só cliente ou fornecedor não é ligado a membro", async () => {
+  const esperado = "Só vendedor ou arquiteto pode ser ligado a um membro da equipe.";
+  expect(await reason(validateMemberLink("t1", "ana", undefined, ["cliente"]))).toBe(esperado);
+  expect(await reason(validateMemberLink("t1", "ana", "c1", ["fornecedor"]))).toBe(esperado);
+});

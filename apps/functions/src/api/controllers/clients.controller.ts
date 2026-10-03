@@ -239,7 +239,12 @@ export const createClient = async (req: Request, res: Response) => {
 
     if (input.linkedMemberId) {
       try {
-        await validateMemberLink(targetTenantId, input.linkedMemberId);
+        await validateMemberLink(
+          targetTenantId,
+          input.linkedMemberId,
+          undefined,
+          input.types || ["cliente"],
+        );
       } catch (error) {
         const message = memberLinkErrorMessage(error);
         if (message) return res.status(400).json({ message });
@@ -420,6 +425,7 @@ export const updateClient = async (req: Request, res: Response) => {
             String(clientData?.tenantId ?? tenantId),
             updateData.linkedMemberId,
             id,
+            updateData.types ?? (clientData?.types as string[] | undefined) ?? ["cliente"],
           );
         } catch (error) {
           const message = memberLinkErrorMessage(error);
@@ -430,6 +436,12 @@ export const updateClient = async (req: Request, res: Response) => {
       } else {
         safeUpdate.linkedMemberId = FieldValue.delete();
       }
+    } else if (
+      updateData.types !== undefined &&
+      !updateData.types.some((type: string) => type === "vendedor" || type === "arquiteto")
+    ) {
+      // Deixou de ser parceiro de comissão: o vínculo com o membro não vale mais.
+      safeUpdate.linkedMemberId = FieldValue.delete();
     }
 
     if (updateData.enderecoFiscal !== undefined) {
