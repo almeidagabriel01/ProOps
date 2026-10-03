@@ -43,6 +43,22 @@ dono. O diálogo leva à OS ("Abrir OS"); mover o evento aqui ou no Google muda 
 data da OS, e excluir ou cancelar a devolve para "aberta"
 (`order-schedule-store.ts`). OS concluída não muda mais, nem pela Agenda.
 
+## No celular
+
+Abaixo de `md` (`useIsMobile`, porque a configuração do FullCalendar é JS):
+
+- A agenda abre em **Lista** (`listWeek`), uma vez, na montagem; trocar de
+  visão depois é livre.
+- No **Mês** cada dia tem ~40px, e o chip de texto transbordava para o dia
+  vizinho. O evento vira um **ponto** na cor dele (faixa, se atravessa dias),
+  sem o fundo que o FullCalendar aplica inline (`.calendar-event--mobile`), e
+  **tocar no dia** (ou no "+N") abre a visão **Dia** daquela data.
+- Na **Semana** o chip esconde local e situação; o detalhe fica no diálogo.
+
+Guard: `tests/e2e/mobile/agenda-layout.spec.ts`. O desktop é o
+`tests/e2e/layout/calendar-layout.spec.ts`, e nada disto muda de `md` para
+cima.
+
 ## Biblioteca de Calendário
 
 O componente usa **FullCalendar** (`@fullcalendar/react`) com os seguintes plugins:

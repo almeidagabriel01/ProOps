@@ -6,7 +6,10 @@ import dayGridPlugin from "@fullcalendar/daygrid";
 import timeGridPlugin from "@fullcalendar/timegrid";
 import listPlugin from "@fullcalendar/list";
 import interactionPlugin from "@fullcalendar/interaction";
-import type { EventResizeDoneArg } from "@fullcalendar/interaction";
+import type {
+  DateClickArg,
+  EventResizeDoneArg,
+} from "@fullcalendar/interaction";
 import ptBrLocale from "@fullcalendar/core/locales/pt-br";
 import type {
   CalendarApi,
@@ -381,12 +384,15 @@ function UpcomingEventsCard(props: {
             >
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
-                  <div className="flex items-center gap-2">
+                  {/* `min-w-0` na linha e no título: sem ele o `truncate` não
+                      encolhe nada, e um título longo empurrava o selo para
+                      fora do card no celular. */}
+                  <div className="flex min-w-0 items-center gap-2">
                     <span
-                      className="h-2.5 w-2.5 rounded-full"
+                      className="h-2.5 w-2.5 shrink-0 rounded-full"
                       style={{ backgroundColor: event.color }}
                     />
-                    <p className="truncate font-medium">{event.title}</p>
+                    <p className="min-w-0 truncate font-medium">{event.title}</p>
                   </div>
                   <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
                     <span>
@@ -401,7 +407,7 @@ function UpcomingEventsCard(props: {
                     ) : null}
                   </div>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex shrink-0 items-center gap-2">
                   <Badge variant={STATUS_BADGES[event.status]}>
                     {STATUS_LABELS[event.status]}
                   </Badge>
@@ -874,6 +880,11 @@ export function CalendarPage() {
     };
   }, [isMobile]);
 
+  function handleOpenMobileDay(date: Date) {
+    setCurrentView("timeGridDay");
+    getCalendarApi()?.changeView("timeGridDay", date);
+  }
+
   function handleCalendarNavigation(action: "prev" | "next" | "today") {
     const api = getCalendarApi();
     if (!api) return;
@@ -898,6 +909,27 @@ export function CalendarPage() {
       content.event.extendedProps.googleSyncStatus || "disabled",
     );
     const statusLabel = STATUS_LABELS[status as CalendarEvent["status"]];
+    const summary = [content.event.title, content.timeText, location, statusLabel]
+      .filter(Boolean)
+      .join(" · ");
+
+    // No celular cada dia do mês tem ~40px: nem o horário cabe, e ele
+    // transbordava para o dia vizinho. O mês vira um mapa de quando há
+    // compromisso (um ponto por evento, uma faixa para o que atravessa dias), e
+    // tocar no dia abre a visão Dia com o detalhe.
+    if (isMobile && content.view.type === "dayGridMonth") {
+      const spansDays = !(content.isStart && content.isEnd);
+      return (
+        <span
+          className={
+            spansDays ? "calendar-event-mark--bar" : "calendar-event-mark--dot"
+          }
+          style={{ backgroundColor: content.event.borderColor }}
+          title={summary}
+          aria-label={summary}
+        />
+      );
+    }
 
     // Na grade do mês o chip é uma linha só: com título, hora, local e status
     // empilhados, cada semana crescia além da altura da tela e a última ficava
@@ -907,9 +939,7 @@ export function CalendarPage() {
       return (
         <div
           className={`calendar-event-chip calendar-event-chip--compact calendar-event-chip--${status}`}
-          title={[content.event.title, content.timeText, location, statusLabel]
-            .filter(Boolean)
-            .join(" · ")}
+          title={summary}
         >
           {content.timeText ? (
             <span className="calendar-event-chip__time">
@@ -1065,7 +1095,7 @@ export function CalendarPage() {
                     <Tabs
                       value={currentView}
                       onValueChange={handleCalendarViewChange}
-                      className="w-auto"
+                      className="w-auto max-md:max-w-full"
                     >
                       <TabsList className="h-10 rounded-full bg-muted/35 p-1">
                         <TabsTrigger
@@ -1098,7 +1128,7 @@ export function CalendarPage() {
 
                   <div className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_auto] xl:items-center">
                     <div className="flex min-w-0 flex-wrap items-center gap-2">
-                      <div className="w-full min-w-[280px] sm:flex-1 sm:max-w-[360px] xl:max-w-[420px]">
+                      <div className="w-full min-w-0 sm:min-w-[280px] sm:flex-1 sm:max-w-[360px] xl:max-w-[420px]">
                         <Input
                           value={searchTerm}
                           onChange={(event) =>
@@ -1212,6 +1242,15 @@ export function CalendarPage() {
                 weekends={showWeekends}
                 events={calendarEvents}
                 eventContent={renderEventContent}
+                eventClassNames={
+                  isMobile ? "calendar-event--mobile" : undefined
+                }
+                dateClick={(arg: DateClickArg) => {
+                  if (isMobile && arg.view.type === "dayGridMonth") {
+                    handleOpenMobileDay(arg.date);
+                  }
+                }}
+                moreLinkClick={isMobile ? "timeGridDay" : "popover"}
                 datesSet={(arg: DatesSetArg) => {
                   setCurrentView(arg.view.type as CalendarViewType);
                   setCurrentTitle(arg.view.title);
