@@ -103,6 +103,7 @@ export interface SyncTenantPlanBillingSnapshotParams {
     | "admin.updateUserPlan"
     | "admin.createTenant"
     | "admin.forceSetTenantPlan"
+    | "admin.endManualAccess"
     | "cron.checkPriceChanges"
     | "admin.migrateTenantPrice";
 }

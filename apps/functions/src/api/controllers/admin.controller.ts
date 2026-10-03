@@ -2094,15 +2094,15 @@ export const endManualAccess = async (req: Request, res: Response) => {
         updatedAt: nowIso,
       });
     }
-    batch.update(tenantRef, {
+    await batch.commit();
+    // Plano e status do tenant pelo writer único, que também recalcula o
+    // WhatsApp e limpa o cache do plano.
+    await syncTenantPlanBillingSnapshot({
+      tenantId,
       subscriptionStatus: "canceled",
       plan: "free",
-      pastDueSince: null,
-      billingSyncedAt: nowIso,
-      updatedAt: nowIso,
+      source: "admin.endManualAccess",
     });
-    await batch.commit();
-    clearTenantPlanCache(tenantId);
 
     await auditAdminAction(req, "super_admin_manual_access_ended", {
       tenantId,
