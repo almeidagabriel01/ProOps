@@ -67,6 +67,7 @@ import {
 } from "@/lib/proposal-hide-zero-qty-storage";
 import { MonthlyLineBadge, MonthlyLineSwitch } from "./monthly-line";
 import { countsInProposalTotal } from "@/lib/proposal/monthly-lines";
+import { ProductStockHint, ProposalLineStockWarning } from "./proposal-stock";
 
 interface ProposalSystemsSectionProps {
   /** Título e descrição do card, que mudam por nicho. */
@@ -1091,6 +1092,11 @@ function ProductRow({
         <p className="text-xs text-muted-foreground line-clamp-1 mt-0.5">
           {product.productDescription || "Sem descrição"}
         </p>
+        <ProposalLineStockWarning
+          productId={product.productId}
+          itemType={product.itemType}
+          className="mt-1"
+        />
       </div>
 
       {/* Markup Control */}
@@ -1445,6 +1451,8 @@ function ExtraProductsGrid({
                             <span>
                               R$ {parseFloat(product.price).toFixed(2)}
                             </span>
+                            <span className="w-0.5 h-0.5 rounded-full bg-muted-foreground/50" />
+                            <ProductStockHint product={product} />
                           </div>
                         </div>
                       </div>

@@ -46,6 +46,7 @@ import {
   ProposalReadOnlyView,
   PdfDisplayOptionsSection,
 } from "./form";
+import { ProposalStockProvider } from "./form/proposal-stock";
 import { ProposalLoadingState } from "@/components/features/proposal/proposal-loading-state";
 import { isDocumentoValido } from "@/lib/format-document";
 import { ClientService } from "@/services/client-service";
@@ -1203,6 +1204,7 @@ export function SimpleProposalForm({
 
         {/* Step 2: Systems or Products */}
         <FormStepCard contentDisabled={isDemo}>
+          <ProposalStockProvider products={products} selectedProducts={selectedProducts}>
           <div className="space-y-6">
             {isAutomacaoNiche ? (
               <>
@@ -1313,6 +1315,7 @@ export function SimpleProposalForm({
               </>
             )}
           </div>
+          </ProposalStockProvider>
           {errors.sistemas && (
             <Alert variant="destructive" className="mt-4">
               <AlertCircle className="h-4 w-4" />

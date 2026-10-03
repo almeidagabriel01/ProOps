@@ -90,6 +90,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { MonthlyLineBadge, MonthlyLineSwitch } from "./monthly-line";
 import { countsInProposalTotal } from "@/lib/proposal/monthly-lines";
+import { ProductStockHint, ProposalLineStockWarning } from "./proposal-stock";
 
 interface ProposalEnvironmentsSectionProps {
   selectedSistemas: ProposalSistema[];
@@ -1247,12 +1248,20 @@ function EnvironmentProductRow({
                   Custo unit.: <span className="font-medium text-foreground/80">R$ {(product.unitPrice || 0).toFixed(2)}{priceSuffix}</span>
                 </span>
               )}
+              {!isService && catalogProduct && (
+                <ProductStockHint product={catalogProduct} className="text-[10px]" />
+              )}
             </div>
             {isActive && measurementLabel && (
               <p className="mt-2 text-xs font-medium text-foreground bg-muted/50 w-fit px-2 py-1 rounded-md">
                 Medidas: {measurementLabel}
               </p>
             )}
+            <ProposalLineStockWarning
+              productId={product.productId}
+              itemType={itemType}
+              className="mt-2"
+            />
           </div>
         </div>
 
@@ -1949,6 +1958,12 @@ function ExtraProductsGrid({
                                 ? `R$ ${parseFloat(product.price).toFixed(2)}`
                                 : getProductPricingSummary(product, pricing)}
                             </span>
+                            {(product.itemType || "product") === "product" && (
+                              <>
+                                <span className="w-0.5 h-0.5 rounded-full bg-muted-foreground/50" />
+                                <ProductStockHint product={product} />
+                              </>
+                            )}
                           </div>
                         </div>
                       </div>

@@ -23,6 +23,9 @@ vi.mock("@/hooks/useNicheVocabulary", () => ({
   useNicheVocabulary: () =>
     vocabularyRef.current ?? NICHE_CONFIGS.automacao_residencial.vocabulary,
 }));
+vi.mock("@/hooks/useCurrentNicheConfig", () => ({
+  useCurrentNicheConfig: () => NICHE_CONFIGS.automacao_residencial,
+}));
 
 const produto = (id: string, name: string, extra: Partial<Product> = {}) =>
   ({

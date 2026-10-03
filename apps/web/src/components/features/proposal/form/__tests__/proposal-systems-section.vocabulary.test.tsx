@@ -25,6 +25,9 @@ vi.mock("@/hooks/useNicheVocabulary", () => ({
   useNicheVocabulary: () =>
     vocabularyRef.current ?? NICHE_CONFIGS.automacao_residencial.vocabulary,
 }));
+vi.mock("@/hooks/useCurrentNicheConfig", () => ({
+  useCurrentNicheConfig: () => NICHE_CONFIGS.automacao_residencial,
+}));
 
 // O gerenciador abre o cadastro inteiro (e o provider do tenant); aqui só
 // interessa o texto da seção.
