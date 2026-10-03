@@ -384,6 +384,25 @@ O campo `proposal.pdfSettings` no Firestore contém:
 
 O editor (`/proposals/{id}/edit-pdf`) salva via `PUT /v1/proposals/{id}` com o campo `pdfSettings` atualizado. O botão "Salvar Configurações" salva as settings também em `tenant.proposalDefaults` para aplicar em novas propostas.
 
+**As duas metades vivem no mesmo objeto, e o backend grava o campo inteiro.**
+O editor mexe só no estilo e o formulário só nas caixinhas, então todo
+salvamento do editor passa por `mergeEditorPdfSettings`
+(`lib/proposal/pdf-settings-merge.ts`): substitui as chaves que o editor
+conhece e mantém o resto. Até 2026-10 o editor gravava só a metade dele, e
+salvar ali apagava as caixinhas (o preço voltava a ficar oculto).
+
+- **Layout dos produtos** (`productLayout`: `default` | `grid` | `list` |
+  `table`), escolhido na aba de estilo do editor. `default` é o PDF de sempre
+  (pares nos grupos, card grande nos avulsos). Modelo em
+  `components/pdf/product-layout.ts`; a tabela é `pdf-product-table.tsx`, que
+  reaproveita o `PdfProductLineFooter` para a medida e o preço do nicho.
+- **Padrão da empresa para as caixinhas**: "Usar como padrão da empresa", no
+  passo de configurações do PDF do formulário (só dono e administradores),
+  grava as chaves `show*` em `tenant.proposalDefaults` com merge. Vale em
+  todos os planos: o `PUT /v1/tenants` só pede o editor de PDF quando muda
+  algo além dessas chaves (`onlyDisplayDefaultsChanged`, em
+  `apps/functions/src/lib/catalog-plan-guards.ts`, com paridade testada).
+
 ### Restrições de acesso ao editor de PDF
 
 - Plano Free/Basic: somente visualização, sem editor

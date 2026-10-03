@@ -81,6 +81,40 @@ it("sem editor de PDF nao grava um PDF padrao novo, mas reenviar o atual passa",
   ).not.toHaveBeenCalled();
 });
 
+it("sem editor de PDF, a empresa guarda as caixinhas de exibicao como padrao", async () => {
+  const r = await call({
+    proposalDefaults: { theme: "classic", showProductPrices: true, showProductImages: false },
+  });
+  expect(r.status).not.toHaveBeenCalled();
+  expect(update).toHaveBeenCalledWith(
+    expect.objectContaining({
+      proposalDefaults: { theme: "classic", showProductPrices: true, showProductImages: false },
+    }),
+  );
+});
+
+it("sem editor de PDF, caixinha junto com estilo novo continua barrada", async () => {
+  const r = await call({ proposalDefaults: { theme: "bold", showProductPrices: true } });
+  expect(r.status).toHaveBeenCalledWith(402);
+  expect(update).not.toHaveBeenCalled();
+});
+
+it("sem editor de PDF, o layout dos produtos e do editor e continua barrado", async () => {
+  const r = await call({ proposalDefaults: { theme: "classic", productLayout: "table" } });
+  expect(r.status).toHaveBeenCalledWith(402);
+});
+
+it("caixinha com valor que nao e booleano nao passa pela excecao", async () => {
+  const r = await call({ proposalDefaults: { theme: "classic", showProductPrices: "<script>" } });
+  expect(r.status).toHaveBeenCalledWith(402);
+});
+
+it("com editor de PDF, estilo e caixinhas passam juntos", async () => {
+  caps.pdfEditor = true;
+  const r = await call({ proposalDefaults: { theme: "bold", showProductPrices: true } });
+  expect(r.status).not.toHaveBeenCalled();
+});
+
 it("super admin nao e barrado", async () => {
   superAdmin = true;
   const r = await call({ primaryColor: "#ff0000", proposalDefaults: { theme: "bold" } });

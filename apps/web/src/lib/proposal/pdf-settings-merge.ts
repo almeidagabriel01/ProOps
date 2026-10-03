@@ -1,3 +1,5 @@
+import { defaultPdfDisplaySettings } from "@/types/pdf-display-settings";
+
 /**
  * `pdfSettings` da proposta (e `proposalDefaults` da empresa) guardam duas
  * metades num objeto só: o estilo, que o editor de PDF edita (tema, cor,
@@ -18,4 +20,21 @@ export function mergeEditorPdfSettings(
     Object.entries(saved ?? {}).filter(([key]) => !(key in editor)),
   );
   return { ...preserved, ...editor };
+}
+
+/**
+ * Só as caixinhas de exibição, para guardar como padrão da empresa. São as
+ * chaves que o backend aceita mudar sem o editor de PDF
+ * (`PDF_DISPLAY_DEFAULT_KEYS`, em `catalog-plan-guards.ts`).
+ */
+export const PDF_DISPLAY_DEFAULT_KEYS = Object.keys(defaultPdfDisplaySettings);
+
+export function pickPdfDisplayDefaults(
+  settings: Record<string, unknown>,
+): Record<string, boolean> {
+  return Object.fromEntries(
+    PDF_DISPLAY_DEFAULT_KEYS.filter((key) => typeof settings[key] === "boolean").map(
+      (key) => [key, settings[key] as boolean],
+    ),
+  );
 }

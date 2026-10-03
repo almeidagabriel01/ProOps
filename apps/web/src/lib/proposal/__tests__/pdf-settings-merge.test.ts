@@ -1,7 +1,11 @@
 import fs from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
-import { mergeEditorPdfSettings } from "@/lib/proposal/pdf-settings-merge";
+import {
+  PDF_DISPLAY_DEFAULT_KEYS,
+  mergeEditorPdfSettings,
+  pickPdfDisplayDefaults,
+} from "@/lib/proposal/pdf-settings-merge";
 
 const savedByForm = {
   showProductPrices: true,
@@ -62,5 +66,31 @@ describe("editor de PDF grava pelo merge", () => {
   it("salvar a proposta e salvar como padrao passam pelo merge", () => {
     expect(hook.match(/mergeEditorPdfSettings\(/g)?.length).toBe(2);
     expect(hook).not.toMatch(/=\s*cleanForFirestore\(currentSettingsObj\)\s*;/);
+  });
+});
+
+describe("pickPdfDisplayDefaults (padrao da empresa)", () => {
+  it("leva so as caixinhas, sem o estilo nem o layout", () => {
+    expect(
+      pickPdfDisplayDefaults({
+        showProductPrices: true,
+        showProductImages: false,
+        theme: "modern",
+        productLayout: "table",
+      }),
+    ).toEqual({ showProductPrices: true, showProductImages: false });
+  });
+
+  it("as chaves batem com as que o backend aceita sem o editor de PDF", () => {
+    const guards = fs.readFileSync(
+      path.resolve(__dirname, "../../../../../functions/src/lib/catalog-plan-guards.ts"),
+      "utf8",
+    );
+    const block = guards.slice(guards.indexOf("PDF_DISPLAY_DEFAULT_KEYS"));
+    const backendKeys = Array.from(
+      block.slice(0, block.indexOf("]);")).matchAll(/"(show\w+)"/g),
+      (match) => match[1],
+    );
+    expect([...backendKeys].sort()).toEqual([...PDF_DISPLAY_DEFAULT_KEYS].sort());
   });
 });
