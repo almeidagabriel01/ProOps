@@ -10,6 +10,7 @@ import {
   periodEndDay,
   todayInBrazil,
 } from "./lib/manual-subscription-phase";
+import { runPlanExpiryReminders } from "./plan-expiry-reminders";
 
 /**
  * Batch que se divide sozinho: o Firestore aceita 500 escritas por batch, e
@@ -150,6 +151,16 @@ export const checkManualSubscriptions = onSchedule(
     memory: "512MiB",
   },
   async () => {
+    // O aviso vem antes da troca de status e não derruba o cron: a fase sai
+    // da data, então a ordem não muda o que é avisado.
+    try {
+      const reminders = await runPlanExpiryReminders();
+      console.log(`Plan expiry reminders: ${reminders} sent.`);
+    } catch (error) {
+      console.error("Error sending plan expiry reminders:", error);
+      void captureError(error, { source: "functions", route: "cron/planExpiryReminders", handled: true });
+    }
+
     try {
       const result = await runManualSubscriptionCheck();
       console.log(

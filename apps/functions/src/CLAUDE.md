@@ -18,7 +18,7 @@
 | `api` | HTTP (Express) | Monolito Express — todas as rotas REST |
 | `pdf` | HTTP (Express) | Renderizacao de PDF isolada (Chromium fora do monolito) — 6 rotas de PDF (inclui OS e PMOC); proxy Next.js roteia paths `*/pdf` para ca |
 | `stripeWebhook` | HTTP (Express) | Webhook Stripe com verificacao de assinatura |
-| `checkManualSubscriptions` | Scheduled | Verificacao diaria de assinaturas manuais |
+| `checkManualSubscriptions` | Scheduled | Verificacao diaria de assinaturas manuais (vencimento, carencia de 7 dias) e aviso de plano acabando (manual e Stripe com cancelamento agendado) |
 | `checkDueDates` | Scheduled | Verificacao diaria de vencimentos |
 | `markOverdueTransactions` | Scheduled | Marca transacoes vencidas |
 | `checkStripeSubscriptions` | Scheduled | Sync diario de status Stripe |
@@ -204,13 +204,32 @@ active  ─── currentPeriodEnd expirou ──►  past_due
 past_due ─── mais de 7 dias expirado ──►  canceled (planId: "free")
 ```
 
+A regra de datas e uma so, `lib/manual-subscription-phase.ts` (`manualPhase`),
+usada pelo cron, pelo painel do superadmin (`admin-billing-guards.ts`) e pelo
+aviso. Dias no fuso de Brasilia, data do contrato **inclusiva**: "vence em
+14/09" e acesso normal ate o fim do dia 14, carencia de 15 a 21, e no dia 22 o
+plano acaba.
+
+**Passo 0 — Aviso de plano acabando** (`plan-expiry-reminders.ts`, falha nao
+fatal): notificacao `system` (dono e admins, com e-mail) em D-30, D-15, D-7 e
+D-1, no primeiro dia da carencia e na vespera do bloqueio. Pega tambem a
+assinatura **Stripe com cancelamento agendado** (`cancelAtPeriodEnd`), em D-7 e
+D-1; a que renova sozinha nao recebe nada. Id `plan_expiry_{tenant}_{dia}_{marco}`
+gravado com `create`: rodar de novo nao duplica, e uma data renovada recomeca.
+
 **Passo 1 — Active → Past Due:**
-- Query: `isManualSubscription == true AND status == "active" AND currentPeriodEnd < agora`
-- Batch update: `subscriptionStatus: "past_due"`
+- Query: `isManualSubscription == true AND status == "active" AND currentPeriodEnd < hoje` (`YYYY-MM-DD` de Brasilia, o que vale para os dois formatos gravados)
+- Batch update: `subscriptionStatus: "past_due"` **e `pastDueSince`** (meia-noite de Brasilia do dia seguinte ao fim, `pastDueSinceFor`)
 
 **Passo 2 — Past Due → Canceled (grace period 7 dias):**
-- Query: `isManualSubscription == true AND status == "past_due" AND currentPeriodEnd < (agora - 7 dias)`
-- Batch update: `subscriptionStatus: "canceled"`, `planId: "free"`
+- Query: `isManualSubscription == true AND status == "past_due" AND currentPeriodEnd < (hoje - 7 dias)`
+- Batch update: `subscriptionStatus: "canceled"`, `planId: "free"`, `pastDueSince: null`
+
+> **Sem `pastDueSince` o `past_due` bloqueia na hora.** O backend
+> (`evaluateSubscriptionStatusAccess`, `PAST_DUE_MISSING_TIMESTAMP`), o proxy e o
+> `SubscriptionGuard` tratam o campo ausente como carencia vencida. Ate 2026-10 o
+> cron nao gravava o campo, e todo contrato manual era bloqueado no primeiro dia
+> depois da data, em vez de no oitavo.
 
 ---
 
@@ -367,7 +386,7 @@ Funcao HTTP separada (nao faz parte do monolito `api`):
 - **Nunca fazer deploy de mudanca em `reportWhatsappOverage` sem revisao manual** — funcao que gera cobrancas reais
 - Testar crons com Firebase Emulators antes de deploiar em producao
 - A funcao `reportWhatsappOverage` usa `identifier` como chave de idempotencia — a key inclui `tenantId:month:whatsapp_overage`, o que garante que executar duas vezes no mesmo mes nao cobra duas vezes
-- `checkManualSubscriptions` nao notifica o usuario sobre mudancas de status — considerar se e necessario adicionar notificacao ao downgrade para `free`
+- `checkManualSubscriptions` avisa dono e admins antes e depois do vencimento (passo 0, `plan-expiry-reminders.ts`); a troca de status em si nao gera notificacao propria
 - `checkDueDates` faz upsert com `isRead: false` sempre — se o usuario marcou a notificacao como lida, ela volta como nao lida no dia seguinte (comportamento intencional: e um lembrete diario)
 
 ---

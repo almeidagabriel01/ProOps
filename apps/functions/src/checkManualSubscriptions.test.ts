@@ -54,6 +54,7 @@ jest.mock("./init", () => ({
 }));
 jest.mock("firebase-functions/v2/scheduler", () => ({ onSchedule: () => () => undefined }));
 jest.mock("./lib/observability/error-logger", () => ({ captureError: jest.fn() }));
+jest.mock("./plan-expiry-reminders", () => ({ runPlanExpiryReminders: jest.fn() }));
 
 import { createChunkedBatch, runManualSubscriptionCheck } from "./checkManualSubscriptions";
 
