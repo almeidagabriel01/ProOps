@@ -1140,7 +1140,12 @@ export function CalendarPage() {
                         />
                       </div>
 
-                      <div className="flex h-10 items-center justify-between rounded-full border border-border/60 bg-muted/20 px-3 text-sm sm:min-w-[170px]">
+                      {/* Abaixo de `sm` não há largura mínima, e o
+                          `justify-between` sozinho encostava o texto na chave. */}
+                      <div
+                        data-testid="calendar-weekend-toggle"
+                        className="flex h-10 items-center justify-between rounded-full border border-border/60 bg-muted/20 px-3 text-sm max-sm:gap-3 sm:min-w-[170px]"
+                      >
                         <span className="text-muted-foreground">
                           Fim de semana
                         </span>

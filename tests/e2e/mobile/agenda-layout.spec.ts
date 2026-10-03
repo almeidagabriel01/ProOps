@@ -77,6 +77,16 @@ test("agenda no celular abre em lista, mês em pontos e o dia abre ao toque", as
     timeout: 20000,
   });
 
+  // A chave "Fim de semana" não encosta no texto.
+  const weekendGap = await page
+    .getByTestId("calendar-weekend-toggle")
+    .evaluate((el) => {
+      const label = el.querySelector("span")!.getBoundingClientRect();
+      const toggle = el.querySelector("button")!.getBoundingClientRect();
+      return toggle.left - label.right;
+    });
+  expect(weekendGap).toBeGreaterThanOrEqual(8);
+
   await page.getByRole("tab", { name: "Mes" }).click();
   await expect(page.locator(".fc-dayGridMonth-view")).toBeVisible();
   await expect(page.locator(".calendar-event-mark--dot").first()).toBeVisible({
