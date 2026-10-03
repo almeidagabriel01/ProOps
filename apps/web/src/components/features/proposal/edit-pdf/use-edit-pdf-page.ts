@@ -284,7 +284,7 @@ export function cleanForFirestore(obj: unknown): unknown {
 
 export function useEditPdfPage() {
   const params = useParams();
-  const { tenant, refreshTenant } = useTenant();
+  const { tenant } = useTenant();
   const { features, isLoading: isPlanLoading } = usePlanLimits();
   const proposalId = params.id as string;
 
@@ -816,9 +816,9 @@ export function useEditPdfPage() {
         // Isso garante que a proposta atual mantenha essas configurações específicas
         await handleSave({ suppressToast: true, suppressLoading: true });
 
-        // PASSO 3: Atualiza o contexto do tenant no frontend
-        // Isso faz com que novas propostas criadas nesta sessão já usem as novas configurações
-        refreshTenant();
+        // O tenant da tela se atualiza sozinho pelo listener em tempo real
+        // (TenantProvider). Não chamar refreshTenant: ele recarrega a empresa
+        // inteira com a tela em carregamento, e o formulário aberto desmonta.
 
         toast.success("Configurações salvas como padrão para novas propostas!");
       } catch (error) {

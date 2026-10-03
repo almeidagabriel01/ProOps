@@ -66,7 +66,7 @@ export function PdfDisplayOptionsSection({
   formData,
   setFormData,
 }: PdfDisplayOptionsSectionProps) {
-  const { tenant, refreshTenant } = useTenant();
+  const { tenant } = useTenant();
   const { isMaster, isDemo } = usePermissions();
   const [isSavingDefault, setIsSavingDefault] = React.useState(false);
   const nicheConfig = getNicheConfig(tenant?.niche);
@@ -98,7 +98,9 @@ export function PdfDisplayOptionsSection({
           ...pickPdfDisplayDefaults(settings),
         },
       });
-      refreshTenant();
+      // Sem refreshTenant: ele recarrega a empresa com a tela em carregamento,
+      // o formulário desmonta e a proposta em edição volta ao passo 1, vazia.
+      // O listener do TenantProvider já traz o proposalDefaults novo.
       toast.success("Padrão salvo: as próximas propostas já começam com estas opções.");
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Erro ao salvar o padrão da empresa.");
