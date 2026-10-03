@@ -67,6 +67,41 @@ export async function canCustomizeTheme(tenantId: string): Promise<boolean> {
 }
 
 /**
+ * As caixinhas de exibicao do PDF (mostrar preco, imagem, descricao...) valem
+ * em todos os planos, e a empresa pode guardar a escolha como padrao em
+ * `proposalDefaults`, o mesmo objeto do estilo do editor de PDF. So o estilo e
+ * do editor: mudanca que toca apenas estas chaves, com valor booleano, nao
+ * pede a capacidade.
+ */
+export const PDF_DISPLAY_DEFAULT_KEYS: ReadonlySet<string> = new Set([
+  "showProductImages",
+  "showProductDescriptions",
+  "showProductPrices",
+  "showProductMeasurements",
+  "showProductQuantities",
+  "showSubtotals",
+  "showEnvironmentSubtotals",
+  "showPaymentTerms",
+  "showLogo",
+  "showValidUntil",
+  "showNotes",
+]);
+
+export function onlyDisplayDefaultsChanged(next: unknown, current: unknown): boolean {
+  if (!next || typeof next !== "object" || Array.isArray(next)) return false;
+  const nextObj = next as Record<string, unknown>;
+  const currentObj =
+    current && typeof current === "object" ? (current as Record<string, unknown>) : {};
+  const keys = new Set([...Object.keys(nextObj), ...Object.keys(currentObj)]);
+  for (const key of keys) {
+    if (sameJsonValue(nextObj[key], currentObj[key])) continue;
+    if (!PDF_DISPLAY_DEFAULT_KEYS.has(key)) return false;
+    if (typeof nextObj[key] !== "boolean") return false;
+  }
+  return true;
+}
+
+/**
  * Compara valores JSON ignorando a ordem das chaves. As guardas acima so
  * barram MUDANCA: um formulario que reenvia o valor ja gravado (tenant que
  * personalizou quando era Pro e depois caiu para o Starter) nao pode ser

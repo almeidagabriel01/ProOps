@@ -67,8 +67,13 @@ export type Client = {
    * deixar passar faria a proposta nascer com uma comissao que ninguem escolheu.
    */
   commissionPercentage?: number | null;
-  /** Vendedor que é da equipe: o membro ligado a este contato. */
+  /** Parceiro (vendedor ou arquiteto) que é da equipe: o membro ligado a este contato. */
   linkedMemberId?: string | null;
+  /** Quem da equipe cuida deste cliente (o nome é gravado junto pelo backend). */
+  responsibleMemberId?: string | null;
+  responsibleMemberName?: string | null;
+  /** Parceiros externos (contatos vendedor ou arquiteto) que cuidam dele. */
+  partnerContactIds?: string[];
 };
 
 export interface PaginatedResult<T> {
@@ -179,6 +184,29 @@ export const ClientService = {
         collection(db, COLLECTION_NAME),
         where("tenantId", "==", tenantId),
         where("types", "array-contains-any", wanted),
+        limit(max),
+      ),
+    );
+    return sortClientsByName(snap.docs.map(mapClientDoc));
+  },
+
+  /**
+   * Os clientes de que uma pessoa da equipe ou um parceiro cuida. Igualdade
+   * (ou array-contains) junto do tenant, sem orderBy: não pede índice composto.
+   */
+  getClientsByResponsible: async (
+    tenantId: string,
+    filter: { kind: "member" | "partner"; id: string },
+    max = 500,
+  ): Promise<Client[]> => {
+    if (!tenantId || !filter.id) return [];
+    const snap = await getDocs(
+      query(
+        collection(db, COLLECTION_NAME),
+        where("tenantId", "==", tenantId),
+        filter.kind === "member"
+          ? where("responsibleMemberId", "==", filter.id)
+          : where("partnerContactIds", "array-contains", filter.id),
         limit(max),
       ),
     );

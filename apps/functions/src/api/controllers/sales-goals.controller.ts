@@ -11,6 +11,8 @@ import {
   monthWindowUtc,
   type SoldProposal,
 } from "../services/sales-goals";
+import { getMyCommissions as loadMyCommissions } from "../services/my-commissions.service";
+import { loadTeamPeople } from "../services/team-people";
 
 /**
  * Metas de vendas (capacidade `salesGoals`, montada por prefixo em
@@ -19,19 +21,14 @@ import {
  * sempre de `req.user.tenantId`.
  */
 
-const PEOPLE_LIMIT = 200;
 const PROPOSALS_LIMIT = 2000;
 
 function isAdmin(req: Request): boolean {
   return isTenantAdminRole(String(req.user?.role || "").toUpperCase());
 }
 
-async function loadPeople(tenantId: string): Promise<Array<{ id: string; name: string }>> {
-  const snap = await db.collection("users").where("tenantId", "==", tenantId).limit(PEOPLE_LIMIT).get();
-  return snap.docs
-    .filter((doc) => String(doc.data().role || "").toUpperCase() !== "SUPERADMIN")
-    .map((doc) => ({ id: doc.id, name: String(doc.data().name || doc.data().email || "Sem nome") }))
-    .sort((a, b) => a.name.localeCompare(b.name, "pt-BR"));
+function loadPeople(tenantId: string) {
+  return loadTeamPeople(tenantId);
 }
 
 async function loadGoals(tenantId: string, month: string) {
@@ -164,5 +161,24 @@ export async function listSellers(req: Request, res: Response) {
   } catch (error) {
     logger.error("sales_goals_sellers_failed", { error: error instanceof Error ? error.message : String(error) });
     return res.status(500).json({ message: "Erro ao carregar a equipe." });
+  }
+}
+
+/**
+ * GET /v1/sales-goals/my-commissions?month=AAAA-MM: as comissões do mês do
+ * contato parceiro ligado a quem chama. Qualquer pessoa da equipe, sem a
+ * permissão do financeiro: a resposta só tem o que é dela.
+ */
+export async function getMyCommissions(req: Request, res: Response) {
+  try {
+    const tenantId = req.user?.tenantId;
+    const uid = req.user?.uid;
+    if (!tenantId || !uid) return res.status(403).json({ message: "Tenant não identificado." });
+    const month = readMonth(req, res);
+    if (!month) return;
+    return res.json(await loadMyCommissions(tenantId, uid, month));
+  } catch (error) {
+    logger.error("sales_goals_my_commissions_failed", { error: error instanceof Error ? error.message : String(error) });
+    return res.status(500).json({ message: "Erro ao carregar suas comissões." });
   }
 }

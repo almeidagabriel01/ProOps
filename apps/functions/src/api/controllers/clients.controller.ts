@@ -15,6 +15,12 @@ import { z } from "zod";
 import { sanitizeText, sanitizeRichText } from "../../utils/sanitize";
 import { buildClientSearchTokens } from "../../lib/search-tokens";
 import { cpf, cnpj } from "cpf-cnpj-validator";
+import {
+  MAX_PARTNER_CONTACTS,
+  contactResponsiblesErrorMessage,
+  resolvePartnerContactIds,
+  resolveResponsibleMember,
+} from "../services/contact-responsibles";
 
 /**
  * Campos fiscais do destinatário.
@@ -64,6 +70,10 @@ const CreateClientSchema = z.object({
   commissionPercentage: z.number().min(0).max(100).nullable().optional(),
   /** Vendedor que é da equipe: o membro ligado a este contato. */
   linkedMemberId: z.string().max(128).nullable().optional(),
+  /** Quem da equipe cuida deste cliente. `null` limpa. */
+  responsibleMemberId: z.string().max(128).nullable().optional(),
+  /** Parceiros externos (contatos vendedor ou arquiteto) que cuidam dele. */
+  partnerContactIds: z.array(z.string().min(1).max(128)).max(MAX_PARTNER_CONTACTS).optional(),
   source: z.string().max(50).trim().optional(),
   sourceId: z.string().max(100).trim().optional().nullable(),
   targetTenantId: z.string().max(100).optional(),
@@ -81,6 +91,8 @@ const UpdateClientSchema = z.object({
   /** Comissao padrao do parceiro. `null` limpa; nunca 0 por omissao. */
   commissionPercentage: z.number().min(0).max(100).nullable().optional(),
   linkedMemberId: z.string().max(128).nullable().optional(),
+  responsibleMemberId: z.string().max(128).nullable().optional(),
+  partnerContactIds: z.array(z.string().min(1).max(128)).max(MAX_PARTNER_CONTACTS).optional(),
   ...ClientFiscalFields,
 });
 
@@ -239,12 +251,32 @@ export const createClient = async (req: Request, res: Response) => {
 
     if (input.linkedMemberId) {
       try {
-        await validateMemberLink(targetTenantId, input.linkedMemberId);
+        await validateMemberLink(
+          targetTenantId,
+          input.linkedMemberId,
+          undefined,
+          input.types || ["cliente"],
+        );
       } catch (error) {
         const message = memberLinkErrorMessage(error);
         if (message) return res.status(400).json({ message });
         throw error;
       }
+    }
+
+    let responsible: { id: string; name: string } | null = null;
+    let partnerContactIds: string[] = [];
+    try {
+      if (input.responsibleMemberId) {
+        responsible = await resolveResponsibleMember(targetTenantId, input.responsibleMemberId);
+      }
+      if (input.partnerContactIds?.length) {
+        partnerContactIds = await resolvePartnerContactIds(targetTenantId, input.partnerContactIds);
+      }
+    } catch (error) {
+      const message = contactResponsiblesErrorMessage(error);
+      if (message) return res.status(400).json({ message });
+      throw error;
     }
 
     // Transaction
@@ -288,6 +320,11 @@ export const createClient = async (req: Request, res: Response) => {
       if (input.commissionPercentage != null)
         clientData.commissionPercentage = input.commissionPercentage;
       if (input.linkedMemberId) clientData.linkedMemberId = input.linkedMemberId;
+      if (responsible) {
+        clientData.responsibleMemberId = responsible.id;
+        clientData.responsibleMemberName = responsible.name;
+      }
+      if (partnerContactIds.length > 0) clientData.partnerContactIds = partnerContactIds;
 
       const enderecoFiscal = compactEnderecoFiscal(input.enderecoFiscal);
       if (enderecoFiscal) clientData.enderecoFiscal = enderecoFiscal;
@@ -420,6 +457,7 @@ export const updateClient = async (req: Request, res: Response) => {
             String(clientData?.tenantId ?? tenantId),
             updateData.linkedMemberId,
             id,
+            updateData.types ?? (clientData?.types as string[] | undefined) ?? ["cliente"],
           );
         } catch (error) {
           const message = memberLinkErrorMessage(error);
@@ -430,6 +468,38 @@ export const updateClient = async (req: Request, res: Response) => {
       } else {
         safeUpdate.linkedMemberId = FieldValue.delete();
       }
+    } else if (
+      updateData.types !== undefined &&
+      !updateData.types.some((type: string) => type === "vendedor" || type === "arquiteto")
+    ) {
+      // Deixou de ser parceiro de comissão: o vínculo com o membro não vale mais.
+      safeUpdate.linkedMemberId = FieldValue.delete();
+    }
+
+    try {
+      const contactTenantId = String(clientData?.tenantId ?? tenantId);
+      if (updateData.responsibleMemberId !== undefined) {
+        if (updateData.responsibleMemberId) {
+          const person = await resolveResponsibleMember(contactTenantId, updateData.responsibleMemberId);
+          safeUpdate.responsibleMemberId = person.id;
+          safeUpdate.responsibleMemberName = person.name;
+        } else {
+          safeUpdate.responsibleMemberId = FieldValue.delete();
+          safeUpdate.responsibleMemberName = FieldValue.delete();
+        }
+      }
+      if (updateData.partnerContactIds !== undefined) {
+        const partners = await resolvePartnerContactIds(
+          contactTenantId,
+          updateData.partnerContactIds,
+          id,
+        );
+        safeUpdate.partnerContactIds = partners.length > 0 ? partners : FieldValue.delete();
+      }
+    } catch (error) {
+      const message = contactResponsiblesErrorMessage(error);
+      if (message) return res.status(400).json({ message });
+      throw error;
     }
 
     if (updateData.enderecoFiscal !== undefined) {

@@ -93,7 +93,8 @@ As **metas de vendas** ficam em `/goals`, visão do grupo Financeiro: a meta do
 mês da empresa e de cada pessoa da equipe, definida pelo master (o membro vê
 "Acesso Restrito" e acompanha a dele no Dashboard). Na proposta o campo se
 chama "Responsável pela venda", e não "Vendedor", porque "vendedor" já é o
-parceiro da comissão. Ao lado da meta de cada pessoa a tela mostra o que ela
+parceiro da comissão. Ele vale em todos os planos (vem do responsável do
+cliente; só a meta é Pro+), e Contatos e Propostas filtram por ele. Ao lado da meta de cada pessoa a tela mostra o que ela
 já vendeu no mês (`GET /v1/sales-goals/progress`), com a porcentagem calculada
 sobre a meta que está sendo digitada; se essa leitura falhar, a tela continua
 servindo para definir as metas.

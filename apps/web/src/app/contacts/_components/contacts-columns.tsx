@@ -115,6 +115,29 @@ export const createColumns = ({
     ),
   },
   {
+    key: "responsibleMemberName",
+    header: "Responsável",
+    priority: "secondary",
+    render: (client) => {
+      const partners = client.partnerContactIds?.length ?? 0;
+      if (!client.responsibleMemberName && partners === 0) {
+        return <span className="text-sm text-muted-foreground">-</span>;
+      }
+      return (
+        <div className="min-w-0 text-sm">
+          {client.responsibleMemberName && (
+            <span className="block truncate">{client.responsibleMemberName}</span>
+          )}
+          {partners > 0 && (
+            <span className="block truncate text-xs text-muted-foreground">
+              {partners === 1 ? "+ 1 parceiro" : `+ ${partners} parceiros`}
+            </span>
+          )}
+        </div>
+      );
+    },
+  },
+  {
     key: "source",
     header: "Origem",
     className: "",

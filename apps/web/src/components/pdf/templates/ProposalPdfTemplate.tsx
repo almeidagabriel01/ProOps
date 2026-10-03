@@ -5,6 +5,7 @@ import type {
 } from "@/types/proposal";
 import type { ProposalTemplate, Tenant, PdfDisplaySettings } from "@/types";
 import { mergePdfDisplaySettings } from "@/types";
+import type { PdfProductLayout } from "@/types/pdf-display-settings";
 import { RenderPagedContent } from "@/components/pdf/render-paged-content";
 import { PdfCoverPage } from "@/components/pdf/pdf-cover-page";
 import {
@@ -44,6 +45,7 @@ export interface ProposalPdfCustomSettings {
   sections?: PdfSection[];
   coverElements?: CoverElement[];
   repeatHeader?: boolean;
+  productLayout?: PdfProductLayout;
   pageNumberStart?: number;
   logoStyle?: "original" | "rounded" | "circle";
   coverLogoSettings?: CoverLogoSettings | null;
@@ -617,9 +619,12 @@ export function ProposalPdfTemplate({
   }
 
   const contentStyles = getContentStyles(theme, primaryColor);
-  const pdfDisplaySettings: PdfDisplaySettings = mergePdfDisplaySettings(
-    savedPdfSettings as unknown as Record<string, unknown>,
-  );
+  const pdfDisplaySettings: PdfDisplaySettings = mergePdfDisplaySettings({
+    ...(savedPdfSettings as unknown as Record<string, unknown>),
+    ...(customSettings?.productLayout
+      ? { productLayout: customSettings.productLayout }
+      : {}),
+  });
   const coverElements = normalizeCoverElements(
     customSettings?.coverElements || savedPdfSettings?.coverElements || [],
   );

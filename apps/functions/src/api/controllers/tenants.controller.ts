@@ -1,5 +1,10 @@
 import { Request, Response } from "express";
-import { canCustomizeTheme, canUsePdfEditor, sameJsonValue } from "../../lib/catalog-plan-guards";
+import {
+  canCustomizeTheme,
+  canUsePdfEditor,
+  onlyDisplayDefaultsChanged,
+  sameJsonValue,
+} from "../../lib/catalog-plan-guards";
 import { db } from "../../init";
 import { Timestamp } from "firebase-admin/firestore";
 import { resolveUserAndTenant } from "../../lib/auth-helpers";
@@ -90,6 +95,7 @@ export const updateTenant = async (req: Request, res: Response) => {
       if (
         safeUpdate.proposalDefaults !== undefined &&
         !sameJsonValue(safeUpdate.proposalDefaults, current.proposalDefaults) &&
+        !onlyDisplayDefaultsChanged(safeUpdate.proposalDefaults, current.proposalDefaults) &&
         !(await canUsePdfEditor(id))
       ) {
         return res.status(402).json({

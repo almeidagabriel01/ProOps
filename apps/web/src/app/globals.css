@@ -709,6 +709,11 @@ html.theme-transitioning * {
   display: flex;
   align-items: center;
   justify-content: center;
+  /* O texto e um item flex anonimo: sem isto a palavra mais longa (um id, um
+     caminho de arquivo, uma URL) define a largura minima, passa dos 350px do
+     toast e o `contain: paint` do sileo a recorta. `anywhere`, e nao
+     `break-word`, porque so ele entra no calculo da largura minima. */
+  overflow-wrap: anywhere;
 }
 
 /* Toast com botão (ex.: "Desfazer"): texto em cima e o botão centralizado

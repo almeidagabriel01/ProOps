@@ -9,6 +9,11 @@ import { useClientActions } from "@/hooks/useClientActions";
 import { useTenant } from "@/providers/tenant-provider";
 import { useSort } from "@/hooks/use-sort";
 import { QueryDocumentSnapshot, DocumentData } from "firebase/firestore";
+import { useAuth } from "@/providers/auth-provider";
+import {
+  matchesResponsibleFilter,
+  parseResponsibleFilter,
+} from "@/lib/contacts/responsible-filter";
 
 export type ContactsTypeFilter =
   | "todos"
@@ -36,6 +41,7 @@ export function parseContactsTypeFilter(
 
 export function useContactsCtrl() {
   const { tenant, isLoading: tenantLoading } = useTenant();
+  const { user } = useAuth();
   
   // All clients — only loaded when search/filter is active
   const [allClients, setAllClients] = React.useState<Client[] | null>(null);
@@ -54,12 +60,21 @@ export function useContactsCtrl() {
   const [typeFilter, setTypeFilter] = React.useState<ContactsTypeFilter>(() =>
     parseContactsTypeFilter(searchParams.get("tipo")),
   );
+  // "Responsável": `eu`, `m:<uid>` ou `p:<contato>` (lib/contacts/responsible-filter).
+  const [responsibleFilter, setResponsibleFilter] = React.useState(
+    () => searchParams.get("resp") ?? "",
+  );
+  const responsible = React.useMemo(
+    () => parseResponsibleFilter(responsibleFilter, user?.id),
+    [responsibleFilter, user?.id],
+  );
   React.useEffect(() => {
     replaceUrlSearchParams({
       q: searchTerm.trim() || null,
       tipo: typeFilter === "todos" ? null : typeFilter,
+      resp: responsibleFilter || null,
     });
-  }, [searchTerm, typeFilter]);
+  }, [searchTerm, typeFilter, responsibleFilter]);
   
   const [clientToDelete, setClientToDelete] = React.useState<Client | null>(null);
   const [isDeleting, setIsDeleting] = React.useState(false);
@@ -71,7 +86,8 @@ export function useContactsCtrl() {
     ((updater: (items: Client[]) => Client[]) => void) | null
   >(null);
 
-  const isFiltering = searchTerm.trim() !== "" || typeFilter !== "todos";
+  const isFiltering =
+    searchTerm.trim() !== "" || typeFilter !== "todos" || responsible.kind !== "all";
 
   const refreshHasAnyClients = React.useCallback(async () => {
     if (!tenant) {
@@ -110,7 +126,11 @@ export function useContactsCtrl() {
       try {
         const data = trimmedSearch
           ? await ClientService.searchClients(tenant.id, trimmedSearch)
-          : await ClientService.getClientsByTypes(tenant.id, [typeFilter]);
+          : typeFilter !== "todos"
+            ? await ClientService.getClientsByTypes(tenant.id, [typeFilter])
+            : responsible.kind !== "all"
+              ? await ClientService.getClientsByResponsible(tenant.id, responsible)
+              : [];
         if (!cancelled) setAllClients(data);
       } catch (error) {
         console.error("Failed to fetch clients for filtering", error);
@@ -130,7 +150,7 @@ export function useContactsCtrl() {
       cancelled = true;
       clearTimeout(timeoutId);
     };
-  }, [isFiltering, tenant, trimmedSearch, typeFilter]);
+  }, [isFiltering, tenant, trimmedSearch, typeFilter, responsible]);
 
   const {
     items: sortedClients,
@@ -238,8 +258,12 @@ export function useContactsCtrl() {
 
     // O termo já foi aplicado pela consulta indexada (searchClients).
 
+    if (responsible.kind !== "all") {
+      result = result.filter((client) => matchesResponsibleFilter(client, responsible));
+    }
+
     return result;
-  }, [sortedClients, typeFilter, isFiltering]);
+  }, [sortedClients, typeFilter, isFiltering, responsible]);
 
 
 
@@ -252,6 +276,7 @@ export function useContactsCtrl() {
       hasAnyClients,
       searchTerm,
       typeFilter,
+      responsibleFilter,
       clientToDelete,
       isDeleting,
       filteredClients,
@@ -270,6 +295,7 @@ export function useContactsCtrl() {
       },
       setSearchTerm,
       setTypeFilter,
+      setResponsibleFilter,
       setClientToDelete,
       handleDelete,
       requestSort,

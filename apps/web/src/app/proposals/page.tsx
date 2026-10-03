@@ -110,6 +110,11 @@ import { SharedProposalService } from "@/services/shared-proposal-service";
 import { formatDateBR } from "@/utils/date-format";
 import { Loader } from "@/components/ui/loader";
 import { countsInProposalTotal } from "@/lib/proposal/monthly-lines";
+import { ResponsibleFilterSelect } from "@/components/features/responsibles/responsible-filter-select";
+import {
+  matchesResponsibleFilter,
+  parseResponsibleFilter,
+} from "@/lib/contacts/responsible-filter";
 
 function PdfDownloader({
   proposal,
@@ -168,12 +173,17 @@ export default function ProposalsPage() {
   const [statusFilter, setStatusFilter] = React.useState(
     () => searchParams.get("status") ?? "",
   );
+  // "Responsável": `eu`, `m:<uid>` ou `p:<contato>` (lib/contacts/responsible-filter).
+  const [responsibleFilter, setResponsibleFilter] = React.useState(
+    () => searchParams.get("resp") ?? "",
+  );
   React.useEffect(() => {
     replaceUrlSearchParams({
       q: searchTerm.trim() || null,
       status: statusFilter || null,
+      resp: responsibleFilter || null,
     });
-  }, [searchTerm, statusFilter]);
+  }, [searchTerm, statusFilter, responsibleFilter]);
   const [deleteId, setDeleteId] = React.useState<string | null>(null);
   // Aceite do cliente em revisão. Vem do endereço (`?aceite=<id>`) quando a
   // pessoa chega pela notificação, ou do selo na coluna de status.
@@ -299,7 +309,13 @@ export default function ProposalsPage() {
   const updateItemsRef = React.useRef<
     ((updater: (items: Proposal[]) => Proposal[]) => void) | null
   >(null);
-  const isFiltering = searchTerm.trim() !== "";
+  const responsible = React.useMemo(
+    () => parseResponsibleFilter(responsibleFilter, user?.id),
+    [responsibleFilter, user?.id],
+  );
+  // Com o filtro de responsável a lista sai da paginação e vem por uma
+  // consulta só (igualdade, sem índice novo), como a busca.
+  const isFiltering = searchTerm.trim() !== "" || responsible.kind !== "all";
   const [asyncDataReady, setAsyncDataReady] = React.useState(false);
 
   const handleEdit = React.useCallback(
@@ -370,11 +386,15 @@ export default function ProposalsPage() {
     return sortedProposals.filter(
       (proposal) =>
         (!statusFilter || proposal.status === statusFilter) &&
+        matchesResponsibleFilter(
+          { responsibleMemberId: proposal.sellerId, partnerContactIds: proposal.partnerContactIds },
+          responsible,
+        ) &&
         (normalize(proposal.title).includes(term) ||
           normalize(proposal.clientName || "").includes(term) ||
           normalize(getStatusLabel(proposal.status)).includes(term)),
     );
-  }, [sortedProposals, searchTerm, isFiltering, getStatusLabel, statusFilter]);
+  }, [sortedProposals, searchTerm, isFiltering, getStatusLabel, statusFilter, responsible]);
 
   const statusFilterOptions = React.useMemo(
     () => proposalStatusFilterOptions(kanbanColumns),
@@ -521,11 +541,11 @@ export default function ProposalsPage() {
         // Busca indexada via searchTokens (title + clientName) — não baixa
         // mais a coleção inteira. Termo sem palavra de >= 2 chars retorna
         // [] sem query (ver ProposalService.searchProposals).
-        const data = await ProposalService.searchProposals(
-          tenant.id,
-          searchTerm,
-          100,
-        );
+        const data = searchTerm.trim()
+          ? await ProposalService.searchProposals(tenant.id, searchTerm, 100)
+          : responsible.kind !== "all"
+            ? await ProposalService.getProposalsByResponsible(tenant.id, responsible)
+            : [];
 
         // Sort by createdAt descending (most recent first)
         data.sort(
@@ -548,7 +568,7 @@ export default function ProposalsPage() {
     } else {
       setIsLoading(false);
     }
-  }, [tenant, searchTerm]);
+  }, [tenant, searchTerm, responsible]);
 
   // Search fetch — debounced; re-queries when o termo (token) muda
   React.useEffect(() => {
@@ -1461,6 +1481,13 @@ export default function ProposalsPage() {
                     ))}
                   </Select>
                 </div>
+                <ResponsibleFilterSelect
+                  value={responsibleFilter}
+                  onChange={setResponsibleFilter}
+                  mineLabel="Minhas propostas"
+                  includePartners
+                  className="w-full sm:w-56"
+                />
               </div>
             )}
 

@@ -90,6 +90,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { MonthlyLineBadge, MonthlyLineSwitch } from "./monthly-line";
 import { countsInProposalTotal } from "@/lib/proposal/monthly-lines";
+import { ProductStockHint, ProposalLineStock } from "./proposal-stock";
 
 interface ProposalEnvironmentsSectionProps {
   selectedSistemas: ProposalSistema[];
@@ -1253,6 +1254,11 @@ function EnvironmentProductRow({
                 Medidas: {measurementLabel}
               </p>
             )}
+            <ProposalLineStock
+              productId={product.productId}
+              itemType={itemType}
+              className="mt-2"
+            />
           </div>
         </div>
 
@@ -1949,6 +1955,12 @@ function ExtraProductsGrid({
                                 ? `R$ ${parseFloat(product.price).toFixed(2)}`
                                 : getProductPricingSummary(product, pricing)}
                             </span>
+                            {(product.itemType || "product") === "product" && (
+                              <>
+                                <span className="w-0.5 h-0.5 rounded-full bg-muted-foreground/50" />
+                                <ProductStockHint product={product} />
+                              </>
+                            )}
                           </div>
                         </div>
                       </div>

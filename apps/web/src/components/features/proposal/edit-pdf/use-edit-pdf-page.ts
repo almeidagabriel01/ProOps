@@ -34,6 +34,11 @@ import {
   normalizePdfFontFamily,
 } from "@/services/pdf/pdf-fonts";
 import { downloadProposalPdfFromBackend } from "@/services/pdf/download-proposal-pdf";
+import { mergeEditorPdfSettings } from "@/lib/proposal/pdf-settings-merge";
+import {
+  type PdfProductLayout,
+  resolvePdfProductLayout,
+} from "@/components/pdf/product-layout";
 
 interface PdfSettings {
   primaryColor?: string;
@@ -45,6 +50,7 @@ interface PdfSettings {
   coverImageFit?: "cover" | "contain";
   coverImagePosition?: string;
   repeatHeader?: boolean;
+  productLayout?: unknown;
   sections?: unknown[];
   coverElements?: CoverElement[];
   logoStyle?: "original" | "rounded" | "circle";
@@ -278,7 +284,7 @@ export function cleanForFirestore(obj: unknown): unknown {
 
 export function useEditPdfPage() {
   const params = useParams();
-  const { tenant, refreshTenant } = useTenant();
+  const { tenant } = useTenant();
   const { features, isLoading: isPlanLoading } = usePlanLimits();
   const proposalId = params.id as string;
 
@@ -328,6 +334,7 @@ export function useEditPdfPage() {
     [proposal],
   );
   const [repeatHeader, setRepeatHeader] = useState(false);
+  const [productLayout, setProductLayout] = useState<PdfProductLayout>("default");
 
   // Cover elements
   const [coverElements, setCoverElements] = useState<CoverElement[]>([]);
@@ -358,6 +365,7 @@ export function useEditPdfPage() {
     coverImageFit,
     coverImagePosition,
     repeatHeader,
+    productLayout,
     sections,
     coverElements,
   };
@@ -505,6 +513,7 @@ export function useEditPdfPage() {
               if (s.coverImagePosition)
                 setCoverImagePosition(s.coverImagePosition);
               if (s.repeatHeader !== undefined) setRepeatHeader(s.repeatHeader);
+              setProductLayout(resolvePdfProductLayout(s.productLayout));
 
               // Load sections
               if (s.sections && s.sections.length > 0) {
@@ -572,6 +581,7 @@ export function useEditPdfPage() {
               if (s.coverImagePosition)
                 setCoverImagePosition(s.coverImagePosition);
               if (s.repeatHeader !== undefined) setRepeatHeader(s.repeatHeader);
+              setProductLayout(resolvePdfProductLayout(s.productLayout));
 
               // Load sections from tenant defaults
               if (s.sections && s.sections.length > 0) {
@@ -671,7 +681,12 @@ export function useEditPdfPage() {
     if (!suppressLoading) setIsSaving(true);
 
     try {
-      const sanitizedSettings = cleanForFirestore(currentSettingsObj);
+      const sanitizedSettings = cleanForFirestore(
+        mergeEditorPdfSettings(
+          proposal.pdfSettings as Record<string, unknown> | undefined,
+          currentSettingsObj,
+        ),
+      );
       const payloadSize = JSON.stringify(sanitizedSettings).length;
       if (payloadSize > 950000) {
         toast.error(
@@ -688,7 +703,10 @@ export function useEditPdfPage() {
         pdfSettings: sanitizedSettings as Proposal["pdfSettings"],
       });
 
-      setInitialSettingsJson(JSON.stringify(sanitizedSettings));
+      setInitialSettingsJson(currentSettingsJson);
+      setProposal((prev) =>
+        prev ? { ...prev, pdfSettings: sanitizedSettings as Proposal["pdfSettings"] } : prev,
+      );
 
       if (!suppressToast) {
         toast.success("Proposta e personalizações salvas com sucesso!");
@@ -760,6 +778,8 @@ export function useEditPdfPage() {
     setSections: setSectionsNormalized,
     repeatHeader,
     setRepeatHeader,
+    productLayout,
+    setProductLayout,
     canEditPdfSections,
     maxPdfTemplates,
 
@@ -781,7 +801,9 @@ export function useEditPdfPage() {
       if (!tenant || !proposal) return;
       setIsSavingDefault(true);
       try {
-        const sanitizedSettings = cleanForFirestore(currentSettingsObj);
+        const sanitizedSettings = cleanForFirestore(
+          mergeEditorPdfSettings(tenant.proposalDefaults, currentSettingsObj),
+        );
 
         // PASSO 1: Salva as configurações como padrão no tenant
         // Essas configurações serão aplicadas automaticamente em NOVAS propostas criadas no futuro
@@ -794,9 +816,9 @@ export function useEditPdfPage() {
         // Isso garante que a proposta atual mantenha essas configurações específicas
         await handleSave({ suppressToast: true, suppressLoading: true });
 
-        // PASSO 3: Atualiza o contexto do tenant no frontend
-        // Isso faz com que novas propostas criadas nesta sessão já usem as novas configurações
-        refreshTenant();
+        // O tenant da tela se atualiza sozinho pelo listener em tempo real
+        // (TenantProvider). Não chamar refreshTenant: ele recarrega a empresa
+        // inteira com a tela em carregamento, e o formulário aberto desmonta.
 
         toast.success("Configurações salvas como padrão para novas propostas!");
       } catch (error) {

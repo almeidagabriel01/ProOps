@@ -1,6 +1,12 @@
 // PDF Display Settings Type
 // Shared across form and PDF components for configuration
 
+/**
+ * Como os produtos aparecem no PDF; ver `components/pdf/product-layout.ts`.
+ * Ausente = "default", o PDF de sempre.
+ */
+export type PdfProductLayout = "default" | "grid" | "list" | "table";
+
 export interface PdfDisplaySettings {
   showProductImages: boolean;
   showProductDescriptions: boolean;
@@ -13,6 +19,7 @@ export interface PdfDisplaySettings {
   showLogo: boolean;
   showValidUntil: boolean;
   showNotes: boolean;
+  productLayout?: PdfProductLayout;
   [key: string]: unknown;
 }
 

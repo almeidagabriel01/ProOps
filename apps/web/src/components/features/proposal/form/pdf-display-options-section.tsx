@@ -4,6 +4,12 @@ import * as React from "react";
 import { Settings2 } from "lucide-react";
 import { Proposal } from "@/types/proposal";
 import { useTenant } from "@/providers/tenant-provider";
+import { usePermissions } from "@/providers/permissions-provider";
+import { Button } from "@/components/ui/button";
+import { Loader } from "@/components/ui/loader";
+import { toast } from "@/lib/toast";
+import { pickPdfDisplayDefaults } from "@/lib/proposal/pdf-settings-merge";
+import { TenantService } from "@/services/tenant-service";
 import { getNicheConfig } from "@/lib/niches/config";
 import {
   PdfDisplaySettings,
@@ -61,6 +67,8 @@ export function PdfDisplayOptionsSection({
   setFormData,
 }: PdfDisplayOptionsSectionProps) {
   const { tenant } = useTenant();
+  const { isMaster, isDemo } = usePermissions();
+  const [isSavingDefault, setIsSavingDefault] = React.useState(false);
   const nicheConfig = getNicheConfig(tenant?.niche);
   const allowsDimensionPricing = nicheConfig.pricing.dimensionModes.length > 0;
 
@@ -78,6 +86,27 @@ export function PdfDisplayOptionsSection({
         [key]: value,
       },
     }));
+  };
+
+  const saveAsCompanyDefault = async () => {
+    if (!tenant?.id) return;
+    setIsSavingDefault(true);
+    try {
+      await TenantService.updateTenant(tenant.id, {
+        proposalDefaults: {
+          ...(tenant.proposalDefaults ?? {}),
+          ...pickPdfDisplayDefaults(settings),
+        },
+      });
+      // Sem refreshTenant: ele recarrega a empresa com a tela em carregamento,
+      // o formulário desmonta e a proposta em edição volta ao passo 1, vazia.
+      // O listener do TenantProvider já traz o proposalDefaults novo.
+      toast.success("Padrão salvo: as próximas propostas já começam com estas opções.");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Erro ao salvar o padrão da empresa.");
+    } finally {
+      setIsSavingDefault(false);
+    }
   };
 
   return (
@@ -170,6 +199,23 @@ export function PdfDisplayOptionsSection({
           aplicadas ao PDF gerado para esta proposta. Você pode visualizar o
           resultado antes de salvar.
         </p>
+        {isMaster && !isDemo && (
+          <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <p className="text-xs text-muted-foreground">
+              Quer estas opções em toda proposta nova?
+            </p>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={saveAsCompanyDefault}
+              disabled={isSavingDefault}
+            >
+              {isSavingDefault && <Loader size="sm" variant="button" className="mr-2" />}
+              Usar como padrão da empresa
+            </Button>
+          </div>
+        )}
       </div>
     </div>
   );

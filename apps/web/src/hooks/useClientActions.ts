@@ -26,6 +26,10 @@ export interface CreateClientData {
   /** Comissao padrao do parceiro; `null` = nao informada. */
   commissionPercentage?: number | null;
   linkedMemberId?: string | null;
+  /** Quem da equipe cuida do cliente; `null` = ninguém. */
+  responsibleMemberId?: string | null;
+  /** Parceiros externos (contatos vendedor ou arquiteto) que cuidam dele. */
+  partnerContactIds?: string[];
   /**
    * Endereco fiscal do destinatario, exigido so pela NF-e. Separado do
    * `address` livre porque a SEFAZ valida logradouro, numero, bairro, UF e o

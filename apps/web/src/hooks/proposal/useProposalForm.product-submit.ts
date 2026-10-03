@@ -548,6 +548,11 @@ export function useProposalFormProductSubmit(
             // num campo que só dá para preencher voltando em Contatos.
             document: newClientDocument?.trim() || undefined,
             types: clientTypes.length > 0 ? clientTypes : ["cliente"],
+            // Quem cuida da venda passa a cuidar do cliente que ela criou.
+            ...(formData.sellerId ? { responsibleMemberId: formData.sellerId } : {}),
+            ...(formData.partnerContactIds?.length
+              ? { partnerContactIds: formData.partnerContactIds }
+              : {}),
             source: "proposal",
             targetTenantId: tenant.id,
           },

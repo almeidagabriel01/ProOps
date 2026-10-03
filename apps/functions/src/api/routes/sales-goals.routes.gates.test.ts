@@ -50,6 +50,7 @@ it.each([
   ["PUT", "/sales-goals", "updateSalesGoals"],
   ["GET", "/sales-goals/progress?month=2026-09", "getSalesGoalsProgress"],
   ["GET", "/sales-goals/sellers", "listSellers"],
+  ["GET", "/sales-goals/my-commissions?month=2026-10", "getMyCommissions"],
 ])("%s %s exige a capacidade salesGoals e chega no handler certo", async (method, path, handler) => {
   hits.length = 0;
   const res = await fetch(`${base}${path}`, { method });

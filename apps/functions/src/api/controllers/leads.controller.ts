@@ -256,6 +256,11 @@ export async function convertLead(req: Request, res: Response) {
       email: email?.toLowerCase().trim(),
       phone,
       notes: (found.data.notes as string | undefined) || undefined,
+      // Quem cuidava do lead passa a cuidar do cliente.
+      responsibleMemberId: (found.data.ownerId as string | undefined) || undefined,
+      responsibleMemberName: found.data.ownerId
+        ? (found.data.ownerName as string | undefined) || undefined
+        : undefined,
       createdAt: now,
       updatedAt: now,
     });

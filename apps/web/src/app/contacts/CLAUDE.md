@@ -86,7 +86,9 @@ export type Client = {
   notes?: string;
   types: ClientType[];      // Array — permite ser fornecedor E arquiteto ao mesmo tempo
   commissionPercentage?: number | null;  // Comissão padrão; só para vendedor/arquiteto
-  linkedMemberId?: string | null;        // Vendedor que é da equipe: o membro ligado
+  linkedMemberId?: string | null;        // Parceiro (vendedor ou arquiteto) que é da equipe: o membro ligado
+  responsibleMemberId?: string | null;   // Quem da equipe cuida do cliente (nome em responsibleMemberName)
+  partnerContactIds?: string[];          // Parceiros externos (vendedor/arquiteto) que cuidam dele
   source: ClientSource;     // Origem do cadastro
   sourceId?: string;        // ID da proposta ou lançamento que criou o cliente
   createdAt: string;        // ISO 8601
@@ -142,19 +144,32 @@ tem nome, telefone, documento, `searchTokens`, regra de Firestore e tela; e como
 `types` sempre foi array, a mesma pessoa pode ser fornecedor e arquiteto. Os dois
 recebem comissão, definida na proposta (ver `Proposal.commissions[]`).
 
-**Vendedor da equipe (`linkedMemberId`, campo "É da equipe?").** O vendedor
-interno é membro (é o "responsável pela venda" da proposta, que conta na meta)
-e também contato vendedor (recebe comissão). Ligar os dois faz a comissão
-entrar sozinha na proposta quando ele é o responsável
-(`lib/contacts/seller-commission.ts`). Só para vendedor e só nos planos com
-metas (`_components/contact-member-link-field.tsx`); o backend recusa membro de
-outra empresa e membro já ligado a outro contato. O campo divide a linha com
+**Parceiro da equipe (`linkedMemberId`, campo "É da equipe?").** O vendedor ou
+arquiteto interno é membro (vê "Minhas comissões" no Dashboard; o vendedor
+também é o "responsável pela venda", que conta na meta) e também contato
+parceiro (recebe comissão). Ligar os dois põe as comissões dele no card
+"Minhas comissões" e, para o vendedor, faz a comissão entrar sozinha na
+proposta quando ele é o responsável (`lib/contacts/seller-commission.ts`). Para
+vendedor e arquiteto (`isCommissionPartner`), só nos planos com metas
+(`_components/contact-member-link-field.tsx`); o backend recusa contato que não
+é parceiro, membro de outra empresa e membro já ligado a outro contato. O campo divide a linha com
 o Nome (`showsMemberLink` decide o layout na página, e o campo não some
 enquanto a equipe carrega, só fica desabilitado), SEM dica no cabeçalho do
 `FormItem` e com a explicação embaixo do select: a linha do rótulo tem altura
 fixa e divide a largura com a dica, e qualquer texto ali quebrava "É da equipe?"
 em duas linhas. Na proposta, o "Responsável pela venda" divide a linha com o
 Endereço pelo mesmo motivo (`addressSibling` de `ProposalClientSection`).
+
+**Quem cuida do cliente** (`responsibleMemberId` e `partnerContactIds`, bloco
+`_components/contact-responsibles-section.tsx`, o mesmo no cadastro e na
+edição): só para contato do tipo cliente, em todos os planos. A proposta herda
+os dois ao escolher o cliente. A lista ganha a coluna "Responsável" (o nome
+vem gravado no contato) e o filtro "Responsável" (`resp` no endereço: `eu`,
+`m:<uid>` ou `p:<contato>`, modelo em `lib/contacts/responsible-filter.ts`),
+que entra no modo filtrado e consulta por igualdade sem índice novo. A equipe
+vem de `GET /v1/team/people` (`useContactResponsibles`); a conta de
+demonstração não chama a API. Não confundir com o `linkedMemberId` acima, que
+é o lado do parceiro.
 
 `isCommissionPartner` e a lista dos papéis ficam em
 `src/lib/contacts/commission-partner.ts`, **fora** do `client-service`: aquele

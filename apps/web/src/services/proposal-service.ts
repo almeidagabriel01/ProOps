@@ -465,6 +465,30 @@ export const ProposalService = {
    * palavras em title/clientName. Termo sem palavra com >= 2 chars → []
    * sem query.
    */
+  /**
+   * Propostas de que uma pessoa da equipe (`sellerId`) ou um parceiro
+   * (`partnerContactIds`) cuida. Igualdade ou array-contains junto do tenant,
+   * sem orderBy: não pede índice composto. A tela ordena.
+   */
+  getProposalsByResponsible: async (
+    tenantId: string,
+    filter: { kind: "member" | "partner"; id: string },
+    max = 500,
+  ): Promise<Proposal[]> => {
+    if (!tenantId || !filter.id) return [];
+    const snap = await getDocs(
+      query(
+        collection(db, COLLECTION_NAME),
+        where("tenantId", "==", tenantId),
+        filter.kind === "member"
+          ? where("sellerId", "==", filter.id)
+          : where("partnerContactIds", "array-contains", filter.id),
+        limit(max),
+      ),
+    );
+    return snap.docs.map(mapProposalDoc);
+  },
+
   searchProposals: async (
     tenantId: string,
     term: string,

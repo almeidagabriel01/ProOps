@@ -63,12 +63,20 @@ import {
 } from "../services/proposal-numbering.service";
 import { approvalTimestampUpdate, resolveSeller } from "../services/sales-goals";
 import { sanitizeProposalProductsInput } from "../services/proposal-products-sanitize";
+import {
+  MAX_PARTNER_CONTACTS,
+  contactResponsiblesErrorMessage,
+  resolvePartnerContactIds,
+} from "../services/contact-responsibles";
 
 const CreateProposalSchema = z.object({
   title: z.string().max(300).trim().optional(),
   // Vendedor da proposta (metas de vendas): membro da empresa, conferido no
   // controller. Ausente na criação, é quem criou.
   sellerId: z.string().max(128).nullable().optional(),
+  // Parceiros externos (contatos vendedor ou arquiteto) que cuidam da venda.
+  // Herdados do cliente pela tela; conferidos no controller.
+  partnerContactIds: z.array(z.string().min(1).max(128)).max(MAX_PARTNER_CONTACTS).optional(),
   clientId: z.string().max(100).optional(),
   clientName: z.string().max(200).trim().optional().or(z.literal("")),
   clientEmail: z.string().max(254).optional().or(z.literal("")),
@@ -993,6 +1001,16 @@ export const createProposal = async (req: Request, res: Response) => {
         return res.status(400).json({ message: "Vendedor inválido para esta empresa." });
       }
     }
+    let partnerContactIds: string[] = [];
+    if (Array.isArray(input.partnerContactIds) && input.partnerContactIds.length > 0) {
+      try {
+        partnerContactIds = await resolvePartnerContactIds(userCompanyId, input.partnerContactIds);
+      } catch (error) {
+        const message = contactResponsiblesErrorMessage(error);
+        if (message) return res.status(400).json({ message });
+        throw error;
+      }
+    }
     // Proposta que já nasce aprovada conta na meta do mês em que foi criada.
     const approvedOnCreate =
       !isDraft && (await isStatusApproved(input.status as string | undefined, userCompanyId));
@@ -1199,6 +1217,7 @@ export const createProposal = async (req: Request, res: Response) => {
           createdByName: userData?.name || "Usuário",
           sellerId: seller.sellerId,
           sellerName: seller.sellerName,
+          partnerContactIds,
           approvedAt: approvedOnCreate ? now.toDate().toISOString() : null,
           companyId: userCompanyId,
           tenantId: userCompanyId,
@@ -1489,6 +1508,8 @@ export const updateProposal = async (req: Request, res: Response) => {
       "attachments",
       // Vendedor (metas de vendas); conferido abaixo
       "sellerId",
+      // Parceiros que cuidam da venda; conferidos abaixo
+      "partnerContactIds",
     ];
 
     fields.forEach((f) => {
@@ -1506,7 +1527,7 @@ export const updateProposal = async (req: Request, res: Response) => {
         safeUpdate[f] = sanitizeProposalCommissionsInput(updateData[f]);
         return;
       }
-      if (f === "sellerId") return; // resolvido abaixo, com o nome
+      if (f === "sellerId" || f === "partnerContactIds") return; // conferidos abaixo
       safeUpdate[f] = updateData[f];
     });
 
@@ -1518,6 +1539,19 @@ export const updateProposal = async (req: Request, res: Response) => {
         );
       } catch {
         return res.status(400).json({ message: "Vendedor inválido para esta empresa." });
+      }
+    }
+
+    if (typeof updateData.partnerContactIds !== "undefined") {
+      try {
+        safeUpdate.partnerContactIds = await resolvePartnerContactIds(
+          proposalTenantId,
+          Array.isArray(updateData.partnerContactIds) ? (updateData.partnerContactIds as string[]) : [],
+        );
+      } catch (error) {
+        const message = contactResponsiblesErrorMessage(error);
+        if (message) return res.status(400).json({ message });
+        throw error;
       }
     }
 

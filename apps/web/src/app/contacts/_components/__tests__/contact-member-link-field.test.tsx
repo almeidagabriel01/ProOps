@@ -37,15 +37,23 @@ describe("É da equipe?", () => {
     render(<ContactMemberLinkField types={["vendedor"]} value={null} onChange={vi.fn()} />);
     const label = await screen.findByText("É da equipe?");
     expect(label.parentElement?.children).toHaveLength(1);
-    expect(screen.getByText(/a comissão dele entra sozinha/)).toBeInTheDocument();
+    expect(screen.getByText(/vê as próprias comissões no Dashboard/)).toBeInTheDocument();
   });
 
-  it("arquiteto e cliente não têm o campo: são parceiros externos", () => {
+  it("arquiteto também liga a um membro (para ver as comissões dele)", async () => {
+    const onChange = vi.fn();
+    render(<ContactMemberLinkField types={["arquiteto"]} value={null} onChange={onChange} />);
+    await userEvent.selectOptions(await screen.findByLabelText("É da equipe?"), "u-ana");
+    expect(onChange).toHaveBeenCalledWith("u-ana");
+    expect(screen.getByRole("option", { name: "Não, é parceiro externo" })).toBeInTheDocument();
+  });
+
+  it("cliente e fornecedor não têm o campo: não recebem comissão", () => {
     const { container, rerender } = render(
-      <ContactMemberLinkField types={["arquiteto"]} value={null} onChange={vi.fn()} />,
+      <ContactMemberLinkField types={["cliente"]} value={null} onChange={vi.fn()} />,
     );
     expect(container).toBeEmptyDOMElement();
-    rerender(<ContactMemberLinkField types={["cliente"]} value={null} onChange={vi.fn()} />);
+    rerender(<ContactMemberLinkField types={["fornecedor"]} value={null} onChange={vi.fn()} />);
     expect(container).toBeEmptyDOMElement();
     expect(m.sellers).not.toHaveBeenCalled();
   });
@@ -66,10 +74,17 @@ describe("layout: divide a linha com o nome só quando aparece", () => {
     expect(showsMemberLink(["cliente", "vendedor"], true)).toBe(true);
   });
 
-  it("sem vendedor ou sem plano: não aparece (o nome ocupa a linha toda)", async () => {
+  it("arquiteto com plano de metas: aparece", async () => {
     const { showsMemberLink } = await import("../contact-member-link-field");
-    expect(showsMemberLink(["arquiteto"], true)).toBe(false);
+    expect(showsMemberLink(["arquiteto"], true)).toBe(true);
+    expect(showsMemberLink(["fornecedor", "arquiteto"], true)).toBe(true);
+  });
+
+  it("sem parceiro ou sem plano: não aparece (o nome ocupa a linha toda)", async () => {
+    const { showsMemberLink } = await import("../contact-member-link-field");
+    expect(showsMemberLink(["cliente", "fornecedor"], true)).toBe(false);
     expect(showsMemberLink(["vendedor"], false)).toBe(false);
+    expect(showsMemberLink(["arquiteto"], false)).toBe(false);
   });
 
   it("enquanto a equipe carrega, o campo existe desabilitado (não some e não desmonta a linha)", async () => {

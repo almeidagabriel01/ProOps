@@ -44,6 +44,10 @@ import { isCommissionPartner } from "@/lib/contacts/commission-partner";
 import type { ClientType } from "@/services/client-service";
 import { formatDocumento } from "@/lib/format-document";
 import { toast } from "@/lib/toast";
+import {
+  ContactResponsiblesSection,
+  showsContactResponsibles,
+} from "../_components/contact-responsibles-section";
 
 
 /**
@@ -112,6 +116,8 @@ export default function NewCustomerPage() {
     types: ["cliente"] as ClientType[],
     commissionPercentage: null as number | null,
     linkedMemberId: null as string | null,
+    responsibleMemberId: null as string | null,
+    partnerContactIds: [] as string[],
     fiscal: EMPTY_CLIENT_FISCAL as ClientFiscalValues,
   });
 
@@ -127,7 +133,7 @@ export default function NewCustomerPage() {
       clearFieldError(
         name as Exclude<
           keyof typeof formData,
-          "types" | "commissionPercentage" | "linkedMemberId" | "fiscal"
+          "types" | "commissionPercentage" | "linkedMemberId" | "responsibleMemberId" | "partnerContactIds" | "fiscal"
         >,
       );
     }
@@ -150,7 +156,7 @@ export default function NewCustomerPage() {
       validateField(
         name as Exclude<
           keyof typeof formData,
-          "types" | "commissionPercentage" | "linkedMemberId" | "fiscal"
+          "types" | "commissionPercentage" | "linkedMemberId" | "responsibleMemberId" | "partnerContactIds" | "fiscal"
         >,
         value,
         formData,
@@ -203,8 +209,15 @@ export default function NewCustomerPage() {
         document: formData.document ? formData.document.replace(/\D/g, "") : undefined,
         types: formData.types,
         commissionPercentage: formData.commissionPercentage,
-        // Só vendedor fica ligado a um membro.
-        linkedMemberId: formData.types.includes("vendedor") ? formData.linkedMemberId : null,
+        // Só parceiro (vendedor ou arquiteto) fica ligado a um membro.
+        linkedMemberId: isCommissionPartner(formData) ? formData.linkedMemberId : null,
+        // Quem cuida do cliente só vale para cliente.
+        ...(showsContactResponsibles(formData.types)
+          ? {
+              responsibleMemberId: formData.responsibleMemberId,
+              partnerContactIds: formData.partnerContactIds,
+            }
+          : {}),
         enderecoFiscal: {
           cep: formData.fiscal.cep.replace(/\D/g, ""),
           logradouro: formData.fiscal.logradouro.trim(),
@@ -384,6 +397,15 @@ export default function NewCustomerPage() {
                 icon={<MapPin className="w-4 h-4" />}
               />
             </FormItem>
+
+            <ContactResponsiblesSection
+              types={formData.types}
+              value={{
+                responsibleMemberId: formData.responsibleMemberId,
+                partnerContactIds: formData.partnerContactIds,
+              }}
+              onChange={(responsibles) => setFormData((prev) => ({ ...prev, ...responsibles }))}
+            />
           </div>
           <StepNavigation onBeforeNext={validateStep1} />
         </FormStepCard>

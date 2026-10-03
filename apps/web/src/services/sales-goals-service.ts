@@ -34,6 +34,32 @@ export interface MyGoalProgress {
 
 export type GoalProgress = CompanyGoalProgress | MyGoalProgress;
 
+export interface MyCommissionEntry {
+  transactionId: string;
+  amount: number;
+  dueDate: string;
+  status: string;
+  description: string;
+  installmentNumber: number | null;
+  installmentCount: number | null;
+}
+
+/** As comissões do mês do contato parceiro ligado a quem está logado. */
+export interface MyCommissions {
+  month: string;
+  /** Sem contato parceiro ligado à pessoa, o card nem aparece. */
+  linked: boolean;
+  aPagar: number;
+  pago: number;
+  total: number;
+  partners: Array<{
+    contactId: string;
+    contactName: string;
+    role: "vendedor" | "arquiteto" | null;
+    entries: MyCommissionEntry[];
+  }>;
+}
+
 /** Metas de vendas (Pro e Enterprise). Tudo pela API: a coleção é fechada nas rules. */
 export const SalesGoalsService = {
   async getConfig(month: string): Promise<SalesGoalsConfig> {
@@ -50,6 +76,10 @@ export const SalesGoalsService = {
 
   async progress(month: string): Promise<GoalProgress> {
     return callApi<GoalProgress>(`/v1/sales-goals/progress?month=${month}`, "GET");
+  },
+
+  async myCommissions(month: string): Promise<MyCommissions> {
+    return callApi<MyCommissions>(`/v1/sales-goals/my-commissions?month=${month}`, "GET");
   },
 
   async sellers(): Promise<SalesGoalsPerson[]> {

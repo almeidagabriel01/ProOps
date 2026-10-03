@@ -45,6 +45,9 @@ vi.mock("@/hooks/usePlanLimits", () => ({
   }),
 }));
 
+vi.mock("@/hooks/use-contact-responsibles", () => ({
+  useContactResponsibles: () => ({ people: [], partners: [], loading: false }),
+}));
 vi.mock("@/hooks/useClientActions", () => ({
   useClientActions: () => ({ createClient, isLoading: false }),
 }));

@@ -8,6 +8,7 @@ import {
   deleteObject,
   uploadString,
 } from "firebase/storage";
+import { withFriendlyUploadError } from "@/lib/storage-upload-error";
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024;
 const MAX_ATTACHMENT_FILE_SIZE = 10 * 1024 * 1024;
@@ -121,13 +122,15 @@ export async function uploadImage(
 
   const storageRef = ref(storage, path);
 
-  await uploadBytes(storageRef, file, {
-    contentType: file.type,
-    customMetadata: {
-      originalName: file.name,
-      uploadedAt: new Date().toISOString(),
-    },
-  });
+  await withFriendlyUploadError(() =>
+    uploadBytes(storageRef, file, {
+      contentType: file.type,
+      customMetadata: {
+        originalName: file.name,
+        uploadedAt: new Date().toISOString(),
+      },
+    }),
+  );
 
   const url = await getDownloadURL(storageRef);
 
@@ -161,12 +164,14 @@ export async function uploadBase64Image(
 
   const storageRef = ref(storage, path);
 
-  await uploadString(storageRef, base64Content, "base64", {
-    contentType,
-    customMetadata: {
-      uploadedAt: new Date().toISOString(),
-    },
-  });
+  await withFriendlyUploadError(() =>
+    uploadString(storageRef, base64Content, "base64", {
+      contentType,
+      customMetadata: {
+        uploadedAt: new Date().toISOString(),
+      },
+    }),
+  );
 
   const url = await getDownloadURL(storageRef);
 
@@ -216,14 +221,16 @@ export async function uploadProposalAttachment(
   const path = `tenants/${tenantId}/proposals/${proposalId}/attachments/${fileName}`;
   const storageRef = ref(storage, path);
 
-  await uploadBytes(storageRef, file, {
-    contentType: file.type,
-    customMetadata: {
-      originalName: file.name,
-      uploadedAt: new Date().toISOString(),
-      attachmentType: file.type === "application/pdf" ? "pdf" : "image",
-    },
-  });
+  await withFriendlyUploadError(() =>
+    uploadBytes(storageRef, file, {
+      contentType: file.type,
+      customMetadata: {
+        originalName: file.name,
+        uploadedAt: new Date().toISOString(),
+        attachmentType: file.type === "application/pdf" ? "pdf" : "image",
+      },
+    }),
+  );
 
   const url = await getDownloadURL(storageRef);
   return { url, path };

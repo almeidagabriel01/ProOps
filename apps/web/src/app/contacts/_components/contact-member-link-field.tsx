@@ -6,6 +6,7 @@ import { Select } from "@/components/ui/select";
 import { usePlanLimits } from "@/hooks/usePlanLimits";
 import { SalesGoalsService, type SalesGoalsPerson } from "@/services/sales-goals-service";
 import type { ClientType } from "@/services/client-service";
+import { isCommissionPartner } from "@/lib/contacts/commission-partner";
 
 /**
  * Se o campo aparece. A página usa isto para decidir o layout (ao lado do
@@ -13,7 +14,7 @@ import type { ClientType } from "@/services/client-service";
  * sumir depois de a linha já ter sido dividida.
  */
 export function showsMemberLink(types: ClientType[], hasSalesGoals: boolean): boolean {
-  return hasSalesGoals && types.includes("vendedor");
+  return hasSalesGoals && isCommissionPartner({ types });
 }
 
 interface ContactMemberLinkFieldProps {
@@ -23,11 +24,13 @@ interface ContactMemberLinkFieldProps {
 }
 
 /**
- * "É da equipe?": liga o contato vendedor a um membro. É o que faz a comissão
- * dele entrar sozinha na proposta quando ele é o responsável pela venda.
+ * "É da equipe?": liga o contato parceiro (vendedor ou arquiteto) a um membro.
+ * Ligado, ele acompanha as comissões dele no Dashboard ("Minhas comissões"); e,
+ * se for vendedor, a comissão entra sozinha na proposta quando ele é o
+ * responsável pela venda.
  *
- * Só para vendedor (o arquiteto é parceiro externo) e só nos planos com metas,
- * onde existe o responsável pela venda. O vendedor externo fica em "Não".
+ * Só nos planos com metas, onde existe o responsável pela venda. O parceiro
+ * externo fica em "Não".
  */
 export function ContactMemberLinkField({ types, value, onChange }: ContactMemberLinkFieldProps) {
   const { hasSalesGoals } = usePlanLimits();
@@ -63,7 +66,7 @@ export function ContactMemberLinkField({ types, value, onChange }: ContactMember
           disabled={people.length === 0}
           disableSort
         >
-          <option value="">Não, é vendedor externo</option>
+          <option value="">Não, é parceiro externo</option>
           {people.map((person) => (
             <option key={person.id} value={person.id}>
               Sim: {person.name}
@@ -71,8 +74,8 @@ export function ContactMemberLinkField({ types, value, onChange }: ContactMember
           ))}
         </Select>
         <p className="text-xs text-muted-foreground">
-          Ligado a um membro, a comissão dele entra sozinha na proposta quando ele é o
-          responsável pela venda.
+          Ligado a um membro, ele vê as próprias comissões no Dashboard. Se for vendedor, a
+          comissão entra sozinha na proposta quando ele é o responsável pela venda.
         </p>
       </div>
     </FormItem>

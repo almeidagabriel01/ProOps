@@ -1,5 +1,6 @@
 import { Router } from "express";
 import {
+  getMyCommissions,
   getSalesGoals,
   getSalesGoalsProgress,
   listSellers,
@@ -16,6 +17,7 @@ router.use("/sales-goals", requirePlanCapability("salesGoals"));
 // Caminhos fixos antes de qualquer parâmetro.
 router.get("/sales-goals/progress", getSalesGoalsProgress);
 router.get("/sales-goals/sellers", listSellers);
+router.get("/sales-goals/my-commissions", getMyCommissions);
 router.get("/sales-goals", getSalesGoals);
 router.put("/sales-goals", updateSalesGoals);
 

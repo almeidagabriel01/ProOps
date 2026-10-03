@@ -7,6 +7,11 @@ import { Switch } from "@/components/ui/switch";
 import { fontOptions, themeOptions, ThemeType } from "./pdf-theme-utils";
 import { PdfSection } from "@/components/features/proposal/pdf-section-editor";
 import { useThemeAdjustedColor } from "@/hooks/useThemeAdjustedColor";
+import {
+  PDF_PRODUCT_LAYOUTS,
+  type PdfProductLayout,
+} from "@/components/pdf/product-layout";
+import { cn } from "@/lib/utils";
 
 interface PdfStyleTabProps {
   primaryColor: string;
@@ -15,6 +20,8 @@ interface PdfStyleTabProps {
   setFontFamily: (val: string) => void;
   repeatHeader: boolean;
   setRepeatHeader: (val: boolean) => void;
+  productLayout: PdfProductLayout;
+  setProductLayout: (val: PdfProductLayout) => void;
   setSections: React.Dispatch<React.SetStateAction<PdfSection[]>>;
   tenantColor?: string; // Tenant's primary color
   theme: ThemeType;
@@ -27,6 +34,8 @@ export function PdfStyleTab({
   setFontFamily,
   repeatHeader,
   setRepeatHeader,
+  productLayout,
+  setProductLayout,
   setSections,
   tenantColor,
   theme,
@@ -76,89 +85,127 @@ export function PdfStyleTab({
   }, [tenantColor, primaryColor]);
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Cores e Fontes Globais</CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <div className="grid gap-2">
-          <Label>Cor Principal</Label>
-          <div className="flex gap-2">
-            <Input
-              type="color"
-              value={primaryColor}
-              onChange={(e) => {
-                setUseCompanyColor(false);
-                handleColorChange(e.target.value);
-              }}
-              className="w-14 h-10 p-1 cursor-pointer"
-            />
-            <Input
-              value={primaryColor}
-              onChange={(e) => {
-                setUseCompanyColor(false);
-                handleColorChange(e.target.value);
-              }}
-              className="flex-1"
-            />
-          </div>
-        </div>
-        {tenantColor && (
-          <div className="flex items-center space-x-2 p-3 rounded-lg bg-muted/50 border">
-            <Switch
-              id="use-company-color"
-              checked={useCompanyColor}
-              onCheckedChange={handleUseCompanyColorChange}
-            />
-            <div className="flex-1">
-              <Label htmlFor="use-company-color" className="cursor-pointer">
-                Usar cor da empresa
-              </Label>
-              <p className="text-xs text-muted-foreground">
-                Aplica a cor principal da sua empresa ({tenantColor})
-              </p>
+    <>
+      <Card>
+        <CardHeader>
+          <CardTitle>Cores e Fontes Globais</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid gap-2">
+            <Label>Cor Principal</Label>
+            <div className="flex gap-2">
+              <Input
+                type="color"
+                value={primaryColor}
+                onChange={(e) => {
+                  setUseCompanyColor(false);
+                  handleColorChange(e.target.value);
+                }}
+                className="w-14 h-10 p-1 cursor-pointer"
+              />
+              <Input
+                value={primaryColor}
+                onChange={(e) => {
+                  setUseCompanyColor(false);
+                  handleColorChange(e.target.value);
+                }}
+                className="flex-1"
+              />
             </div>
-            <div
-              className="w-6 h-6 rounded-full border"
-              style={{ backgroundColor: tenantColor }}
+          </div>
+          {tenantColor && (
+            <div className="flex items-center space-x-2 p-3 rounded-lg bg-muted/50 border">
+              <Switch
+                id="use-company-color"
+                checked={useCompanyColor}
+                onCheckedChange={handleUseCompanyColorChange}
+              />
+              <div className="flex-1">
+                <Label htmlFor="use-company-color" className="cursor-pointer">
+                  Usar cor da empresa
+                </Label>
+                <p className="text-xs text-muted-foreground">
+                  Aplica a cor principal da sua empresa ({tenantColor})
+                </p>
+              </div>
+              <div
+                className="w-6 h-6 rounded-full border"
+                style={{ backgroundColor: tenantColor }}
+              />
+            </div>
+          )}
+          <div className="grid gap-2">
+            <Label>Fonte Principal</Label>
+            <Select
+              value={fontFamily}
+              onChange={(e) => setFontFamily(e.target.value)}
+            >
+              {fontOptions.map((opt) => (
+                <option key={opt.id} value={opt.value}>
+                  {opt.label}
+                </option>
+              ))}
+            </Select>
+          </div>
+          <div className="flex items-center space-x-2">
+            <Switch
+              id="repeat-header-style"
+              checked={repeatHeader}
+              onCheckedChange={setRepeatHeader}
             />
+            <Label htmlFor="repeat-header-style">
+              Repetir cabeçalho em todas as páginas
+            </Label>
           </div>
-        )}
-        <div className="grid gap-2">
-          <Label>Fonte Principal</Label>
-          <Select
-            value={fontFamily}
-            onChange={(e) => setFontFamily(e.target.value)}
-          >
-            {fontOptions.map((opt) => (
-              <option key={opt.id} value={opt.value}>
-                {opt.label}
-              </option>
-            ))}
-          </Select>
-        </div>
-        <div className="flex items-center space-x-2">
-          <Switch
-            id="repeat-header-style"
-            checked={repeatHeader}
-            onCheckedChange={setRepeatHeader}
-          />
-          <Label htmlFor="repeat-header-style">
-            Repetir cabeçalho em todas as páginas
-          </Label>
-        </div>
-        <div className="p-4 rounded-lg bg-muted" style={{ fontFamily }}>
+          <div className="p-4 rounded-lg bg-muted" style={{ fontFamily }}>
+            <div
+              className="text-lg font-bold mb-2"
+              style={{ color: previewColor }}
+            >
+              Prévia do Estilo
+            </div>
+            <p className="text-sm text-muted-foreground">
+              Este é um exemplo de como o texto aparecerá.
+            </p>
+          </div>
+        </CardContent>
+      </Card>
+      <Card>
+        <CardHeader>
+          <CardTitle>Produtos no PDF</CardTitle>
+        </CardHeader>
+        <CardContent>
           <div
-            className="text-lg font-bold mb-2"
-            style={{ color: previewColor }}
+            role="radiogroup"
+            aria-label="Layout dos produtos no PDF"
+            className="grid gap-2 sm:grid-cols-2"
           >
-            Prévia do Estilo
+            {PDF_PRODUCT_LAYOUTS.map((layout) => {
+              const selected = productLayout === layout.value;
+              return (
+                <button
+                  key={layout.value}
+                  type="button"
+                  role="radio"
+                  aria-checked={selected}
+                  onClick={() => setProductLayout(layout.value)}
+                  className={cn(
+                    "rounded-lg border p-3 text-left transition-colors",
+                    selected
+                      ? "border-primary bg-primary/5 ring-2 ring-primary/20"
+                      : "hover:border-primary/50",
+                  )}
+                >
+                  <span className="block text-sm font-medium">{layout.label}</span>
+                  <span className="block text-xs text-muted-foreground">
+                    {layout.description}
+                  </span>
+                </button>
+              );
+            })}
           </div>
-          <p className="text-sm text-muted-foreground">
-            Este é um exemplo de como o texto aparecerá.
-          </p>
-        </div>
-      </CardContent>
-    </Card>
+        </CardContent>
+      </Card>
+    </>
   );
 }

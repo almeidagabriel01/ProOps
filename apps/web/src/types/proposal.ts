@@ -149,6 +149,11 @@ export interface Proposal {
   /** Quem vendeu (metas de vendas). Padrão: quem criou. */
   sellerId?: string | null;
   sellerName?: string | null;
+  /**
+   * Parceiros externos (contatos vendedor ou arquiteto) que cuidam da venda.
+   * Herdados do cliente ao escolhê-lo; não entram no PDF.
+   */
+  partnerContactIds?: string[];
   /** Quando foi aprovada (ISO). Apagado se a proposta sair de aprovada. */
   approvedAt?: string | null;
 

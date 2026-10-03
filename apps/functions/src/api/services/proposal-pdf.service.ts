@@ -124,6 +124,7 @@ export const PDF_IRRELEVANT_PROPOSAL_FIELDS = new Set([
   // e sem isto trocar o vendedor refazia o PDF e reentregava no Drive.
   "sellerId",
   "sellerName",
+  "partnerContactIds",
   "approvedAt",
 ]);
 
