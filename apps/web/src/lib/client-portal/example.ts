@@ -66,4 +66,27 @@ export const EXAMPLE_PORTAL: PortalView = {
   invoices: [
     { id: "ex-n1", type: "nfse", number: "58", amount: 6133.34, issuedAt: "2026-08-15T12:00:00.000Z", pdfUrl: "" },
   ],
+  contracts: [
+    {
+      id: "ex-c1",
+      code: "CT-0003",
+      title: "Suporte mensal da automação",
+      type: "support",
+      monthlyAmount: 180,
+      billingDay: 10,
+      nextVisitDate: exampleVisit().startsAt.slice(0, 10),
+      isPmoc: false,
+    },
+  ],
+  serviceOrders: [
+    {
+      id: "ex-os1",
+      code: "OS-0012",
+      title: "Ajuste dos cenários da sala",
+      state: "completed",
+      date: "2026-09-20T15:00:00.000Z",
+      technicianName: "Diego",
+      signed: true,
+    },
+  ],
 };

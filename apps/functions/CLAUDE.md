@@ -613,6 +613,13 @@ as notas fiscais dele. Pro e Enterprise (`clientPortal`).
   tem o `clientId` do PARCEIRO), obras não canceladas com o avanço pelas
   etapas, e notas AUTORIZADAS com o PDF do Focus (que abre sem login). Só o
   primeiro nome do contato.
+- **Assistência técnica** (só com `fieldService` no plano): os contratos
+  ATIVOS do contato, com a mensalidade, o dia de vencimento e a próxima visita,
+  e os atendimentos (OS concluída e OS agendada de hoje em diante, até 20; a
+  aberta sem data, em execução ou cancelada ainda é assunto da empresa). O
+  comprovante da OS concluída abre pelo link da OS (`kind: "service_order"`) e
+  o contrato PMOC abre o plano e o relatório (`kind: "pmoc"`), os dois criados
+  só no clique. Sem o módulo, as listas vêm vazias e os dois tipos dão 404.
 - **Token inexistente, empresa sem o plano, ou contato apagado ou de outra
   empresa dão o mesmo 404**, como no agendamento.
 - **Rota pública montada em `/v1/share/portal`, antes dos `app.use("/v1", ...)`

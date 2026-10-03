@@ -218,6 +218,11 @@ seção Portal do cliente.
   a data mais próxima que ainda não passou), sem o id do evento da Agenda.
 - **Nota fiscal abre direto no PDF do Focus**, que dispensa login; não existe
   página nossa para ela.
+- **Contratos e atendimentos** (só com a assistência técnica no plano): o
+  contrato ativo mostra a mensalidade, o dia e a próxima visita, e o PMOC abre
+  `/share/pmoc/...`; o atendimento concluído abre o comprovante em
+  `/share/os/...`. Os campos são opcionais no tipo: com backend antigo as
+  seções só não aparecem.
 - **`/share/portal/exemplo` é o portal fictício da demonstração**
   (`lib/client-portal/example.ts`): dado fixo, sem API, e os itens não abrem.
   A conta free chega nele pelo botão do contato, que não cria link.

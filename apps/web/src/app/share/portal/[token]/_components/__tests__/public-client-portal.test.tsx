@@ -137,4 +137,54 @@ describe("portal do cliente", () => {
     expect(navigate).not.toHaveBeenCalled();
     expect(m.toast.info).toHaveBeenCalled();
   });
+
+  describe("assistência técnica", () => {
+    const fieldService = {
+      contracts: [
+        { id: "c1", code: "CT-0001", title: "PMOC da loja", type: "pmoc", monthlyAmount: 890, billingDay: 10, nextVisitDate: "2026-10-20", isPmoc: true },
+        { id: "c2", code: "CT-0002", title: "Suporte", type: "support", monthlyAmount: 100, billingDay: 5, nextVisitDate: null, isPmoc: false },
+      ],
+      serviceOrders: [
+        { id: "s1", code: "OS-0003", title: "Preventiva", state: "scheduled", date: "2099-01-10T11:00:00.000Z", technicianName: "Téo", signed: false },
+        { id: "s2", code: "OS-0001", title: "Limpeza", state: "completed", date: "2026-09-10T14:00:00.000Z", technicianName: "Téo", signed: true },
+      ],
+    };
+
+    it("mostra os contratos com a mensalidade e os atendimentos", async () => {
+      m.view.mockResolvedValue(makeView(fieldService));
+      render(<PublicClientPortal token="tok123456789abcdef" navigate={vi.fn()} />);
+      expect(await screen.findByText("Contratos")).toBeInTheDocument();
+      expect(screen.getByText(/R\$\s?890,00 por mês, vence todo dia 10/)).toBeInTheDocument();
+      expect(screen.getByText("20/10/2026")).toBeInTheDocument();
+      expect(screen.getByText("Agendado")).toBeInTheDocument();
+      expect(screen.getByText("Concluído")).toBeInTheDocument();
+      // Só o PMOC abre um documento; o agendado ainda não tem comprovante.
+      expect(screen.getAllByRole("button", { name: "Ver o PMOC" })).toHaveLength(1);
+      expect(screen.getAllByRole("button", { name: "Ver comprovante" })).toHaveLength(1);
+    });
+
+    it("o comprovante e o PMOC abrem pela página pública de cada um", async () => {
+      m.view.mockResolvedValue(makeView(fieldService));
+      const navigate = vi.fn();
+      render(<PublicClientPortal token="tok123456789abcdef" navigate={navigate} />);
+      await userEvent.click(await screen.findByRole("button", { name: "Ver comprovante" }));
+      await waitFor(() => expect(m.open).toHaveBeenCalledWith("tok123456789abcdef", "service_order", "s2"));
+      await userEvent.click(screen.getByRole("button", { name: "Ver o PMOC" }));
+      await waitFor(() => expect(m.open).toHaveBeenCalledWith("tok123456789abcdef", "pmoc", "c1"));
+    });
+
+    it("backend sem a assistência (campos ausentes) não quebra o portal", async () => {
+      m.view.mockResolvedValue(makeView());
+      render(<PublicClientPortal token="tok123456789abcdef" navigate={vi.fn()} />);
+      expect(await screen.findByText("Olá, Ana")).toBeInTheDocument();
+      expect(screen.queryByText("Contratos")).toBeNull();
+      expect(screen.queryByText("Atendimentos")).toBeNull();
+    });
+
+    it("o exemplo da demonstração mostra um contrato e um atendimento", () => {
+      render(<PublicClientPortal token="exemplo" navigate={vi.fn()} />);
+      expect(screen.getByText("Suporte mensal da automação")).toBeInTheDocument();
+      expect(screen.getByText("Ajuste dos cenários da sala")).toBeInTheDocument();
+    });
+  });
 });
