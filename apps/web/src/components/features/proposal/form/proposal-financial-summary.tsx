@@ -11,6 +11,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { DollarSign } from "lucide-react";
 import { ProposalProduct } from "@/types/proposal";
+import { countsInProposalTotal } from "@/lib/proposal/monthly-lines";
 
 interface ProposalFinancialSummaryProps {
   selectedProducts: ProposalProduct[];
@@ -25,12 +26,14 @@ export function ProposalFinancialSummary({
   onExtraExpenseChange,
   primaryColor,
 }: ProposalFinancialSummaryProps) {
-  const productItems = selectedProducts.filter(
+  // A mensalidade vira contrato: fora do valor e do lucro da venda.
+  const saleProducts = selectedProducts.filter(countsInProposalTotal);
+  const productItems = saleProducts.filter(
     (item) => (item.itemType || "product") !== "service",
   );
 
   // Calculate total selling value (with markup)
-  const totalValue = selectedProducts.reduce((sum, p) => {
+  const totalValue = saleProducts.reduce((sum, p) => {
     return sum + p.total;
   }, 0);
 

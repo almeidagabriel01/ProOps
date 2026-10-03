@@ -18,7 +18,6 @@ import { ProposalService } from "@/services/proposal-service";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
-import { Spinner } from "@/components/ui/spinner";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -37,6 +36,7 @@ import { ServicesSkeleton } from "./_components/services-skeleton";
 import { ImportButton, ImportDialog } from "@/components/features/import/import-dialog";
 import { OptionService } from "@/services/option-service";
 import { SERVICE_FIELDS } from "@/lib/import/import-fields";
+import { Loader } from "@/components/ui/loader";
 
 export default function ServicesPage() {
   const { tenant, isLoading: tenantLoading } = useTenant();
@@ -352,7 +352,7 @@ export default function ServicesPage() {
             className="bg-destructive hover:bg-destructive/90 gap-2"
             disabled={isDeleting}
           >
-            {isDeleting && <Spinner className="w-4 h-4 text-white" />}
+            {isDeleting && <Loader size="sm" variant="button" className="text-white" />}
             {isDeleting ? "Excluindo..." : "Excluir"}
           </AlertDialogAction>
         </AlertDialogFooter>
@@ -419,7 +419,7 @@ export default function ServicesPage() {
                   onChange={(e) => setSearchTerm(e.target.value)}
                   icon={
                     isFiltering && isLoadingAll ? (
-                      <Spinner className="w-4 h-4" />
+                      <Loader size="sm" variant="button" />
                     ) : (
                       <Search className="w-4 h-4" />
                     )

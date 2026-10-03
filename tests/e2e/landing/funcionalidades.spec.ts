@@ -1,5 +1,6 @@
 import { test, expect } from "@playwright/test";
 import { coletaErrosDeHidratacao } from "../helpers/erros-de-hidratacao";
+import { FUNCIONALIDADE_SLUGS } from "../../../apps/web/src/lib/landing/funcionalidades/slugs";
 
 /**
  * FUNCIONALIDADES: a seção da home, a página com todas em cards e a página de
@@ -13,7 +14,9 @@ import { coletaErrosDeHidratacao } from "../helpers/erros-de-hidratacao";
  * inventado é 404 e nada disso tem erro de hidratação.
  */
 
-const TOTAL_DE_FUNCIONALIDADES = 15;
+// Da lista de slugs, que é a fonte da página: funcionalidade nova não pede
+// para lembrar de atualizar um número aqui.
+const TOTAL_DE_FUNCIONALIDADES = FUNCIONALIDADE_SLUGS.length;
 
 test.describe("FUNCIONALIDADES: a seção da home", () => {
   test.use({ viewport: { width: 1280, height: 800 } });
@@ -25,6 +28,34 @@ test.describe("FUNCIONALIDADES: a seção da home", () => {
     // A pílula do centro aparece com a rolagem.
     await page.mouse.wheel(0, 600);
     await link.click();
+    await expect(page).toHaveURL(/\/#recursos$/);
+    await expect(page.locator("#recursos")).toBeInViewport();
+  });
+
+  // O Lenis nasce num requestIdleCallback. Num runner lento o clique chegava
+  // antes dele: a rolagem começava nativa, o Lenis nascia no meio dela, fixava
+  // a página onde estava e a seção nunca entrava na tela. Aqui o idle fica
+  // preso até depois do clique, para o atraso deixar de ser sorte.
+  test("o clique antes de o Lenis nascer ainda chega à seção", async ({ page }) => {
+    await page.addInitScript(() => {
+      const fila: Array<() => void> = [];
+      const original = window.requestIdleCallback.bind(window);
+      let solto = false;
+      window.requestIdleCallback = ((cb: IdleRequestCallback, opts?: IdleRequestOptions) => {
+        if (solto) return original(cb, opts);
+        fila.push(() => original(cb, opts));
+        return 0;
+      }) as typeof window.requestIdleCallback;
+      (window as unknown as { __soltarIdle: () => void }).__soltarIdle = () => {
+        solto = true;
+        fila.splice(0).forEach((agendar) => agendar());
+      };
+    });
+    await page.goto("/");
+    const link = page.getByRole("navigation").getByRole("link", { name: "Funcionalidades", exact: true }).first();
+    await page.mouse.wheel(0, 600);
+    await link.click();
+    await page.evaluate(() => (window as unknown as { __soltarIdle: () => void }).__soltarIdle());
     await expect(page).toHaveURL(/\/#recursos$/);
     await expect(page.locator("#recursos")).toBeInViewport();
   });

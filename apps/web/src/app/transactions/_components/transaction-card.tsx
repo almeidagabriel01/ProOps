@@ -485,7 +485,7 @@ export function TransactionCard({
                         >
                           {isUpdating ? (
                             <>
-                              <Loader size="sm" />
+                              <Loader size="sm" variant="button" />
                               <span className="text-xs">Atualizando...</span>
                             </>
                           ) : (

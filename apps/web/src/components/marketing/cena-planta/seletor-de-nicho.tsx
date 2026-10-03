@@ -33,9 +33,11 @@ export function SeletorDeNicho({ className }: { className?: string }) {
           quebram em linhas empurram a nota para cima da casa: com cinco nichos
           isso já acontecia a 360px com a fonte do Linux. Uma linha só não
           depende da fonte nem de quantos nichos existem. O `pr-10` deixa a
-          última aba passar do esmaecido da borda. */}
+          última aba passar do esmaecido da borda. No desktop as abas quebram
+          dentro da coluna de texto (26rem + o respiro de 2rem antes da casa):
+          com seis nichos a fileira inteira entrava na faixa da casa. */}
       <div
-        className="-mx-6 flex gap-1.5 overflow-x-auto px-6 pr-10 [mask-image:linear-gradient(to_right,black_85%,transparent)] [scrollbar-width:none] lg:mx-0 lg:flex-wrap lg:overflow-visible lg:px-0 lg:[mask-image:none] [&::-webkit-scrollbar]:hidden"
+        className="-mx-6 flex gap-1.5 overflow-x-auto px-6 pr-10 [mask-image:linear-gradient(to_right,black_85%,transparent)] [scrollbar-width:none] lg:mx-0 lg:max-w-[28rem] lg:flex-wrap lg:overflow-visible lg:px-0 lg:[mask-image:none] [&::-webkit-scrollbar]:hidden"
         role="group"
         aria-label="Nicho do exemplo"
         data-abas-de-nicho=""

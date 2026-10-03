@@ -613,6 +613,13 @@ as notas fiscais dele. Pro e Enterprise (`clientPortal`).
   tem o `clientId` do PARCEIRO), obras não canceladas com o avanço pelas
   etapas, e notas AUTORIZADAS com o PDF do Focus (que abre sem login). Só o
   primeiro nome do contato.
+- **Assistência técnica** (só com `fieldService` no plano): os contratos
+  ATIVOS do contato, com a mensalidade, o dia de vencimento e a próxima visita,
+  e os atendimentos (OS concluída e OS agendada de hoje em diante, até 20; a
+  aberta sem data, em execução ou cancelada ainda é assunto da empresa). O
+  comprovante da OS concluída abre pelo link da OS (`kind: "service_order"`) e
+  o contrato PMOC abre o plano e o relatório (`kind: "pmoc"`), os dois criados
+  só no clique. Sem o módulo, as listas vêm vazias e os dois tipos dão 404.
 - **Token inexistente, empresa sem o plano, ou contato apagado ou de outra
   empresa dão o mesmo 404**, como no agendamento.
 - **Rota pública montada em `/v1/share/portal`, antes dos `app.use("/v1", ...)`
@@ -625,6 +632,203 @@ as notas fiscais dele. Pro e Enterprise (`clientPortal`).
 Guards: `client-portal-model.test.ts`, `client-portal.service.test.ts` (a
 fronteira do contato), `client-portal.controller.test.ts`,
 `client-portal.routes.gates.test.ts` e `tests/firestore-rules/client-portal.test.ts`.
+
+### Assistência técnica: equipamentos e ordens de serviço (`api/services/field-service/`)
+
+Equipamentos instalados em cada cliente e a ordem de serviço (OS) que os
+atende, executada no celular do técnico e assinada pelo cliente na tela.
+Capacidade `fieldService` (Pro e Enterprise; Starter pelo add-on
+`field_service`), pageIds `equipment` e `service_orders`. Serve a todos os
+nichos: chamado de alarme, manutenção de ar-condicionado, suporte de automação.
+
+- **A OS é do técnico.** Membro sem a permissão de escopo `service_orders_all`
+  (não é tela: `scopeOf` em `PERMISSION_PAGES`) só alcança as OS em que está em
+  `technicianUids`, e só mexe na execução (`ExecutionUpdateSchema`: checklist,
+  peças, relatório). As rules aplicam a mesma regra na leitura; a lista dele
+  filtra por `technicianUids` (índice `tenantId` + `technicianUids`). O preset
+  "Técnico" da tela de Equipe nasce sem o escopo.
+- **Cliente copiado na OS** (nome, telefone, endereço): o técnico não tem acesso
+  a Contatos e precisa saber aonde ir.
+- **Número sequencial** em `service_order_counters/{tenantId}`, alocado na
+  transação que cria a OS. Queimado, como o da proposta.
+- **Concluir** (`/complete`) exige a assinatura OU o motivo de não haver uma.
+  A assinatura guarda nome, documento, data, IP, navegador e o SHA-256 do
+  conteúdo (`signatureContentHash`); a OS concluída trava, e só o master reabre
+  (`/reopen`), com o motivo e a assinatura anterior no `reopenLog`.
+- **Baixa de estoque idempotente.** A OS guarda o que já tirou
+  (`stockApplied`); cada conclusão lança só a diferença (`stockDelta`) num
+  movimento de id determinístico, na mesma transação que ajusta o saldo.
+  Cancelar devolve tudo. Estoque negativo é avisado na resposta, nunca
+  bloqueia. Produto sem `inventoryValue` numérico não ganha movimento.
+- **OS que mexeu no estoque não se exclui**: reabra e cancele.
+- **Agenda.** OS agendada e aberta tem um evento em `calendar_events` com
+  `serviceOrderId` (`calendarEventId` na OS), criado, movido e apagado por
+  `syncOrderAgenda`. A data mora no evento: mover na Agenda ou no Google volta
+  para a OS por `mirrorOrderScheduleFromEvent`, que ignora evento antigo e OS
+  encerrada. O vínculo atravessa a regravação do evento (`pickEventLinks`).
+- **Aviso ao técnico** (`service_order_assigned`, direto): quando a OS passa
+  para ele ou a data muda; quem fez a mudança não é avisado.
+- **Equipamentos da obra** (`POST /v1/equipment/batch`, até 50): a tela da obra
+  manda os aparelhos escolhidos da proposta, ligados ao `projectId`.
+- **Lançar no financeiro** (`POST /v1/service-orders/:id/transaction`): a OS
+  concluída vira receita à vista ou parcelada, com ou sem entrada, montada por
+  `buildLaunchPlan` do MESMO jeito que a tela de Novo lançamento (restante
+  dividido e arredondado uma vez em centavos, entrada como `downPayment` no
+  mesmo grupo), pelo `TransactionService.createTransaction`
+  (que confere a permissão de Lançamentos e o saldo da carteira), na categoria
+  "Ordens de serviço". O id fica em `transactionId`; uma trava de dois minutos
+  (`transactionClaimAt`) impede duas abas de lançarem duas vezes. Pede o
+  financeiro no plano (402). A nota de serviço sai pelo lançamento, como
+  qualquer outro.
+- **Link do cliente e PDF.** Um link por OS (`shareToken` na OS, e
+  `shared_service_orders/{token}` com o token como id, Admin SDK only), aberto
+  em `GET /v1/share/service-order/:token` (público; token desconhecido, OS
+  apagada ou empresa sem o módulo dão 404) e em `/share/os/[token]` no front.
+  O PDF (`GET /v1/service-orders/:id/pdf`) imprime essa página com o Chromium
+  e guarda o cache em `.../service_orders/{id}/pdf/os.pdf` (fora da cota). Ele
+  roda na função `pdf`, que não tem o gate de plano do router: o controller
+  confere a capacidade. A visão do cliente não leva IP, navegador, caminho de
+  arquivo nem ids de membro.
+- Fotos e assinatura sobem pelo backend (`tenants/{t}/service_orders/...`),
+  contam no armazenamento do plano.
+
+Guards: `field-service-model.test.ts`, `field-service.controller.test.ts`,
+`field-service.routes.gates.test.ts` e `tests/firestore-rules/field-service.test.ts`.
+
+#### Contratos de manutenção (`contract-model.ts`, `contract.service.ts`)
+
+A mensalidade que a empresa cobra todo mês (monitoramento, manutenção,
+suporte, PMOC) e as visitas preventivas que o contrato promete. Mesma
+capacidade `fieldService`, pageId `contracts`, rotas em `/v1/service-contracts`.
+
+- **Rascunho → ativo → suspenso → encerrado.** O rascunho não cobra. Ativar
+  pede a data de início (até 31 dias no passado) e o financeiro no plano
+  (402): a primeira cobrança é o primeiro dia de cobrança (1 a 28) a partir do
+  início. Só o rascunho se exclui; o resto se encerra.
+- **A rotina diária cobra** (`processServiceContracts`, 06:00,
+  `contract-billing-run.ts`): cada vencimento que entrou na janela de 10 dias
+  vira um lançamento `pending` na categoria "Contratos", com id
+  `contract_{id}_{AAAAMM}`, gravado com `create` numa transação que relê o id
+  antes e avança `nextBillingDate` junto. Rodar duas vezes não cobra em dobro;
+  no máximo 3 meses por execução.
+- **Não passa pelo `TransactionService.createTransaction`**, que exige um
+  usuário. A mensalidade nasce pendente, então não mexe em saldo.
+- **O lançamento não leva `proposalId`** (a sincronização da proposta aprovada
+  apagaria lançamento com esse campo que ela mesma não gerou) **nem
+  `isRecurring`** (a recorrência do financeiro criaria outra parcela ao pagar).
+  O vínculo é `serviceContractId` + `contractPeriod`.
+- **Suspender não deixa dívida para trás:** ao retomar, a próxima cobrança é o
+  primeiro dia de cobrança a partir de hoje cujo mês ainda não foi cobrado
+  (`resumeBillingDate`). Mudar o dia de cobrança de um ativo usa a mesma regra.
+- **Perder o módulo ou o financeiro suspende** (`suspendedReason: "plan"`) e
+  avisa dono e admins (`service_contract_suspended`); nunca apaga. Retomar
+  exige o plano de volta.
+- **Visita preventiva:** com o plano de visitas ligado, a OS nasce 7 dias
+  antes (`preventive`, agendada às 8h, técnico, aparelhos e o checklist do
+  contrato, que a tela preenche com o do nicho), com id
+  `contract_{id}_visit_{AAAAMMDD}`, e vai para a Agenda com aviso ao técnico.
+  Uma por execução. A OS guarda `contractId`.
+- **Proposta:** a linha marcada como mensalidade (`isMonthly`, chave "Mensal"
+  na linha, visível com o módulo no plano) fica FORA do total, da entrada e
+  das parcelas, e aparece à parte como "+ R$ X/mês" no formulário, no PDF e no
+  link. No front toda soma passa por `countsInProposalTotal`
+  (`apps/web/src/lib/proposal/monthly-lines.ts`), com um guard que reprova
+  arquivo que some `.total` sem ela; no backend, `sumProductTotals` (que a
+  edição usa para recalcular o `totalValue`). Na aprovação,
+  `resolveContractOnApproval` (nunca derruba a aprovação) cria o rascunho
+  `proposal_{proposalId}` com essas linhas e a carteira da proposta (id ou
+  nome, senão a padrão), com `create`: aprovar de novo não cria outro.
+- **Link de pagamento:** o de qualquer lançamento (compartilhar), que abre o
+  Pix e o boleto do Asaas quando a empresa tem pagamento online.
+- **Nota da mensalidade** (`contract-invoice.ts`): com `issueNfse` ligado, o
+  lançamento que vira pago emite a NFS-e. Quem chama é o `onTransactionTotals`
+  (vê toda baixa: webhook do Asaas, edição, baixa em lote), com import sob
+  demanda. Trava por lançamento em `contract_invoice_claims/{transactionId}`
+  (`create` antes de emitir): a entrega repetida do gatilho não emite de novo,
+  e a falha fica para o botão do lançamento. Os itens são as linhas de SERVIÇO
+  do catálogo do contrato, levadas ao valor do lançamento
+  (`contractInvoiceItems`); `issueFromTransaction` segue esse caminho quando o
+  lançamento tem `serviceContractId`. A regra geral de emissão automática
+  (`tryAutoIssue`) ignora mensalidade de contrato, senão sairiam duas notas.
+
+Guards: `contract-model.test.ts`, `service-contracts.test.ts` (API e rotina com
+Firestore falso), `contract-invoice.test.ts`, os blocos de contrato em
+`invoice-issue.auto.test.ts` e `onTransactionTotals.test.ts` e os blocos de contratos em `field-service.routes.gates.test.ts`
+e `tests/firestore-rules/field-service.test.ts`.
+
+#### PMOC (`shared/pmoc.ts`)
+
+O PMOC é um contrato do tipo `pmoc` (a tela só oferece o tipo em
+climatização), com o campo `pmoc`: responsável técnico, dados do prédio
+(nome, endereço, ocupantes, área climatizada, uso) e os itens do plano, cada
+um com a frequência (mensal, trimestral, semestral, anual).
+
+- **Os modelos da norma moram em `shared/pmoc.ts`**, puro e sem import, por
+  tipo de aparelho (split, VRF, janela) e o do ambiente, que entra sempre.
+  Cortina de ar não entra. O front espelha os modelos para montar o plano no
+  formulário, com paridade testada. **Os itens precisam da revisão de um
+  engenheiro de climatização antes de produção.**
+- **Os itens são do contrato**, e não de um modelo por empresa: a tela parte
+  do modelo dos aparelhos cobertos e a empresa edita ali, porque cada prédio
+  tem o seu plano.
+- **Cada visita leva só o que venceu** (`pmocItemsForVisit`): a frequência
+  conta a partir da primeira visita (`pmoc.anchorDate`, gravada pela rotina ao
+  abrir a primeira OS). A primeira leva tudo; depois, o item entra quando a
+  frequência dele vence desde a visita anterior, então nunca passa do prazo,
+  mesmo com um intervalo de visitas que não divide a frequência. O id do item
+  vai para a OS (`pmoc_<id>`), para o relatório juntar as visitas.
+- **Ativar exige o responsável técnico e o plano de visitas ligado.** Contrato
+  PMOC sem os dados do PMOC é recusado; trocar o tipo para outro apaga o campo.
+- **O documento do PMOC** (`pmoc-document.ts`, `pmoc.controller.ts`): um link
+  público por contrato (`pmocShareToken` no contrato e `shared_pmoc/{token}`,
+  Admin SDK only), aberto em `GET /v1/share/pmoc/:token` e em
+  `/share/pmoc/[token]` no front. Mostra o plano (responsável com a ART,
+  prédio, aparelhos, itens por frequência) e o relatório de execução de um
+  período (`from`/`to`, padrão os últimos 12 meses, teto de dois anos; data
+  inválida cai no padrão em vez de dar erro, porque quem abre é a
+  fiscalização). É o que fica à mão no prédio. Sem valores da mensalidade, ids
+  de membro, IP de assinatura nem caminho de Storage. Token desconhecido,
+  contrato que deixou de ser PMOC ou empresa sem o módulo dão 404.
+- **O relatório** (`pmoc-report.ts`, puro): a visita é a OS do contrato, no dia
+  da conclusão (senão a saída, senão o agendado, no fuso de Brasília);
+  cancelada não entra. O item conta como feito quando a linha `pmoc_<id>` foi
+  marcada numa OS CONCLUÍDA.
+- **PDF** (`GET /v1/service-contracts/:id/pmoc/pdf?kind=plan|report&from=&to=`):
+  a mesma página impressa pelo Chromium, sem cache (o relatório muda com o
+  período e a cada visita). Montado também na função `pdf`, que não tem o gate
+  de plano: o controller confere a capacidade. Quem vê contratos gera o link e
+  o PDF.
+
+- **Demonstração:** o contrato de exemplo da climatização é um PMOC
+  (`datasets/climatizacao.ts`): responsável técnico com ART, prédio, três
+  aparelhos e duas visitas mensais já feitas, geradas pelo motor
+  (`buildDemoPmocPlan` em `scripts/demo/engine.ts`) com o mesmo id e o mesmo
+  checklist que a rotina daria, para o relatório de execução ter conteúdo.
+
+Guards: `shared/__tests__/pmoc.test.ts`, o bloco PMOC de
+`service-contracts.test.ts`, `pmoc-report.test.ts`, `pmoc.controller.test.ts`
+(o que o link público não pode levar) e `pdfApp.test.ts`.
+
+#### Responsáveis técnicos do PMOC (`technical-responsible-model.ts`)
+
+O engenheiro ou técnico que assina o PMOC, com a ART. Rotas em
+`/v1/technical-responsibles` (mesmo gate `fieldService`), cadastradas **só pelo
+dono e pelos administradores** (`isTenantAdminRole`), como as demais
+Configurações. Só o nicho de climatização mostra a tela, mas o backend não
+conhece nicho.
+
+- **A ART é um PDF de verdade:** data URL `application/pdf` com a assinatura
+  `%PDF-`, até 700 KB (o corpo da API tem 1 MB). Vai para
+  `tenants/{t}/technical_responsibles/{id}/art.pdf` e conta no armazenamento do
+  plano (402 com a cota cheia). O novo substitui o anterior.
+- **Não se exclui quem assina um contrato PMOC que não está encerrado**
+  (`pmoc.responsibleId`, 409): desative o cadastro.
+- **ART vencendo:** a rotina `checkDueDates` (parte 2e,
+  `art-expiry-reminders.ts`) avisa dono e admins em D-30, D-15, D-7 e D-1, e
+  uma vez por semana depois de vencida, por até 90 dias.
+
+Guards: `technical-responsibles.test.ts`, o bloco dele em
+`field-service.routes.gates.test.ts` e `tests/firestore-rules/field-service.test.ts`.
 
 ### Vendedor e metas de vendas
 

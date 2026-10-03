@@ -49,12 +49,18 @@ describe("toda página marcável na tela de Equipe tem guarda de rota", () => {
       .map((config) => config.pageId),
   );
 
-  it.each(PERMISSION_PAGES.map((page) => page.id))(
+  it.each(PERMISSION_PAGES.filter((page) => !page.scopeOf).map((page) => page.id))(
     "%s é gateado por alguma rota",
     (pageId) => {
       expect(gatedPageIds).toContain(pageId);
     },
   );
+
+  it("uma permissão de escopo refina uma página que tem rota", () => {
+    for (const page of PERMISSION_PAGES.filter((p) => p.scopeOf)) {
+      expect(gatedPageIds).toContain(page.scopeOf);
+    }
+  });
 });
 
 /**

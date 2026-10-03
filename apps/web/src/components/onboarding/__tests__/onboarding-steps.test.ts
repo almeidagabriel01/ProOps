@@ -40,13 +40,14 @@ const NONE: OnboardingCapabilityMap = {
   salesGoals: false,
   bookingLink: false,
   clientPortal: false,
+  fieldService: false,
 };
 
 /** O que o `PlanProvider` entrega por tier, sem add-ons. */
 const PLAN: Record<"free" | "starter" | "pro" | "enterprise", OnboardingCapabilityMap> = {
   // A conta free destrava financeiro, CRM, projetos e editor de PDF para a
   // demonstração, e deixa fiscal e Drive de fora.
-  free: { ...NONE, financial: true, crm: true, pdfEditor: true, projects: true, salesGoals: true, bookingLink: true, clientPortal: true },
+  free: { ...NONE, financial: true, crm: true, pdfEditor: true, projects: true, salesGoals: true, bookingLink: true, clientPortal: true, fieldService: true },
   starter: NONE,
   pro: {
     ...NONE,
@@ -58,6 +59,7 @@ const PLAN: Record<"free" | "starter" | "pro" | "enterprise", OnboardingCapabili
     salesGoals: true,
     bookingLink: true,
     clientPortal: true,
+    fieldService: true,
   },
   enterprise: {
     financial: true,
@@ -72,6 +74,7 @@ const PLAN: Record<"free" | "starter" | "pro" | "enterprise", OnboardingCapabili
     salesGoals: true,
     bookingLink: true,
     clientPortal: true,
+    fieldService: true,
   },
 };
 
@@ -201,6 +204,10 @@ describe("passos por plano e papel", () => {
       // O Link de agendamento é visão da Agenda, junto do Calendário. O id
       // ainda é o de quando morava em Configurações.
       "settings-booking",
+      // Assistência técnica: grupo próprio da dock, depois da Agenda.
+      "service-orders",
+      "equipment",
+      "contracts",
       "products",
       "services",
       "solutions",
@@ -233,20 +240,40 @@ describe("passos por plano e papel", () => {
     // Metas de vendas e o link de agendamento também.
     expect(ids).toContain("settings-goals");
     expect(ids).toContain("settings-booking");
+    // Ordens de serviço e equipamentos também.
+    expect(ids).toContain("service-orders");
+    expect(ids).toContain("equipment");
+    expect(ids).toContain("contracts");
   });
 
   it("Starter, master: sem Financeiro nem Integrações", () => {
     const ids = stepIds("starter", MASTER);
-    for (const id of ["transactions", "wallets", "commissions", "dre", "cash-flow", "invoices", "crm", "projects", "settings-goals", "settings-booking", "settings-integrations"]) {
+    for (const id of ["transactions", "wallets", "commissions", "dre", "cash-flow", "invoices", "crm", "projects", "settings-goals", "settings-booking", "settings-integrations", "service-orders", "equipment", "contracts"]) {
       expect(ids).not.toContain(id);
     }
     expect(ids).toContain("settings-team");
+  });
+
+  it("Starter com o add-on de ordens de serviço ganha os dois passos", () => {
+    const ids = buildOnboardingSteps({
+      visibleMenuItems: visibleMenu(MASTER),
+      settingsRoutes: SETTINGS_ROUTES,
+      capabilities: { ...PLAN.starter, fieldService: true },
+      viewer: MASTER,
+    }).map((step) => step.id);
+    expect(ids).toContain("service-orders");
+    expect(ids).toContain("equipment");
+    expect(ids).toContain("contracts");
   });
 
   it("conta free: módulos da demonstração, sem Comissões, Notas e telas vazias", () => {
     const ids = stepIds("free", DEMO);
     expect(ids).toContain("crm");
     expect(ids).toContain("projects");
+    // Cada demonstração tem OS e equipamentos de exemplo.
+    expect(ids).toContain("service-orders");
+    expect(ids).toContain("equipment");
+    expect(ids).toContain("contracts");
     expect(ids).toContain("transactions");
     expect(ids).toContain("wallets");
     // O DRE da demonstração lê o exemplo do tenant demo.
@@ -340,6 +367,21 @@ describe("vocabulário do nicho no passo", () => {
       stepDescriptions: getNicheConfig(niche).onboardingStepDescriptions,
       vocabulary: withVocabulary ? getNicheConfig(niche).vocabulary : undefined,
     }).find((step) => step.id === id);
+
+  it.each(["service-orders", "contracts"])(
+    "o passo %s fala do uso de cada nicho, e nenhum nicho fica com o texto genérico",
+    (id) => {
+      const texts = TENANT_NICHES.map((niche) => stepIn(niche, id)?.description);
+      expect(texts.every(Boolean)).toBe(true);
+      expect(new Set(texts).size).toBe(TENANT_NICHES.length);
+      expect(texts).not.toContain(MENU_STEP_TEMPLATES[`/${id}`].description);
+    },
+  );
+
+  it("em climatização, o passo dos contratos fala do PMOC", () => {
+    expect(stepIn("climatizacao", "contracts")?.description).toContain("PMOC");
+    expect(stepIn("seguranca_eletronica", "contracts")?.description).not.toContain("PMOC");
+  });
 
   it("automação continua falando de soluções e ambientes", () => {
     const solutions = stepIn("automacao_residencial", "solutions");
@@ -474,7 +516,7 @@ describe("matchStepForPath", () => {
     expect(chapterProgress(steps, contacts)).toEqual({
       label: "Vendas",
       position: 4,
-      total: 6,
+      total: 9,
     });
   });
 });

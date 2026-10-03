@@ -196,6 +196,8 @@ export type UpdateProposalResult = {
   projectCreated?: string | null;
   /** A aprovação pede para perguntar se a venda tem instalação (modo padrão). */
   projectSuggested?: boolean;
+  /** Id do contrato em rascunho criado com as linhas de mensalidade. */
+  contractCreated?: string | null;
 };
 
 export const ProposalService = {

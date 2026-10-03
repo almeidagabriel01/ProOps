@@ -186,8 +186,12 @@ export function toProposalProducts(lines: LiaProposalLine[]): Record<string, unk
   );
 }
 
+/** Total da venda: a linha de mensalidade (`isMonthly`) fica fora, como na tela. */
 export function sumProductTotals(products: Record<string, unknown>[]): number {
-  return products.reduce((sum, product) => sum + (Number(product.total) || 0), 0);
+  return products.reduce(
+    (sum, product) => (product.isMonthly === true ? sum : sum + (Number(product.total) || 0)),
+    0,
+  );
 }
 
 export async function createProposal(

@@ -67,6 +67,17 @@ jest.mock("../projects/project.service", () => ({
   createProjectShareLink: (...a: unknown[]) => (createProjectLink as jest.Mock)(...a),
 }));
 
+const ensureOrderToken = jest.fn(async () => "ostoken");
+const ensurePmocToken = jest.fn(async () => "pmoctoken");
+jest.mock("../field-service/field-service.service", () => ({
+  ensureOrderShareToken: (...a: unknown[]) => (ensureOrderToken as jest.Mock)(...a),
+  buildOrderShareUrl: (token: string) => `https://erp.test/share/os/${token}`,
+}));
+jest.mock("../field-service/pmoc-document", () => ({
+  ensurePmocShareToken: (...a: unknown[]) => (ensurePmocToken as jest.Mock)(...a),
+  buildPmocShareUrl: (token: string) => `https://erp.test/share/pmoc/${token}`,
+}));
+
 import { openPortalItem, publicPortalView } from "./client-portal.service";
 
 const TOKEN = "tokentokentoken123456";
@@ -203,5 +214,76 @@ describe("abrir um item", () => {
 
   it("item com barra no id não vira caminho", async () => {
     await expect(openPortalItem(TOKEN, "proposal", "a/b")).rejects.toMatchObject({ status: 404 });
+  });
+});
+
+describe("assistência técnica no portal", () => {
+  beforeEach(() => {
+    store.service_orders = {
+      os_feita: {
+        tenantId: "alpha", clientId: "ana", status: "completed", code: "OS-0001", title: "Limpeza",
+        completedAt: "2026-09-10T14:00:00.000Z", technicianName: "Téo", signature: { name: "Ana" },
+        technicianUids: ["uid-teo"],
+      },
+      os_marcada: {
+        tenantId: "alpha", clientId: "ana", status: "scheduled", code: "OS-0002", title: "Preventiva",
+        scheduledStart: "2099-01-10T11:00:00.000Z",
+      },
+      os_aberta: { tenantId: "alpha", clientId: "ana", status: "open", code: "OS-0003", title: "Chamado" },
+      os_bruno: { tenantId: "alpha", clientId: "bruno", status: "completed", code: "OS-0004", title: "Do Bruno" },
+    };
+    store.service_contracts = {
+      ct_pmoc: {
+        tenantId: "alpha", clientId: "ana", status: "active", type: "pmoc", code: "CT-0001", title: "PMOC",
+        monthlyAmount: 890, billingDay: 10, visitPlan: { enabled: true, nextVisitDate: "2099-01-10" },
+        pmoc: { responsibleId: "rt1", items: [] }, wallet: "w1",
+      },
+      ct_rascunho: { tenantId: "alpha", clientId: "ana", status: "draft", type: "maintenance", title: "Rascunho" },
+      ct_manut: { tenantId: "alpha", clientId: "ana", status: "active", type: "maintenance", code: "CT-0002", title: "Manutenção", monthlyAmount: 200, billingDay: 5 },
+    };
+  });
+
+  it("sem o módulo no plano, a seção vem vazia", async () => {
+    const view = await publicPortalView(TOKEN);
+    expect(view.serviceOrders).toEqual([]);
+    expect(view.contracts).toEqual([]);
+  });
+
+  it("com o módulo: o marcado e o feito, os contratos ativos com a mensalidade", async () => {
+    capabilities["alpha:fieldService"] = true;
+    const view = await publicPortalView(TOKEN);
+    expect(view.serviceOrders.map((o) => [o.id, o.state])).toEqual([
+      ["os_marcada", "scheduled"],
+      ["os_feita", "completed"],
+    ]);
+    expect(view.contracts.map((c) => [c.id, c.monthlyAmount, c.isPmoc])).toEqual([
+      ["ct_manut", 200, false],
+      ["ct_pmoc", 890, true],
+    ]);
+    expect(JSON.stringify(view)).not.toMatch(/uid-teo|"w1"|responsibleId/);
+  });
+
+  it("abre o comprovante da OS do contato e o PMOC dele", async () => {
+    capabilities["alpha:fieldService"] = true;
+    expect(await openPortalItem(TOKEN, "service_order", "os_feita")).toEqual({ url: "https://erp.test/share/os/ostoken" });
+    expect(ensureOrderToken).toHaveBeenCalledWith(expect.objectContaining({ tenantId: "alpha", orderId: "os_feita" }));
+    expect(await openPortalItem(TOKEN, "pmoc", "ct_pmoc")).toEqual({ url: "https://erp.test/share/pmoc/pmoctoken" });
+  });
+
+  it.each([
+    ["OS de outro contato", "service_order", "os_bruno"],
+    ["OS aberta sem data", "service_order", "os_aberta"],
+    ["contrato que não é PMOC", "pmoc", "ct_manut"],
+    ["contrato em rascunho", "pmoc", "ct_rascunho"],
+  ] as const)("%s não abre", async (_label, kind, id) => {
+    capabilities["alpha:fieldService"] = true;
+    await expect(openPortalItem(TOKEN, kind, id)).rejects.toMatchObject({ status: 404 });
+    expect(ensureOrderToken).not.toHaveBeenCalled();
+    expect(ensurePmocToken).not.toHaveBeenCalled();
+  });
+
+  it("sem o módulo, nem o comprovante nem o PMOC abrem", async () => {
+    await expect(openPortalItem(TOKEN, "service_order", "os_feita")).rejects.toMatchObject({ status: 404 });
+    await expect(openPortalItem(TOKEN, "pmoc", "ct_pmoc")).rejects.toMatchObject({ status: 404 });
   });
 });

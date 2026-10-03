@@ -157,19 +157,17 @@ export function ProductFormNew({
   const pricingSummary =
     entityType === "service"
       ? `R$ ${basePrice.toFixed(2)}`
-      : getProductPricingSummary({
-          price: formData.price,
-          markup: formData.markup,
-          pricingModel: pricingConfig,
-        });
+      : getProductPricingSummary(
+          { price: formData.price, markup: formData.markup, pricingModel: pricingConfig },
+          nicheConfig.pricing,
+        );
   const pricingDescription =
     entityType === "service"
       ? "Preço base do serviço."
-      : getProductPricingDescription({
-          price: formData.price,
-          markup: formData.markup,
-          pricingModel: pricingConfig,
-        });
+      : getProductPricingDescription(
+          { price: formData.price, markup: formData.markup, pricingModel: pricingConfig },
+          nicheConfig.pricing,
+        );
 
   const handleFormSubmit = async () => {
     const fakeEvent = { preventDefault: () => {} } as React.FormEvent;

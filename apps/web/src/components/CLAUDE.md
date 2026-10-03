@@ -43,6 +43,24 @@ components/
   registry e são editados normalmente: `data-table.tsx`, `step-wizard.tsx`,
   `dock.tsx`, `command-palette.tsx`, `form-components.tsx`, `date-picker.tsx`,
   `upgrade-modal.tsx`, entre outros.
+- **`DialogContent` limita a altura à da tela e rola por dentro**
+  (`max-h-[calc(100dvh-2rem)] overflow-y-auto`, sem prefixo). Até 2026-09-29
+  isso valia só no celular, e janela alta no desktop saía da tela com o
+  "Salvar" inalcançável. Sem prefixo de propósito: a janela que define a
+  própria altura ou `overflow-hidden` vence pelo `twMerge`. Seletor que abre a
+  lista DENTRO da janela, sem portal (`ClientSelect`, `SearchableSelect`),
+  rola junto com ela.
+- **A lista do `Select` do ERP abre num portal fora da janela**, e a trava de
+  rolagem do Radix (que escuta no `document`) cancelava a roda do mouse nela.
+  A lista para a propagação de `wheel` e `touchmove` e rola normalmente.
+  Guards: `tests/e2e/field-service/service-contracts.spec.ts` (UI-01, a
+  janela alta da Nova OS em duas alturas de tela) e
+  `ui/__tests__/select-wheel-in-dialog.test.tsx` (a roda não chega ao
+  `document`).
+- **Cadastro longo é página em etapas, não janela.** Janela que rola por dentro
+  é o último recurso: o contrato de manutenção começou como janela e virou
+  `/contracts/new` e `/contracts/[id]/edit` com `StepWizard`, no padrão do
+  novo lançamento.
 - Para adicionar novo componente do registry: `npx shadcn@latest add [componente]`
 - Componentes disponíveis incluem: button, card, dialog, alert-dialog, badge, checkbox, avatar, command-palette, e muitos outros
 
@@ -75,8 +93,21 @@ o spinner sai no `md` (32px) enquanto quem escreveu acha que ajustou. Foi assim
 que o botão "Salvar" da numeração de propostas nasceu com um spinner do dobro
 da altura do texto. `className` serve para margem e cor, não para tamanho.
 
-Guard: `src/__tests__/loader-consistency.test.ts` falha se `Loader2` reaparecer
-ou se algum `<Loader>` tentar se dimensionar por classe.
+**Botão em carregamento é sempre o `Loader` com `variant="button"`**, junto
+do texto (que pode virar "Salvando..."). Até 2026-09-29 conviviam três formas:
+esta, o `Loader`/`Spinner` na variante `inline` (cor primária fixa, que some
+num botão primário e faz o botão parecer sem loader) e botões que só trocavam
+o texto. O `Spinner` (`ui/spinner.tsx`) foi removido, e ícone girando
+(`animate-spin`) também não se usa: o ícone dá lugar ao `Loader` enquanto a
+ação roda. Quando vários botões dividem o mesmo estado de "ocupado", o loader
+vai só no que foi clicado (o detalhe da OS guarda a ação em `busyAction`).
+Botão que só abre um diálogo de confirmação não precisa: o `ConfirmDialog` é
+que mostra o carregamento.
+
+Guard: `src/__tests__/loader-consistency.test.ts` falha se `Loader2` reaparecer,
+se algum `<Loader>` tentar se dimensionar por classe, se um `<Loader>` dentro
+de botão não for `variant="button"`, se um botão trocar o texto para
+"...ndo..." sem o `Loader`, ou se voltar o `Spinner` ou um `animate-spin`.
 
 ## Componentes compartilhados de estado (`shared/`)
 
@@ -214,7 +245,7 @@ e vírgula do Excel em português).
 
 ## Multi-niche
 Para features que variam por nicho de negócio, use `useCurrentNicheConfig()` do hook
-em `src/hooks/useCurrentNicheConfig.ts`. Nichos: `automacao_residencial` | `cortinas` | `seguranca_eletronica` | `vidracaria_esquadrias` | `marcenaria`.
+em `src/hooks/useCurrentNicheConfig.ts`. Nichos: `automacao_residencial` | `cortinas` | `seguranca_eletronica` | `vidracaria_esquadrias` | `marcenaria` | `climatizacao`.
 Nunca hardcodar strings de nicho em componentes genéricos. "Ambiente" e "solução"
 em texto de tela saem do vocabulário (`useNicheVocabulary()`); no PDF e no `/share`,
 de `getNicheConfig(tenantNiche).vocabulary`. Ver `lib/niches/CLAUDE.md`.

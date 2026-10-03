@@ -144,7 +144,7 @@ export function TransactionProposalGroupExpanded({
                   >
                     {updatingIds.has(downPayment.id) ? (
                       <>
-                        <Loader size="sm" />
+                        <Loader size="sm" variant="button" />
                         <span>Atualizando...</span>
                       </>
                     ) : (
@@ -278,7 +278,7 @@ export function TransactionProposalGroupExpanded({
                         >
                           {updatingIds.has(inst.id) ? (
                             <>
-                              <Loader size="sm" />
+                              <Loader size="sm" variant="button" />
                               <span>Atualizando...</span>
                             </>
                           ) : (
@@ -401,7 +401,7 @@ export function TransactionProposalGroupExpanded({
                   >
                     {updatingIds.has(saldoTx.id) ? (
                       <>
-                        <Loader size="sm" />
+                        <Loader size="sm" variant="button" />
                         <span>Atualizando...</span>
                       </>
                     ) : (

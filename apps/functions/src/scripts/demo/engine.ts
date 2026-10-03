@@ -2,8 +2,26 @@ import { productRefsFields } from "../../lib/proposal-product-refs";
 import { computeProposalSortFields } from "../../lib/proposal-sort-fields";
 import { calculateProposalProductPricing } from "../../shared/dimension-pricing";
 import { NICHE_REGISTRY } from "../../shared/niches";
+import {
+  computeOrderTotals,
+  formatOrderCode,
+  signatureContentHash,
+  type ServiceOrderItem,
+} from "../../api/services/field-service/field-service-model";
+import {
+  CONTRACT_INCOME_CATEGORY,
+  addMonthsOnDay,
+  chargeTransactionId,
+  computeMonthlyAmount,
+  formatContractCode,
+  formatPeriod,
+  periodOf,
+} from "../../api/services/field-service/contract-model";
+import { buildPmocItems, pmocItemsForVisit, pmocOrderChecklist, type PmocItem } from "../../shared/pmoc";
 import type {
+  DemoContract,
   DemoDataset,
+  DemoServiceOrder,
   DemoLine,
   DemoProduct,
   SeedDemoResult,
@@ -25,6 +43,76 @@ export interface BuildDemoOptions {
   timestamp: (ms: number) => unknown;
 }
 
+/** Mensalidades já recebidas em cada contrato de exemplo. */
+const DEMO_PAID_CHARGES = 2;
+
+/** A próxima visita do PMOC de exemplo, em dias a partir de hoje. */
+const PMOC_NEXT_VISIT_DAYS = 12;
+
+/** OS gerada pelo motor (a visita do PMOC), com o contrato e os ids do checklist. */
+type EngineOrder = DemoServiceOrder & { contractId?: string; checklistIds?: string[] };
+
+interface DemoPmocPlan {
+  items: PmocItem[];
+  anchorDate: string;
+  nextVisitDate: string;
+  visits: EngineOrder[];
+}
+
+function daysFrom(from: string, to: string): number {
+  return Math.round((Date.parse(`${to}T12:00:00Z`) - Date.parse(`${from}T12:00:00Z`)) / DAY_MS);
+}
+
+/**
+ * O plano e as visitas já feitas do PMOC de exemplo. Visitas mensais contadas
+ * para trás a partir da próxima, no mesmo dia do mês (até o 28, que existe em
+ * todo mês), com o checklist que `pmocItemsForVisit` daria à rotina.
+ */
+function buildDemoPmocPlan(params: {
+  contract: DemoContract;
+  equipmentTypes: string[];
+  today: string;
+  firstOrderNumber: number;
+}): DemoPmocPlan | null {
+  const { contract, today } = params;
+  const pmoc = contract.pmoc;
+  if (!pmoc) return null;
+  const interval = contract.visitIntervalMonths ?? 1;
+  const nextRaw = new Date(`${today}T12:00:00Z`);
+  nextRaw.setUTCDate(nextRaw.getUTCDate() + PMOC_NEXT_VISIT_DAYS);
+  const day = Math.min(nextRaw.getUTCDate(), 28);
+  const nextVisitDate = addMonthsOnDay(nextRaw.toISOString().slice(0, 10), 0, day);
+  const items = buildPmocItems(params.equipmentTypes);
+  const dates = Array.from({ length: pmoc.visitsDone }, (_, i) =>
+    addMonthsOnDay(nextVisitDate, -(pmoc.visitsDone - i) * interval, day),
+  );
+  const anchorDate = dates[0] ?? nextVisitDate;
+  const visits: EngineOrder[] = dates.map((visitDate, i) => {
+    const checklist = pmocOrderChecklist(pmocItemsForVisit({ items, anchorDate, visitDate, intervalMonths: interval }));
+    const dayOffset = daysFrom(today, visitDate);
+    return {
+      id: `contract_${contract.id}_visit_${visitDate.replace(/-/g, "")}`,
+      number: params.firstOrderNumber + i,
+      clientId: contract.clientId,
+      type: "preventive",
+      priority: "normal",
+      status: "completed",
+      title: `Visita do PMOC: ${contract.title}`,
+      description: `Visita prevista no contrato ${formatContractCode(contract.number)}.`,
+      equipmentIds: contract.equipmentIds,
+      schedule: { dayOffset, hour: 8, durationMin: 120 },
+      checklist: checklist.map((c) => ({ text: c.text, done: true })),
+      checklistIds: checklist.map((c) => c.id),
+      items: [],
+      report: `Plano do mês executado: ${checklist.length} itens conferidos, sem pendências.`,
+      signedBy: pmoc.signedBy,
+      createdDaysAgo: Math.max(0, -dayOffset + 7),
+      contractId: contract.id,
+    };
+  });
+  return { items, anchorDate, nextVisitDate, visits };
+}
+
 /** Datas fixas: re-semear e ordenar por createdAt é determinístico. */
 const BASE_MS = Date.UTC(2026, 0, 1, 12, 0, 0);
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -44,6 +132,16 @@ function buildSearchTokens(...parts: Array<string | undefined>): string[] {
   }
   return Array.from(tokens).slice(0, 100);
 }
+
+/**
+ * O traço da assinatura de exemplo, em SVG embutido: a demonstração não sobe
+ * arquivo nenhum para o Storage.
+ */
+const DEMO_SIGNATURE_DATA_URL =
+  "data:image/svg+xml;utf8," +
+  encodeURIComponent(
+    '<svg xmlns="http://www.w3.org/2000/svg" width="320" height="110" viewBox="0 0 320 110"><path d="M12 78 C 40 20, 60 20, 70 70 S 100 100, 120 50 S 150 10, 170 60 S 200 95, 225 45 C 240 20, 250 70, 270 55 S 300 40, 308 62" fill="none" stroke="#111827" stroke-width="3" stroke-linecap="round"/></svg>',
+  );
 
 export function buildDemoDocs(ds: DemoDataset, opts: BuildDemoOptions): DemoWrite[] {
   const writes: DemoWrite[] = [];
@@ -342,6 +440,12 @@ export function buildDemoDocs(ds: DemoDataset, opts: BuildDemoOptions): DemoWrit
       balances.set(t.walletId, (balances.get(t.walletId) ?? 0) + (t.type === "income" ? t.amount : -t.amount));
     }
   }
+  // As mensalidades pagas dos contratos de exemplo entram na carteira padrão.
+  const mainWallet = wallets.find((w) => w.isDefault) ?? wallets[0];
+  for (const c of ds.fieldService.contracts) {
+    const paid = computeMonthlyAmount(c.lines) * DEMO_PAID_CHARGES;
+    balances.set(mainWallet.id, Math.round(((balances.get(mainWallet.id) ?? 0) + paid) * 100) / 100);
+  }
   wallets.forEach((w) => {
     set(`wallets/${w.id}`, {
       ...tenantTag,
@@ -569,6 +673,295 @@ export function buildDemoDocs(ds: DemoDataset, opts: BuildDemoOptions): DemoWrit
     });
   });
 
+  // Assistência técnica. O técnico é fictício: a conta free enxerga todas as
+  // OS do tenant de demonstração (isDemoRead), então ninguém precisa estar em
+  // `technicianUids`.
+  const serviceById = new Map(ds.services.map((sv) => [sv.id, sv]));
+  const sellingPrice = (kind: "product" | "service", id: string): { name: string; price: number } => {
+    if (kind === "service") {
+      const found = serviceById.get(id);
+      if (!found) throw new Error(`Demo ${ds.niche}: serviço ${id} não existe no dataset.`);
+      return { name: found.name, price: found.price };
+    }
+    const p = product(id);
+    return { name: p.name, price: Math.round(p.price * (1 + (p.markup ?? 0) / 100) * 100) / 100 };
+  };
+  const equipmentById = new Map(ds.fieldService.equipment.map((e) => [e.id, e]));
+  const addMonths = (day: string, months: number): string => {
+    const d = new Date(`${day}T00:00:00Z`);
+    d.setUTCMonth(d.getUTCMonth() + months);
+    return d.toISOString().slice(0, 10);
+  };
+  const lastService = new Map<string, { at: string; orderId: string }>();
+  // O PMOC de exemplo: o plano e as visitas já feitas, que entram na fila de OS.
+  const pmocPlans = new Map<string, DemoPmocPlan>();
+  let nextVisitNumber = Math.max(0, ...ds.fieldService.orders.map((o) => o.number)) + 1;
+  for (const c of ds.fieldService.contracts) {
+    const plan = buildDemoPmocPlan({
+      contract: c,
+      equipmentTypes: c.equipmentIds.map((id) => equipmentById.get(id)?.type ?? null).filter((t): t is string => Boolean(t)),
+      today: ymd(0),
+      firstOrderNumber: nextVisitNumber,
+    });
+    if (!plan) continue;
+    pmocPlans.set(c.id, plan);
+    nextVisitNumber += plan.visits.length;
+  }
+  const allOrders: EngineOrder[] = [
+    ...ds.fieldService.orders,
+    ...Array.from(pmocPlans.values()).flatMap((plan) => plan.visits),
+  ];
+  allOrders.forEach((o) => {
+    const c = client(o.clientId);
+    const items: ServiceOrderItem[] = o.items.map((item, i) => {
+      const priced = sellingPrice(item.kind, item.refId);
+      return {
+        id: `${o.id}_item_${i + 1}`,
+        kind: item.kind,
+        refId: item.refId,
+        name: priced.name,
+        quantity: item.quantity,
+        unitPrice: priced.price,
+        fromStock: item.kind === "product",
+      };
+    });
+    const checklist = o.checklist.map((entry, i) => ({
+      id: o.checklistIds?.[i] ?? `${o.id}_check_${i + 1}`,
+      text: entry.text,
+      done: entry.done,
+      note: null,
+    }));
+    const equipmentLabels = o.equipmentIds.map((id) => {
+      const e = equipmentById.get(id);
+      if (!e) throw new Error(`Demo ${ds.niche}: equipamento ${id} não existe no dataset.`);
+      return `${e.name} (${e.brand} ${e.model})`;
+    });
+    const scheduledStart = o.schedule
+      ? new Date(`${ymd(o.schedule.dayOffset)}T${String(o.schedule.hour).padStart(2, "0")}:00:00-03:00`).toISOString()
+      : null;
+    const scheduledEnd =
+      o.schedule && scheduledStart
+        ? new Date(Date.parse(scheduledStart) + o.schedule.durationMin * 60_000).toISOString()
+        : null;
+    const completed = o.status === "completed";
+    const code = formatOrderCode(o.number);
+    const checkInAt = completed && scheduledStart ? scheduledStart : null;
+    const checkOutAt = completed && scheduledEnd ? scheduledEnd : null;
+    const report = o.report ?? null;
+    if (completed && checkOutAt) {
+      for (const id of o.equipmentIds) lastService.set(id, { at: checkOutAt, orderId: o.id });
+    }
+    set(`service_orders/${o.id}`, {
+      ...tenantTag,
+      number: o.number,
+      code,
+      clientId: c.id,
+      clientName: c.name,
+      clientPhone: c.phone,
+      address: null,
+      type: o.type,
+      priority: o.priority,
+      status: o.status,
+      title: o.title,
+      description: o.description,
+      equipmentIds: o.equipmentIds,
+      equipmentLabels,
+      projectId: null,
+      ...(o.contractId ? { contractId: o.contractId } : {}),
+      technicianUids: [],
+      technicianName: "Diego Lima",
+      scheduledStart,
+      scheduledEnd,
+      checklist,
+      items,
+      totals: computeOrderTotals(items),
+      photos: [],
+      report,
+      checkInAt,
+      checkOutAt,
+      signature:
+        completed && o.signedBy
+          ? {
+              name: o.signedBy,
+              document: null,
+              imageUrl: DEMO_SIGNATURE_DATA_URL,
+              storagePath: "",
+              signedAt: checkOutAt,
+              ip: null,
+              userAgent: null,
+              contentHash: signatureContentHash({
+                code,
+                clientId: c.id,
+                equipmentIds: o.equipmentIds,
+                items,
+                checklist,
+                report,
+                checkInAt,
+                checkOutAt,
+              }),
+            }
+          : null,
+      noSignatureReason: null,
+      stockApplied: {},
+      stockRevision: completed ? 1 : 0,
+      completedAt: completed ? checkOutAt : null,
+      canceledAt: null,
+      reopenLog: [],
+      createdAt: isoAt(-o.createdDaysAgo),
+      updatedAt: isoAt(-o.createdDaysAgo),
+      createdBy: null,
+    });
+  });
+  ds.fieldService.equipment.forEach((e) => {
+    const c = client(e.clientId);
+    const installedAt = ymd(-e.installedDaysAgo);
+    const last = lastService.get(e.id);
+    set(`customer_equipment/${e.id}`, {
+      ...tenantTag,
+      clientId: c.id,
+      clientName: c.name,
+      name: e.name,
+      type: e.type,
+      brand: e.brand,
+      model: e.model,
+      serialNumber: e.serialNumber ?? null,
+      capacity: e.capacity ?? null,
+      location: e.location,
+      installedAt,
+      warrantyUntil: addMonths(installedAt, e.warrantyMonths),
+      notes: null,
+      status: "active",
+      projectId: null,
+      lastServiceAt: last?.at ?? null,
+      lastServiceOrderId: last?.orderId ?? null,
+      createdAt: isoAt(-e.installedDaysAgo),
+      updatedAt: isoAt(-e.installedDaysAgo),
+      createdBy: null,
+    });
+  });
+  // Contratos: ativos há três meses, com as duas últimas mensalidades pagas e
+  // a próxima no dia de vencimento do mês que vem.
+  ds.fieldService.contracts.forEach((c) => {
+    const cl = client(c.clientId);
+    const lines = c.lines.map((line, i) => {
+      const found = serviceById.get(line.refId);
+      if (!found) throw new Error(`Demo ${ds.niche}: serviço ${line.refId} não existe no dataset.`);
+      return { id: `line_${i}`, kind: "service" as const, refId: line.refId, name: found.name, quantity: line.quantity, unitPrice: line.unitPrice };
+    });
+    const monthlyAmount = computeMonthlyAmount(lines);
+    const today = ymd(0);
+    const thisMonthDue = addMonthsOnDay(today, 0, c.billingDay);
+    const lastDue = thisMonthDue <= today ? thisMonthDue : addMonthsOnDay(today, -1, c.billingDay);
+    const dues = Array.from({ length: DEMO_PAID_CHARGES }, (_, i) =>
+      addMonthsOnDay(lastDue, i - (DEMO_PAID_CHARGES - 1), c.billingDay),
+    );
+    const startDate = addMonthsOnDay(lastDue, -2, c.billingDay);
+    const pmocPlan = pmocPlans.get(c.id);
+    const defaultNextVisit =
+      c.visitIntervalMonths !== null ? addMonthsOnDay(today, 1, Math.min(Number(today.slice(8, 10)), 28)) : null;
+    set(`service_contracts/${c.id}`, {
+      ...tenantTag,
+      number: c.number,
+      code: formatContractCode(c.number),
+      clientId: cl.id,
+      clientName: cl.name,
+      title: c.title,
+      type: c.type,
+      status: "active",
+      lines,
+      monthlyAmount,
+      billingDay: c.billingDay,
+      // O contrato guarda o id; o lançamento, o nome (convenção da demonstração).
+      wallet: mainWallet.id,
+      issueNfse: false,
+      equipmentIds: c.equipmentIds,
+      visitPlan: {
+        enabled: c.visitIntervalMonths !== null,
+        intervalMonths: c.visitIntervalMonths ?? 3,
+        technicianId: null,
+        checklist: c.visitChecklist,
+        nextVisitDate: pmocPlan ? pmocPlan.nextVisitDate : defaultNextVisit,
+      },
+      ...(pmocPlan && c.pmoc
+        ? {
+            pmoc: {
+              responsibleId: c.pmoc.responsibleId,
+              building: { ...c.pmoc.building, address: null },
+              items: pmocPlan.items,
+              anchorDate: pmocPlan.anchorDate,
+            },
+          }
+        : {}),
+      notes: null,
+      startDate,
+      endDate: null,
+      nextBillingDate: addMonthsOnDay(lastDue, 1, c.billingDay),
+      lastBilledPeriod: periodOf(lastDue),
+      suspendedReason: null,
+      proposalId: null,
+      createdAt: `${startDate}T12:00:00.000Z`,
+      updatedAt: `${lastDue}T12:00:00.000Z`,
+      createdBy: null,
+    });
+    for (const due of dues) {
+      const period = periodOf(due);
+      set(`transactions/${chargeTransactionId(c.id, period)}`, {
+        ...tenantTag,
+        type: "income",
+        description: `${c.title} (${formatPeriod(period)})`,
+        amount: monthlyAmount,
+        date: addMonthsOnDay(due, 0, 1),
+        dueDate: due,
+        status: "paid",
+        paidAt: `${due}T15:00:00.000Z`,
+        clientId: cl.id,
+        clientName: cl.name,
+        proposalId: null,
+        category: CONTRACT_INCOME_CATEGORY,
+        wallet: mainWallet.name,
+        isDownPayment: false,
+        isInstallment: false,
+        isRecurring: false,
+        installmentCount: null,
+        installmentNumber: null,
+        installmentGroupId: null,
+        recurringGroupId: null,
+        paymentMode: null,
+        notes: `Mensalidade do contrato ${formatContractCode(c.number)}.`,
+        extraCosts: [],
+        serviceContractId: c.id,
+        contractPeriod: period,
+        grouped: false,
+        createdAt: `${due}T09:00:00.000Z`,
+        updatedAt: `${due}T15:00:00.000Z`,
+        createdById: "system",
+      });
+    }
+  });
+
+  for (const r of ds.fieldService.technicalResponsibles ?? []) {
+    set(`technical_responsibles/${r.id}`, {
+      ...tenantTag,
+      name: r.name,
+      profession: r.profession,
+      council: r.council,
+      registryNumber: r.registryNumber,
+      artNumber: r.artNumber,
+      artValidUntil: addMonthsOnDay(ymd(0), r.artValidMonths, Math.min(Number(ymd(0).slice(8, 10)), 28)),
+      artFile: null,
+      active: true,
+      createdAt: isoAt(-120),
+      updatedAt: isoAt(-120),
+      createdBy: null,
+    });
+  }
+
+  set(`service_order_counters/${ds.tenantId}`, {
+    ...tenantTag,
+    nextNumber: Math.max(0, ...allOrders.map((o) => o.number)) + 1,
+    nextContractNumber: Math.max(0, ...ds.fieldService.contracts.map((c) => c.number)) + 1,
+  });
+
   for (const path of ds.legacyDeletes ?? []) writes.push({ op: "delete", path });
 
   return writes;
@@ -596,5 +989,13 @@ export function demoResultCounts(ds: DemoDataset): SeedDemoResult {
     projects: 1,
     notifications: ds.notifications.length,
     tasks: ds.tasks.length,
+    equipment: ds.fieldService.equipment.length,
+    serviceOrders:
+      ds.fieldService.orders.length +
+      ds.fieldService.contracts.reduce((sum, c) => sum + (c.pmoc?.visitsDone ?? 0), 0),
+    contracts: ds.fieldService.contracts.length,
+    ...(ds.fieldService.technicalResponsibles
+      ? { technicalResponsibles: ds.fieldService.technicalResponsibles.length }
+      : {}),
   };
 }

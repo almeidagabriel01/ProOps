@@ -10,7 +10,7 @@ import {
   isNeutralServiceLine,
 } from "@/lib/product-pricing";
 import { getNicheConfig } from "@/lib/niches/config";
-import { PdfItemTypeBadge } from "./pdf-item-type-badge";
+import { PdfItemTypeBadge, PdfMonthlyBadge } from "./pdf-item-type-badge";
 import { PdfProduct } from "./pdf-sistema-types";
 import { Package, Wrench } from "lucide-react";
 
@@ -153,7 +153,7 @@ export function hasProductLineFooterContent({
 
   if (isDimensionProduct) {
     const measurementLabel = showProductMeasurements
-      ? getProposalProductMeasurementLabel(product)
+      ? getProposalProductMeasurementLabel(product, getNicheConfig(tenantNiche).pricing)
       : null;
     const quantityLabel =
       showProductQuantities !== false
@@ -196,6 +196,10 @@ export function PdfProductLineFooter({
 }) {
   const legacyUnit =
     product.quantity > 0 ? product.total / product.quantity : product.unitPrice;
+  // Mensalidade: o valor é por mês e fica fora do total da proposta.
+  const lineTotal = product.isMonthly
+    ? `${formatCurrency(product.total)}/mês`
+    : formatCurrency(product.total);
   const { lineFormat } = getNicheConfig(tenantNiche).proposal;
   const isLabeledProduct =
     lineFormat === "labeled" && product.itemType !== "service";
@@ -205,13 +209,13 @@ export function PdfProductLineFooter({
   const quantityLabel = formatProposalProductDisplayQuantity(product);
   const measurementLabel =
     showProductMeasurements && isDimensionProduct
-      ? getProposalProductMeasurementLabel(product)
+      ? getProposalProductMeasurementLabel(product, getNicheConfig(tenantNiche).pricing)
       : null;
 
   if (showProductPrices) {
     if (isDimensionProduct) {
       const sellingPrice = getProposalLineUnitSellingPrice(product);
-      const unitLabel = getProposalProductUnitLabel(product);
+      const unitLabel = getProposalProductUnitLabel(product, getNicheConfig(tenantNiche).pricing);
       const prefixParts = [
         shouldShowQuantity ? `Qtd. ${quantityLabel}` : null,
         measurementLabel,
@@ -227,7 +231,7 @@ export function PdfProductLineFooter({
               className={totalTextClassName}
               style={primaryColor ? { color: primaryColor } : undefined}
             >
-              {formatCurrency(product.total)}
+              {lineTotal}
             </span>
           </>
         ) : (
@@ -235,7 +239,7 @@ export function PdfProductLineFooter({
             className={totalTextClassName}
             style={primaryColor ? { color: primaryColor } : undefined}
           >
-            {formatCurrency(product.total)}
+            {lineTotal}
           </span>
         );
       }
@@ -249,7 +253,7 @@ export function PdfProductLineFooter({
             className={totalTextClassName}
             style={primaryColor ? { color: primaryColor } : undefined}
           >
-            {formatCurrency(product.total)}
+            {lineTotal}
           </span>
         </>
       );
@@ -266,7 +270,7 @@ export function PdfProductLineFooter({
             className={totalTextClassName}
             style={primaryColor ? { color: primaryColor } : undefined}
           >
-            {formatCurrency(product.total)}
+            {lineTotal}
           </span>
         </>
       );
@@ -284,7 +288,7 @@ export function PdfProductLineFooter({
             className={totalTextClassName}
             style={primaryColor ? { color: primaryColor } : undefined}
           >
-            {formatCurrency(product.total)}
+            {lineTotal}
           </span>
         </>
       );
@@ -300,7 +304,7 @@ export function PdfProductLineFooter({
           className={totalTextClassName}
           style={primaryColor ? { color: primaryColor } : undefined}
         >
-          {formatCurrency(product.total)}
+          {lineTotal}
         </span>
       </>
     );
@@ -388,9 +392,10 @@ export function PdfSistemaProductCard({
           </div>
 
           <div
-            className="shrink-0 flex items-start"
+            className="shrink-0 flex items-start gap-1"
             style={{ minHeight: "20px" }}
           >
+            {product.isMonthly && <PdfMonthlyBadge />}
             <PdfItemTypeBadge itemType={product.itemType || "product"} />
           </div>
         </div>

@@ -324,7 +324,7 @@ jobs:
           - shard: 4
             urls: "/funcionalidades /seguranca-eletronica"
           - shard: 5
-            urls: "/vidracaria-esquadrias /marcenaria"
+            urls: "/vidracaria-esquadrias /marcenaria /climatizacao"
     steps:
       - uses: actions/checkout@v4
 

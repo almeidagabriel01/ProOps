@@ -185,8 +185,101 @@ export interface DemoDataset {
     leadId?: string;
     leadName?: string;
   }>;
+  /**
+   * Assistência técnica: os aparelhos dos clientes e as OS. Uma concluída e
+   * assinada (com peça do estoque), uma agendada e uma aberta, para a lista
+   * mostrar a fila e o detalhe mostrar a assinatura.
+   */
+  fieldService: {
+    equipment: DemoEquipment[];
+    orders: DemoServiceOrder[];
+    /**
+     * O contrato típico do nicho, ativo, com as duas últimas mensalidades já
+     * recebidas: a lista mostra a receita recorrente e o detalhe, o histórico.
+     */
+    contracts: DemoContract[];
+    /** Quem assina o PMOC, com a ART. Só no nicho que tem PMOC. */
+    technicalResponsibles?: DemoTechnicalResponsible[];
+  };
   /** Documentos de versões antigas da demonstração que não existem mais. */
   legacyDeletes?: string[];
+}
+
+export interface DemoEquipment {
+  id: string;
+  clientId: string;
+  name: string;
+  type: string;
+  brand: string;
+  model: string;
+  serialNumber?: string;
+  capacity?: string;
+  location: string;
+  /** Dias antes de hoje. */
+  installedDaysAgo: number;
+  warrantyMonths: number;
+}
+
+export interface DemoServiceOrder {
+  id: string;
+  number: number;
+  clientId: string;
+  type: "corrective" | "preventive" | "installation" | "inspection";
+  priority: "low" | "normal" | "high" | "urgent";
+  status: "open" | "scheduled" | "completed";
+  title: string;
+  description: string;
+  equipmentIds: string[];
+  /** Dias a partir de hoje e hora de Brasília da visita. */
+  schedule?: { dayOffset: number; hour: number; durationMin: number };
+  checklist: Array<{ text: string; done: boolean }>;
+  /** Preço de venda sai do catálogo do dataset. */
+  items: Array<{ kind: "product" | "service"; refId: string; quantity: number }>;
+  report?: string;
+  /** Só na concluída: quem assinou. */
+  signedBy?: string;
+  createdDaysAgo: number;
+}
+
+export interface DemoTechnicalResponsible {
+  id: string;
+  name: string;
+  profession: string;
+  council: "CREA" | "CFT" | "CAU";
+  registryNumber: string;
+  artNumber: string;
+  /** Meses de hoje até o fim da validade da ART. */
+  artValidMonths: number;
+}
+
+/**
+ * O PMOC do contrato de exemplo. Os itens saem do modelo da norma pelos
+ * aparelhos cobertos (`buildPmocItems`), e as visitas já feitas viram OS
+ * concluídas com o checklist que a rotina teria aberto, para o relatório de
+ * execução ter o que mostrar.
+ */
+export interface DemoPmoc {
+  responsibleId: string;
+  building: { name: string; occupants: number; climatizedArea: number; use: string };
+  /** Visitas já feitas (mensais, contando para trás a partir da próxima). */
+  visitsDone: number;
+  /** Quem assinou as visitas. */
+  signedBy: string;
+}
+
+export interface DemoContract {
+  id: string;
+  number: number;
+  clientId: string;
+  title: string;
+  type: "monitoring" | "maintenance" | "support" | "pmoc" | "other";
+  /** Serviço do catálogo e o valor mensal dele no contrato. */
+  lines: Array<{ refId: string; quantity: number; unitPrice: number }>;
+  billingDay: number;
+  equipmentIds: string[];
+  visitIntervalMonths: number | null;
+  visitChecklist: string[];
+  pmoc?: DemoPmoc;
 }
 
 export interface SeedDemoResult {
@@ -205,4 +298,8 @@ export interface SeedDemoResult {
   projects: number;
   notifications: number;
   tasks: number;
+  equipment: number;
+  serviceOrders: number;
+  contracts: number;
+  technicalResponsibles?: number;
 }

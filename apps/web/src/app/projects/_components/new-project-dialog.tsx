@@ -14,6 +14,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "@/lib/toast";
 import { ProjectsService } from "@/services/projects-service";
+import { Loader } from "@/components/ui/loader";
 
 interface NewProjectDialogProps {
   open: boolean;
@@ -76,6 +77,7 @@ export function NewProjectDialog({ open, onOpenChange, onCreated }: NewProjectDi
               Cancelar
             </Button>
             <Button type="submit" disabled={saving || title.trim().length < 2}>
+              {saving && <Loader size="sm" variant="button" className="mr-2" />}
               {saving ? "Criando..." : "Criar projeto"}
             </Button>
           </DialogFooter>

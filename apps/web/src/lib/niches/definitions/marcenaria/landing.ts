@@ -95,6 +95,11 @@ export const nicheLanding: NicheLandingConfig = {
         "Sim. Com as medidas e o preço do m², do metro linear ou da unidade, a ProOps calcula o total da proposta e, na aprovação, gera o financeiro.",
     },
     {
+      question: "E a assistência depois da montagem?",
+      answer:
+        "A ordem de serviço registra o ajuste de porta, gaveta ou dobradiça, com fotos e a assinatura do cliente na tela do celular. Se você vende revisão periódica dos móveis, o contrato lança a cobrança e abre a visita sozinho.",
+    },
+    {
       question: "Qual o custo para começar?",
       answer:
         "Você cria uma conta gratuita e navega a ProOps em modo demonstração, com dados de exemplo de marcenaria, antes de assinar.",

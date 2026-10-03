@@ -16,6 +16,7 @@ import { usePagePermission } from "@/hooks/usePagePermission";
 import { ArrowLeft, Edit, Wallet, ArrowUpCircle, ArrowDownCircle, Calendar, User, CreditCard, FileText, Clock } from "lucide-react";
 import { formatDateBR, formatDateTimeBR } from "@/utils/date-format";
 import { Loader } from "@/components/ui/loader";
+import { useWalletLabel } from "@/hooks/useWalletLabel";
 
 const typeConfig: Record<
   TransactionType,
@@ -50,6 +51,7 @@ export default function ViewTransactionPage() {
   const [relatedInstallments, setRelatedInstallments] = React.useState<
     Transaction[]
   >([]);
+  const walletName = useWalletLabel(transaction?.tenantId, transaction?.wallet);
 
   React.useEffect(() => {
     const fetchData = async () => {
@@ -231,7 +233,7 @@ export default function ViewTransactionPage() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-lg font-semibold">{transaction.wallet}</p>
+              <p className="text-lg font-semibold">{walletName}</p>
             </CardContent>
           </Card>
         )}

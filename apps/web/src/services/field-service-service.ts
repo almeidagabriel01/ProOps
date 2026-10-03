@@ -1,0 +1,383 @@
+"use client";
+
+import {
+  collection,
+  doc,
+  getDocs,
+  limit,
+  onSnapshot,
+  query,
+  where,
+  type DocumentData,
+  type QueryConstraint,
+} from "firebase/firestore";
+import { db } from "@/lib/firebase";
+import { callApi, callPublicApi } from "@/lib/api-client";
+import type { PmocItem } from "@/lib/field-service/pmoc";
+import type {
+  CompleteServiceOrderInput,
+  CompleteServiceOrderResult,
+  ContractCharge,
+  ContractStatus,
+  ContractType,
+  CustomerEquipment,
+  ServiceContract,
+  ServiceContractInput,
+  EquipmentInput,
+  PmocData,
+  ServiceOrder,
+  ServiceOrderInput,
+  ServiceOrderPhoto,
+  ServiceOrderStatus,
+} from "@/types/field-service";
+
+const EQUIPMENT = "customer_equipment";
+const ORDERS = "service_orders";
+const CONTRACTS = "service_contracts";
+const MAX_ITEMS = 300;
+
+function str(value: unknown): string | null {
+  return typeof value === "string" && value ? value : null;
+}
+
+function arr<T>(value: unknown): T[] {
+  return Array.isArray(value) ? (value as T[]) : [];
+}
+
+export function toEquipment(id: string, data: DocumentData): CustomerEquipment {
+  return {
+    id,
+    tenantId: String(data.tenantId ?? ""),
+    clientId: String(data.clientId ?? ""),
+    clientName: String(data.clientName ?? ""),
+    name: String(data.name ?? "Equipamento"),
+    type: str(data.type),
+    brand: str(data.brand),
+    model: str(data.model),
+    serialNumber: str(data.serialNumber),
+    capacity: str(data.capacity),
+    location: str(data.location),
+    installedAt: str(data.installedAt),
+    warrantyUntil: str(data.warrantyUntil),
+    notes: str(data.notes),
+    status: data.status === "inactive" ? "inactive" : "active",
+    projectId: str(data.projectId),
+    lastServiceAt: str(data.lastServiceAt),
+    lastServiceOrderId: str(data.lastServiceOrderId),
+    createdAt: str(data.createdAt),
+  };
+}
+
+export function toServiceOrder(id: string, data: DocumentData): ServiceOrder {
+  const totals = (data.totals ?? {}) as Partial<ServiceOrder["totals"]>;
+  return {
+    id,
+    tenantId: String(data.tenantId ?? ""),
+    number: Number(data.number ?? 0),
+    code: String(data.code ?? ""),
+    clientId: String(data.clientId ?? ""),
+    clientName: String(data.clientName ?? ""),
+    clientPhone: str(data.clientPhone),
+    address: str(data.address),
+    type: (data.type as ServiceOrder["type"]) ?? "corrective",
+    priority: (data.priority as ServiceOrder["priority"]) ?? "normal",
+    status: (data.status as ServiceOrderStatus) ?? "open",
+    title: String(data.title ?? ""),
+    description: str(data.description),
+    equipmentIds: arr<string>(data.equipmentIds),
+    equipmentLabels: arr<string>(data.equipmentLabels),
+    projectId: str(data.projectId),
+    contractId: str(data.contractId),
+    technicianUids: arr<string>(data.technicianUids),
+    technicianName: str(data.technicianName),
+    scheduledStart: str(data.scheduledStart),
+    scheduledEnd: str(data.scheduledEnd),
+    checklist: arr(data.checklist),
+    items: arr(data.items),
+    totals: {
+      products: Number(totals.products ?? 0),
+      services: Number(totals.services ?? 0),
+      total: Number(totals.total ?? 0),
+    },
+    photos: arr(data.photos),
+    report: str(data.report),
+    checkInAt: str(data.checkInAt),
+    checkOutAt: str(data.checkOutAt),
+    signature: data.signature ?? null,
+    noSignatureReason: str(data.noSignatureReason),
+    completedAt: str(data.completedAt),
+    canceledAt: str(data.canceledAt),
+    transactionId: str(data.transactionId),
+    createdAt: str(data.createdAt),
+    updatedAt: str(data.updatedAt),
+  };
+}
+
+export function toContract(id: string, data: DocumentData): ServiceContract {
+  const plan = (data.visitPlan ?? {}) as Partial<ServiceContract["visitPlan"]>;
+  return {
+    id,
+    tenantId: String(data.tenantId ?? ""),
+    code: String(data.code ?? ""),
+    clientId: String(data.clientId ?? ""),
+    clientName: String(data.clientName ?? ""),
+    title: String(data.title ?? "Contrato"),
+    type: (data.type as ContractType) ?? "other",
+    status: (data.status as ContractStatus) ?? "draft",
+    lines: arr(data.lines),
+    monthlyAmount: Number(data.monthlyAmount ?? 0),
+    billingDay: Number(data.billingDay ?? 10),
+    wallet: String(data.wallet ?? ""),
+    issueNfse: data.issueNfse === true,
+    equipmentIds: arr<string>(data.equipmentIds),
+    visitPlan: {
+      enabled: plan.enabled === true,
+      intervalMonths: Number(plan.intervalMonths ?? 3),
+      technicianId: str(plan.technicianId),
+      checklist: arr<string>(plan.checklist),
+      nextVisitDate: str(plan.nextVisitDate),
+    },
+    notes: str(data.notes),
+    startDate: str(data.startDate),
+    endDate: str(data.endDate),
+    nextBillingDate: str(data.nextBillingDate),
+    lastBilledPeriod: str(data.lastBilledPeriod),
+    suspendedReason: data.suspendedReason === "plan" || data.suspendedReason === "manual" ? data.suspendedReason : null,
+    proposalId: str(data.proposalId),
+    createdAt: str(data.createdAt),
+    pmoc: toPmoc(data.pmoc),
+  };
+}
+
+function num(value: unknown): number | null {
+  return typeof value === "number" && Number.isFinite(value) ? value : null;
+}
+
+function toPmoc(value: unknown): PmocData | null {
+  if (!value || typeof value !== "object") return null;
+  const raw = value as Record<string, unknown>;
+  const building = (raw.building ?? {}) as Record<string, unknown>;
+  return {
+    responsibleId: str(raw.responsibleId),
+    building: {
+      name: str(building.name),
+      address: str(building.address),
+      occupants: num(building.occupants),
+      climatizedArea: num(building.climatizedArea),
+      use: str(building.use),
+    },
+    items: arr<PmocItem>(raw.items),
+    anchorDate: str(raw.anchorDate),
+  };
+}
+
+function toCharge(id: string, data: DocumentData): ContractCharge {
+  const status = data.status === "paid" || data.status === "overdue" ? data.status : "pending";
+  return {
+    id,
+    description: String(data.description ?? ""),
+    amount: Number(data.amount ?? 0),
+    dueDate: str(data.dueDate),
+    status,
+    period: str(data.contractPeriod),
+  };
+}
+
+const byNewest = <T extends { createdAt: string | null }>(a: T, b: T) =>
+  String(b.createdAt ?? "").localeCompare(String(a.createdAt ?? ""));
+
+/**
+ * A consulta das OS. Quem enxerga a equipe inteira lê pelo tenant; o técnico
+ * precisa filtrar por ele mesmo, senão as rules recusam a lista inteira (elas
+ * só deixam passar a consulta que prova que cada documento é dele).
+ */
+export function serviceOrdersQuery(tenantId: string, scope: { seesAll: boolean; uid: string | null }) {
+  const constraints: QueryConstraint[] = [where("tenantId", "==", tenantId)];
+  if (!scope.seesAll) constraints.push(where("technicianUids", "array-contains", scope.uid ?? "-"));
+  constraints.push(limit(MAX_ITEMS));
+  return query(collection(db, ORDERS), ...constraints);
+}
+
+/**
+ * Leitura direta no Firestore, como obras e CRM: é o que faz a conta de
+ * demonstração enxergar os dados de exemplo. Toda escrita passa pela API, que
+ * aplica permissão de membro e plano.
+ */
+export const FieldService = {
+  subscribeOrders(
+    tenantId: string,
+    scope: { seesAll: boolean; uid: string | null },
+    onChange: (orders: ServiceOrder[]) => void,
+    onError: (error: Error) => void,
+  ): () => void {
+    return onSnapshot(
+      serviceOrdersQuery(tenantId, scope),
+      (snap) => onChange(snap.docs.map((d) => toServiceOrder(d.id, d.data())).sort(byNewest)),
+      onError,
+    );
+  },
+
+  subscribeOrder(
+    id: string,
+    onChange: (order: ServiceOrder | null) => void,
+    onError: (error: Error) => void,
+  ): () => void {
+    return onSnapshot(
+      doc(db, ORDERS, id),
+      (snap) => onChange(snap.exists() ? toServiceOrder(snap.id, snap.data()) : null),
+      onError,
+    );
+  },
+
+  async listEquipment(tenantId: string, clientId?: string): Promise<CustomerEquipment[]> {
+    if (!tenantId) return [];
+    const constraints: QueryConstraint[] = [where("tenantId", "==", tenantId)];
+    if (clientId) constraints.push(where("clientId", "==", clientId));
+    const snap = await getDocs(query(collection(db, EQUIPMENT), ...constraints, limit(MAX_ITEMS)));
+    return snap.docs
+      .map((d) => toEquipment(d.id, d.data()))
+      .sort((a, b) => a.clientName.localeCompare(b.clientName, "pt-BR") || a.name.localeCompare(b.name, "pt-BR"));
+  },
+
+  createEquipment: (input: EquipmentInput) => callApi<{ id: string }>("/v1/equipment", "POST", input),
+  createEquipmentBatch: (input: {
+    clientId: string;
+    projectId?: string | null;
+    items: Array<Omit<EquipmentInput, "clientId" | "status">>;
+  }) => callApi<{ ids: string[] }>("/v1/equipment/batch", "POST", input),
+  updateEquipment: (id: string, input: Partial<EquipmentInput>) => callApi(`/v1/equipment/${id}`, "PUT", input),
+  removeEquipment: (id: string) => callApi(`/v1/equipment/${id}`, "DELETE"),
+
+  listTechnicians: () =>
+    callApi<{ technicians: { id: string; name: string }[] }>("/v1/service-orders/technicians", "GET"),
+
+  createOrder: (input: ServiceOrderInput) =>
+    callApi<{ id: string; code: string }>("/v1/service-orders", "POST", input),
+  updateOrder: (id: string, input: Partial<ServiceOrderInput> & { report?: string | null }) =>
+    callApi(`/v1/service-orders/${id}`, "PUT", input),
+  removeOrder: (id: string) => callApi(`/v1/service-orders/${id}`, "DELETE"),
+  changeStatus: (id: string, status: Exclude<ServiceOrderStatus, "completed">) =>
+    callApi<{ status: ServiceOrderStatus }>(`/v1/service-orders/${id}/status`, "POST", { status }),
+  complete: (id: string, input: CompleteServiceOrderInput) =>
+    callApi<CompleteServiceOrderResult>(`/v1/service-orders/${id}/complete`, "POST", input),
+  reopen: (id: string, reason: string) => callApi(`/v1/service-orders/${id}/reopen`, "POST", { reason }),
+  uploadPhoto: (id: string, dataUrl: string, caption?: string) =>
+    callApi<{ photo: ServiceOrderPhoto }>(`/v1/service-orders/${id}/photos`, "POST", { dataUrl, caption }),
+  removePhoto: (id: string, photoId: string) => callApi(`/v1/service-orders/${id}/photos/${photoId}`, "DELETE"),
+  shareLink: (id: string) => callApi<{ url: string }>(`/v1/service-orders/${id}/share-link`, "POST"),
+  launchTransaction: (id: string, input: LaunchTransactionInput) =>
+    callApi<{ transactionId: string }>(`/v1/service-orders/${id}/transaction`, "POST", input),
+
+  subscribeContracts(
+    tenantId: string,
+    onChange: (contracts: ServiceContract[]) => void,
+    onError: (error: Error) => void,
+  ): () => void {
+    return onSnapshot(
+      query(collection(db, CONTRACTS), where("tenantId", "==", tenantId), limit(MAX_ITEMS)),
+      (snap) => onChange(snap.docs.map((d) => toContract(d.id, d.data())).sort(byNewest)),
+      onError,
+    );
+  },
+
+  subscribeContract(
+    id: string,
+    onChange: (contract: ServiceContract | null) => void,
+    onError: (error: Error) => void,
+  ): () => void {
+    return onSnapshot(
+      doc(db, CONTRACTS, id),
+      (snap) => onChange(snap.exists() ? toContract(snap.id, snap.data()) : null),
+      onError,
+    );
+  },
+
+  /** As mensalidades lançadas pelo contrato, da mais nova para a mais antiga. */
+  async listContractCharges(tenantId: string, contractId: string): Promise<ContractCharge[]> {
+    const snap = await getDocs(
+      query(
+        collection(db, "transactions"),
+        where("tenantId", "==", tenantId),
+        where("serviceContractId", "==", contractId),
+        limit(120),
+      ),
+    );
+    return snap.docs
+      .map((d) => toCharge(d.id, d.data()))
+      .sort((a, b) => String(b.dueDate ?? "").localeCompare(String(a.dueDate ?? "")));
+  },
+
+  /** As visitas preventivas que o contrato abriu. Só para quem vê todas as OS. */
+  async listContractVisits(tenantId: string, contractId: string): Promise<ServiceOrder[]> {
+    const snap = await getDocs(
+      query(collection(db, ORDERS), where("tenantId", "==", tenantId), where("contractId", "==", contractId), limit(60)),
+    );
+    return snap.docs
+      .map((d) => toServiceOrder(d.id, d.data()))
+      .sort((a, b) => String(b.scheduledStart ?? "").localeCompare(String(a.scheduledStart ?? "")));
+  },
+
+  createContract: (input: ServiceContractInput) =>
+    callApi<{ id: string; code: string }>("/v1/service-contracts", "POST", input),
+  updateContract: (id: string, input: Partial<ServiceContractInput>) =>
+    callApi(`/v1/service-contracts/${id}`, "PUT", input),
+  removeContract: (id: string) => callApi(`/v1/service-contracts/${id}`, "DELETE"),
+  activateContract: (id: string, input: { startDate: string; firstVisitDate?: string | null }) =>
+    callApi(`/v1/service-contracts/${id}/activate`, "POST", input),
+  suspendContract: (id: string) => callApi(`/v1/service-contracts/${id}/suspend`, "POST"),
+  resumeContract: (id: string) => callApi(`/v1/service-contracts/${id}/resume`, "POST"),
+  endContract: (id: string) => callApi(`/v1/service-contracts/${id}/end`, "POST"),
+};
+
+/** Como a OS concluída entra no financeiro: à vista ou parcelada, com ou sem entrada. */
+export interface LaunchTransactionInput {
+  wallet: string;
+  status: "paid" | "pending";
+  dueDate: string;
+  installments?: number;
+  downPayment?: { amount: number; dueDate: string; status: "paid" | "pending" };
+}
+
+/** O que o link público da OS mostra (`toClientOrderView` no backend). */
+export interface SharedServiceOrderView {
+  code: string;
+  type: ServiceOrder["type"];
+  status: ServiceOrderStatus;
+  title: string;
+  description: string | null;
+  clientName: string | null;
+  address: string | null;
+  equipmentLabels: string[];
+  technicianName: string | null;
+  scheduledStart: string | null;
+  checkInAt: string | null;
+  checkOutAt: string | null;
+  completedAt: string | null;
+  checklist: { text: string; done: boolean }[];
+  items: { name: string; kind: "product" | "service"; quantity: number; unitPrice: number }[];
+  totals: { products: number; services: number; total: number };
+  report: string | null;
+  photos: { url: string; caption: string | null }[];
+  signature: {
+    name: string;
+    document: string | null;
+    imageUrl: string;
+    signedAt: string;
+    contentHash: string;
+  } | null;
+  noSignatureReason: string | null;
+}
+
+export interface SharedServiceOrderTenant {
+  name: string | null;
+  logoUrl: string | null;
+  primaryColor: string | null;
+}
+
+export const SharedServiceOrderService = {
+  get: (token: string) =>
+    callPublicApi<{ order: SharedServiceOrderView; tenant: SharedServiceOrderTenant }>(
+      `/v1/share/service-order/${token}`,
+      "GET",
+    ),
+};

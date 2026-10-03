@@ -84,6 +84,33 @@ export const nicheConfig: NicheConfig = {
   onboardingStepDescriptions: {
     solutions:
       "Kits prontos, como oito câmeras com gravador ou um alarme monitorado, com os produtos de cada área já definidos.",
+    "service-orders":
+      "O chamado do alarme que disparou ou da câmera que saiu do ar: abra a OS, escolha o técnico e a data, e ele atende pelo celular com a assinatura do cliente na tela.",
+    contracts:
+      "O monitoramento de cada cliente: a mensalidade entra no financeiro todo mês, sem lançar à mão, e a manutenção preventiva abre a OS sozinha.",
+  },
+  fieldService: {
+    equipmentTypes: [
+      "Câmera",
+      "DVR ou NVR",
+      "Central de alarme",
+      "Sensor",
+      "Cerca elétrica",
+      "Controle de acesso",
+      "Interfone",
+    ],
+    equipmentNamePlaceholder: "Ex.: Câmera da garagem",
+    preventiveChecklist: [
+      "Testar todas as câmeras e a gravação",
+      "Conferir o HD e os dias de gravação",
+      "Testar sensores e sirene",
+      "Verificar a bateria da central",
+      "Limpar lentes e caixas",
+      "Conferir o acesso remoto",
+    ],
+    defaultContractType: "monitoring",
+    contractTitlePlaceholder: "Ex.: Monitoramento 24h",
+    pmoc: false,
   },
   booking: {
     defaultVisitType: NICHE_REGISTRY.seguranca_eletronica.defaultVisitType,

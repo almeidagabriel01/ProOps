@@ -123,7 +123,7 @@ function SubscriptionBlockedContent() {
           >
             {isRedirecting ? (
               <>
-                <Loader size="sm" className="mr-2" />
+                <Loader size="sm" variant="button" className="mr-2" />
                 Abrindo...
               </>
             ) : (
@@ -153,7 +153,7 @@ function SubscriptionBlockedContent() {
           >
             {isLoggingOut ? (
               <>
-                <Loader size="sm" className="mr-2" />
+                <Loader size="sm" variant="button" className="mr-2" />
                 Saindo...
               </>
             ) : (

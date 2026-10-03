@@ -23,6 +23,7 @@ import {
 } from "@/types/pdf-display-settings";
 import type { ProposalProductPricingDetails } from "@/lib/product-pricing";
 import type { TenantNiche } from "@/types";
+import { countsInProposalTotal } from "@/lib/proposal/monthly-lines";
 
 export interface Product {
   productId: string;
@@ -34,6 +35,7 @@ export interface Product {
   markup?: number;
   pricingDetails?: ProposalProductPricingDetails;
   isExtra?: boolean;
+  isMonthly?: boolean;
   productImage?: string;
   productImages?: string[];
   productDescription?: string;
@@ -552,7 +554,7 @@ export function buildContentItems(
       // Add sistema footer
       const sistemaSubtotal = productsForSistema.reduce(
         (sum: number, p: Product) =>
-          shouldCountProduct(p) ? sum + p.total : sum,
+          shouldCountProduct(p) && countsInProposalTotal(p) ? sum + p.total : sum,
         0,
       );
       items.push({

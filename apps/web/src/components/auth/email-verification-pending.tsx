@@ -283,6 +283,7 @@ export function EmailVerificationPending({
             onClick={handleResendVerification}
             disabled={!canResend || isResending}
           >
+            {isResending && <Loader size="sm" variant="button" className="mr-2" />}
             {isResending
               ? "Reenviando..."
               : canResend

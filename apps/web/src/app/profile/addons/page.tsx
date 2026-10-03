@@ -460,7 +460,7 @@ export default function AddonsPage() {
                         disabled={isProcessing === addonType}
                       >
                         {isProcessing === addonType ? (
-                          <Loader size="sm" />
+                          <Loader size="sm" variant="button" />
                         ) : (
                           "Cancelar Assinatura"
                         )}

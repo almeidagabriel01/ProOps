@@ -25,6 +25,7 @@ import {
   PLAN_PRO_ADDONS,
   PLAN_STARTER,
   PLAN_STARTER_ADDON,
+  PLAN_STARTER_FIELD_SERVICE,
   type SeedPlanTenant,
 } from "../seed/data/plans";
 
@@ -373,5 +374,80 @@ test.describe("PLAN-01: a UI acompanha a API", () => {
 
     await planEnterprise.getByRole("link", { name: "CRM", exact: true }).click();
     await planEnterprise.waitForURL(/\/crm/, { timeout: 15000 });
+  });
+});
+
+test.describe("PLAN-01: ordens de serviço e equipamentos", () => {
+  // Corpo válido de propósito: a validação vem antes do gate de permissão, e
+  // o que se quer medir aqui é o gate de PLANO, que vem antes dos dois.
+  const order = { clientId: "cliente-inexistente", type: "corrective", title: "Não gela" };
+  const contract = {
+    clientId: "cliente-inexistente",
+    title: "Monitoramento 24h",
+    type: "monitoring",
+    lines: [{ id: "l1", kind: "service", refId: null, name: "Monitoramento", quantity: 1, unitPrice: 129 }],
+    billingDay: 10,
+    wallet: "carteira-qualquer",
+    issueNfse: false,
+  };
+
+  test("Starter é bloqueado ao abrir OS e ao cadastrar equipamento", async ({ request }) => {
+    const idToken = await tokenDo(PLAN_STARTER);
+    const headers = { Authorization: "Bearer " + idToken };
+
+    await expectBlockedByPlan(
+      await request.post("/api/backend/v1/service-orders", { headers, data: order }),
+      "fieldService",
+    );
+    await expectBlockedByPlan(
+      await request.post("/api/backend/v1/equipment", {
+        headers,
+        data: { clientId: "cliente-inexistente", name: "Split da sala" },
+      }),
+      "fieldService",
+    );
+    await expectBlockedByPlan(
+      await request.post("/api/backend/v1/service-contracts", { headers, data: contract }),
+      "fieldService",
+    );
+  });
+
+  test("contratos: Pro e Starter com o add-on passam do gate", async ({ request }) => {
+    for (const tenant of [PLAN_PRO, PLAN_STARTER_FIELD_SERVICE]) {
+      const idToken = await tokenDo(tenant);
+      const response = await request.post("/api/backend/v1/service-contracts", {
+        headers: { Authorization: "Bearer " + idToken },
+        data: contract,
+      });
+      // Passou do gate: o contato não existe, então o controller responde 404.
+      expect(response.status()).toBe(404);
+    }
+  });
+
+  test("Pro NÃO é bloqueado pelo plano", async ({ request }) => {
+    const idToken = await tokenDo(PLAN_PRO);
+    const response = await request.post("/api/backend/v1/service-orders", {
+      headers: { Authorization: "Bearer " + idToken },
+      data: order,
+    });
+    // Passou do gate: o contato não existe, então o controller responde 404.
+    expect(response.status()).toBe(404);
+  });
+
+  test("Starter COM o add-on passa", async ({ request }) => {
+    const idToken = await tokenDo(PLAN_STARTER_FIELD_SERVICE);
+    const response = await request.post("/api/backend/v1/service-orders", {
+      headers: { Authorization: "Bearer " + idToken },
+      data: order,
+    });
+    expect(response.status()).toBe(404);
+  });
+
+  test("o PDF da OS confere o plano mesmo fora do router (função pdf)", async ({ request }) => {
+    const idToken = await tokenDo(PLAN_STARTER);
+    const response = await request.get("/api/backend/v1/service-orders/qualquer/pdf", {
+      headers: { Authorization: "Bearer " + idToken },
+    });
+    expect(response.status()).toBe(402);
   });
 });

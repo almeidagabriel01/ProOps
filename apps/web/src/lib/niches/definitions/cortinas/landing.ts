@@ -122,6 +122,11 @@ export const nicheLanding: NicheLandingConfig = {
         "Sim. Com as medidas do vão e o preço por m², por metro de largura ou pela faixa de altura, a ProOps calcula o total da proposta e, na aprovação, gera o financeiro.",
     },
     {
+      question: "E a manutenção depois da instalação?",
+      answer:
+        "A ordem de serviço registra o conserto ou a revisão do motor, do trilho e da lona, com peças, fotos e a assinatura do cliente na tela do celular. Quem vende manutenção anual de toldos cria o contrato, e a cobrança e a visita entram sozinhas.",
+    },
+    {
       question: "Qual o custo para começar?",
       answer:
         "Você cria uma conta gratuita e navega a ProOps em modo demonstração, com dados de exemplo de persianas e toldos, antes de assinar.",

@@ -2,7 +2,7 @@ import type { NicheConfig, InventoryDefinition } from "../../config-types";
 import { groupsStepFor, pdfCopyFor, solutionsPageFor } from "../../copy-builders";
 import { term, type NicheVocabulary } from "../../vocabulary";
 import { NICHE_REGISTRY } from "../../registry";
-import { meterInventoryDefinition } from "../../inventory-definitions";
+import { areaInventoryDefinition } from "../../inventory-definitions";
 
 const vocabulary: NicheVocabulary = {
   place: term("ambiente", "ambientes", "m"),
@@ -13,9 +13,9 @@ const vocabulary: NicheVocabulary = {
   productNamePlaceholder: "Ex: Armário em MDF branco TX",
 };
 
-// O estoque por medida é o mesmo de persianas; muda o que se conta nele.
+// Estoque por área (m²); muda o que se conta nele.
 const inventory: InventoryDefinition = {
-  ...meterInventoryDefinition,
+  ...areaInventoryDefinition,
   pageDescription: "Gerencie o catálogo de módulos, chapas, ferragens e acessórios, a metragem disponível e os preços.",
   emptyStateDescription:
     "Cadastre módulos, painéis, ferragens e acessórios para controlar a metragem disponível e montar propostas.",
@@ -101,7 +101,33 @@ export const nicheConfig: NicheConfig = {
     counts: { acceptance: 1, change_request: 0, expiring: 1, stale: 0 },
     total: 2,
   },
-  onboardingStepDescriptions: {},
+  onboardingStepDescriptions: {
+    "service-orders":
+      "A assistência depois da montagem, como a porta desregulada ou a gaveta que trava: abra a OS, escolha o montador e a data, e ele atende pelo celular com a assinatura do cliente na tela.",
+    contracts:
+      "A revisão periódica dos móveis, para quem vende: a cobrança entra no financeiro sozinha, e a visita abre a OS com o checklist.",
+  },
+  fieldService: {
+    equipmentTypes: [
+      "Armário",
+      "Cozinha planejada",
+      "Guarda-roupa",
+      "Painel",
+      "Bancada",
+      "Porta",
+    ],
+    equipmentNamePlaceholder: "Ex.: Guarda-roupa do casal",
+    preventiveChecklist: [
+      "Regular portas e dobradiças",
+      "Ajustar as corrediças das gavetas",
+      "Verificar a fixação na parede",
+      "Conferir acabamento e fitas de borda",
+      "Lubrificar as ferragens",
+    ],
+    defaultContractType: "maintenance",
+    contractTitlePlaceholder: "Ex.: Manutenção dos móveis planejados",
+    pmoc: false,
+  },
   booking: {
     defaultVisitType: NICHE_REGISTRY.marcenaria.defaultVisitType,
   },

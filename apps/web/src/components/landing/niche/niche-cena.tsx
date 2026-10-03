@@ -25,6 +25,7 @@ const CENAS: { [T in CenaDoNicho["tipo"]]: React.ComponentType<Props<T>> } = {
   "modulo-planejado": dynamic(() => import("./cenas/cena-modulo-planejado").then((m) => m.CenaModuloPlanejado)),
   "planta-seguranca": dynamic(() => import("./cenas/cena-planta-seguranca").then((m) => m.CenaPlantaSeguranca)),
   "matriz-automacao": dynamic(() => import("./cenas/cena-matriz-automacao").then((m) => m.CenaMatrizAutomacao)),
+  "split-instalacao": dynamic(() => import("./cenas/cena-split-instalacao").then((m) => m.CenaSplitInstalacao)),
 };
 
 interface NicheCenaProps {

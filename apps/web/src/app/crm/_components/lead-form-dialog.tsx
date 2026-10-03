@@ -25,6 +25,7 @@ import {
   type LeadSource,
 } from "@/services/leads-service";
 import { LEAD_SOURCE_LABELS } from "../_lib/leads";
+import { Loader } from "@/components/ui/loader";
 
 interface LeadFormDialogProps {
   open: boolean;
@@ -229,6 +230,7 @@ export function LeadFormDialog({ open, lead, onOpenChange, onSaved }: LeadFormDi
               Cancelar
             </Button>
             <Button type="submit" disabled={saving}>
+              {saving && <Loader size="sm" variant="button" className="mr-2" />}
               {saving ? "Salvando..." : editing ? "Salvar" : "Criar lead"}
             </Button>
           </DialogFooter>

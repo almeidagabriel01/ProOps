@@ -1,4 +1,5 @@
 import { ProposalProduct } from "@/services/proposal-service";
+import { countsInProposalTotal, monthlyTotal } from "@/lib/proposal/monthly-lines";
 
 interface SummaryFooterProps {
   selectedProducts: ProposalProduct[];
@@ -19,15 +20,19 @@ export function SummaryFooter({
   totalValue,
   closedValue,
 }: SummaryFooterProps) {
+  // Custo e lucro são da venda: a mensalidade fica fora, como do total.
+  const saleProducts = selectedProducts.filter(countsInProposalTotal);
+  const monthly = monthlyTotal(selectedProducts);
+
   // Calculate profit from markup
-  const totalProfit = selectedProducts.reduce((sum, p) => {
+  const totalProfit = saleProducts.reduce((sum, p) => {
     const basePrice = (p.unitPrice || 0) * p.quantity;
     const profit = basePrice * ((p.markup || 0) / 100);
     return sum + profit;
   }, 0);
 
   // Calculate total cost (without markup) — exclude services (pure revenue, no cost basis)
-  const totalCost = selectedProducts.reduce((sum, p) => {
+  const totalCost = saleProducts.reduce((sum, p) => {
     if (p.itemType === "service") return sum;
     return sum + (p.unitPrice || 0) * p.quantity;
   }, 0);
@@ -149,6 +154,20 @@ export function SummaryFooter({
           R$ {(Number(closedValue) > 0 ? Number(closedValue) : totalValue).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
         </td>
       </tr>
+
+      {monthly > 0 && (
+        <tr>
+          <td
+            colSpan={2}
+            className="p-2 sm:p-3 text-right text-violet-700 dark:text-violet-300 whitespace-nowrap max-sm:whitespace-normal font-medium"
+          >
+            Mensalidade (contrato, fora do total):
+          </td>
+          <td className="p-2 sm:p-3 text-right font-bold text-violet-700 dark:text-violet-300 whitespace-nowrap text-xs sm:text-sm">
+            + R$ {monthly.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}/mês
+          </td>
+        </tr>
+      )}
     </tfoot>
   );
 }

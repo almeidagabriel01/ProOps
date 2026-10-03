@@ -23,6 +23,8 @@
 import { test, expect } from "../fixtures/base.fixture";
 import { signInWithEmailPassword } from "../helpers/firebase-auth-api";
 import { USER_FREE } from "../seed/data/users";
+import { LoginPage } from "../pages/login.page";
+import { interceptFirebaseRequests } from "../fixtures/auth.fixture";
 
 async function freeToken(): Promise<string> {
   const { idToken } = await signInWithEmailPassword(
@@ -96,6 +98,11 @@ test.describe("DEMO-01: a conta free não escreve nada", () => {
     ["carteira", "/api/backend/v1/wallets"],
     ["ambiente (aux)", "/api/backend/v1/aux/ambientes"],
     ["coluna do CRM", "/api/backend/v1/kanban-statuses"],
+    // Assistência técnica: as OS e os equipamentos de exemplo são lidos no
+    // Firestore; a API só aceita a leitura de apoio, nunca a escrita.
+    ["ordem de serviço", "/api/backend/v1/service-orders"],
+    ["equipamento", "/api/backend/v1/equipment"],
+    ["contrato", "/api/backend/v1/service-contracts"],
   ] as const;
 
   for (const [nome, url] of ESCRITAS) {
@@ -140,6 +147,29 @@ test.describe("DEMO-01: módulos que o demo não alcança", () => {
       // FREE_TIER_FORBIDDEN, não PLAN_CAPABILITY_REQUIRED: a conta free é
       // barrada pela camada de billing, antes do gate de plano.
       expect(body.code).toBe("FREE_TIER_FORBIDDEN");
+    });
+  }
+});
+
+test.describe("DEMO-01: a conta free abre a assistência técnica", () => {
+  const TITULOS: Record<string, string> = {
+    "/service-orders": "Ordens de serviço",
+    "/equipment": "Equipamentos",
+    "/contracts": "Contratos",
+  };
+  for (const rota of ["/service-orders", "/equipment", "/contracts"]) {
+    test(`navega ${rota} sem ser mandada embora`, async ({ page }) => {
+      await interceptFirebaseRequests(page);
+      const loginPage = new LoginPage(page);
+      await loginPage.goto();
+      await loginPage.login(USER_FREE.email, USER_FREE.password);
+      await page.waitForURL(/dashboard/, { timeout: 30_000 });
+
+      await page.goto(rota);
+      await expect(page).toHaveURL(new RegExp(`${rota}$`));
+      await expect(
+        page.getByRole("heading", { name: TITULOS[rota], exact: true }),
+      ).toBeVisible();
     });
   }
 });

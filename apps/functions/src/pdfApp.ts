@@ -5,6 +5,8 @@ import { downloadSharedProposalPdf } from "./api/controllers/shared-proposal-pdf
 import { downloadSharedTransactionPdf } from "./api/controllers/shared-transaction-pdf.controller";
 import { downloadProposalPdf } from "./api/controllers/proposal-pdf.controller";
 import { downloadTransactionPdf } from "./api/controllers/transaction-pdf.controller";
+import { downloadServiceOrderPdf } from "./api/controllers/field-service.controller";
+import { downloadPmocPdf } from "./api/controllers/pmoc.controller";
 import { logger } from "./lib/logger";
 
 /**
@@ -38,6 +40,8 @@ pdfApp.get(
 pdfApp.use(validateFirebaseIdToken);
 pdfApp.get("/v1/proposals/:id/pdf", pdfRateLimiter, downloadProposalPdf);
 pdfApp.get("/v1/transactions/:id/pdf", pdfRateLimiter, downloadTransactionPdf);
+pdfApp.get("/v1/service-orders/:id/pdf", pdfRateLimiter, downloadServiceOrderPdf);
+pdfApp.get("/v1/service-contracts/:id/pmoc/pdf", pdfRateLimiter, downloadPmocPdf);
 
 // Fallback de erro — controllers tratam os próprios erros; isto cobre throws
 // síncronos inesperados para a resposta não ficar pendurada.

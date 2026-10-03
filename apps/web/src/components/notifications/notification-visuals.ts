@@ -2,8 +2,10 @@ import {
   AlertTriangle,
   CalendarClock,
   CheckCircle2,
+  ClipboardList,
   Clock,
   FileText,
+  FileWarning,
   HardHat,
   ListTodo,
   MessageCircle,
@@ -41,6 +43,10 @@ export function getNotificationIcon(type: NotificationType) {
     case NotificationType.BOOKING_REQUESTED:
     case NotificationType.PROJECT_VISIT_SCHEDULED:
       return CalendarClock;
+    case NotificationType.SERVICE_ORDER_ASSIGNED:
+      return ClipboardList;
+    case NotificationType.SERVICE_CONTRACT_SUSPENDED:
+      return FileWarning;
     default:
       return FileText;
   }
@@ -53,6 +59,7 @@ export function getNotificationIconClassName(type: NotificationType): string {
     case NotificationType.PROPOSAL_ACCEPTED:
       return "bg-emerald-100 dark:bg-emerald-950 text-emerald-600 dark:text-emerald-400";
     case NotificationType.PROPOSAL_CHANGES_REQUESTED:
+    case NotificationType.SERVICE_CONTRACT_SUSPENDED:
       return "bg-amber-100 dark:bg-amber-950 text-amber-600 dark:text-amber-400";
     case NotificationType.PROJECT_DELIVERY_ACCEPTED:
     case NotificationType.TRANSACTION_PAID_ONLINE:

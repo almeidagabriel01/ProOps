@@ -16,7 +16,7 @@
 | Exportacao | Tipo | Descricao |
 |------------|------|-----------|
 | `api` | HTTP (Express) | Monolito Express — todas as rotas REST |
-| `pdf` | HTTP (Express) | Renderizacao de PDF isolada (Chromium fora do monolito) — 4 rotas de PDF; proxy Next.js roteia paths `*/pdf` para ca |
+| `pdf` | HTTP (Express) | Renderizacao de PDF isolada (Chromium fora do monolito) — 6 rotas de PDF (inclui OS e PMOC); proxy Next.js roteia paths `*/pdf` para ca |
 | `stripeWebhook` | HTTP (Express) | Webhook Stripe com verificacao de assinatura |
 | `checkManualSubscriptions` | Scheduled | Verificacao diaria de assinaturas manuais |
 | `checkDueDates` | Scheduled | Verificacao diaria de vencimentos |
@@ -29,6 +29,7 @@
 | `reconcileAddons` | Scheduled | Reconciliacao de add-ons |
 | `processPayoutRetries` | Scheduled | Retries de payout (Asaas) |
 | `processDriveDeliveries` | Scheduled | Entrega as propostas pendentes no Google Drive (a cada 3 min; `cpu: 1`, `concurrency: 1`) — tira o Chromium da request de salvar |
+| `processServiceContracts` | Scheduled | Contratos de manutencao (06:00): lanca a mensalidade 10 dias antes do vencimento e abre a OS da visita preventiva 7 dias antes; suspende e avisa quem perdeu o modulo. Idempotente por id (`contract_{id}_{AAAAMM}`). Manual: `POST /internal/cron/service-contracts` (`dryRun`) |
 | `processInvoiceRetries` | Scheduled | Consulta notas fiscais pendentes (a cada 15 min) — backstop do webhook do Focus |
 | `checkFiscalCertificateExpiry` | Scheduled | Avisa vencimento do certificado A1 em D-30/15/7/1 e diariamente apos vencer |
 | `syncReceivedInvoices` | Scheduled | Busca notas de ENTRADA (de hora em hora), incremental por `versao` |
@@ -123,6 +124,12 @@ Os upserts das partes 1 e 2 vao por um `BulkWriter` (paralelo, com retentativa),
 **Parte 2d — Tarefas com prazo hoje (2026-09-26):**
 - `runTaskReminders` (`task-reminders.ts`): tarefas com `dueAt` igual a hoje (fuso de Brasilia) e sem `doneAt`
 - Notificacao `task_reminder` com id `task_{taskId}_{dia}`, para o responsavel ou, sem ele, para quem criou
+- Falha nao-fatal
+
+**Parte 2e — ART do responsavel tecnico do PMOC (2026-10-03):**
+- `runArtExpiryReminders` (`art-expiry-reminders.ts`): responsaveis tecnicos ativos com `artValidUntil` na janela de hoje - 90 dias a hoje + 30 (faixa num campo so, indice automatico)
+- Marcos D-30, D-15, D-7 e D-1, e depois de vencida um aviso por semana (1, 8, 15... dias) ate 90 dias, no desenho do aviso do certificado A1
+- Notificacao `system` (dono e admins, com e-mail) gravada com `create` no id `art_{responsavel}_{validade}_{marco}`: rodar de novo no mesmo dia nao duplica nem reenvia o e-mail, e renovar a ART (validade nova) recomeca os marcos
 - Falha nao-fatal
 
 **Parte 3 — Limpeza de sessoes WhatsApp:**
@@ -316,11 +323,20 @@ Funcao HTTP separada (nao faz parte do monolito `api`):
 | `projects/{id}` | Projetos | Obra depois da venda (etapas, checklist, fotos, entrega). Id `proposal_{proposalId}` quando nasce da proposta. Tenant le; escrita so via Cloud Functions |
 | `project_settings/{tenantId}` | Projetos | Criacao automatica na aprovacao e roteiro de etapas. Admin SDK only |
 | `shared_projects/{id}` | Projetos | Link publico da entrega (token). Admin SDK only |
+| `customer_equipment/{id}` | Assistencia tecnica | Aparelhos instalados em cada cliente (garantia, ultimo atendimento). Tenant le; escrita so via Cloud Functions (`field-service.controller.ts`) |
+| `service_orders/{id}` | Assistencia tecnica | Ordem de servico (checklist, pecas, fotos, assinatura). Do TECNICO: as rules leem `technicianUids`; dono, admins e o escopo `service_orders_all` leem todas. Escrita so via Cloud Functions |
+| `shared_service_orders/{token}` | Assistencia tecnica | Link publico da OS (o id e o token). Admin SDK only |
+| `service_order_counters/{tenantId}` | Assistencia tecnica | Proximo numero da OS (`OS-0001`, `nextNumber`) e do contrato (`CT-0001`, `nextContractNumber`), alocados na transacao que cria cada um. Admin SDK only |
+| `contract_invoice_claims/{transactionId}` | Assistencia tecnica | Trava da NFS-e da mensalidade: gravada com `create` antes de emitir, para o gatilho repetido nao emitir duas notas. Admin SDK only |
+| `service_contracts/{id}` | Assistencia tecnica | Contrato de manutencao: linhas da mensalidade, dia de cobranca, carteira, plano de visitas. Id `proposal_{proposalId}` quando nasce da proposta. Tenant le; escrita so via Cloud Functions |
+| `shared_pmoc/{token}` | Assistencia tecnica | Link publico do PMOC de um contrato (o id e o token; o contrato guarda `pmocShareToken`). Admin SDK only |
+| `technical_responsibles/{id}` | Assistencia tecnica | Responsavel tecnico do PMOC (conselho, registro, ART e o PDF dela). Tenant le; escrita so via Cloud Functions, pelo dono e pelos admins |
+| `stock_movements/{id}` | Estoque | Historico de estoque, gravado na mesma transacao que ajusta `inventoryValue`. Id `so_{ordem}_{revisao}_{produto}`. Tenant le; escrita so via Cloud Functions |
 | `proposal_counters/{tenantId}` | Propostas | Configuracao e contador da numeracao (o codigo `0018926SP`). Admin SDK only |
 | `proposals/{proposalId}` | Propostas | Propostas (com `pdf.storagePath` e `pdfGenerationLock`) |
 | `transactions/{transactionId}` | Financeiro | Lancamentos financeiros |
 | `wallets/{walletId}` | Financeiro | Carteiras com saldo desnormalizado |
-| `cron_cursors/{cronId}` | Crons | Onde um cron longo parou (`runRotatingCursor`): `checkStripeSubscriptions`, `reconcileAddons`. Admin SDK only |
+| `cron_cursors/{cronId}` | Crons | Onde um cron longo parou (`runRotatingCursor`): `checkStripeSubscriptions`, `reconcileAddons`, `processServiceContracts`. Admin SDK only |
 | `transaction_group_sync/{groupDocId}` | Financeiro | `readTime` em que cada resumo de `transaction_groups` se baseou; ordena e coalesce os recalculos do `onTransactionTotals`. Admin SDK only |
 | `shared_proposals/{id}` | Share Links | Links publicos de propostas (id automatico; o token e campo) |
 | `shared_transactions/{id}` | Share Links | Links publicos de lancamentos (id automatico; o token e campo) |

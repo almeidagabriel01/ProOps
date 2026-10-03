@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import Image from "next/image";
-import { CreditCard, FileText, FolderKanban, Hammer, UserRound } from "lucide-react";
+import { CreditCard, FileSignature, FileText, FolderKanban, Hammer, UserRound, Wrench } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -10,6 +10,7 @@ import { Loader } from "@/components/ui/loader";
 import { formatCurrency } from "@/utils/format";
 import { formatDateBR } from "@/utils/date-format";
 import { formatStageSchedule } from "@/lib/projects/stage-schedule";
+import { formatWhen } from "@/lib/field-service/service-orders";
 import { brandButtonStyle } from "@/utils/color-utils";
 import type { PortalItemKind, PortalView } from "@/services/client-portal-service";
 
@@ -61,8 +62,16 @@ function Row({ children }: { children: React.ReactNode }) {
 export function ClientPortalView({ view, onOpen, example = false }: ClientPortalViewProps) {
   const [opening, setOpening] = React.useState<string | null>(null);
   const brand = brandButtonStyle(view.company.primaryColor);
+  const serviceOrders = view.serviceOrders ?? [];
+  const contracts = view.contracts ?? [];
   const nothing =
-    view.proposals.length + view.payments.length + view.projects.length + view.invoices.length === 0;
+    view.proposals.length +
+      view.payments.length +
+      view.projects.length +
+      view.invoices.length +
+      serviceOrders.length +
+      contracts.length ===
+    0;
   const openCount = view.payments.filter((p) => p.status !== "paid").length;
 
   const open = async (kind: PortalItemKind, id: string) => {
@@ -217,6 +226,56 @@ export function ClientPortalView({ view, onOpen, example = false }: ClientPortal
                   )}
                 </div>
                 {action("project", p.id, "Acompanhar")}
+              </Row>
+            ))}
+          </Section>
+        )}
+
+        {contracts.length > 0 && (
+          <Section icon={FileSignature} title="Contratos">
+            {contracts.map((c) => (
+              <Row key={c.id}>
+                <div className="min-w-0">
+                  <p className="font-medium">{c.title}</p>
+                  <p className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
+                    <span>
+                      {formatCurrency(c.monthlyAmount)} por mês, vence todo dia {c.billingDay}
+                    </span>
+                    <span>{c.code}</span>
+                  </p>
+                  {c.nextVisitDate && (
+                    <p className="mt-1 text-sm">
+                      <span className="text-muted-foreground">Próxima visita: </span>
+                      <span className="font-medium">{formatDateBR(c.nextVisitDate)}</span>
+                    </p>
+                  )}
+                </div>
+                {c.isPmoc && action("pmoc", c.id, "Ver o PMOC")}
+              </Row>
+            ))}
+          </Section>
+        )}
+
+        {serviceOrders.length > 0 && (
+          <Section icon={Wrench} title="Atendimentos">
+            {serviceOrders.map((o) => (
+              <Row key={o.id}>
+                <div className="min-w-0">
+                  <p className="font-medium">{o.title}</p>
+                  <p className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
+                    <Badge variant={o.state === "completed" ? "success" : "secondary"}>
+                      {o.state === "completed" ? "Concluído" : "Agendado"}
+                    </Badge>
+                    <span>{o.code}</span>
+                    {o.date && (
+                      <span>
+                        {o.state === "completed" ? `em ${formatDateBR(o.date)}` : formatWhen(o.date)}
+                      </span>
+                    )}
+                    {o.technicianName && <span>com {o.technicianName}</span>}
+                  </p>
+                </div>
+                {o.state === "completed" && action("service_order", o.id, o.signed ? "Ver comprovante" : "Ver atendimento")}
               </Row>
             ))}
           </Section>

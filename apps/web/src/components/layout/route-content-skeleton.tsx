@@ -13,6 +13,7 @@ import {
   SettingsProposalsSkeleton,
   SettingsFiscalSkeleton,
   SettingsDriveSkeleton,
+  SettingsTechnicalResponsiblesSkeleton,
   SettingsLinkedAccountsSkeleton,
   SettingsTeamSkeleton,
 } from "@/app/settings/_components/settings-skeleton";
@@ -51,6 +52,9 @@ export function SettingsSectionSkeleton({ pathname }: { pathname: string }) {
   if (pathname.startsWith("/settings/proposals")) return <SettingsProposalsSkeleton />;
   if (pathname.startsWith("/settings/fiscal")) return <SettingsFiscalSkeleton />;
   if (pathname.startsWith("/settings/drive")) return <SettingsDriveSkeleton />;
+  if (pathname.startsWith("/settings/technical-responsibles")) {
+    return <SettingsTechnicalResponsiblesSkeleton />;
+  }
   if (pathname.startsWith("/settings/linked-accounts")) {
     return <SettingsLinkedAccountsSkeleton />;
   }

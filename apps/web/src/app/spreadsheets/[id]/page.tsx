@@ -372,7 +372,7 @@ export default function SpreadsheetEditorPage() {
         <div className="flex items-center gap-2">
           <Button onClick={handleSave} disabled={!canSave} className="gap-2">
             {saving ? (
-              <Loader size="sm" />
+              <Loader size="sm" variant="button" />
             ) : (
               <Save className="w-4 h-4" />
             )}

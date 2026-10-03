@@ -9,9 +9,9 @@ import {
 } from "@/services/recovery-codes-service";
 import { toast } from "@/lib/toast";
 import { Button } from "@/components/ui/button";
-import { Spinner } from "@/components/ui/spinner";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { RecoveryCodesModal } from "./recovery-codes-modal";
+import { Loader } from "@/components/ui/loader";
 
 export interface RecoveryCodesSectionHandle {
   /** Current recovery-codes status (null while still loading / unknown). */
@@ -112,7 +112,7 @@ export const RecoveryCodesSection = React.forwardRef<
       <div className="flex flex-col gap-4">
         {loading ? (
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <Spinner className="h-4 w-4" />
+            <Loader size="sm" variant="button" />
             Carregando...
           </div>
         ) : hasCodes ? (
@@ -140,7 +140,7 @@ export const RecoveryCodesSection = React.forwardRef<
           disabled={generating || loading}
           className="w-fit gap-2 cursor-pointer"
         >
-          {generating && <Spinner className="h-4 w-4" />}
+          {generating && <Loader size="sm" variant="button" />}
           {generating
             ? "Gerando..."
             : hasCodes

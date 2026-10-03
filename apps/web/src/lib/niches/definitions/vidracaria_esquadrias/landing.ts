@@ -110,6 +110,11 @@ export const nicheLanding: NicheLandingConfig = {
         "Sim. Com as medidas do vão e o preço do m² ou do metro linear, a ProOps calcula o total da proposta e, na aprovação, gera o financeiro.",
     },
     {
+      question: "E a manutenção das esquadrias?",
+      answer:
+        "A ordem de serviço registra a regulagem, a troca de roldana ou a vedação, com peças, fotos e a assinatura do cliente na tela do celular. Para o condomínio ou a empresa que contrata manutenção periódica, o contrato lança a mensalidade e abre a visita sozinho.",
+    },
+    {
       question: "Qual o custo para começar?",
       answer:
         "Você cria uma conta gratuita e navega a ProOps em modo demonstração, com dados de exemplo de vidraçaria, antes de assinar.",

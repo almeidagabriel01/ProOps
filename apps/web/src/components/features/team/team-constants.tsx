@@ -1,4 +1,4 @@
-import { Eye, Edit3, Shield, User, Settings } from "lucide-react";
+import { Eye, Edit3, Shield, User, Settings, Wrench } from "lucide-react";
 
 export const roleConfig = {
   viewer: {
@@ -24,6 +24,14 @@ export const roleConfig = {
     lightBg: "bg-purple-500/10",
     borderColor: "border-purple-500",
     textColor: "text-purple-600 dark:text-purple-400",
+  },
+  technician: {
+    icon: Wrench,
+    color: "from-teal-500 to-emerald-600",
+    bgColor: "bg-teal-500",
+    lightBg: "bg-teal-500/10",
+    borderColor: "border-teal-500",
+    textColor: "text-teal-600 dark:text-teal-400",
   },
 };
 

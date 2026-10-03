@@ -1,4 +1,6 @@
+import { useCurrentNicheConfig } from "@/hooks/useCurrentNicheConfig";
 import { Badge } from "@/components/ui/badge";
+import { MonthlyLineBadge } from "../monthly-line";
 import { ProposalProduct } from "@/services/proposal-service";
 import {
   formatProposalProductDisplayQuantity,
@@ -17,10 +19,11 @@ export function ProductRow({ product, isInactive }: ProductRowProps) {
   const unitValue = isService
     ? product.unitPrice || 0
     : (product.unitPrice || 0) * (1 + (product.markup || 0) / 100);
-  const measurementLabel = getProposalProductMeasurementLabel(product);
+  const { pricing } = useCurrentNicheConfig();
+  const measurementLabel = getProposalProductMeasurementLabel(product, pricing);
   const quantityLabel = `Qtd. ${formatProposalProductDisplayQuantity(product)}`;
   const isDimensionProduct = getProposalProductPanelCount(product) !== null;
-  const unitLabel = getProposalProductUnitLabel(product);
+  const unitLabel = getProposalProductUnitLabel(product, pricing);
 
   return (
     <tr className="border-t">
@@ -43,6 +46,7 @@ export function ProductRow({ product, isInactive }: ProductRowProps) {
               Extra
             </Badge>
           )}
+          <MonthlyLineBadge product={product} />
           {isInactive && (
             <Badge
               variant="secondary"
@@ -67,6 +71,7 @@ export function ProductRow({ product, isInactive }: ProductRowProps) {
       </td>
       <td className="p-2 sm:p-3 text-right font-medium whitespace-nowrap">
         R$ {(product.total || 0).toFixed(2)}
+        {product.isMonthly === true && <span className="text-xs font-normal text-muted-foreground">/mês</span>}
       </td>
     </tr>
   );

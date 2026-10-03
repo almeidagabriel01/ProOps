@@ -32,7 +32,7 @@ PDFs sao gerados renderizando a pagina Next.js com Playwright/Chromium headless 
 
 ### Onde roda
 
-Os 4 endpoints de PDF sao atendidos pela **funcao Cloud dedicada `pdf`** (`src/pdfApp.ts`, config `PDF_OPTIONS`: 1GiB, `concurrency: 2` = max 2 Chromiums por instancia). O proxy Next.js roteia paths `*/pdf` para ela. As mesmas rotas seguem montadas no monolito `api` como fallback e para o fluxo interno WhatsApp→PDF (que chama `getOrGenerateProposalPdfBuffer` in-process). Lock (Firestore) e cache (Storage) sao compartilhados entre as duas funcoes.
+Os 5 endpoints de PDF sao atendidos pela **funcao Cloud dedicada `pdf`** (`src/pdfApp.ts`, config `PDF_OPTIONS`: 1GiB, `concurrency: 2` = max 2 Chromiums por instancia). O proxy Next.js roteia paths `*/pdf` para ela. As mesmas rotas seguem montadas no monolito `api` como fallback e para o fluxo interno WhatsApp→PDF (que chama `getOrGenerateProposalPdfBuffer` in-process). Lock (Firestore) e cache (Storage) sao compartilhados entre as duas funcoes.
 
 ### Fluxo geral
 
@@ -129,7 +129,7 @@ PDF_RENDER_ASSET_TIMEOUT_MS = 20_000  // timeout do seletor de readiness
 
 ### Versioning e cache
 
-**`PDF_TEMPLATE_VERSION = "proposal-pdf-v9-playwright"`**
+**`PDF_TEMPLATE_VERSION = "proposal-pdf-v10-playwright"`**
 
 Ao mudar o template HTML/CSS de proposta, incrementar esta string para invalidar todos os caches em producao.
 
@@ -137,7 +137,7 @@ O hash de versao (`versionHash`) e calculado com SHA-256 sobre:
 
 ```
 {
-  templateVersion: "proposal-pdf-v9-playwright",
+  templateVersion: "proposal-pdf-v10-playwright",
   proposalId: string,
   proposal: { ...proposalData sem campos pdf/lock/timestamps },
   tenant: { name, primaryColor, logoUrl, niche, proposalDefaults }
@@ -219,8 +219,10 @@ Para o endpoint publico (share token). Valida o shared link via `SharedTransacti
 |------|-----------|-----|
 | `GET /v1/proposals/:id/pdf` | `proposal-pdf.controller.ts` | Download PDF de proposta pelo dono |
 | `GET /v1/transactions/:id/pdf` | `transaction-pdf.controller.ts` | Download recibo de lancamento pelo dono |
+| `GET /v1/service-orders/:id/pdf` | `field-service.controller.ts` | PDF da ordem de servico (imprime `/share/os/{token}`; confere a capacidade `fieldService` no controller) |
+| `GET /v1/service-contracts/:id/pmoc/pdf` | `pmoc.controller.ts` | PDF do plano ou do relatorio do PMOC (`kind`, `from`, `to`; imprime `/share/pmoc/{token}`, sem cache) |
 
-Ambos passam pelo middleware `pdfRateLimiter`.
+Todos passam pelo middleware `pdfRateLimiter`.
 
 ### PDF publico (share token como auth)
 
@@ -330,7 +332,7 @@ interface Notification {
 | `transaction_due_reminder` | Cron `checkDueDates`, diario | ve lancamentos | nao |
 | `transaction_viewed` | Lancamento compartilhado visualizado | ve lancamentos | pode, desligado |
 | `transaction_paid_online` | Webhook do Asaas | ve lancamentos | ligado |
-| `system` | Repasse do Asaas que falhou, certificado A1 vencendo; e os do superadmin (`tenantId: "system"`) | dono e admins | ligado |
+| `system` | Repasse do Asaas que falhou, certificado A1 vencendo, ART do PMOC vencendo; e os do superadmin (`tenantId: "system"`) | dono e admins | ligado |
 | `price_change` | Cron `checkPriceChanges` | dono e admins | nao (tem e-mail proprio) |
 | `task_assigned` | Tarefa passada para alguem (`tasks.controller.ts`); quem fez a acao nunca e avisado. O texto NAO leva o prazo: a notificacao e uma foto do momento e ficaria com a data velha na primeira edicao | so o responsavel (`targetUids`) | ligado |
 | `booking_requested` | Cliente pediu visita pelo link de agendamento (`booking.service.ts`) | ve a Agenda (`calendar`) | ligado |
@@ -338,6 +340,8 @@ interface Notification {
 | `task_updated` | Outra pessoa mudou (ou tirou) o prazo de uma tarefa que ja tinha responsavel; com atribuicao nova na mesma edicao, vale so o `task_assigned` | so o responsavel | pode, desligado |
 | `task_mentioned` | Alguem citado com @ numa tarefa; so quem foi citado AGORA, e nao o responsavel ja avisado | so os citados | ligado |
 | `task_reminder` | Cron `checkDueDates` (2d), tarefa com prazo hoje, id `task_{id}_{dia}` | o responsavel, ou quem criou | nao |
+| `service_order_assigned` | OS passada para um tecnico, ou remarcada (`field-service.controller.ts`); quem fez a acao nunca e avisado | so o tecnico (`targetUids`) | ligado |
+| `service_contract_suspended` | Rotina `processServiceContracts`: a empresa perdeu o modulo ou o financeiro e o contrato parou de cobrar | dono e admins | ligado |
 
 ### Metodos publicos
 

@@ -1,6 +1,7 @@
 import { existsSync, readdirSync, statSync } from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
+import * as NICHE_REGISTRY_MODULE from "@/lib/niches/registry";
 
 import {
   CATALOGO,
@@ -65,6 +66,11 @@ describe("catálogo de funcionalidades", () => {
     for (const r of CATALOGO.filter((x) => x.nichos)) {
       expect(nichosDoRecurso(r.nichos).length).toBeGreaterThan(0);
     }
+  });
+
+  it("o PMOC aparece marcado só no nicho que o tem", () => {
+    const { NICHE_REGISTRY } = NICHE_REGISTRY_MODULE;
+    expect(nichosDoRecurso("pmoc")).toEqual([NICHE_REGISTRY.climatizacao.label]);
   });
 
   it("texto curto: resumo numa linha, detalhes contados", () => {

@@ -69,6 +69,12 @@ const DEMO_READABLE_PREFIXES = [
   "/v1/activities",
   // Projetos de instalação (projects.routes.ts)
   "/v1/projects",
+  // Assistência técnica (field-service.routes.ts): as listas são lidas no
+  // Firestore; aqui só as consultas de apoio da tela.
+  "/v1/service-orders",
+  "/v1/equipment",
+  "/v1/service-contracts",
+  "/v1/technical-responsibles",
   // Tarefas (tasks.routes.ts): a lista é lida no Firestore; aqui só /people
   "/v1/tasks",
   "/v1/calendar",

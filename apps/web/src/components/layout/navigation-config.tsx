@@ -21,6 +21,9 @@ import {
   TrendingUp,
   Target,
   CalendarClock,
+  ClipboardList,
+  FileSignature,
+  ServerCog,
 } from "lucide-react";
 
 import type { NicheConfig } from "@/lib/niches/config-types";
@@ -42,7 +45,8 @@ export type MenuCapability =
   | "fiscal"
   | "projects"
   | "salesGoals"
-  | "bookingLink";
+  | "bookingLink"
+  | "fieldService";
 
 /**
  * Quais capacidades o plano do tenant abre. Mora aqui, e não em
@@ -234,6 +238,34 @@ export const menuItems: MenuItem[] = [
         masterOnly: true,
         showInDemo: true,
         requiresCapability: "bookingLink",
+      },
+    ],
+  },
+  {
+    icon: ClipboardList,
+    label: "Assistência",
+    // O pós-venda técnico: o chamado (OS), o aparelho atendido e o contrato que
+    // cobra a manutenção todo mês. As três telas pedem a mesma capacidade,
+    // então o grupo coroa inteiro.
+    requiresCapability: "fieldService",
+    children: [
+      {
+        icon: ClipboardList,
+        label: "Ordens de serviço",
+        href: "/service-orders",
+        pageId: "service_orders",
+      },
+      {
+        icon: ServerCog,
+        label: "Equipamentos",
+        href: "/equipment",
+        pageId: "equipment",
+      },
+      {
+        icon: FileSignature,
+        label: "Contratos",
+        href: "/contracts",
+        pageId: "contracts",
       },
     ],
   },

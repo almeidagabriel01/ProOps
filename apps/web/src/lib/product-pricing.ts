@@ -1,3 +1,7 @@
+import type { PricingDefinition } from "@/lib/niches/config-types";
+import { cap } from "@/lib/niches/vocabulary";
+import { linearPriceUnit, measureTerms } from "@/lib/pricing/dimension-mode-labels";
+
 /**
  * Preço de produto por medida. Módulo puro, sem "use client": as landings de
  * nicho calculam os totais de exemplo com estas mesmas funções no servidor, e
@@ -525,7 +529,10 @@ export function formatMeters(value: number): string {
   })} m`;
 }
 
-export function getProductPricingSummary(product: ProductPricingSource): string {
+export function getProductPricingSummary(
+  product: ProductPricingSource,
+  pricing: Pick<PricingDefinition, "measureLabels"> = {},
+): string {
   const pricingModel = normalizeProductPricingModel(product.pricingModel);
 
   if (pricingModel.mode === "curtain_meter") {
@@ -550,10 +557,10 @@ export function getProductPricingSummary(product: ProductPricingSource): string 
     );
 
     if (firstTier.id === lastTier?.id) {
-      return `R$ ${firstPrice.toFixed(2)} / m larg.`;
+      return `R$ ${firstPrice.toFixed(2)} / ${linearPriceUnit(pricing, "curtain_height")}`;
     }
 
-    return `R$ ${firstPrice.toFixed(2)} a R$ ${lastPrice.toFixed(2)} / m larg.`;
+    return `R$ ${firstPrice.toFixed(2)} a R$ ${lastPrice.toFixed(2)} / ${linearPriceUnit(pricing, "curtain_height")}`;
   }
 
   if (pricingModel.mode === "curtain_width") {
@@ -561,7 +568,7 @@ export function getProductPricingSummary(product: ProductPricingSource): string 
       getProductBasePrice(product),
       getProductMarkup(product),
     );
-    return `R$ ${sellingPrice.toFixed(2)} / m larg.`;
+    return `R$ ${sellingPrice.toFixed(2)} / ${linearPriceUnit(pricing, "curtain_width")}`;
   }
 
   const sellingPrice = calculateSellingPrice(
@@ -571,11 +578,19 @@ export function getProductPricingSummary(product: ProductPricingSource): string 
   return `R$ ${sellingPrice.toFixed(2)}`;
 }
 
-export function getProductPricingDescription(product: ProductPricingSource): string {
+export function getProductPricingDescription(
+  product: ProductPricingSource,
+  pricing: Pick<PricingDefinition, "measureLabels"> = {},
+): string {
   const pricingModel = normalizeProductPricingModel(product.pricingModel);
 
   if (pricingModel.mode === "curtain_meter") {
-    return "Calculado por largura x altura x preço com markup.";
+    const { width, height } = measureTerms(pricing, "curtain_meter");
+    return `Calculado por ${width.singular} x ${height.singular} x preço com markup.`;
+  }
+
+  if (pricingModel.mode === "curtain_width") {
+    return `Calculado por ${measureTerms(pricing, "curtain_width").width.singular} x preço com markup.`;
   }
 
   if (pricingModel.mode === "curtain_height") {
@@ -589,7 +604,7 @@ export function getProductPricingDescription(product: ProductPricingSource): str
         return `${startLabel}: R$ ${calculateSellingPrice(
           tier.basePrice,
           tier.markup,
-        ).toFixed(2)} / m larg.`;
+        ).toFixed(2)} / ${linearPriceUnit(pricing, "curtain_height")}`;
       })
       .join(" | ");
   }
@@ -597,8 +612,14 @@ export function getProductPricingDescription(product: ProductPricingSource): str
   return "Preço simples por quantidade.";
 }
 
+/**
+ * A medida de uma linha, como a proposta e o PDF mostram. O nome das medidas
+ * vem do nicho (`pricing.measureLabels`): a tubulação de climatização sai
+ * "Comprimento 6 m", e não "Largura". Sem o nicho, largura e altura.
+ */
 export function getProposalProductMeasurementLabel(
   product: Pick<ProposalPricingSource, "pricingDetails" | "quantity">,
+  pricing: Pick<PricingDefinition, "measureLabels"> = {},
 ): string {
   const details = hydrateProposalPricingDetails(product);
 
@@ -607,13 +628,14 @@ export function getProposalProductMeasurementLabel(
   }
 
   if (details.mode === "curtain_height") {
-    return `Largura ${formatMeters(details.width)} | Altura até ${formatMeters(
+    const { width, height } = measureTerms(pricing, "curtain_height");
+    return `${cap(width.singular)} ${formatMeters(details.width)} | ${cap(height.singular)} até ${formatMeters(
       details.maxHeight,
     )}`;
   }
 
   if (details.mode === "curtain_width") {
-    return `Largura ${formatMeters(details.width)}`;
+    return `${cap(measureTerms(pricing, "curtain_width").width.singular)} ${formatMeters(details.width)}`;
   }
 
   const quantity = roundPricingValue(Math.max(0, Number(product.quantity || 0)), 4);
@@ -625,6 +647,7 @@ export function getProposalProductMeasurementLabel(
 
 export function getProposalProductUnitLabel(
   product: Pick<ProposalPricingSource, "pricingDetails">,
+  pricing: Pick<PricingDefinition, "measureLabels"> = {},
 ): string {
   const details = normalizeProposalPricingDetails(product.pricingDetails);
 
@@ -633,11 +656,11 @@ export function getProposalProductUnitLabel(
   }
 
   if (details.mode === "curtain_height") {
-    return "m larg.";
+    return linearPriceUnit(pricing, "curtain_height");
   }
 
   if (details.mode === "curtain_width") {
-    return "m larg.";
+    return linearPriceUnit(pricing, "curtain_width");
   }
 
   return "un";

@@ -458,7 +458,7 @@ export function GroupedTransactionsView({
             disabled={isLoadingMore}
             className="gap-2"
           >
-            {isLoadingMore ? <Loader size="sm" /> : null}
+            {isLoadingMore ? <Loader size="sm" variant="button" /> : null}
             Carregar mais
           </Button>
         </div>

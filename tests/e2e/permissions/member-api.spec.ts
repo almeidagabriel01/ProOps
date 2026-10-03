@@ -195,3 +195,47 @@ test.describe("PERM-10: o financeiro aceita quem o master autorizou", () => {
     expect(response.status()).toBe(403);
   });
 });
+
+test.describe("PERM-09: ordens de serviço e equipamentos", () => {
+  test("membro sem a permissão não abre OS nem cadastra equipamento", async ({ request }) => {
+    const idToken = await tokenDo(PERMS_MEMBER_RESTRITO);
+    const headers = { Authorization: `Bearer ${idToken}` };
+
+    const order = await request.post("/api/backend/v1/service-orders", {
+      headers,
+      data: { clientId: "qualquer", type: "corrective", title: "Chamado intruso" },
+    });
+    expect(order.status()).toBe(403);
+
+    const equipment = await request.post("/api/backend/v1/equipment", {
+      headers,
+      data: { clientId: "qualquer", name: "Aparelho intruso" },
+    });
+    expect(equipment.status()).toBe(403);
+  });
+
+  test("membro sem a permissão de Contratos não cria contrato", async ({ request }) => {
+    const idToken = await tokenDo(PERMS_MEMBER_RESTRITO);
+    const response = await request.post("/api/backend/v1/service-contracts", {
+      headers: { Authorization: `Bearer ${idToken}` },
+      data: {
+        clientId: "cliente-inexistente",
+        title: "Monitoramento 24h",
+        type: "monitoring",
+        lines: [{ id: "l1", kind: "service", refId: null, name: "Monitoramento", quantity: 1, unitPrice: 129 }],
+        billingDay: 10,
+        wallet: "carteira-qualquer",
+        issueNfse: false,
+      },
+    });
+    expect(response.status()).toBe(403);
+  });
+
+  test("membro sem a permissão não lista a equipe de técnicos", async ({ request }) => {
+    const idToken = await tokenDo(PERMS_MEMBER_RESTRITO);
+    const response = await request.get("/api/backend/v1/service-orders/technicians", {
+      headers: { Authorization: `Bearer ${idToken}` },
+    });
+    expect(response.status()).toBe(403);
+  });
+});

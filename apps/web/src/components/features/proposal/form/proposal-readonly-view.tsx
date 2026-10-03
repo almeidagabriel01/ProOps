@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { useCurrentNicheConfig } from "@/hooks/useCurrentNicheConfig";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { ProposalProduct, Proposal } from "@/services/proposal-service";
@@ -27,6 +28,7 @@ export function ProposalReadOnlyView({
   calculateDiscount,
   calculateTotal,
 }: ProposalReadOnlyViewProps) {
+  const { pricing } = useCurrentNicheConfig();
   return (
     <div className="space-y-6">
       {/* Client Info Read Only */}
@@ -115,7 +117,7 @@ export function ProposalReadOnlyView({
                       {product.productName}
                     </div>
                     <div className="text-xs text-muted-foreground">
-                      {getProposalProductMeasurementLabel(product)} | R${" "}
+                      {getProposalProductMeasurementLabel(product, pricing)} | R${" "}
                       {product.unitPrice.toFixed(2)} /{" "}
                       {getProposalProductUnitLabel(product)}
                     </div>

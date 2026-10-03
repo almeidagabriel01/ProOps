@@ -73,6 +73,31 @@ export interface PortalInvoice {
   pdfUrl: string;
 }
 
+/** Atendimento da assistência técnica: o feito (com o comprovante) e o marcado. */
+export interface PortalServiceOrder {
+  id: string;
+  code: string;
+  title: string;
+  state: "completed" | "scheduled";
+  /** Conclusão, se feita; senão o horário marcado. */
+  date: string | null;
+  technicianName: string | null;
+  signed: boolean;
+}
+
+/** Contrato ativo do cliente: a mensalidade, o dia e a próxima visita. */
+export interface PortalContract {
+  id: string;
+  code: string;
+  title: string;
+  type: string;
+  monthlyAmount: number;
+  billingDay: number;
+  nextVisitDate: string | null;
+  /** PMOC: o cliente abre o plano e o relatório pelo portal. */
+  isPmoc: boolean;
+}
+
 export interface PortalView {
   company: { name: string; logoUrl: string | null; primaryColor: string | null };
   client: { firstName: string };
@@ -82,6 +107,9 @@ export interface PortalView {
   canPayOnline: boolean;
   projects: PortalProject[];
   invoices: PortalInvoice[];
+  /** Vazio quando o plano da empresa não tem a assistência técnica. */
+  serviceOrders: PortalServiceOrder[];
+  contracts: PortalContract[];
 }
 
 type Doc = { id: string; data: Record<string, unknown> };
@@ -265,6 +293,62 @@ export function buildPortalInvoices(docs: Doc[]): PortalInvoice[] {
     });
   }
   return result.sort((a, b) => String(b.issuedAt ?? "").localeCompare(String(a.issuedAt ?? "")));
+}
+
+/** Atendimentos que o portal mostra, no máximo. */
+export const PORTAL_SERVICE_ORDER_LIMIT = 20;
+
+/**
+ * O que o cliente vê da assistência: o atendimento concluído (com o
+ * comprovante) e o marcado de hoje em diante. OS aberta sem data, em execução
+ * ou cancelada ainda é assunto da empresa. Primeiro o próximo marcado, depois
+ * os feitos, do mais novo ao mais antigo.
+ */
+export function buildPortalServiceOrders(docs: Doc[], nowMs: number = Date.now()): PortalServiceOrder[] {
+  const today = new Date(nowMs - 3 * 3_600_000).toISOString().slice(0, 10);
+  const scheduled: PortalServiceOrder[] = [];
+  const completed: PortalServiceOrder[] = [];
+  for (const { id, data } of docs) {
+    const base = {
+      id,
+      code: str(data.code) ?? "OS",
+      title: str(data.title) ?? "Atendimento",
+      technicianName: str(data.technicianName),
+      signed: Boolean(data.signature),
+    };
+    if (data.status === "completed") {
+      completed.push({ ...base, state: "completed", date: str(data.completedAt) ?? str(data.checkOutAt) });
+      continue;
+    }
+    const start = str(data.scheduledStart);
+    if (data.status !== "scheduled" || !start) continue;
+    const startDay = new Date(Date.parse(start) - 3 * 3_600_000).toISOString().slice(0, 10);
+    if (startDay < today) continue;
+    scheduled.push({ ...base, state: "scheduled", date: start });
+  }
+  scheduled.sort((a, b) => String(a.date).localeCompare(String(b.date)));
+  completed.sort((a, b) => String(b.date ?? "").localeCompare(String(a.date ?? "")));
+  return [...scheduled, ...completed].slice(0, PORTAL_SERVICE_ORDER_LIMIT);
+}
+
+/** Só o contrato ativo: rascunho ainda não vale, e o encerrado não cobra mais. */
+export function buildPortalContracts(docs: Doc[]): PortalContract[] {
+  return docs
+    .filter(({ data }) => data.status === "active")
+    .map(({ id, data }) => {
+      const plan = (data.visitPlan ?? {}) as Record<string, unknown>;
+      return {
+        id,
+        code: str(data.code) ?? "Contrato",
+        title: str(data.title) ?? "Contrato",
+        type: str(data.type) ?? "other",
+        monthlyAmount: num(data.monthlyAmount),
+        billingDay: num(data.billingDay),
+        nextVisitDate: plan.enabled === true ? str(plan.nextVisitDate) : null,
+        isPmoc: data.type === "pmoc" && Boolean(data.pmoc),
+      };
+    })
+    .sort((a, b) => a.title.localeCompare(b.title, "pt-BR"));
 }
 
 /** Só o primeiro nome: a página é aberta por link, sem login. */

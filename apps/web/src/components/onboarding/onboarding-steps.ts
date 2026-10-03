@@ -184,6 +184,47 @@ export const MENU_STEP_TEMPLATES: Record<string, OnboardingStepTemplate> = {
     ],
     actionLabel: "Abrir Projetos",
   },
+  "/service-orders": {
+    id: "service-orders",
+    route: "/service-orders",
+    chapter: "sales",
+    description:
+      "O chamado técnico depois da venda: abra a OS, escolha o técnico e a data, e ele atende pelo celular com a assinatura do cliente na tela.",
+    checklist: [
+      { text: "Abra uma OS para o chamado do cliente e ligue os equipamentos atendidos." },
+      { text: "Escolha o técnico e a data da visita." },
+      { text: "No atendimento, o técnico marca o checklist, lança as peças e tira as fotos." },
+      { text: "O cliente assina na tela, e as peças usadas saem do estoque." },
+    ],
+    actionLabel: "Abrir Ordens de serviço",
+  },
+  "/equipment": {
+    id: "equipment",
+    route: "/equipment",
+    chapter: "sales",
+    description:
+      "O que está instalado em cada cliente, com marca, modelo, número de série, garantia e o último atendimento.",
+    checklist: [
+      { text: "Cadastre os aparelhos que a sua empresa instalou ou atende." },
+      { text: "Informe a garantia: a lista avisa quando ela está para vencer." },
+      { text: "Abra a OS direto do equipamento quando o cliente chamar." },
+    ],
+    actionLabel: "Abrir Equipamentos",
+  },
+  "/contracts": {
+    id: "contracts",
+    route: "/contracts",
+    chapter: "sales",
+    description:
+      "A receita que se repete: a mensalidade de manutenção, monitoramento ou suporte entra no financeiro todo mês, sem lançar à mão, e a visita preventiva abre a OS sozinha.",
+    checklist: [
+      { text: "Crie o contrato com o que o cliente paga todo mês, ou marque a linha como mensal na proposta." },
+      { text: "Escolha o dia do vencimento e a carteira que recebe." },
+      { text: "Ligue as visitas preventivas, com a frequência e o técnico." },
+      { text: "Ative escolhendo a data de início: a cobrança começa sozinha." },
+    ],
+    actionLabel: "Abrir Contratos",
+  },
   "/contacts": {
     id: "contacts",
     route: "/contacts",
@@ -521,6 +562,8 @@ export const ROUTES_WITHOUT_OWN_STEP: Record<string, string> = {
   "/settings/payments": "Apresentado dentro do passo Integrações.",
   "/settings/fiscal": "Apresentado dentro do passo Integrações.",
   "/settings/drive": "Apresentado dentro do passo Integrações.",
+  "/settings/technical-responsibles":
+    "Só climatização e só para quem monta PMOC: cadastro de uma vez, pedido pelo próprio contrato PMOC quando falta.",
   "/notifications":
     "Fora do menu: abre pelo \"Ver todas\" do sino, e as preferências são uma aba da própria central.",
 };

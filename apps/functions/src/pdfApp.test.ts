@@ -51,13 +51,15 @@ describe("pdfApp route table", () => {
     .filter((l) => l.route?.path)
     .map((l) => String(l.route!.path));
 
-  it("registers the 4 PDF routes", () => {
+  it("registers the PDF routes", () => {
     expect(routePaths).toEqual(
       expect.arrayContaining([
         "/v1/share/:token/pdf",
         "/v1/share/transaction/:token/pdf",
         "/v1/proposals/:id/pdf",
         "/v1/transactions/:id/pdf",
+        "/v1/service-orders/:id/pdf",
+        "/v1/service-contracts/:id/pmoc/pdf",
       ]),
     );
   });
@@ -74,5 +76,7 @@ describe("pdfApp route table", () => {
     expect(indexOfRoute("/v1/share/transaction/:token/pdf")).toBeLessThan(indexOfAuth);
     expect(indexOfRoute("/v1/proposals/:id/pdf")).toBeGreaterThan(indexOfAuth);
     expect(indexOfRoute("/v1/transactions/:id/pdf")).toBeGreaterThan(indexOfAuth);
+    expect(indexOfRoute("/v1/service-orders/:id/pdf")).toBeGreaterThan(indexOfAuth);
+    expect(indexOfRoute("/v1/service-contracts/:id/pmoc/pdf")).toBeGreaterThan(indexOfAuth);
   });
 });

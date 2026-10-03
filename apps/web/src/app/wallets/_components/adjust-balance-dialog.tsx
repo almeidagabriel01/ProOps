@@ -185,7 +185,7 @@ export function AdjustBalanceDialog({
                             Cancelar
                         </Button>
                         <Button type="submit" disabled={isSubmitting || !isValid}>
-                            {isSubmitting && <Loader size="sm" className="mr-2" />}
+                            {isSubmitting && <Loader size="sm" variant="button" className="mr-2" />}
                             {adjustType === "add" ? "Adicionar" : "Remover"}
                         </Button>
                     </DialogFooter>

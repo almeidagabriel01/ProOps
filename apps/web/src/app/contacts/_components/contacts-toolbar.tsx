@@ -1,6 +1,5 @@
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Spinner } from "@/components/ui/spinner";
 import {
   Search,
   Users,
@@ -9,6 +8,7 @@ import {
   DraftingCompass,
 } from "lucide-react";
 import { ContactsTypeFilter } from "../_hooks/use-contacts-ctrl";
+import { Loader } from "@/components/ui/loader";
 
 interface ContactsToolbarProps {
   searchTerm: string;
@@ -38,7 +38,7 @@ export function ContactsToolbar({
           onChange={(e) => setSearchTerm(e.target.value)}
           icon={
             isFiltering && isLoadingAll ? (
-              <Spinner className="w-4 h-4" />
+              <Loader size="sm" variant="button" />
             ) : (
               <Search className="w-4 h-4" />
             )

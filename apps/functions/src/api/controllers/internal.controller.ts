@@ -716,3 +716,27 @@ export const remindNoSubscriptionSignupsManual = async (
     return res.status(500).json({ message: "Internal Server Error" });
   }
 };
+
+/**
+ * POST /internal/cron/service-contracts
+ *
+ * A rotina diária dos contratos, sob demanda. `dryRun` (query ou body) conta o
+ * que seria lançado e aberto sem gravar nada. Roda do início, sem mexer no
+ * cursor do cron.
+ */
+export const processServiceContractsManual = async (req: Request, res: Response) => {
+  try {
+    const expectedSecret = process.env.CRON_SECRET;
+    if (!expectedSecret || req.headers["x-cron-secret"] !== expectedSecret) {
+      return res.status(401).send("Unauthorized");
+    }
+    const dryRun = String(req.query.dryRun ?? req.body?.dryRun) === "true";
+    const { runServiceContracts } = await import("../services/field-service/contract-billing-run");
+    const result = await runServiceContracts({ dryRun, cursorId: null });
+    return res.json(result);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    logger.error("[processServiceContracts manual] failed", { error: message });
+    return res.status(500).json({ message: "Internal Server Error", error: message });
+  }
+};

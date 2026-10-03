@@ -148,7 +148,7 @@ export function TransactionExtraCostsSection({
                     >
                       {updatingIds.has(ec.id) ? (
                         <>
-                          <Loader size="sm" />
+                          <Loader size="sm" variant="button" />
                           <span>Atualizando...</span>
                         </>
                       ) : (
@@ -232,7 +232,7 @@ export function TransactionExtraCostsSection({
                       disabled={isUpdating || updatingIds.has(ec.id) || isReadOnly}
                     >
                       {updatingIds.has(ec.id) ? (
-                        <Loader size="sm" />
+                        <Loader size="sm" variant="button" />
                       ) : (
                         <Trash2 className="w-3.5 h-3.5" />
                       )}

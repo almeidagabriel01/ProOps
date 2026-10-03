@@ -67,6 +67,7 @@ function mapSnapshotProducts(
         pricingDetails: p.pricingDetails,
         systemInstanceId: p.systemInstanceId,
         isExtra: p.isExtra,
+        isMonthly: p.isMonthly === true,
         status: p.status,
       };
     }
@@ -88,6 +89,7 @@ function mapSnapshotProducts(
       category: p.category,
       systemInstanceId: p.systemInstanceId,
       isExtra: p.isExtra,
+      isMonthly: p.isMonthly === true,
       status: p.status,
     };
   });

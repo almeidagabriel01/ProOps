@@ -198,7 +198,7 @@ export const ITENS: readonly Item[] = [
  * fora). A cena não mostra nicho de exemplo: prometer na landing um pacote que
  * a pessoa não encontra no cadastro seria pior do que não mostrar.
  */
-export type NichoDaCena = "automacao" | "cortinas" | "seguranca" | "vidracaria" | "marcenaria";
+export type NichoDaCena = "automacao" | "cortinas" | "seguranca" | "vidracaria" | "marcenaria" | "climatizacao";
 
 export interface Nicho {
   id: NichoDaCena;
@@ -281,6 +281,20 @@ export const NICHOS: readonly Nicho[] = [
       "Estante sob medida",
       "Bancada e torre quente",
       "Deck e banco",
+    ],
+  },
+  {
+    id: "climatizacao",
+    nicho: "climatizacao",
+    rotulo: "Climatização e ar-condicionado",
+    nota: "Aparelho, tubulação e instalação na mesma proposta: pacote pronto.",
+    rotulos: [
+      "Split inverter 12.000 BTUs",
+      "Split inverter 9.000 BTUs",
+      "Split inverter 18.000 BTUs",
+      "Tubulação de cobre embutida",
+      "Infraestrutura para split",
+      "Condensadoras na varanda",
     ],
   },
 ];

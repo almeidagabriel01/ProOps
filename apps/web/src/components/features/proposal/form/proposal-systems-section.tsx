@@ -65,6 +65,8 @@ import {
   readProposalHideZeroQtyState,
   writeProposalHideZeroQtyState,
 } from "@/lib/proposal-hide-zero-qty-storage";
+import { MonthlyLineBadge, MonthlyLineSwitch } from "./monthly-line";
+import { countsInProposalTotal } from "@/lib/proposal/monthly-lines";
 
 interface ProposalSystemsSectionProps {
   /** Título e descrição do card, que mudam por nicho. */
@@ -339,12 +341,14 @@ export function ProposalSystemsSection({
                 instanceIds.includes(p.systemInstanceId || ""),
               );
 
-              const sistemaTotal = sistemaProducts.reduce((sum, p) => {
+              // Subtotal da venda: a mensalidade fica à parte, como no total.
+              const sistemaSaleProducts = sistemaProducts.filter(countsInProposalTotal);
+              const sistemaTotal = sistemaSaleProducts.reduce((sum, p) => {
                 if ((p.itemType || "product") === "service") return sum;
                 return sum + p.unitPrice * p.quantity;
               }, 0);
 
-              const sistemaTotalWithMarkup = sistemaProducts.reduce(
+              const sistemaTotalWithMarkup = sistemaSaleProducts.reduce(
                 (sum, p) => sum + p.total,
                 0,
               );
@@ -1006,6 +1010,7 @@ function ProductRow({
       }`}
     >
       {/* Toggle - compact on left */}
+      <MonthlyLineSwitch product={product} disabled={isUpdating} compact />
       {onToggleStatus && (
         <div
           className="shrink-0 cursor-pointer flex items-center gap-1"
@@ -1073,6 +1078,7 @@ function ProductRow({
               Extra
             </Badge>
           )}
+          <MonthlyLineBadge product={product} />
           {!isActive && (
             <Badge
               variant="outline"

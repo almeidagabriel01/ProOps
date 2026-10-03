@@ -12,7 +12,7 @@ export interface ClientPortalLink {
 
 export type PortalProposalState = "approved" | "rejected" | "open";
 export type PortalPaymentStatus = "paid" | "pending" | "overdue";
-export type PortalItemKind = "proposal" | "payment" | "project";
+export type PortalItemKind = "proposal" | "payment" | "project" | "service_order" | "pmoc";
 
 export interface PortalView {
   company: { name: string; logoUrl: string | null; primaryColor: string | null };
@@ -52,6 +52,26 @@ export interface PortalView {
     amount: number;
     issuedAt: string | null;
     pdfUrl: string;
+  }>;
+  /** Assistência técnica; ausente com o backend de antes dela. */
+  serviceOrders?: Array<{
+    id: string;
+    code: string;
+    title: string;
+    state: "completed" | "scheduled";
+    date: string | null;
+    technicianName: string | null;
+    signed: boolean;
+  }>;
+  contracts?: Array<{
+    id: string;
+    code: string;
+    title: string;
+    type: string;
+    monthlyAmount: number;
+    billingDay: number;
+    nextVisitDate: string | null;
+    isPmoc: boolean;
   }>;
 }
 

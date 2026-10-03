@@ -21,10 +21,11 @@ import {
   getProductPricingSummary,
 } from "@/lib/product-pricing";
 import { useCurrentNicheConfig } from "@/hooks/useCurrentNicheConfig";
-import { no } from "@/lib/niches/vocabulary";
+import { cap, no, o, pick } from "@/lib/niches/vocabulary";
 import { Product } from "@/services/product-service";
 import { Service } from "@/services/service-service";
-import { dimensionModeLabel } from "@/lib/pricing/dimension-mode-labels";
+import { dimensionModeLabel, linearPriceUnit, measureTerms } from "@/lib/pricing/dimension-mode-labels";
+import type { PricingDefinition } from "@/lib/niches/config-types";
 import type { DimensionPricingMode } from "@/lib/product-pricing";
 
 interface ProductPricingStepProps {
@@ -59,12 +60,15 @@ function parseFormNumber(value: string): number {
   return Number.isFinite(parsed) ? parsed : 0;
 }
 
-function buildPricingSummary(product: Product | Service | undefined): string | null {
+function buildPricingSummary(
+  product: Product | Service | undefined,
+  pricing: Pick<PricingDefinition, "measureLabels">,
+): string | null {
   if (!product || (product.itemType || "product") === "service") {
     return null;
   }
 
-  return `${getProductPricingSummary(product)} | ${getProductPricingDescription(product)}`;
+  return `${getProductPricingSummary(product, pricing)} | ${getProductPricingDescription(product, pricing)}`;
 }
 
 function StaticMeasureField({
@@ -179,6 +183,14 @@ export function ProductPricingStep({
   const { dimensionModes } = nicheConfig.pricing;
   const modeLabel = (mode: DimensionPricingMode) =>
     dimensionModeLabel(nicheConfig.pricing, mode);
+  // O nome das medidas muda por nicho ("comprimento" na tubulação), e os
+  // textos de ajuda concordam com o gênero de cada uma.
+  const areaMeasures = measureTerms(nicheConfig.pricing, "curtain_meter");
+  const linearMeasures = measureTerms(nicheConfig.pricing, "curtain_width");
+  const tierMeasures = measureTerms(nicheConfig.pricing, "curtain_height");
+  const bothFeminine =
+    areaMeasures.width.gender === "f" && areaMeasures.height.gender === "f";
+  const tierMaxLabel = `${cap(tierMeasures.height.singular)} ${pick(tierMeasures.height, "máximo", "máxima")}`;
   const { place } = nicheConfig.vocabulary;
   const measureHelper = `Informada na proposta e ${no(place)} ${place.singular}`;
   const basePrice = parseFormNumber(formData.price);
@@ -202,7 +214,7 @@ export function ProductPricingStep({
     : nicheConfig.productCatalog.inventory.formLabel;
 
   if (isReadOnly) {
-    const readOnlySummary = buildPricingSummary(initialData);
+    const readOnlySummary = buildPricingSummary(initialData, nicheConfig.pricing);
 
     return (
       <div className="space-y-4">
@@ -401,7 +413,7 @@ export function ProductPricingStep({
       ) : isCurtainMeterMode ? (
         <PricingSection
           title={modeLabel("curtain_meter").ruleTitle}
-          description="Defina o preço bruto por metro quadrado e o markup. Largura e altura serão preenchidas quando o produto for usado."
+          description={`Defina o preço bruto por metro quadrado e o markup. ${cap(areaMeasures.width.singular)} e ${areaMeasures.height.singular} serão ${bothFeminine ? "preenchidas" : "preenchidos"} quando o produto for usado.`}
           badge={
             <div className="rounded-xl bg-muted/40 px-4 py-3">
               <div className="text-xs text-muted-foreground">Preço final</div>
@@ -450,11 +462,11 @@ export function ProductPricingStep({
 
             <FormGroup cols={2}>
               <StaticMeasureField
-                label="Largura"
+                label={cap(areaMeasures.width.singular)}
                 helper={measureHelper}
               />
               <StaticMeasureField
-                label="Altura"
+                label={cap(areaMeasures.height.singular)}
                 helper={measureHelper}
               />
             </FormGroup>
@@ -484,12 +496,12 @@ export function ProductPricingStep({
       ) : isCurtainWidthMode ? (
         <PricingSection
           title={modeLabel("curtain_width").ruleTitle}
-          description="Defina o preço bruto por metro linear e o markup. A largura será preenchida quando o produto for usado."
+          description={`Defina o preço bruto por metro linear e o markup. ${cap(o(linearMeasures.width))} ${linearMeasures.width.singular} será ${pick(linearMeasures.width, "preenchido", "preenchida")} quando o produto for usado.`}
           badge={
             <div className="rounded-xl bg-muted/40 px-4 py-3">
               <div className="text-xs text-muted-foreground">Preço final</div>
               <div className="mt-1 text-xl font-semibold text-foreground">
-                R$ {sellingPrice.toFixed(2)} / m larg.
+                R$ {sellingPrice.toFixed(2)} / {linearPriceUnit(nicheConfig.pricing, "curtain_width")}
               </div>
             </div>
           }
@@ -532,7 +544,7 @@ export function ProductPricingStep({
             </FormGroup>
 
             <StaticMeasureField
-              label="Largura"
+              label={cap(linearMeasures.width.singular)}
               helper={measureHelper}
             />
 
@@ -552,7 +564,7 @@ export function ProductPricingStep({
               <div className="rounded-xl border border-primary/20 bg-primary/5 px-4 py-3">
                 <div className="text-xs text-muted-foreground">Preço com markup</div>
                 <div className="mt-1 font-semibold text-primary">
-                  R$ {sellingPrice.toFixed(2)} / m larg.
+                  R$ {sellingPrice.toFixed(2)} / {linearPriceUnit(nicheConfig.pricing, "curtain_width")}
                 </div>
               </div>
             </div>
@@ -652,7 +664,7 @@ export function ProductPricingStep({
       ) : (
         <PricingSection
           title={modeLabel("curtain_height").ruleTitle}
-          description="Crie uma faixa para cada altura máxima. Cada faixa usa preço bruto, markup e largura preenchida depois na proposta."
+          description={`Crie uma faixa para cada ${tierMeasures.height.singular} ${pick(tierMeasures.height, "máximo", "máxima")}. Cada faixa usa preço bruto, markup e ${tierMeasures.width.singular} ${pick(tierMeasures.width, "preenchido", "preenchida")} depois na proposta.`}
           badge={
             <Button type="button" variant="outline" onClick={onAddHeightPricingTier}>
               <Plus className="mr-2 h-4 w-4" />
@@ -699,7 +711,7 @@ export function ProductPricingStep({
 
                   <div className="space-y-5 px-4 py-4">
                     <FormGroup cols={2}>
-                      <FormItem label="Altura máxima (m)">
+                      <FormItem label={`${tierMaxLabel} (m)`}>
                         <CurrencyInput
                           placeholder="Ex: 2,50"
                           prefixSymbol=""
@@ -715,7 +727,7 @@ export function ProductPricingStep({
                       </FormItem>
 
                       <StaticMeasureField
-                        label="Largura"
+                        label={cap(tierMeasures.width.singular)}
                         helper={measureHelper}
                       />
                     </FormGroup>
@@ -756,7 +768,7 @@ export function ProductPricingStep({
                     <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
                       <div className="rounded-xl border border-border/50 bg-background px-4 py-3">
                         <div className="text-xs text-muted-foreground">
-                          Altura máxima
+                          {tierMaxLabel}
                         </div>
                         <div className="mt-1 font-semibold text-foreground">
                           {tier.maxHeight || "0"} m

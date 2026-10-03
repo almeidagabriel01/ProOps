@@ -23,7 +23,7 @@ import {
 } from "lucide-react";
 import { ProductFormData } from "../_hooks/useProductForm";
 import { useCurrentNicheConfig } from "@/hooks/useCurrentNicheConfig";
-import { formatInventoryValue } from "@/lib/niches/config";
+import { catalogInventoryUnit, formatInventoryValue, inventoryDefinitionFor } from "@/lib/niches/config";
 
 // ============================================
 // PRODUCT INFO CARD
@@ -127,7 +127,10 @@ export function PriceStockCard({
   isReadOnly,
 }: PriceStockCardProps) {
   const nicheConfig = useCurrentNicheConfig();
-  const inventoryConfig = nicheConfig.productCatalog.inventory;
+  const inventoryConfig = inventoryDefinitionFor(
+    nicheConfig.productCatalog.inventory,
+    catalogInventoryUnit(formData.pricingMode),
+  );
 
   if (isReadOnly) {
     const basePrice = parseFloat(formData.price || "0");

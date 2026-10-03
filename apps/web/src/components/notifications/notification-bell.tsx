@@ -151,7 +151,7 @@ export function NotificationBell() {
                 >
                   {isMarkingAllAsRead ? (
                     <>
-                      <Loader size="sm" className="mr-1" />
+                      <Loader size="sm" variant="button" className="mr-1" />
                       Marcando...
                     </>
                   ) : (
@@ -173,7 +173,7 @@ export function NotificationBell() {
               >
                 {isClearingAll ? (
                   <>
-                    <Loader size="sm" className="mr-1" />
+                    <Loader size="sm" variant="button" className="mr-1" />
                     Limpando...
                   </>
                 ) : (
@@ -277,7 +277,7 @@ export function NotificationBell() {
                     }}
                   >
                     {clearingIds.includes(notification.id) ? (
-                      <Loader size="sm" />
+                      <Loader size="sm" variant="button" />
                     ) : (
                       <X className="w-3.5 h-3.5" />
                     )}

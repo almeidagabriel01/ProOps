@@ -11,6 +11,7 @@ import { toast } from "@/lib/toast";
 import { isApprovedColumn } from "@/lib/proposal-approval";
 import { KanbanService } from "@/services/kanban-service";
 import { ProjectsService } from "@/services/projects-service";
+import { Loader } from "@/components/ui/loader";
 
 interface ProposalProjectButtonProps {
   proposalId: string;
@@ -82,6 +83,7 @@ export function ProposalProjectButton({ proposalId, proposalStatus }: ProposalPr
 
   return (
     <Button variant="outline" className="gap-2" onClick={() => void create()} disabled={creating}>
+      {creating && <Loader size="sm" variant="button" className="mr-2" />}
       <HardHat className="h-4 w-4" />
       {creating ? "Criando..." : "Criar projeto da obra"}
     </Button>

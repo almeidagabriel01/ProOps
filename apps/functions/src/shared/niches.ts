@@ -186,6 +186,19 @@ export const NICHE_REGISTRY = {
     ],
     aiLabel: "móveis planejados e marcenaria sob medida (cozinhas, dormitórios, closets, painéis e armários)",
   },
+  climatizacao: {
+    demoTenantId: "demo-climatizacao",
+    productImageLimit: 3,
+    defaultVisitType: { id: "visita_tecnica", label: "Visita técnica", durationMin: 60 },
+    stageTemplate: [
+      { name: "Vistoria e carga térmica", checklist: ["Medir os ambientes e a insolação", "Definir a capacidade de cada aparelho", "Escolher o lugar da evaporadora e da condensadora"] },
+      { name: "Infraestrutura e tubulação", checklist: ["Passar a tubulação de cobre e o dreno", "Passar o cabo de interligação e o ponto elétrico", "Isolar e fixar a tubulação"] },
+      { name: "Instalação das unidades", checklist: ["Fixar a evaporadora e o suporte da condensadora", "Interligar as unidades"] },
+      { name: "Vácuo, carga de gás e testes", checklist: ["Fazer o vácuo na tubulação", "Completar a carga de gás", "Medir pressão, temperatura e corrente"] },
+      { name: "Entrega e start-up", checklist: ["Orientar o cliente sobre uso e limpeza do filtro", "Registrar a garantia e as fotos finais"] },
+    ],
+    aiLabel: "climatização e ar-condicionado (split, cassete, piso-teto, VRF, instalação e manutenção)",
+  },
 } satisfies Record<string, NicheRegistryEntry>;
 
 export type TenantNicheId = keyof typeof NICHE_REGISTRY;

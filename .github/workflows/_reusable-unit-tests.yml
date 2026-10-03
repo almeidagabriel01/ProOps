@@ -21,3 +21,23 @@ jobs:
       # Co-located in apps/web/src/**/__tests__ per the Bug Fix Policy in CLAUDE.md.
       - name: Run frontend unit tests (vitest)
         run: npm run test:web
+
+  # Jest do backend, sem infra: os testes que pedem o emulador ficam em
+  # `*.integration.test.ts` e saem desta suíte pelo testPathIgnorePatterns.
+  # Job separado para rodar em paralelo com o Vitest do front.
+  backend-unit-tests:
+    name: Backend Unit Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        uses: ./.github/actions/install-deps
+        with:
+          functions: 'true'
+
+      - name: Run backend unit tests (jest)
+        run: npm run test:functions
+        env:
+          CI: 'true'

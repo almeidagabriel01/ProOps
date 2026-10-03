@@ -16,6 +16,7 @@ import { buildDeliveryMessage } from "@/lib/send-link";
 import { formatDateBR } from "@/utils/date-format";
 import { ProjectsService } from "@/services/projects-service";
 import type { Project } from "@/types/project";
+import { Loader } from "@/components/ui/loader";
 
 interface DeliveryCardProps {
   project: Project;
@@ -72,6 +73,7 @@ export function DeliveryCard({ project, companyName, canEdit }: DeliveryCardProp
           </p>
           {canEdit && project.status !== "canceled" && (
             <Button onClick={() => void openLink()} disabled={loading}>
+              {loading && <Loader size="sm" variant="button" className="mr-2" />}
               <Send className="mr-2 h-4 w-4" />
               {loading ? "Gerando link..." : delivery.status === "sent" ? "Reenviar link de entrega" : "Enviar para o cliente aceitar"}
             </Button>

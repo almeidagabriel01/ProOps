@@ -13,6 +13,7 @@ import { User } from "@/types";
 import { cn } from "@/lib/utils";
 import { toast } from "@/lib/toast";
 import { ApiError } from "@/lib/api-client";
+import { Loader } from "@/components/ui/loader";
 
 if (typeof window !== "undefined") {
   gsap.registerPlugin(ScrollTrigger);
@@ -610,6 +611,9 @@ export function LandingPricing({
                           onClick={() => void handleSubscribe(plan.tier, false)}
                           disabled={processingTier === plan.tier}
                         >
+                          {processingTier === plan.tier && (
+                            <Loader size="sm" variant="button" className="mr-2 align-middle" />
+                          )}
                           {processingTier === plan.tier
                             ? "Redirecionando..."
                             : "Testar grátis por 7 dias"}
@@ -637,6 +641,9 @@ export function LandingPricing({
                         onClick={() => void handleSubscribe(plan.tier)}
                         disabled={processingTier === plan.tier}
                       >
+                        {processingTier === plan.tier && (
+                          <Loader size="sm" variant="button" className="mr-2 align-middle" />
+                        )}
                         {processingTier === plan.tier
                           ? "Redirecionando..."
                           : ctaLabel}

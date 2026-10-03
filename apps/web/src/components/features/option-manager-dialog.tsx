@@ -14,7 +14,6 @@ import { Input } from "@/components/ui/input";
 import { Plus, Trash2, Pencil, Package } from "lucide-react";
 import { Option, OptionService } from "@/services/option-service";
 import { useTenant } from "@/providers/tenant-provider";
-import { Spinner } from "@/components/ui/spinner";
 import {
     AlertDialog,
     AlertDialogAction,
@@ -187,7 +186,7 @@ export function OptionManagerDialog({
                                 onClick={handleCreate}
                                 disabled={!newOption.trim() || isCreating}
                             >
-                                {isCreating ? <Spinner className="text-primary-foreground" /> : <Plus className="h-4 w-4" />}
+                                {isCreating ? <Loader size="sm" variant="button" className="text-primary-foreground" /> : <Plus className="h-4 w-4" />}
                             </Button>
                         </div>
 
@@ -195,7 +194,7 @@ export function OptionManagerDialog({
                         <div className="space-y-2 max-h-[300px] overflow-y-auto">
                             {isLoading ? (
                                 <div className="flex justify-center py-8">
-                                    <Spinner className="h-8 w-8" />
+                                    <Loader size="md" />
                                 </div>
                             ) : options.length === 0 ? (
                                 <div className="text-center py-8 text-muted-foreground">
@@ -229,7 +228,7 @@ export function OptionManagerDialog({
                                                     onClick={() => handleEdit(option.id)}
                                                     disabled={updatingId === option.id}
                                                 >
-                                                    {updatingId === option.id ? <Spinner className="h-3 w-3" /> : "Salvar"}
+                                                    {updatingId === option.id ? <Loader size="sm" variant="button" /> : "Salvar"}
                                                 </Button>
                                                 <Button
                                                     size="sm"
@@ -246,7 +245,7 @@ export function OptionManagerDialog({
                                                     {option.label}
                                                 </span>
                                                 {deletingId === option.id ? (
-                                                    <Spinner className="h-4 w-4 text-destructive" />
+                                                    <Loader size="sm" variant="button" className="text-destructive" />
                                                 ) : (
                                                     <>
                                                         <Button

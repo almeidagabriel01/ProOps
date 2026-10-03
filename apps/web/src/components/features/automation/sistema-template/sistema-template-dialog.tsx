@@ -13,11 +13,11 @@ import { Button } from "@/components/ui/button";
 import { ArrowLeft } from "lucide-react";
 import { Sistema, Ambiente } from "@/types/automation";
 import { useSistemaForm } from "./useSistemaForm";
-import { Spinner } from "@/components/ui/spinner";
 import { MasterDataAction } from "@/hooks/proposal/useMasterDataTransaction";
 import { SistemaInfoSection, AmbienteSelectorSection } from "./sections";
 import { useNicheVocabulary } from "@/hooks/useNicheVocabulary";
 import { cap, o, os } from "@/lib/niches/vocabulary";
+import { Loader } from "@/components/ui/loader";
 
 interface SistemaTemplateDialogProps {
   isOpen: boolean;
@@ -89,7 +89,7 @@ export function SistemaTemplateDialog({
         {isLoading ? (
           <div className="py-12 text-center text-muted-foreground">
             <div className="mb-3 flex justify-center">
-              <Spinner className="h-8 w-8 text-primary" />
+              <Loader size="md" />
             </div>
             Carregando...
           </div>
@@ -140,7 +140,7 @@ export function SistemaTemplateDialog({
                 }
                 className="gap-2"
               >
-                {isSaving && <Spinner className="h-4 w-4 text-white" />}
+                {isSaving && <Loader size="sm" variant="button" className="text-white" />}
                 {isSaving
                   ? "Salvando..."
                   : isEditing
@@ -162,7 +162,7 @@ export function SistemaTemplateDialog({
                 }
                 className="gap-2"
               >
-                {isSaving && <Spinner className="h-4 w-4 text-white" />}
+                {isSaving && <Loader size="sm" variant="button" className="text-white" />}
                 {isSaving
                   ? "Salvando..."
                   : isEditing

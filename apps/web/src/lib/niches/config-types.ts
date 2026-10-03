@@ -9,7 +9,7 @@ import type {
   ProposalLineFormat,
 } from "@/lib/product-pricing";
 import type { AttentionResult } from "@/lib/sales/proposal-attention";
-import type { NicheVocabulary } from "./vocabulary";
+import type { NicheVocabulary, Term } from "./vocabulary";
 
 export type InventoryUnit = "unit" | "meter";
 export type ProposalWorkflow = "automation" | "catalog" | "environment";
@@ -78,6 +78,22 @@ export interface PricingDefinition {
    */
   modeLabels?: Partial<
     Record<DimensionPricingMode, Partial<{ short: string; description: string; ruleTitle: string }>>
+  >;
+  /**
+   * Como as medidas de um modo se chamam nos campos: "comprimento" onde a
+   * tubulação de climatização se mede, em vez de "largura". Sem entrada, vale
+   * largura e altura. É `Term` porque os textos de ajuda concordam em gênero.
+   */
+  measureLabels?: Partial<
+    Record<
+      DimensionPricingMode,
+      Partial<{
+        width: Term;
+        height: Term;
+        /** A unidade do preço linear ("R$ 18,00 / m larg."); a tubulação diz só "m". */
+        priceUnit: string;
+      }>
+    >
   >;
 }
 
@@ -152,5 +168,30 @@ export interface NicheConfig {
    */
   booking: {
     defaultVisitType: { id: string; label: string; durationMin: number };
+  };
+  /**
+   * Assistência técnica: o que é um "equipamento" neste negócio (um split, uma
+   * câmera, uma persiana) e o que a manutenção preventiva confere. Os tipos são
+   * sugestões do cadastro, não uma lista fechada.
+   */
+  fieldService: {
+    equipmentTypes: string[];
+    equipmentNamePlaceholder: string;
+    /** Checklist com que a OS preventiva nasce. */
+    preventiveChecklist: string[];
+    /**
+     * O contrato típico do negócio: monitoramento em segurança, manutenção em
+     * climatização, suporte em automação. É o tipo com que um contrato novo
+     * nasce, e o exemplo do nome.
+     */
+    defaultContractType: "monitoring" | "maintenance" | "support" | "pmoc" | "other";
+    contractTitlePlaceholder: string;
+    /**
+     * PMOC (Lei 13.589/2018): o plano de manutenção que prédio climatizado é
+     * obrigado a ter, com responsável técnico e ART. Liga o tipo de contrato
+     * `pmoc` e a tela de responsáveis técnicos em Configurações. Só
+     * climatização: nos outros nichos o PMOC não existe.
+     */
+    pmoc: boolean;
   };
 }

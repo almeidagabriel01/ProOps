@@ -1,5 +1,6 @@
 import type { DimensionPricingMode } from "@/lib/product-pricing";
 import type { PricingDefinition } from "@/lib/niches/config-types";
+import { term, type Term } from "@/lib/niches/vocabulary";
 
 /**
  * Como cada modo de preço por medida aparece na tela. Os ids (`curtain_*`)
@@ -39,4 +40,34 @@ export function dimensionModeLabel(
   mode: DimensionPricingMode,
 ): DimensionModeLabel {
   return { ...DEFAULT_DIMENSION_MODE_LABELS[mode], ...pricing.modeLabels?.[mode] };
+}
+
+/** O nome das medidas que um modo pede na tela. */
+export interface MeasureTerms {
+  width: Term;
+  height: Term;
+}
+
+export const DEFAULT_MEASURE_TERMS: MeasureTerms = {
+  width: term("largura", "larguras", "f"),
+  height: term("altura", "alturas", "f"),
+};
+
+export function measureTerms(
+  pricing: Pick<PricingDefinition, "measureLabels">,
+  mode: DimensionPricingMode,
+): MeasureTerms {
+  const override = pricing.measureLabels?.[mode];
+  return {
+    width: override?.width ?? DEFAULT_MEASURE_TERMS.width,
+    height: override?.height ?? DEFAULT_MEASURE_TERMS.height,
+  };
+}
+
+/** A unidade do preço por medida linear: "m larg." no padrão, "m" na tubulação. */
+export function linearPriceUnit(
+  pricing: Pick<PricingDefinition, "measureLabels">,
+  mode: "curtain_width" | "curtain_height",
+): string {
+  return pricing.measureLabels?.[mode]?.priceUnit ?? "m larg.";
 }

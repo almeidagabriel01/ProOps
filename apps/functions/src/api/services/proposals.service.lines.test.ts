@@ -52,4 +52,8 @@ describe("toProposalProducts", () => {
   it("o total da proposta é a soma dos totais de venda", () => {
     expect(sumProductTotals(toProposalProducts(lines))).toBe(2100);
   });
+
+  it("a linha de mensalidade fica fora do total da venda", () => {
+    expect(sumProductTotals([{ total: 1000 }, { total: 129, isMonthly: true }, { total: 50 }])).toBe(1050);
+  });
 });

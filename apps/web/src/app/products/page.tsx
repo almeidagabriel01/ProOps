@@ -27,7 +27,6 @@ import { ProposalService } from "@/services/proposal-service";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
-import { Spinner } from "@/components/ui/spinner";
 import { Tooltip } from "@/components/ui/tooltip";
 import {
   AlertDialog,
@@ -51,6 +50,8 @@ import { formatCurrency } from "@/utils/format";
 import { useCurrentNicheConfig } from "@/hooks/useCurrentNicheConfig";
 import {
   formatInventoryValue,
+  inventoryDefinitionFor,
+  productInventoryUnit,
   parseInventoryValue,
 } from "@/lib/niches/config";
 import { getProductInventoryValue } from "@/services/product-service";
@@ -64,6 +65,7 @@ import {
   summarizeDimensionInventoryBalance,
   type ProductInventoryBalanceSummary,
 } from "@/lib/product-inventory-summary";
+import { Loader } from "@/components/ui/loader";
 
 function buildDimensionBalanceTooltipContent(
   summary: ProductInventoryBalanceSummary,
@@ -147,21 +149,25 @@ export default function ProductsPage() {
   const handleInventoryUpdate = async (product: Product, newValue: string) => {
     const normalizedInventoryValue = parseInventoryValue(newValue);
     if (Number.isNaN(normalizedInventoryValue)) return false;
+    // A unidade é do produto: editar o estoque de um motor numa loja de
+    // persianas gravava "metro" nele, porque a tela gravava a do nicho.
+    const productUnit = productInventoryUnit(product);
+    const productInventory = inventoryDefinitionFor(inventoryConfig, productUnit);
 
     const success = await updateProduct(
       product.id,
       {
         inventoryValue: normalizedInventoryValue,
-        inventoryUnit: inventoryConfig.mode,
+        inventoryUnit: productUnit,
         stock: normalizedInventoryValue,
       },
       {
         productName: product.name,
         context: "inventory",
-        contextLabel: inventoryConfig.readOnlyLabel,
+        contextLabel: productInventory.readOnlyLabel,
         formattedValue: formatInventoryValue(
           normalizedInventoryValue,
-          inventoryConfig,
+          productInventory,
         ),
       },
     );
@@ -175,7 +181,7 @@ export default function ProductsPage() {
             ? {
                 ...p,
                 inventoryValue: normalizedInventoryValue,
-                inventoryUnit: inventoryConfig.mode,
+                inventoryUnit: productUnit,
                 stock: normalizedInventoryValue,
               }
             : p,
@@ -189,7 +195,7 @@ export default function ProductsPage() {
                 ? {
                     ...p,
                     inventoryValue: normalizedInventoryValue,
-                    inventoryUnit: inventoryConfig.mode,
+                    inventoryUnit: productUnit,
                     stock: normalizedInventoryValue,
                   }
                 : p,
@@ -430,7 +436,7 @@ export default function ProductsPage() {
         <StockEditableCell
           className="max-md:pr-0"
           initialValue={getProductInventoryValue(product)}
-          inventory={inventoryConfig}
+          inventory={inventoryDefinitionFor(inventoryConfig, productInventoryUnit(product))}
           onUpdate={(val) => handleInventoryUpdate(product, val)}
         />
       ),
@@ -443,7 +449,7 @@ export default function ProductsPage() {
       render: (product) => (
         <div className="flex flex-col items-start gap-0.5">
           <span className="text-sm font-medium">
-            {getProductPricingSummary(product)}
+            {getProductPricingSummary(product, nicheConfig.pricing)}
           </span>
           <span className="text-xs text-muted-foreground">
             Base: R$ {getProductBasePrice(product).toFixed(2)}
@@ -515,7 +521,7 @@ export default function ProductsPage() {
             className="bg-destructive hover:bg-destructive/90 gap-2"
             disabled={isDeleting}
           >
-            {isDeleting && <Spinner className="w-4 h-4 text-white" />}
+            {isDeleting && <Loader size="sm" variant="button" className="text-white" />}
             {isDeleting ? "Excluindo..." : "Excluir"}
           </AlertDialogAction>
         </AlertDialogFooter>
@@ -607,7 +613,7 @@ export default function ProductsPage() {
                       <p className="text-2xl sm:text-3xl font-bold tracking-tight">
                         {allProducts === null && hasAnyProducts !== false ? (
                           <span className="inline-flex items-center gap-2 text-lg text-muted-foreground">
-                            <Spinner className="w-4 h-4" />
+                            <Loader size="sm" variant="button" />
                             Calculando...
                           </span>
                         ) : (
@@ -654,7 +660,7 @@ export default function ProductsPage() {
                       <p className="text-2xl sm:text-3xl font-bold tracking-tight">
                         {allProducts === null && hasAnyProducts !== false ? (
                           <span className="inline-flex items-center gap-2 text-lg text-muted-foreground">
-                            <Spinner className="w-4 h-4" />
+                            <Loader size="sm" variant="button" />
                             Calculando...
                           </span>
                         ) : (
@@ -682,7 +688,7 @@ export default function ProductsPage() {
                       <p className="text-2xl sm:text-3xl font-bold tracking-tight">
                         {allProducts === null && hasAnyProducts !== false ? (
                           <span className="inline-flex items-center gap-2 text-lg text-muted-foreground">
-                            <Spinner className="w-4 h-4" />
+                            <Loader size="sm" variant="button" />
                             Calculando...
                           </span>
                         ) : (
@@ -705,7 +711,7 @@ export default function ProductsPage() {
                       <p className="text-2xl sm:text-3xl font-bold tracking-tight">
                         {allProducts === null && hasAnyProducts !== false ? (
                           <span className="inline-flex items-center gap-2 text-lg text-muted-foreground">
-                            <Spinner className="w-4 h-4" />
+                            <Loader size="sm" variant="button" />
                             Calculando...
                           </span>
                         ) : (
@@ -729,7 +735,7 @@ export default function ProductsPage() {
                   onChange={(e) => setSearchTerm(e.target.value)}
                   icon={
                     isFiltering && isLoadingAll ? (
-                      <Spinner className="w-4 h-4" />
+                      <Loader size="sm" variant="button" />
                     ) : (
                       <Search className="w-4 h-4" />
                     )

@@ -14,6 +14,7 @@ import {
   TrendingUp,
   UserCog,
   Wallet,
+  Wrench,
 } from "lucide-react";
 
 import { FUNCIONALIDADE_SLUGS, type FuncionalidadeSlug } from "./slugs";
@@ -234,7 +235,36 @@ const CONTEUDO: Record<FuncionalidadeSlug, Omit<Funcionalidade, "slug">> = {
         },
       ],
     },
-    relacionadas: ["agenda", "pos-venda"],
+    relacionadas: ["assistencia-tecnica", "agenda"],
+  },
+  "assistencia-tecnica": {
+    titulo: "Assistência técnica",
+    resumo: "Ordem de serviço com assinatura no celular, equipamentos do cliente e contrato com a mensalidade sozinha.",
+    icone: Wrench,
+    grupo: "entregar",
+    principal: "ordens-de-servico",
+    recursos: ["ordens-de-servico", "equipamentos-do-cliente", "contratos-de-manutencao", "pmoc"],
+    pagina: {
+      titulo: "O depois da venda, com a",
+      destaque: "assinatura do cliente",
+      intro:
+        "O chamado técnico vira ordem de serviço, com o técnico e a data na agenda. Ele atende pelo celular, marca o checklist, lança as peças e tira as fotos, e o cliente assina na tela. Quem vende manutenção cria o contrato: a mensalidade entra no financeiro todo mês e a visita preventiva abre a OS sozinha.",
+      passos: [
+        {
+          titulo: "O chamado vira OS",
+          texto: "Com o cliente, os equipamentos atendidos, o técnico e a data, que já entram na agenda.",
+        },
+        {
+          titulo: "O técnico atende pelo celular",
+          texto: "Checklist, peças do estoque, fotos e a assinatura do cliente com o dedo na tela.",
+        },
+        {
+          titulo: "O contrato cuida do resto",
+          texto: "A mensalidade lançada todo mês e a próxima visita aberta sozinha, com o checklist do plano.",
+        },
+      ],
+    },
+    relacionadas: ["obras", "pos-venda"],
   },
   agenda: {
     titulo: "Agenda e tarefas",

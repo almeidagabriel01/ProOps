@@ -952,6 +952,60 @@ html.theme-transitioning * {
   white-space: nowrap;
 }
 
+/* Grade do mês: uma linha por evento, para as seis semanas caberem na altura
+   da tela (o que não cabe vira "+ mais"). */
+.calendar-event-chip--compact {
+  flex-direction: row;
+  align-items: center;
+  gap: 0.3rem;
+  width: 100%;
+  padding: 0.05rem 0.35rem;
+  border-radius: 0.5rem;
+}
+
+.calendar-event-chip--compact .calendar-event-chip__time {
+  flex-shrink: 0;
+}
+
+.calendar-event-chip--compact .calendar-event-chip__title {
+  flex: 1;
+  min-width: 0;
+}
+
+.calendar-event-chip--compact .calendar-event-chip__sync {
+  flex-shrink: 0;
+  width: 0.85rem;
+  height: 0.85rem;
+  font-size: 0.55rem;
+}
+
+.calendar-event-chip--compact.calendar-event-chip--canceled
+  .calendar-event-chip__title {
+  text-decoration: line-through;
+}
+
+/* Piso de uma linha de evento por semana. Em tela baixa (1280x720, com o
+   cabeçalho quebrando em três linhas) as seis semanas dividiriam ~220px e
+   nenhum dia mostraria evento; com o piso a grade rola, e a última semana
+   chega inteira ao fim da rolagem. O piso é o menor que cabe um evento: maior
+   que isso, uma tela de 1600x713 voltaria a rolar. */
+.calendar-surface .fc .fc-dayGridMonth-view .fc-daygrid-day-frame {
+  min-height: 3.25rem;
+  padding: 0.15rem;
+}
+
+.calendar-surface .fc .fc-dayGridMonth-view .fc-daygrid-day-top {
+  padding: 0.1rem 0.4rem 0;
+}
+
+.calendar-surface .fc .fc-dayGridMonth-view .fc-daygrid-day-number {
+  padding: 0 0.25rem;
+}
+
+.calendar-surface .fc .fc-dayGridMonth-view .fc-daygrid-dot-event {
+  padding-block: 0;
+}
+
 .calendar-event-chip__status {
   display: inline-flex;
   width: fit-content;
@@ -1889,7 +1943,8 @@ html[data-heroi="espera"] .regua-desenha {
 [data-nicho="cortinas"] [data-rotulo-de="cortinas"],
 [data-nicho="seguranca"] [data-rotulo-de="seguranca"],
 [data-nicho="vidracaria"] [data-rotulo-de="vidracaria"],
-[data-nicho="marcenaria"] [data-rotulo-de="marcenaria"] {
+[data-nicho="marcenaria"] [data-rotulo-de="marcenaria"],
+[data-nicho="climatizacao"] [data-rotulo-de="climatizacao"] {
   display: block;
 }
 .cena-legenda {

@@ -4,6 +4,7 @@ import * as React from "react";
 import Link from "next/link";
 import {
   Clock3,
+  ClipboardList,
   HardHat,
   MapPin,
   NotebookPen,
@@ -240,6 +241,20 @@ export function CalendarEventDialog({
                 className="shrink-0 font-medium text-sky-700 underline-offset-4 hover:underline dark:text-sky-400"
               >
                 Abrir obra
+              </Link>
+            </div>
+          )}
+          {event?.serviceOrderId && (
+            <div className="flex flex-col gap-2 rounded-xl border border-violet-500/30 bg-violet-500/5 p-3 text-sm sm:flex-row sm:items-center sm:justify-between">
+              <p className="flex items-center gap-2">
+                <ClipboardList className="h-4 w-4 shrink-0 text-violet-600" />
+                Visita de uma ordem de serviço: mudar a data aqui muda também na OS.
+              </p>
+              <Link
+                href={`/service-orders/${event.serviceOrderId}`}
+                className="shrink-0 font-medium text-violet-700 underline-offset-4 hover:underline dark:text-violet-400"
+              >
+                Abrir OS
               </Link>
             </div>
           )}
@@ -507,6 +522,7 @@ export function CalendarEventDialog({
             </Button>
             {canEdit ? (
               <Button onClick={onSubmit} disabled={isSubmitting || isDeleting}>
+                {isSubmitting && <Loader size="sm" variant="button" className="mr-2" />}
                 {isSubmitting ? "Salvando..." : "Salvar compromisso"}
               </Button>
             ) : null}

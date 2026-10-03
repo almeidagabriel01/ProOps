@@ -16,7 +16,6 @@ import { FiscalGapsDialog } from "@/components/features/fiscal/fiscal-gaps-dialo
 import { useIssueInvoice } from "@/hooks/use-issue-invoice";
 import { useProposalInvoicePrompt } from "@/hooks/use-proposal-invoice-prompt";
 import { isApprovedColumn } from "@/lib/proposal-approval";
-import { ProposalInvoicePrompt } from "@/components/features/fiscal/proposal-invoice-prompt";
 import { ProposalAttachmentsDialog } from "@/components/features/proposal/proposal-attachments-dialog";
 import { useTenant } from "@/providers/tenant-provider";
 import { useAuth } from "@/providers/auth-provider";
@@ -110,6 +109,7 @@ import { Tenant } from "@/types";
 import { SharedProposalService } from "@/services/shared-proposal-service";
 import { formatDateBR } from "@/utils/date-format";
 import { Loader } from "@/components/ui/loader";
+import { countsInProposalTotal } from "@/lib/proposal/monthly-lines";
 
 function PdfDownloader({
   proposal,
@@ -899,7 +899,8 @@ export default function ProposalsPage() {
           const productCount = proposal.products?.length || 0;
           const total =
             proposal.products?.reduce(
-              (sum: number, p: { total: number }) => sum + p.total,
+              (sum: number, p: { total: number; isMonthly?: boolean }) =>
+                countsInProposalTotal(p) ? sum + p.total : sum,
               0,
             ) || 0;
           return (
@@ -962,7 +963,7 @@ export default function ProposalsPage() {
                       className="text-xs cursor-pointer hover:brightness-110 transition-all gap-1 pr-1.5 min-w-[100px] justify-start border"
                     >
                       {updatingStatusId === proposal.id ? (
-                        <Loader size="sm" />
+                        <Loader size="sm" variant="button" />
                       ) : null}
                       {getStatusLabel(proposal.status)}
                       <ChevronDown className="w-3 h-3 opacity-60 ml-1" />
@@ -1172,7 +1173,7 @@ export default function ProposalsPage() {
                 }
               >
                 {downloadingId === proposal.id ? (
-                  <Loader size="sm" />
+                  <Loader size="sm" variant="button" />
                 ) : (
                   <FileDown className="w-4 h-4" />
                 )}
@@ -1224,7 +1225,7 @@ export default function ProposalsPage() {
                   disabled={editingId === proposal.id}
                 >
                   {editingId === proposal.id ? (
-                    <Loader size="sm" />
+                    <Loader size="sm" variant="button" />
                   ) : (
                     <Pencil className="w-4 h-4" />
                   )}
@@ -1603,7 +1604,6 @@ export default function ProposalsPage() {
 
       <FiscalGapsDialog gaps={fiscalGaps} onClose={closeFiscalGaps} />
 
-      <ProposalInvoicePrompt {...invoicePrompt} />
 
       <UpgradeModal
         open={upgradeModal.isOpen}

@@ -29,10 +29,11 @@ financeiro mais um backfill.
 ## Grupo
 
 Um `MenuItem` com `children` é um grupo: a dock desenha **um** ícone, e as telas
-irmãs reaparecem no seletor do cabeçalho de cada uma delas. Hoje são quatro:
+irmãs reaparecem no seletor do cabeçalho de cada uma delas. Hoje são cinco:
 Propostas (Propostas e Projetos, o caminho da venda até a obra), Financeiro
 (que fecha com Metas de vendas), Agenda (Calendário, Tarefas e Link de
-agendamento) e Catálogo.
+agendamento), Assistência (Ordens de serviço e Equipamentos, com a capacidade
+`fieldService` no grupo, porque as duas telas pedem a mesma) e Catálogo.
 
 Tarefas já esteve num grupo "Agenda" com o Calendário e saiu porque ninguém a
 achava atrás do seletor. Voltou em 2026-09-28, por decisão do dono do produto,

@@ -126,7 +126,7 @@ export function PartialPaymentDialog({
             <Button type="submit" disabled={isSubmitting}>
               {isSubmitting ? (
                 <>
-                  <Loader size="sm" className="mr-2" />
+                  <Loader size="sm" variant="button" className="mr-2" />
                   Salvando...
                 </>
               ) : (

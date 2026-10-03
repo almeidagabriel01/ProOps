@@ -53,6 +53,7 @@ import { useAuth } from "@/providers/auth-provider";
 import { ProposalSellerField } from "./form/proposal-seller-field";
 import { useSellerCommission } from "@/hooks/proposal/use-seller-commission";
 import { usePlanLimits } from "@/hooks/usePlanLimits";
+import { MonthlyLineProvider } from "./form/monthly-line";
 
 interface SimpleProposalFormProps {
   proposalId?: string;
@@ -209,6 +210,7 @@ export function SimpleProposalForm({
     resetProductPrice,
     removeProduct,
     handleToggleProductStatus,
+    handleToggleProductMonthly,
     calculateSubtotal,
     calculateDiscount,
     calculateTotal,
@@ -243,7 +245,7 @@ export function SimpleProposalForm({
     () => getNicheConfig(tenant?.niche).vocabulary,
     [tenant?.niche],
   );
-  const { hasSalesGoals } = usePlanLimits();
+  const { hasSalesGoals, hasFieldService } = usePlanLimits();
   const { user } = useAuth();
   // A comissão do vendedor da equipe acompanha o responsável pela venda.
   const { changeSeller } = useSellerCommission({
@@ -1144,6 +1146,7 @@ export function SimpleProposalForm({
     <FormContainer>
       <ProposalFormHeader proposalId={proposalId} onBack={handleBack} />
 
+      <MonthlyLineProvider enabled={hasFieldService} onToggle={handleToggleProductMonthly}>
       <StepWizard
         steps={steps}
         allowClickAhead={isDemo || !!proposalId}
@@ -1425,6 +1428,7 @@ export function SimpleProposalForm({
           />
         </FormStepCard>
       </StepWizard>
+      </MonthlyLineProvider>
 
       {/* Dialog de Edição de Seleção */}
       <Dialog

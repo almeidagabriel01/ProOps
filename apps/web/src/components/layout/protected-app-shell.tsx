@@ -10,7 +10,7 @@ import { OnboardingProvider } from "@/components/onboarding/onboarding-provider"
 import { LiaContainer } from "@/components/lia/lia-container";
 import { BillingStateBanner } from "@/components/layout/billing-state-banner";
 import { PriceChangeBanner } from "@/components/billing/price-change-banner";
-import { ProjectOnApprovalHost } from "@/components/features/projects/project-on-approval-host";
+import { ApprovalNextStepsHost } from "@/components/features/proposal/approval-next-steps-host";
 import { usePlanLimits } from "@/hooks/usePlanLimits";
 import { useIsMobile } from "@/hooks/use-is-mobile";
 import { useAuth } from "@/providers/auth-provider";
@@ -123,7 +123,7 @@ function ProtectedShell({ children }: { children: React.ReactNode }) {
         <div className="flex-1 flex flex-col bg-background overflow-hidden min-h-0">
           <Header sidebarWidth={0} />
           <PriceChangeBanner />
-          <ProjectOnApprovalHost />
+          <ApprovalNextStepsHost />
           {isDemo && (
             <BillingStateBanner
               variant="info"

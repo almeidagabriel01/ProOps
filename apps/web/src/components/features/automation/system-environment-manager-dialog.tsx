@@ -7,7 +7,6 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog";
-import { Spinner } from "@/components/ui/spinner";
 import { Cpu } from "lucide-react";
 import { Sistema, Ambiente } from "@/types/automation";
 import { MasterDataAction } from "@/hooks/proposal/useMasterDataTransaction";
@@ -27,6 +26,7 @@ import { SystemHeader } from "./manager/system-header";
 import { EnvironmentList } from "./manager/environment-list";
 import { useNicheVocabulary } from "@/hooks/useNicheVocabulary";
 import { cap, ele, este, neste, seus, um } from "@/lib/niches/vocabulary";
+import { Loader } from "@/components/ui/loader";
 
 interface SystemEnvironmentManagerDialogProps {
   isOpen: boolean;
@@ -70,7 +70,7 @@ export function SystemEnvironmentManagerDialog({
         </div>
         {state.isLoading ? (
           <div className="flex flex-1 items-center justify-center">
-            <Spinner />
+            <Loader size="sm" variant="button" />
           </div>
         ) : (
           <div className="flex flex-1 overflow-hidden">

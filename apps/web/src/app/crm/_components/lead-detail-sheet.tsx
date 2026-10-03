@@ -38,6 +38,7 @@ import {
   LEAD_STAGES,
   isLeadOpen,
 } from "../_lib/leads";
+import { Loader } from "@/components/ui/loader";
 
 interface LeadDetailSheetProps {
   lead: Lead | null;
@@ -232,6 +233,7 @@ export function LeadDetailSheet({
             <section className="flex flex-wrap gap-2">
               {open && (
                 <Button size="sm" onClick={handleConvert} disabled={converting}>
+                  {converting && <Loader size="sm" variant="button" className="mr-2" />}
                   <UserCheck className="mr-2 h-4 w-4" />
                   {converting ? "Convertendo..." : "Converter em proposta"}
                 </Button>
@@ -314,6 +316,7 @@ export function LeadDetailSheet({
                     className="sm:w-[180px]"
                   />
                   <Button type="submit" size="sm" disabled={savingActivity || !newTitle.trim()}>
+                    {savingActivity && <Loader size="sm" variant="button" className="mr-2" />}
                     {savingActivity ? "Salvando..." : "Registrar"}
                   </Button>
                 </div>

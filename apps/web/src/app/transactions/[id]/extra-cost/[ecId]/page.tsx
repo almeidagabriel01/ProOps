@@ -15,6 +15,7 @@ import Link from "next/link";
 import { formatCurrency } from "@/utils/format";
 import { formatDateBR, formatDateTimeBR } from "@/utils/date-format";
 import { Loader } from "@/components/ui/loader";
+import { useWalletLabel } from "@/hooks/useWalletLabel";
 
 const statusConfig: Record<
   TransactionStatus,
@@ -51,6 +52,10 @@ export default function ViewExtraCostPage() {
       .catch(console.error)
       .finally(() => setIsLoading(false));
   }, [parentId]);
+
+  const walletValue =
+    parentTransaction?.extraCosts?.find((ec) => ec.id === ecId)?.wallet || parentTransaction?.wallet;
+  const walletName = useWalletLabel(parentTransaction?.tenantId, walletValue);
 
   if (isLoading) {
     return (
@@ -167,9 +172,7 @@ export default function ViewExtraCostPage() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-lg font-semibold">
-                {extraCost.wallet || parentTransaction.wallet}
-              </p>
+              <p className="text-lg font-semibold">{walletName}</p>
             </CardContent>
           </Card>
         )}

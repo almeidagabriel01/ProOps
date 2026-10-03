@@ -9,6 +9,7 @@ import {
   resolveGroupKey,
 } from "./lib/transaction-group-summary";
 import { logger } from "./lib/logger";
+import { becamePaidContractCharge } from "./api/services/field-service/contract-model";
 
 /**
  * Mantém três desnormalizações em todo write de transactions/{id}:
@@ -365,6 +366,14 @@ export async function handleTransactionTotalsEvent(
         }
       }
     }
+  }
+
+  // 1b. Mensalidade de contrato que acabou de ser paga: a nota de serviço,
+  // se o contrato pede. Módulo carregado só neste caso, que é raro; falhar
+  // aqui não refaz o evento (a emissão tem trava própria e fica pendente).
+  if (becamePaidContractCharge(beforeData, afterData) && afterData) {
+    const { issueContractChargeInvoice } = await import("./api/services/field-service/contract-invoice");
+    await issueContractChargeInvoice(String(event.params.transactionId), afterData);
   }
 
   // 2. Resumos de grupo — roda também em delete e quando totais não mudam.

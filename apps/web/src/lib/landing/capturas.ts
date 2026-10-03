@@ -78,6 +78,10 @@ export const CAPTURAS_DAS_FUNCIONALIDADES: Record<FuncionalidadeSlug, Captura> =
     "Editor de PDF da ProOps, com as seções da proposta à esquerda e a prévia da capa à direita.",
   ),
   obras: desktop("funcionalidades/obras", "Obra na ProOps, com as etapas, o checklist da etapa atual e a visita marcada."),
+  "assistencia-tecnica": desktop(
+    "funcionalidades/assistencia-tecnica",
+    "Ordem de serviço concluída na ProOps, com o checklist, as peças usadas e a assinatura do cliente.",
+  ),
   agenda: desktop("funcionalidades/agenda", "Agenda da empresa na ProOps, em visão de mês, com a visita técnica marcada."),
   "pos-venda": celular(
     "funcionalidades/pos-venda",
@@ -123,4 +127,5 @@ export const CAPTURAS_DOS_NICHOS: Record<TenantNicheId, CapturasDoNicho> = {
   seguranca_eletronica: doNicho("seguranca_eletronica", "segurança eletrônica"),
   vidracaria_esquadrias: doNicho("vidracaria_esquadrias", "vidraçaria"),
   marcenaria: doNicho("marcenaria", "marcenaria"),
+  climatizacao: doNicho("climatizacao", "climatização"),
 };

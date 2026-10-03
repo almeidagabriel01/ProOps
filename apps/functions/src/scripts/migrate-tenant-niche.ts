@@ -30,6 +30,8 @@ export const TENANT_DATA_COLLECTIONS = [
   "transactions",
   "wallets",
   "projects",
+  "customer_equipment",
+  "service_orders",
   "leads",
   "tasks",
   "calendar_events",

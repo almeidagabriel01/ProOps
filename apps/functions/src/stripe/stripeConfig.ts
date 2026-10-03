@@ -101,6 +101,9 @@ export function getPriceConfig(): StripePriceConfig {
       online_payments: {
         monthly: process.env.STRIPE_ADDON_ONLINE_PAYMENTS_MONTHLY || "",
       },
+      field_service: {
+        monthly: process.env.STRIPE_ADDON_FIELD_SERVICE_MONTHLY || "",
+      },
       whatsapp_overage: {
         monthly: "price_1T20T7GrkF9UfsqcEtdBX9fY",
       },

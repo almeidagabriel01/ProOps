@@ -175,7 +175,7 @@ export function TransferDialog({
             </Button>
             <Button type="submit" disabled={isSubmitting || !isValid}>
               {isSubmitting && (
-                <Loader size="sm" className="mr-2" />
+                <Loader size="sm" variant="button" className="mr-2" />
               )}
               Transferir
             </Button>

@@ -23,6 +23,7 @@ import {
   type TransactionCategory,
 } from "@/services/finance-reports-service";
 import type { TransactionType } from "@/services/transaction-service";
+import { Loader } from "@/components/ui/loader";
 
 interface CategoriesDialogProps {
   open: boolean;
@@ -161,7 +162,7 @@ function NewCategory({ kind, onCreated }: { kind: TransactionType; onCreated: ()
         onChange={(e) => setName(e.target.value)}
       />
       <Button type="submit" variant="outline" disabled={saving || !name.trim()}>
-        <Plus className="mr-1 h-4 w-4" />
+        {saving ? <Loader size="sm" variant="button" className="mr-1" /> : <Plus className="mr-1 h-4 w-4" />}
         Adicionar
       </Button>
     </form>

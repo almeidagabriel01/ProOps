@@ -13,6 +13,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { formatDateBR } from "@/utils/date-format";
 import type { ClientChangeRequest } from "@/lib/client-acceptance";
+import { Loader } from "@/components/ui/loader";
 
 interface ClientChangeRequestDialogProps {
   proposalTitle: string;
@@ -77,6 +78,7 @@ export function ClientChangeRequestDialog({
             </p>
             <DialogFooter className="gap-2 sm:gap-0">
               <Button variant="outline" onClick={() => void resolve()} disabled={busy}>
+                {busy && <Loader size="sm" variant="button" className="mr-2" />}
                 <CheckCheck className="mr-2 h-4 w-4" />
                 {busy ? "Encerrando..." : "Marcar como resolvido"}
               </Button>

@@ -6,6 +6,9 @@ export const PAGE_ROUTE_MAP: Record<string, string> = {
   kanban: "/crm",
   proposals: "/proposals",
   projects: "/projects",
+  service_orders: "/service-orders",
+  equipment: "/equipment",
+  contracts: "/contracts",
   tasks: "/tasks",
   clients: "/contacts",
   products: "/products",
@@ -22,6 +25,9 @@ export const ORDERED_MEMBER_PAGES = [
   "kanban",
   "proposals",
   "projects",
+  "service_orders",
+  "equipment",
+  "contracts",
   "tasks",
   "clients",
   "products",
@@ -134,6 +140,10 @@ const DEMO_ACCESSIBLE_PREFIXES = [
   "/projects",
   // Tarefas: o tenant de demonstração tem três de exemplo.
   "/tasks",
+  // Assistência técnica: cada demonstração tem equipamentos e OS de exemplo.
+  "/service-orders",
+  "/equipment",
+  "/contracts",
   // Link de agendamento: mostra o expediente padrão do nicho, sem salvar.
   // `/goals` fica fora: as metas da demonstração aparecem só no Dashboard.
   "/booking",

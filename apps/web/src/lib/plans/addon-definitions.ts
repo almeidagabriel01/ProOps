@@ -74,6 +74,17 @@ export const ADDON_DEFINITIONS: AddonDefinition[] = [
     availableForTiers: ["starter", "pro"],
     requiresAddons: { starter: ["financial"] },
   },
+  {
+    id: "field_service",
+    name: "Ordens de Serviço",
+    description:
+      "Equipamentos do cliente, ordem de serviço no celular do técnico, assinatura do cliente na tela e contratos de manutenção com a mensalidade lançada todo mês (a cobrança pede o financeiro)",
+    featureKey: "hasFieldService",
+    featureValue: true,
+    icon: "Wrench",
+    order: 7,
+    availableForTiers: ["starter"],
+  },
 ];
 
 /** Franquia mensal do add-on fiscal. Espelha FISCAL_ADDON_MONTHLY_INVOICES do backend. */
@@ -97,6 +108,7 @@ export function applyAddonsToFeatures<
     hasFiscal?: boolean;
     maxInvoicesPerMonth?: number;
     hasOnlinePayments?: boolean;
+    hasFieldService?: boolean;
   },
 >(baseFeatures: T, purchasedAddons: readonly AddonType[]): T {
   const result = { ...baseFeatures };
@@ -135,6 +147,9 @@ export function applyAddonsToFeatures<
         break;
       case "online_payments":
         result.hasOnlinePayments = true;
+        break;
+      case "field_service":
+        result.hasFieldService = true;
         break;
     }
   }

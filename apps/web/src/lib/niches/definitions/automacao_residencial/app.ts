@@ -81,7 +81,35 @@ export const nicheConfig: NicheConfig = {
     counts: { acceptance: 1, change_request: 0, expiring: 1, stale: 0 },
     total: 2,
   },
-  onboardingStepDescriptions: {},
+  onboardingStepDescriptions: {
+    "service-orders":
+      "O chamado de suporte depois da entrega, como a cena que parou ou o dispositivo fora da rede: abra a OS, escolha o técnico e a data, e ele atende pelo celular com a assinatura do cliente na tela.",
+    contracts:
+      "O suporte mensal da automação: a mensalidade entra no financeiro todo mês, sem lançar à mão, e a visita de manutenção abre a OS com o checklist.",
+  },
+  fieldService: {
+    equipmentTypes: [
+      "Central de automação",
+      "Controlador ou hub",
+      "Rede e roteador",
+      "Sonorização",
+      "Câmera",
+      "Fechadura inteligente",
+      "Cortina motorizada",
+      "Nobreak",
+    ],
+    equipmentNamePlaceholder: "Ex.: Central de automação da sala",
+    preventiveChecklist: [
+      "Testar cenas e comandos",
+      "Atualizar o firmware da central",
+      "Verificar a rede e o roteador",
+      "Testar controles e o aplicativo",
+      "Conferir nobreak e alimentação",
+    ],
+    defaultContractType: "support",
+    contractTitlePlaceholder: "Ex.: Suporte mensal da automação",
+    pmoc: false,
+  },
   booking: {
     defaultVisitType: NICHE_REGISTRY.automacao_residencial.defaultVisitType,
   },

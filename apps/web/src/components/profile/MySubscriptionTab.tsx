@@ -612,9 +612,11 @@ export function MySubscriptionTab({
                 disabled={isSyncing}
                 className="shrink-0"
               >
-                <RefreshCw
-                  className={`w-4 h-4 mr-2 ${isSyncing ? "animate-spin" : ""}`}
-                />
+                {isSyncing ? (
+                  <Loader size="sm" variant="button" className="mr-2" />
+                ) : (
+                  <RefreshCw className="w-4 h-4 mr-2" />
+                )}
                 Sincronizar
               </Button>
             </div>
@@ -687,7 +689,7 @@ export function MySubscriptionTab({
               >
                 {openingPortal ? (
                   <>
-                    <Loader size="sm" className="mr-2" />
+                    <Loader size="sm" variant="button" className="mr-2" />
                     Abrindo...
                   </>
                 ) : (

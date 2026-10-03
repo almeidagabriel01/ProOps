@@ -17,7 +17,8 @@
         "http://localhost:3001/funcionalidades",
         "http://localhost:3001/seguranca-eletronica",
         "http://localhost:3001/vidracaria-esquadrias",
-        "http://localhost:3001/marcenaria"
+        "http://localhost:3001/marcenaria",
+        "http://localhost:3001/climatizacao"
       ],
       "numberOfRuns": 3,
       "settings": {

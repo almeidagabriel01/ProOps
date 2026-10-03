@@ -36,6 +36,17 @@ describe("sanitizeProposalPricingDetails: painéis", () => {
 });
 
 describe("sanitizeProposalProductsInput", () => {
+  it("a linha de mensalidade chega gravada; a comum não ganha o campo", () => {
+    const [monthly, oneTime, forged] = sanitizeProposalProductsInput([
+      { itemType: "service", isMonthly: true, quantity: 1, total: 129 },
+      { itemType: "service", quantity: 1, total: 500 },
+      { itemType: "service", isMonthly: "sim", quantity: 1, total: 10 },
+    ]);
+    expect(monthly.isMonthly).toBe(true);
+    expect(oneTime).not.toHaveProperty("isMonthly");
+    expect(forged).not.toHaveProperty("isMonthly");
+  });
+
   it("serviço é sempre padrão, mesmo mandando medida", () => {
     const [line] = sanitizeProposalProductsInput([
       { itemType: "service", pricingDetails: { mode: "curtain_width", width: 2, panels: 2 } },

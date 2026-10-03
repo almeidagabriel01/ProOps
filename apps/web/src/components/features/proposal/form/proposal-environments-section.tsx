@@ -75,7 +75,7 @@ import {
   getProductPricingSummary,
 } from "@/lib/product-pricing";
 import { resetProposalProductPriceToDefault } from "@/lib/proposal-product";
-import { dimensionModeLabel } from "@/lib/pricing/dimension-mode-labels";
+import { dimensionModeLabel, linearPriceUnit, measureTerms } from "@/lib/pricing/dimension-mode-labels";
 import { useCurrentNicheConfig } from "@/hooks/useCurrentNicheConfig";
 import {
   AlertDialog,
@@ -88,6 +88,8 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { MonthlyLineBadge, MonthlyLineSwitch } from "./monthly-line";
+import { countsInProposalTotal } from "@/lib/proposal/monthly-lines";
 
 interface ProposalEnvironmentsSectionProps {
   selectedSistemas: ProposalSistema[];
@@ -270,11 +272,13 @@ export function ProposalEnvironmentsSection({
               const ambienteProducts = selectedProducts.filter(
                 (product) => product.systemInstanceId === instanceId,
               );
-              const ambienteTotal = ambienteProducts.reduce((sum, product) => {
+              // Subtotal da venda: a mensalidade fica à parte, como no total.
+              const ambienteSaleProducts = ambienteProducts.filter(countsInProposalTotal);
+              const ambienteTotal = ambienteSaleProducts.reduce((sum, product) => {
                 if ((product.itemType || "product") === "service") return sum;
                 return sum + product.unitPrice * product.quantity;
               }, 0);
-              const ambienteTotalWithMarkup = ambienteProducts.reduce(
+              const ambienteTotalWithMarkup = ambienteSaleProducts.reduce(
                 (sum, product) => sum + product.total,
                 0,
               );
@@ -714,6 +718,9 @@ function EnvironmentProductRow({
 }: EnvironmentProductRowProps) {
   const { place } = useNicheVocabulary();
   const { pricing } = useCurrentNicheConfig();
+  const areaMeasures = measureTerms(pricing, "curtain_meter");
+  const tierMeasures = measureTerms(pricing, "curtain_height");
+  const linearMeasures = measureTerms(pricing, "curtain_width");
   const itemType = product.itemType || "product";
   const lineItemId = product.lineItemId;
   const isService = itemType === "service";
@@ -1097,24 +1104,24 @@ function EnvironmentProductRow({
         activeHeightTiers[0]
       : null;
   const measurementLabel = isDimensionProduct
-    ? getProposalProductMeasurementLabel(product)
+    ? getProposalProductMeasurementLabel(product, pricing)
     : "";
-  const priceUnitLabel = getProposalProductUnitLabel(product);
+  const priceUnitLabel = getProposalProductUnitLabel(product, pricing);
   const priceSuffix = isCurtainMeter
     ? " /m²"
     : isCurtainHeight
-      ? " /m larg."
+      ? ` /${linearPriceUnit(pricing, "curtain_height")}`
       : isCurtainWidth
-        ? " /m larg."
+        ? ` /${linearPriceUnit(pricing, "curtain_width")}`
       : isQuantityPricedProduct
         ? " /un"
         : ` /${priceUnitLabel}`;
   const sellingUnitLabel = isCurtainMeter
     ? "m2"
     : isCurtainHeight
-      ? "m larg."
+      ? linearPriceUnit(pricing, "curtain_height")
       : isCurtainWidth
-        ? "m larg."
+        ? linearPriceUnit(pricing, "curtain_width")
       : isQuantityPricedProduct
         ? "un"
         : priceUnitLabel || priceSuffix;
@@ -1204,6 +1211,7 @@ function EnvironmentProductRow({
                   Extra
                 </Badge>
               )}
+              <MonthlyLineBadge product={product} />
               {!isActive && (
                 <Badge
                   variant="outline"
@@ -1236,7 +1244,7 @@ function EnvironmentProductRow({
               )}
               {isActive && !isService && (
                 <span className="text-[10px] text-muted-foreground">
-                  Custo unit.: <span className="font-medium text-foreground/80">R$ {(product.unitPrice || 0).toFixed(2)}{isCurtainMeter ? " /m²" : isCurtainHeight ? " /m larg." : isCurtainWidth ? " /m larg." : ` /${priceUnitLabel}`}</span>
+                  Custo unit.: <span className="font-medium text-foreground/80">R$ {(product.unitPrice || 0).toFixed(2)}{priceSuffix}</span>
                 </span>
               )}
             </div>
@@ -1311,6 +1319,8 @@ function EnvironmentProductRow({
           </div>
         )}
 
+        <MonthlyLineSwitch product={product} systemInstanceId={systemInstanceId} disabled={isUpdating} />
+
         <div className="flex flex-1 flex-wrap items-center justify-end gap-3">
           {isActive && !isService && (
             <div className="flex min-w-[88px] flex-col items-start">
@@ -1347,7 +1357,7 @@ function EnvironmentProductRow({
           {isCurtainMeter ? (
             <div className="grid w-full gap-2 rounded-lg border bg-muted/50 p-2 shadow-sm md:grid-cols-3 md:items-end lg:w-[440px] shrink-0">
               <div className="space-y-1">
-                <span className="text-[10px] text-muted-foreground">Largura</span>
+                <span className="text-[10px] text-muted-foreground">{cap(areaMeasures.width.singular)}</span>
                 <CurrencyInput
                   prefixSymbol=""
                   value={meterWidthInput}
@@ -1363,12 +1373,12 @@ function EnvironmentProductRow({
                     }
                   }}
                   className="h-9 w-full rounded-md border bg-background px-2 py-1 text-base md:text-xs focus:outline-none focus:ring-2 focus:ring-primary/20"
-                  aria-label="Largura"
+                  aria-label={cap(areaMeasures.width.singular)}
                   placeholder="0,00"
                 />
               </div>
               <div className="space-y-1">
-                <span className="text-[10px] text-muted-foreground">Altura</span>
+                <span className="text-[10px] text-muted-foreground">{cap(areaMeasures.height.singular)}</span>
                 <CurrencyInput
                   prefixSymbol=""
                   value={meterHeightInput}
@@ -1384,7 +1394,7 @@ function EnvironmentProductRow({
                     }
                   }}
                   className="h-9 w-full rounded-md border bg-background px-2 py-1 text-base md:text-xs focus:outline-none focus:ring-2 focus:ring-primary/20"
-                  aria-label="Altura"
+                  aria-label={cap(areaMeasures.height.singular)}
                   placeholder="0,00"
                 />
               </div>
@@ -1423,7 +1433,7 @@ function EnvironmentProductRow({
                 </Select>
               </div>
               <div className="space-y-1">
-                <span className="text-[10px] text-muted-foreground">Largura</span>
+                <span className="text-[10px] text-muted-foreground">{cap(tierMeasures.width.singular)}</span>
                 <CurrencyInput
                   prefixSymbol=""
                   value={heightWidthInput}
@@ -1443,7 +1453,7 @@ function EnvironmentProductRow({
                     }
                   }}
                   className="h-9 w-full rounded-md border bg-background px-2 py-1 text-base md:text-xs focus:outline-none focus:ring-2 focus:ring-primary/20"
-                  aria-label="Largura"
+                  aria-label={cap(tierMeasures.width.singular)}
                   placeholder="0,00"
                 />
               </div>
@@ -1465,7 +1475,7 @@ function EnvironmentProductRow({
                       selectedHeightTier.markup,
                     ).toFixed(2)}{" "}
                     <span className="text-[10px] font-normal text-muted-foreground">
-                      / m larg.
+                      / {linearPriceUnit(pricing, "curtain_height")}
                     </span>
                   </span>
                 </div>
@@ -1474,7 +1484,7 @@ function EnvironmentProductRow({
           ) : isCurtainWidth ? (
             <div className="grid w-full gap-2 rounded-lg border bg-muted/40 p-2 shadow-sm md:grid-cols-[minmax(0,1fr)_max-content] md:items-end lg:w-[340px] shrink-0">
               <div className="space-y-1">
-                <span className="text-[10px] text-muted-foreground">Largura</span>
+                <span className="text-[10px] text-muted-foreground">{cap(linearMeasures.width.singular)}</span>
                 <CurrencyInput
                   prefixSymbol=""
                   value={linearWidthInput}
@@ -1488,7 +1498,7 @@ function EnvironmentProductRow({
                     }
                   }}
                   className="h-9 w-full rounded-md border bg-background px-2 py-1 text-base md:text-xs focus:outline-none focus:ring-2 focus:ring-primary/20"
-                  aria-label="Largura"
+                  aria-label={cap(linearMeasures.width.singular)}
                   placeholder="0,00"
                 />
               </div>
@@ -1752,6 +1762,7 @@ function ExtraProductsGrid({
   primaryColor,
   onAddProduct,
 }: ExtraProductsGridProps) {
+  const { pricing } = useCurrentNicheConfig();
   const [isProductsOpen, setIsProductsOpen] = React.useState(false);
   const [isServicesOpen, setIsServicesOpen] = React.useState(false);
   const [productSearchTerm, setProductSearchTerm] = React.useState("");
@@ -1936,7 +1947,7 @@ function ExtraProductsGrid({
                             <span>
                               {(product.itemType || "product") === "service"
                                 ? `R$ ${parseFloat(product.price).toFixed(2)}`
-                                : getProductPricingSummary(product)}
+                                : getProductPricingSummary(product, pricing)}
                             </span>
                           </div>
                         </div>

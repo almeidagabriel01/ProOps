@@ -6,13 +6,17 @@ import { tenantHasCapability } from "../../../lib/tenant-capabilities";
 import { SharedProposalService } from "../shared-proposal.service";
 import { SharedTransactionService } from "../shared-transactions.service";
 import { createProjectShareLink } from "../projects/project.service";
+import { buildOrderShareUrl, ensureOrderShareToken } from "../field-service/field-service.service";
+import { buildPmocShareUrl, ensurePmocShareToken } from "../field-service/pmoc-document";
 import {
   CLIENT_PORTAL_LINKS_COLLECTION,
   PORTAL_TOKEN_PATTERN,
+  buildPortalContracts,
   buildPortalInvoices,
   buildPortalPayments,
   buildPortalProjects,
   buildPortalProposals,
+  buildPortalServiceOrders,
   firstName,
   portalLinkDocId,
   proposalsNeedingShareCheck,
@@ -183,7 +187,7 @@ function todayInBrazil(nowMs: number): string {
 export async function publicPortalView(token: string, nowMs = Date.now()): Promise<PortalView> {
   const { tenantId, clientId, linkId } = await resolvePortalToken(token);
 
-  const [tenantSnap, clientSnap, proposals, transactions, projects, invoices, kanban, canCharge] =
+  const [tenantSnap, clientSnap, proposals, transactions, projects, invoices, kanban, canCharge, hasFieldService] =
     await Promise.all([
       db.collection("tenants").doc(tenantId).get(),
       db.collection("clients").doc(clientId).get(),
@@ -193,7 +197,13 @@ export async function publicPortalView(token: string, nowMs = Date.now()): Promi
       byClient("invoices", tenantId, clientId),
       db.collection("kanban_statuses").where("tenantId", "==", tenantId).limit(100).get(),
       tenantHasCapability(tenantId, "onlinePayments"),
+      tenantHasCapability(tenantId, "fieldService"),
     ]);
+  // A assistência só entra se o plano a tiver: o link do comprovante e o do
+  // PMOC também pedem a capacidade, e não abririam.
+  const [serviceOrders, contracts] = hasFieldService
+    ? await Promise.all([byClient("service_orders", tenantId, clientId), byClient("service_contracts", tenantId, clientId)])
+    : [null, null];
 
   const kanbanById = new Map<string, KanbanStatusInfo>(
     kanban.docs.map((doc) => [doc.id, doc.data() as KanbanStatusInfo]),
@@ -221,15 +231,19 @@ export async function publicPortalView(token: string, nowMs = Date.now()): Promi
     canPayOnline: canCharge && tenant.asaasEnabled === true,
     projects: buildPortalProjects(docsOf(projects)),
     invoices: buildPortalInvoices(docsOf(invoices)),
+    serviceOrders: serviceOrders ? buildPortalServiceOrders(docsOf(serviceOrders), nowMs) : [],
+    contracts: contracts ? buildPortalContracts(docsOf(contracts)) : [],
   };
 }
 
-export type PortalItemKind = "proposal" | "payment" | "project";
+export type PortalItemKind = "proposal" | "payment" | "project" | "service_order" | "pmoc";
 
 const KIND_COLLECTION: Record<PortalItemKind, string> = {
   proposal: "proposals",
   payment: "transactions",
   project: "projects",
+  service_order: "service_orders",
+  pmoc: "service_contracts",
 };
 
 /**
@@ -268,6 +282,20 @@ export async function openPortalItem(token: string, kind: PortalItemKind, itemId
     if (stillValid && existing.shareUrl) return { url: existing.shareUrl };
     const link = await SharedTransactionService.createShareLink(itemId, tenantId, CLIENT_PORTAL_ACTOR, 30);
     return { url: link.shareUrl };
+  }
+
+  if (kind === "service_order" || kind === "pmoc") {
+    if (!(await tenantHasCapability(tenantId, "fieldService"))) {
+      throw new ClientPortalError(404, "Item não encontrado.");
+    }
+    if (kind === "service_order") {
+      if (buildPortalServiceOrders(entry).length === 0) throw new ClientPortalError(404, "Item não encontrado.");
+      const token = await ensureOrderShareToken({ tenantId, orderId: itemId, uid: CLIENT_PORTAL_ACTOR });
+      return { url: buildOrderShareUrl(token) };
+    }
+    if (!buildPortalContracts(entry)[0]?.isPmoc) throw new ClientPortalError(404, "Item não encontrado.");
+    const token = await ensurePmocShareToken({ tenantId, contractId: itemId, uid: CLIENT_PORTAL_ACTOR });
+    return { url: buildPmocShareUrl(token) };
   }
 
   if (buildPortalProjects(entry).length === 0) throw new ClientPortalError(404, "Item não encontrado.");

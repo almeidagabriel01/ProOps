@@ -24,6 +24,7 @@ import {
 } from "./components";
 import { defaultPdfDisplaySettings } from "@/types/pdf-display-settings";
 import { shouldCountInPdfTotals } from "./product-visibility";
+import { countsInProposalTotal, monthlyTotal } from "@/lib/proposal/monthly-lines";
 
 // Type definitions
 export const RenderPagedContent: React.FC<RenderPagedContentProps> = ({
@@ -65,8 +66,18 @@ export const RenderPagedContent: React.FC<RenderPagedContentProps> = ({
     [sections, products, proposal, primaryColor, settings, tenantNiche],
   );
 
+  // O total é da venda; a mensalidade aparece à parte, por mês.
   const countableProducts = useMemo(
-    () => products.filter((p) => shouldCountInPdfTotals(p)),
+    () => products.filter((p) => shouldCountInPdfTotals(p) && countsInProposalTotal(p)),
+    [products],
+  );
+  const monthlyAmount = useMemo(() => monthlyTotal(products), [products]);
+  const monthlyItems = useMemo(
+    () =>
+      products
+        // Oculta no PDF, a linha continua cobrada, mas o nome não aparece.
+        .filter((p) => p.isMonthly === true && !p._isInactive && Number(p.quantity || 0) > 0)
+        .map((p) => p.productName),
     [products],
   );
 
@@ -196,6 +207,8 @@ export const RenderPagedContent: React.FC<RenderPagedContentProps> = ({
           <div key="totals" style={{ width: "100%" }}>
             <PdfTotals
               products={countableProducts}
+              monthlyAmount={monthlyAmount}
+              monthlyItems={monthlyItems}
               discount={proposal.discount || 0}
               extraExpense={proposal.extraExpense || 0}
               closedValue={proposal.closedValue}

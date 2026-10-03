@@ -42,6 +42,7 @@ const CHAVE_DO_BACKEND: Record<ChaveBooleana, keyof PlanCapabilities> = {
   hasSalesGoals: "salesGoals",
   hasBookingLink: "bookingLink",
   hasClientPortal: "clientPortal",
+  hasFieldService: "fieldService",
   hasFiscalReceiving: "fiscalReceiving",
   hasWhatsApp: "whatsapp",
   canCustomizeTheme: "customTheme",

@@ -49,9 +49,16 @@ Cada passo diz o que o cobra. Nenhum passo depende de lembrar.
    passo da proposta e subtotal do PDF saem do vocabulário
    (`copy-builders.ts`); declare override só para texto autoral.
 4. **Demonstração**: `apps/functions/src/scripts/demo/datasets/<id>.ts`,
-   registrado em `DEMO_DATASETS`. Cobra: o `Record`, e
-   `__tests__/niche-contract.test.ts` (o exemplo do card de atenção precisa
-   apontar para propostas do dataset). Depois do deploy, rode o POST
+   registrado em `DEMO_DATASETS`, com os equipamentos e as três OS de exemplo
+   (`fieldService`: uma concluída e assinada, uma agendada, uma aberta). Cobra:
+   o `Record`, o tipo, `__tests__/niche-contract.test.ts` (o exemplo do card de
+   atenção precisa apontar para propostas do dataset) e
+   `seed-demo-field-service.test.ts`. No `app.ts` do nicho, `fieldService` diz
+   o que é um equipamento ali e o checklist da preventiva (campo obrigatório), e
+   `onboardingStepDescriptions` traz o texto do tutorial de Ordens de serviço
+   e de Contratos com o uso típico do nicho (cobra:
+   `components/onboarding/__tests__/onboarding-steps.test.ts`, que reprova o
+   texto genérico). Depois do deploy, rode o POST
    `/internal/admin/seed-demo-tenant` em cada ambiente.
 5. **Página fina** `app/<landingPath>/page.tsx`: `buildNicheLandingMetadata`
    e `<NicheLandingRoute>`, como as outras. Cobra:
@@ -70,7 +77,13 @@ Cada passo diz o que o cobra. Nenhum passo depende de lembrar.
 
 Nicho que cobra por medida (m², metro linear, faixa de altura) usa os modos que
 já existem (`pricing.dimensionModes`) e troca o nome deles em
-`pricing.modeLabels`. Os ids `curtain_*` são históricos e não mudam.
+`pricing.modeLabels`. O nome das medidas nos campos ("largura", "altura") troca
+em `pricing.measureLabels`, como `Term` com gênero, porque os textos de ajuda
+concordam ("o comprimento será preenchido"); as telas leem `measureTerms` e o
+guard `src/__tests__/no-hardcoded-measure-labels.test.ts` reprova rótulo à mão.
+O estoque por medida conta em metro linear (`meterInventoryDefinition`) ou em
+m² (`areaInventoryDefinition`, vidro e chapa). Os ids `curtain_*` são históricos
+e não mudam.
 
 ## Regras
 

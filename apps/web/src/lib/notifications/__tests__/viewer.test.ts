@@ -73,7 +73,21 @@ describe("lida por pessoa", () => {
 
 describe("tipos que cada pessoa recebe (e vê nas preferências)", () => {
   it("o dono recebe todos", () => {
-    expect(visibleNotificationTypes(true, () => false)).toHaveLength(18);
+    expect(visibleNotificationTypes(true, () => false)).toHaveLength(20);
+    expect(visibleNotificationTypes(true, () => false)).toContain("service_contract_suspended");
+  });
+
+  it("contrato suspenso pelo plano é aviso da conta: o técnico não vê", () => {
+    expect(visibleNotificationTypes(false, (pageId) => pageId === "service_orders")).not.toContain(
+      "service_contract_suspended",
+    );
+  });
+
+  it("a OS atribuída aparece para quem abre Ordens de serviço (o técnico)", () => {
+    expect(visibleNotificationTypes(false, (pageId) => pageId === "service_orders")).toEqual([
+      "service_order_assigned",
+    ]);
+    expect(visibleNotificationTypes(false, (pageId) => pageId === "tasks")).not.toContain("service_order_assigned");
   });
 
   it("membro só de propostas não vê financeiro, CRM, projetos nem avisos da conta", () => {

@@ -92,7 +92,7 @@ export async function getPublicClientPortal(req: Request, res: Response) {
 }
 
 const OpenSchema = z
-  .object({ kind: z.enum(["proposal", "payment", "project"]), id: z.string().trim().min(1).max(128) })
+  .object({ kind: z.enum(["proposal", "payment", "project", "service_order", "pmoc"]), id: z.string().trim().min(1).max(128) })
   .strict();
 
 /** POST /v1/share/portal/:token/open (público): o link da página do item. */

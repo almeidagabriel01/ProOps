@@ -257,6 +257,40 @@ export function SettingsDriveSkeleton() {
   );
 }
 
+/** Card-only skeleton for /settings/technical-responsibles: two list rows. */
+export function TechnicalResponsiblesListSkeleton() {
+  return (
+    <div
+      data-testid="settings-skeleton-technical-responsibles"
+      className="divide-y rounded-xl border bg-card"
+    >
+      {[0, 1].map((row) => (
+        <div key={row} className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="space-y-2">
+            <Skeleton className="h-5 w-48" />
+            <Skeleton className="h-4 w-64 max-w-full" />
+            <Skeleton className="h-3 w-40" />
+          </div>
+          <div className="flex gap-2">
+            <Skeleton className="h-8 w-24 rounded-md" />
+            <Skeleton className="h-8 w-20 rounded-md" />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/** Full content skeleton for /settings/technical-responsibles. */
+export function SettingsTechnicalResponsiblesSkeleton() {
+  return (
+    <FormContainer>
+      <FormHeaderSkeleton />
+      <TechnicalResponsiblesListSkeleton />
+    </FormContainer>
+  );
+}
+
 const FISCAL_STEP_COUNT = 4;
 
 /**

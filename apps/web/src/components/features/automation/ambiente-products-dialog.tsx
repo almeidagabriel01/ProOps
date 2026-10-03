@@ -17,7 +17,6 @@ import { AmbienteService } from "@/services/ambiente-service";
 import { ProductService, Product } from "@/services/product-service";
 import { ServiceService, Service } from "@/services/service-service";
 import { useTenant } from "@/providers/tenant-provider";
-import { Spinner } from "@/components/ui/spinner";
 import { toast } from "@/lib/toast";
 import { MasterDataAction } from "@/hooks/proposal/useMasterDataTransaction";
 import { useWindowFocus } from "@/hooks/use-window-focus";
@@ -31,6 +30,7 @@ import {
   compareCatalogDisplayItem,
   compareConfiguredDisplayItem,
 } from "@/lib/sort-text";
+import { Loader } from "@/components/ui/loader";
 
 interface AmbienteProductsDialogProps {
   isOpen: boolean;
@@ -266,7 +266,7 @@ export function AmbienteProductsDialog({
         {isLoading ? (
           <div className="flex-1 flex items-center justify-center text-muted-foreground">
             <div className="flex flex-col items-center gap-3">
-              <Spinner className="h-8 w-8 text-primary" />
+              <Loader size="md" />
               <p>Carregando itens...</p>
             </div>
           </div>
@@ -461,7 +461,7 @@ export function AmbienteProductsDialog({
           <Button onClick={handleSave} disabled={isSaving} className="gap-2">
             {isSaving ? (
               <>
-                <Spinner className="h-4 w-4" />
+                <Loader size="sm" variant="button" />
                 Salvando...
               </>
             ) : (

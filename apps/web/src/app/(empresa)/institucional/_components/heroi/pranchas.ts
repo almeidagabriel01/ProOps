@@ -95,23 +95,20 @@ export const PRANCHAS: Record<SegmentoId, Prancha> = {
     lugar: { x: 80, y: 55, largura: 20, giro: 2 },
   },
 
-  paisagismo: {
+  // Corte de um ambiente: a evaporadora na parede, o fluxo de ar frio descendo
+  // e a condensadora do lado de fora.
+  climatizacao: {
     tracos: [
-      "M3 6H97V66H3Z",
-      "M66 8H95V22H66Z",
-      "M8 30l4-5M14 32l4-5M20 30l4-5",
-      "M60 60l4-5M66 62l4-5M72 60l4-5",
+      "M6 6H94V64H6Z",
+      "M6 58H94",
+      "M62 14H90V25H62Z",
+      "M66 25L64 29M72 25L70 29M78 25L76 29M84 25L82 29",
+      "M6 10H40V19H6",
+      "M30 19L26 23M36 19L32 23",
+      "M14 44H34V58H14Z",
+      "M14 50H34",
     ],
-    guias: [
-      "M3 52C22 52 26 26 48 26S78 44 97 18",
-      "M3 62C24 62 32 36 52 36S82 54 97 28",
-    ],
-    discos: [
-      [24, 20, 8],
-      [38, 14, 4.5],
-      [79, 47, 9],
-      [90, 34, 5],
-    ],
+    guias: ["M60 29C44 35 30 33 16 39", "M60 35C46 43 30 43 16 49"],
     lugar: { x: 8, y: 18, largura: 17, giro: 4 },
   },
 

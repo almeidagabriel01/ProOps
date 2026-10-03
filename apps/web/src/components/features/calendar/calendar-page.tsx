@@ -191,6 +191,18 @@ type CalendarViewType =
   | "timeGridDay"
   | "listWeek";
 
+// As setas ficam coladas ao título do período e o rótulo diz o que elas
+// pulam: sozinhas ao lado do "Hoje", pareciam trocar o dia, e trocavam o mês.
+const NAVIGATION_LABELS: Record<
+  CalendarViewType,
+  { prev: string; next: string }
+> = {
+  dayGridMonth: { prev: "Mês anterior", next: "Próximo mês" },
+  timeGridWeek: { prev: "Semana anterior", next: "Próxima semana" },
+  timeGridDay: { prev: "Dia anterior", next: "Próximo dia" },
+  listWeek: { prev: "Semana anterior", next: "Próxima semana" },
+};
+
 function CalendarStatPill(props: {
   label: string;
   value: number;
@@ -284,7 +296,11 @@ function GoogleCalendarCompanyCard(props: {
                 onClick={props.onDisconnect}
                 disabled={props.isLoading}
               >
-                <Unlink2 className="mr-2 h-4 w-4" />
+                {props.isLoading ? (
+                  <Loader size="sm" variant="button" className="mr-2" />
+                ) : (
+                  <Unlink2 className="mr-2 h-4 w-4" />
+                )}
                 Desconectar
               </Button>
             </div>
@@ -430,6 +446,7 @@ export function CalendarPage() {
   // era por isso que o calendário simplesmente não aparecia no celular.
   const hasFixedCalendarHeight = useMediaQuery("(min-width: 1280px)");
   const [currentTitle, setCurrentTitle] = React.useState("");
+  const [isTodayInView, setIsTodayInView] = React.useState(true);
   const [isLoadingEvents, setIsLoadingEvents] = React.useState(true);
   const [isRefreshing, setIsRefreshing] = React.useState(false);
   // A agenda interna é de todos os planos; a sincronia com o Google é do Pro
@@ -880,6 +897,39 @@ export function CalendarPage() {
     const syncStatus = String(
       content.event.extendedProps.googleSyncStatus || "disabled",
     );
+    const statusLabel = STATUS_LABELS[status as CalendarEvent["status"]];
+
+    // Na grade do mês o chip é uma linha só: com título, hora, local e status
+    // empilhados, cada semana crescia além da altura da tela e a última ficava
+    // cortada. O que não cabe no dia vira "+ mais", e o detalhe segue no
+    // título (hover) e no diálogo.
+    if (content.view.type === "dayGridMonth") {
+      return (
+        <div
+          className={`calendar-event-chip calendar-event-chip--compact calendar-event-chip--${status}`}
+          title={[content.event.title, content.timeText, location, statusLabel]
+            .filter(Boolean)
+            .join(" · ")}
+        >
+          {content.timeText ? (
+            <span className="calendar-event-chip__time">
+              {content.timeText}
+            </span>
+          ) : null}
+          <span className="calendar-event-chip__title">
+            {content.event.title}
+          </span>
+          {GOOGLE_CALENDAR_SYNC_ENABLED && syncStatus === "synced" ? (
+            <span
+              className="calendar-event-chip__sync"
+              title="Sincronizado com Google Agenda"
+            >
+              G
+            </span>
+          ) : null}
+        </div>
+      );
+    }
 
     return (
       <div className="calendar-event-chip">
@@ -905,7 +955,7 @@ export function CalendarPage() {
         <span
           className={`calendar-event-chip__status calendar-event-chip__status--${status}`}
         >
-          {STATUS_LABELS[status as CalendarEvent["status"]]}
+          {statusLabel}
         </span>
       </div>
     );
@@ -973,39 +1023,44 @@ export function CalendarPage() {
                       <Button
                         type="button"
                         variant="ghost"
-                        size="sm"
-                        className="h-8 rounded-full px-3"
-                        onClick={() => handleCalendarNavigation("today")}
-                      >
-                        Hoje
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="ghost"
                         size="icon"
                         className="h-8 w-8 rounded-full"
                         onClick={() => handleCalendarNavigation("prev")}
+                        aria-label={NAVIGATION_LABELS[currentView].prev}
+                        title={NAVIGATION_LABELS[currentView].prev}
                       >
                         <ChevronLeft className="h-4 w-4" />
                       </Button>
+                      <span
+                        className="min-w-[9.5rem] px-1 text-center text-sm font-medium text-foreground"
+                        aria-live="polite"
+                      >
+                        {currentTitle ||
+                          formatRangeLabel(range.startMs, range.endMs)}
+                      </span>
                       <Button
                         type="button"
                         variant="ghost"
                         size="icon"
                         className="h-8 w-8 rounded-full"
                         onClick={() => handleCalendarNavigation("next")}
+                        aria-label={NAVIGATION_LABELS[currentView].next}
+                        title={NAVIGATION_LABELS[currentView].next}
                       >
                         <ChevronRight className="h-4 w-4" />
                       </Button>
                     </div>
 
-                    <div className="flex h-10 items-center gap-2 rounded-full border border-border/60 bg-muted/20 px-3 text-sm text-foreground">
-                      <CalendarRange className="h-4 w-4 text-muted-foreground" />
-                      <span>
-                        {currentTitle ||
-                          formatRangeLabel(range.startMs, range.endMs)}
-                      </span>
-                    </div>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="h-10 rounded-full border-border/60 bg-background/80 px-4"
+                      onClick={() => handleCalendarNavigation("today")}
+                      disabled={isTodayInView}
+                      title="Voltar para o período de hoje"
+                    >
+                      Hoje
+                    </Button>
 
                     <Tabs
                       value={currentView}
@@ -1074,9 +1129,11 @@ export function CalendarPage() {
                         disabled={isRefreshing || isLoadingEvents}
                         title="Atualizar compromissos"
                       >
-                        <RefreshCcw
-                          className={`h-4 w-4 ${isRefreshing ? "animate-spin" : ""}`}
-                        />
+                        {isRefreshing ? (
+                          <Loader size="sm" variant="button" />
+                        ) : (
+                          <RefreshCcw className="h-4 w-4" />
+                        )}
                       </Button>
 
                       <BookingRequestsButton
@@ -1158,6 +1215,11 @@ export function CalendarPage() {
                 datesSet={(arg: DatesSetArg) => {
                   setCurrentView(arg.view.type as CalendarViewType);
                   setCurrentTitle(arg.view.title);
+                  const now = Date.now();
+                  setIsTodayInView(
+                    now >= arg.view.currentStart.getTime() &&
+                      now < arg.view.currentEnd.getTime(),
+                  );
                   setRange({
                     startMs: arg.start.getTime() - 14 * 24 * 60 * 60 * 1000,
                     endMs: arg.end.getTime() + 45 * 24 * 60 * 60 * 1000,
@@ -1171,7 +1233,10 @@ export function CalendarPage() {
                   day: "Dia",
                   list: "Lista",
                 }}
-                dayMaxEvents={3}
+                // Com altura fixa (xl+), o mês cabe inteiro na tela e o que
+                // não couber no dia vira "+ mais". Um teto numérico deixava as
+                // semanas crescerem e a última saía cortada.
+                dayMaxEvents={hasFixedCalendarHeight ? true : 3}
                 slotMinTime="06:00:00"
                 slotMaxTime="22:00:00"
                 nowIndicator
@@ -1221,7 +1286,10 @@ export function CalendarPage() {
                 />
               </div>
             ) : null}
-            <div className="min-h-0 flex-1 px-5 py-4">
+            {/* flex-col é o que dá altura ao flex-1 da lista; sem ele a lista
+                crescia até o fim do conteúdo, o overflow-y-auto nunca
+                disparava e o Card cortava o resto sem deixar rolar. */}
+            <div className="flex min-h-0 flex-1 flex-col px-5 py-4">
               <UpcomingEventsCard
                 events={upcomingEvents}
                 onOpenEvent={handleOpenEditDialog}

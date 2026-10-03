@@ -13,7 +13,6 @@ import { toast } from "@/lib/toast";
 import { Button } from "@/components/ui/button";
 import { VerificationCodeInput } from "@/components/shared/verification-code-input";
 import { Label } from "@/components/ui/label";
-import { Spinner } from "@/components/ui/spinner";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
   AlertDialog,
@@ -26,6 +25,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { PhoneInput } from "@/components/ui/phone-input";
+import { Loader } from "@/components/ui/loader";
 
 type Stage = "intro" | "code" | "active";
 
@@ -234,7 +234,7 @@ export function WhatsappMfaSection({
               }
               className="w-fit gap-2 cursor-pointer"
             >
-              {busy && <Spinner className="h-4 w-4 text-white" />}
+              {busy && <Loader size="sm" variant="button" className="text-white" />}
               {busy
                 ? "Enviando..."
                 : formatResendLabel(resendSecondsLeft, {
@@ -269,7 +269,7 @@ export function WhatsappMfaSection({
                 disabled={busy || code.trim().length !== 6}
                 className="w-fit gap-2 cursor-pointer"
               >
-                {busy && <Spinner className="h-4 w-4 text-white" />}
+                {busy && <Loader size="sm" variant="button" className="text-white" />}
                 {busy ? "Validando..." : "Confirmar"}
               </Button>
               <Button
@@ -337,7 +337,7 @@ export function WhatsappMfaSection({
               disabled={busy}
               className="bg-red-600 hover:bg-red-700 focus:ring-red-600 gap-2"
             >
-              {busy && <Spinner className="h-4 w-4 text-white" />}
+              {busy && <Loader size="sm" variant="button" className="text-white" />}
               {busy ? "Desativando..." : "Sim, desativar"}
             </AlertDialogAction>
           </AlertDialogFooter>

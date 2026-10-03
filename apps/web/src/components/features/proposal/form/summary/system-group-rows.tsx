@@ -6,6 +6,7 @@ import { ProductRow } from "./product-row";
 import { compareConfiguredDisplayItem } from "@/lib/sort-text";
 import { useNicheVocabulary } from "@/hooks/useNicheVocabulary";
 import { cap } from "@/lib/niches/vocabulary";
+import { countsInProposalTotal } from "@/lib/proposal/monthly-lines";
 
 interface SystemGroupRowsProps {
   selectedSistemas: ProposalSistema[];
@@ -48,7 +49,7 @@ export function SystemGroupRows({
               );
 
               const instanceTotal = sistemaProducts.reduce(
-                (sum, product) => sum + product.total,
+                (sum, product) => (countsInProposalTotal(product) ? sum + product.total : sum),
                 0,
               );
 

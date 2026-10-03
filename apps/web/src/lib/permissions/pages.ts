@@ -33,6 +33,11 @@ export interface PermissionPage {
   viewOnly?: boolean;
   /** Só é oferecida a tenants com o módulo financeiro contratado. */
   requiresFinancial?: boolean;
+  /**
+   * Não é uma tela: amplia o que o membro vê DENTRO da página indicada (o
+   * backend filtra a lista por ela). Por isso não tem guarda de rota própria.
+   */
+  scopeOf?: string;
 }
 
 export const PERMISSION_PAGES: PermissionPage[] = [
@@ -74,6 +79,30 @@ export const PERMISSION_PAGES: PermissionPage[] = [
     id: "projects",
     name: "Projetos",
     description: "Obras de instalação: etapas, fotos e entrega",
+  },
+  {
+    id: "service_orders",
+    name: "Ordens de serviço",
+    description: "Chamados técnicos: agenda, execução e assinatura do cliente",
+  },
+  {
+    // Sem esta, o membro vê e atende só as OS em que ele é o técnico. É o que
+    // separa o técnico de campo de quem coordena a equipe.
+    id: "service_orders_all",
+    name: "Todas as ordens de serviço",
+    description: "Ver as OS da equipe inteira, e não só as atribuídas a ele",
+    viewOnly: true,
+    scopeOf: "service_orders",
+  },
+  {
+    id: "equipment",
+    name: "Equipamentos",
+    description: "Aparelhos instalados nos clientes, com garantia e histórico",
+  },
+  {
+    id: "contracts",
+    name: "Contratos",
+    description: "Mensalidades de manutenção e monitoramento, com visitas preventivas",
   },
   {
     id: "solutions",
@@ -139,7 +168,18 @@ export interface PagePermissionFlags {
 
 export type MemberPermissions = Record<string, PagePermissionFlags>;
 
-export type RolePreset = "viewer" | "editor" | "admin";
+export type RolePreset = "viewer" | "editor" | "admin" | "technician";
+
+/**
+ * O técnico de campo: atende as OS atribuídas a ele (sem criar nem excluir),
+ * consulta os equipamentos e vê a agenda. O resto do ERP fica fechado, e
+ * `service_orders_all` fica de fora de propósito.
+ */
+const TECHNICIAN_PERMISSIONS: MemberPermissions = {
+  service_orders: { canView: true, canCreate: false, canEdit: true, canDelete: false },
+  equipment: { canView: true, canCreate: false, canEdit: false, canDelete: false },
+  calendar: { canView: true, canCreate: false, canEdit: false, canDelete: false },
+};
 
 /**
  * Permissões iniciais de um MEMBER novo, derivadas de `PERMISSION_PAGES`.
@@ -155,6 +195,14 @@ export function getDefaultPermissions(
   const permissions: MemberPermissions = {};
 
   for (const page of getAssignablePages(hasFinancial)) {
+    if (roleType === "technician") {
+      permissions[page.id] = TECHNICIAN_PERMISSIONS[page.id] ?? {
+        canView: false,
+        ...(page.viewOnly ? {} : { canCreate: false, canEdit: false, canDelete: false }),
+      };
+      continue;
+    }
+
     // Dashboard e afins não têm criar/editar/excluir — só o toggle "Ver".
     if (page.viewOnly) {
       permissions[page.id] = { canView: true };

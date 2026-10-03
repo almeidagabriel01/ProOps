@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import { ProposalSection, CustomFieldType } from "@/types";
+import { getNicheConfig } from "@/lib/niches/config";
 import {
   Proposal,
   ProposalProduct,
@@ -15,6 +16,7 @@ import {
   getProposalProductMeasurementLabel,
   isDimensionProductLine,
 } from "@/lib/product-pricing";
+import { countsInProposalTotal } from "@/lib/proposal/monthly-lines";
 
 // ============================================
 // TYPES
@@ -72,6 +74,7 @@ export function ProductTableSection({
   section,
   proposal,
   primaryColor,
+  tenantNiche,
 }: ProductTableSectionProps) {
   const products = proposal?.products || [];
   const sistemas = proposal?.sistemas || [];
@@ -95,7 +98,8 @@ export function ProductTableSection({
     sistemaInfo?: ProposalSystemInstance,
   ) => {
     const total = items.reduce(
-      (sum, item) => sum + (item.total || item.quantity * item.unitPrice),
+      (sum, item) =>
+        countsInProposalTotal(item) ? sum + (item.total || item.quantity * item.unitPrice) : sum,
       0,
     );
 
@@ -186,7 +190,7 @@ export function ProductTableSection({
                             showMeasurements || showQuantity ? (
                               <div className="flex flex-col items-center gap-0.5 leading-tight">
                                 {showMeasurements && (
-                                  <span>{getProposalProductMeasurementLabel(item)}</span>
+                                  <span>{getProposalProductMeasurementLabel(item, getNicheConfig(tenantNiche).pricing)}</span>
                                 )}
                                 {showQuantity && (
                                   <span className="text-xs text-muted-foreground">

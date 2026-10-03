@@ -44,6 +44,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { formatDateBR, isDateBeforeTodayBR } from "@/utils/date-format";
+import { useWalletLabel } from "@/hooks/useWalletLabel";
 
 // ============================================
 // STATUS LABELS
@@ -87,9 +88,9 @@ function KanbanProposalProductLineDetail({
   if (isDimensionProductLine(product)) {
     return (
       <>
-        {getProposalProductMeasurementLabel(product)} x{" "}
+        {getProposalProductMeasurementLabel(product, getNicheConfig(tenantNiche).pricing)} x{" "}
         {formatCurrency(getProposalLineUnitSellingPrice(product))} /{" "}
-        {getProposalProductUnitLabel(product)}
+        {getProposalProductUnitLabel(product, getNicheConfig(tenantNiche).pricing)}
       </>
     );
   }
@@ -333,6 +334,7 @@ export function TransactionDetailModal({
   const tenantNiche = tenant?.niche ?? null;
   const [proposal, setProposal] = React.useState<Proposal | null>(null);
   const [isLoadingProposal, setIsLoadingProposal] = React.useState(false);
+  const walletName = useWalletLabel(open ? tenant?.id : null, transaction?.wallet);
 
   React.useEffect(() => {
     if (open && transaction?.proposalId) {
@@ -493,7 +495,7 @@ export function TransactionDetailModal({
             <InfoRow
               icon={FileText}
               label="Carteira"
-              value={transaction.wallet}
+              value={walletName}
             />
           )}
 

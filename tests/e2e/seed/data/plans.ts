@@ -1,5 +1,6 @@
 import type { Auth } from "firebase-admin/auth";
 import type { Firestore } from "firebase-admin/firestore";
+import { buildSearchTokens } from "../../../../apps/functions/src/lib/search-tokens";
 
 /**
  * Um tenant MASTER por tier, para medir o gate de MODULO por plano.
@@ -22,6 +23,8 @@ export interface SeedPlanTenant {
   uid: string;
   email: string;
   name: string;
+  /** Nicho da empresa; sem ele, automação. */
+  niche?: "automacao_residencial" | "climatizacao";
   /** Add-ons ativos na coleção `addons`. */
   addons?: Array<
     | "financial"
@@ -30,6 +33,7 @@ export interface SeedPlanTenant {
     | "pdf_editor_partial"
     | "fiscal"
     | "online_payments"
+    | "field_service"
   >;
 }
 
@@ -79,6 +83,48 @@ export const PLAN_PRO_ADDONS: SeedPlanTenant = {
   addons: ["fiscal", "online_payments"],
 };
 
+/** Starter que comprou o add-on de ordens de serviço e equipamentos. */
+export const PLAN_STARTER_FIELD_SERVICE: SeedPlanTenant = {
+  tenantId: "tenant-plan-starter-os",
+  tier: "starter",
+  uid: "user-plan-starter-os",
+  email: "starter-os@plans.test",
+  name: "Master Starter com Ordens de Serviço",
+  addons: ["field_service"],
+};
+
+/**
+ * Pro exclusivo dos contratos de manutenção (`field-service/service-contracts.spec.ts`).
+ * Separado do tenant-alpha de propósito: ativar um contrato lança a
+ * mensalidade no financeiro, e as suítes do financeiro somam os lançamentos
+ * do alpha em paralelo. Semeado com um contato e uma carteira.
+ */
+export const PLAN_CONTRACTS: SeedPlanTenant = {
+  tenantId: "tenant-plan-contracts",
+  tier: "pro",
+  uid: "user-plan-contracts",
+  email: "contracts@plans.test",
+  name: "Master Contratos",
+};
+export const PLAN_CONTRACTS_CLIENT_ID = "contact-contracts-loja";
+export const PLAN_CONTRACTS_WALLET_ID = "wallet-contracts-main";
+
+/**
+ * Empresa de climatização, exclusiva de `field-service/pmoc.spec.ts`: o PMOC
+ * só existe nesse nicho. Pro, que traz contratos e o financeiro.
+ */
+export const PLAN_PMOC: SeedPlanTenant = {
+  tenantId: "tenant-plan-pmoc",
+  tier: "pro",
+  uid: "user-plan-pmoc",
+  email: "pmoc@plans.test",
+  name: "Master Climatização",
+  niche: "climatizacao",
+};
+export const PLAN_PMOC_CLIENT_ID = "contact-pmoc-clinica";
+export const PLAN_PMOC_WALLET_ID = "wallet-pmoc-main";
+export const PLAN_PMOC_EQUIPMENT_ID = "equipment-pmoc-split";
+
 /**
  * Donos de conta Pro exclusivos do tutorial (`onboarding/` e
  * `mobile/onboarding.spec.ts`). O spec reescreve `users/{uid}.onboarding` a
@@ -107,6 +153,9 @@ export const PLAN_TENANTS = [
   PLAN_ENTERPRISE,
   PLAN_STARTER_ADDON,
   PLAN_PRO_ADDONS,
+  PLAN_STARTER_FIELD_SERVICE,
+  PLAN_CONTRACTS,
+  PLAN_PMOC,
   PLAN_ONBOARDING,
   PLAN_ONBOARDING_MOBILE,
 ];
@@ -126,7 +175,7 @@ export async function seedPlanTenants(
       id: seed.tenantId,
       tenantId: seed.tenantId,
       name: `Plan ${seed.tier}`,
-      niche: "automacao_residencial",
+      niche: seed.niche ?? "automacao_residencial",
       primaryColor: "#0EA5E9",
       plan: seed.tier,
       planId: seed.tier,
@@ -187,6 +236,68 @@ export async function seedPlanTenants(
         });
     }
   }
+
+  await db.collection("clients").doc(PLAN_CONTRACTS_CLIENT_ID).set({
+    id: PLAN_CONTRACTS_CLIENT_ID,
+    tenantId: PLAN_CONTRACTS.tenantId,
+    name: "Loja Centro",
+    email: "loja.centro@example.com",
+    phone: "(11) 3333-4444",
+    types: ["cliente"],
+    // Sem os tokens a busca do ClientSelect (por índice) não acha o contato.
+    searchTokens: buildSearchTokens("Loja Centro", "loja.centro@example.com", "(11) 3333-4444"),
+    createdAt: new Date("2024-01-01T00:00:00Z").toISOString(),
+    updatedAt: new Date("2024-01-01T00:00:00Z").toISOString(),
+  });
+  await db.collection("wallets").doc(PLAN_CONTRACTS_WALLET_ID).set({
+    id: PLAN_CONTRACTS_WALLET_ID,
+    tenantId: PLAN_CONTRACTS.tenantId,
+    name: "Conta Principal",
+    type: "bank",
+    balance: 0,
+    color: "#2563EB",
+    isDefault: true,
+    status: "active",
+    createdAt: new Date("2024-01-01T00:00:00Z").toISOString(),
+    updatedAt: new Date("2024-01-01T00:00:00Z").toISOString(),
+  });
+
+  await db.collection("clients").doc(PLAN_PMOC_CLIENT_ID).set({
+    id: PLAN_PMOC_CLIENT_ID,
+    tenantId: PLAN_PMOC.tenantId,
+    name: "Clínica Centro",
+    email: "clinica.centro@example.com",
+    phone: "(11) 3333-5555",
+    address: { street: "Rua das Flores", number: "100", city: "São Paulo", state: "SP" },
+    types: ["cliente"],
+    searchTokens: buildSearchTokens("Clínica Centro", "clinica.centro@example.com", "(11) 3333-5555"),
+    createdAt: new Date("2024-01-01T00:00:00Z").toISOString(),
+    updatedAt: new Date("2024-01-01T00:00:00Z").toISOString(),
+  });
+  await db.collection("wallets").doc(PLAN_PMOC_WALLET_ID).set({
+    id: PLAN_PMOC_WALLET_ID,
+    tenantId: PLAN_PMOC.tenantId,
+    name: "Conta Principal",
+    type: "bank",
+    balance: 0,
+    color: "#2563EB",
+    isDefault: true,
+    status: "active",
+    createdAt: new Date("2024-01-01T00:00:00Z").toISOString(),
+    updatedAt: new Date("2024-01-01T00:00:00Z").toISOString(),
+  });
+  await db.collection("customer_equipment").doc(PLAN_PMOC_EQUIPMENT_ID).set({
+    tenantId: PLAN_PMOC.tenantId,
+    clientId: PLAN_PMOC_CLIENT_ID,
+    clientName: "Clínica Centro",
+    name: "Split da recepção",
+    type: "Split hi-wall",
+    brand: "Frioteck",
+    model: "Inverter 18.000",
+    status: "active",
+    createdAt: new Date("2024-01-01T00:00:00Z").toISOString(),
+    updatedAt: new Date("2024-01-01T00:00:00Z").toISOString(),
+  });
 
   console.log(
     `[seed] Plan tenants created: ${PLAN_TENANTS.map((t) => t.tenantId).join(", ")}`,

@@ -158,7 +158,7 @@ export function SubscriptionSyncCard() {
               disabled={isRunning}
             >
               {isRunning && mode === "dry" ? (
-                <Loader size="sm" className="mr-2" />
+                <Loader size="sm" variant="button" className="mr-2" />
               ) : (
                 <FlaskConical className="w-4 h-4 mr-2" />
               )}
@@ -169,7 +169,7 @@ export function SubscriptionSyncCard() {
               <AlertDialogTrigger asChild>
                 <Button disabled={isRunning}>
                   {isRunning && mode === "live" ? (
-                    <Loader size="sm" className="mr-2" />
+                    <Loader size="sm" variant="button" className="mr-2" />
                   ) : (
                     <PlayCircle className="w-4 h-4 mr-2" />
                   )}

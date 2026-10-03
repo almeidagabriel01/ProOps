@@ -56,6 +56,11 @@ export type PlanTierId = "free" | "starter" | "pro" | "enterprise";
  * link fixo e revogavel, com as propostas, os pagamentos, a obra e os
  * documentos dele. Pro e Enterprise.
  *
+ * `fieldService` e a assistencia tecnica: equipamentos do cliente (o parque
+ * instalado, com garantia e historico) e a ordem de servico, executada no
+ * celular pelo tecnico e assinada pelo cliente na tela. Pro e Enterprise;
+ * Starter compra pelo add-on `field_service`.
+ *
  * `fiscalReceiving` e a recepcao de notas de ENTRADA. Fica fora do add-on
  * fiscal de proposito: cada nota recebida consome uma unidade paga do Focus
  * sem clique de ninguem, entao nao cabe na franquia mensal do add-on.
@@ -75,6 +80,7 @@ export type PlanCapabilityKey =
   | "salesGoals"
   | "bookingLink"
   | "clientPortal"
+  | "fieldService"
   | "fiscalReceiving";
 
 export type PlanCapabilities = Record<PlanCapabilityKey, boolean>;
@@ -117,6 +123,7 @@ export const PLAN_CAPABILITY_KEYS: readonly PlanCapabilityKey[] = [
   "salesGoals",
   "bookingLink",
   "clientPortal",
+  "fieldService",
   "fiscalReceiving",
 ] as const;
 
@@ -135,6 +142,7 @@ const NO_CAPABILITIES: PlanCapabilities = {
   salesGoals: false,
   bookingLink: false,
   clientPortal: false,
+  fieldService: false,
   fiscalReceiving: false,
 };
 
@@ -193,6 +201,7 @@ export const PLAN_CATALOG: Record<PlanTierId, PlanCatalogEntry> = {
       salesGoals: true,
       bookingLink: true,
       clientPortal: true,
+      fieldService: true,
     },
     limits: {
       maxProposalsPerMonth: -1,
@@ -226,6 +235,7 @@ export const PLAN_CATALOG: Record<PlanTierId, PlanCatalogEntry> = {
       salesGoals: true,
       bookingLink: true,
       clientPortal: true,
+      fieldService: true,
       fiscalReceiving: true,
     },
     limits: {
@@ -307,6 +317,7 @@ export const CAPABILITY_LABELS: Record<PlanCapabilityKey, string> = {
   salesGoals: "Metas de vendas",
   bookingLink: "Link de agendamento",
   clientPortal: "Portal do cliente",
+  fieldService: "Ordens de serviço, equipamentos e contratos",
   fiscalReceiving: "Notas de entrada",
 };
 
@@ -365,6 +376,7 @@ export interface PublicPlanFeatures {
   hasSalesGoals: boolean;
   hasBookingLink: boolean;
   hasClientPortal: boolean;
+  hasFieldService: boolean;
   hasFiscalReceiving: boolean;
   hasWhatsApp: boolean;
   canCustomizeTheme: boolean;
@@ -395,6 +407,7 @@ export function buildPublicPlanFeatures(tier: PlanTierId): PublicPlanFeatures {
     hasSalesGoals: entry.capabilities.salesGoals,
     hasBookingLink: entry.capabilities.bookingLink,
     hasClientPortal: entry.capabilities.clientPortal,
+    hasFieldService: entry.capabilities.fieldService,
     hasFiscalReceiving: entry.capabilities.fiscalReceiving,
     hasWhatsApp: entry.capabilities.whatsapp,
     canCustomizeTheme: entry.capabilities.customTheme,

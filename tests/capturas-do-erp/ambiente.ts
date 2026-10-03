@@ -61,6 +61,12 @@ export const EMPRESAS: Record<TenantNicheId, EmpresaDeCaptura> = {
     nome: "Nogueira Planejados",
     dono: { uid: "capturas-marcenaria", email: "dono.marcenaria@capturas.test", nome: "Carla Mendes" },
   },
+  climatizacao: {
+    niche: "climatizacao",
+    tenantId: "demo-climatizacao",
+    nome: "Polar Climatização",
+    dono: { uid: "capturas-climatizacao", email: "dono.climatizacao@capturas.test", nome: "Carla Mendes" },
+  },
 };
 
 /** A equipe que aparece na tela de Equipe, só na empresa de automação. */

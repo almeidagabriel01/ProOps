@@ -36,6 +36,8 @@ export const NOTIFICATION_TYPES = [
   "task_reminder",
   "task_updated",
   "booking_requested",
+  "service_order_assigned",
+  "service_contract_suspended",
 ] as const;
 
 export type NotificationType = (typeof NOTIFICATION_TYPES)[number];
@@ -72,6 +74,10 @@ export const NOTIFICATION_CATALOG: Record<NotificationType, NotificationCatalogE
   price_change: { audience: "admins", emailable: false, defaultEmail: false },
   // Visita de uma etapa da obra marcada ou remarcada: vai para o técnico.
   project_visit_scheduled: { audience: "direct", emailable: true, defaultEmail: true },
+  // OS passada para um técnico, ou remarcada: vai só para ele.
+  service_order_assigned: { audience: "direct", emailable: true, defaultEmail: true },
+  // Contrato suspenso porque o plano perdeu o módulo: a cobrança parou.
+  service_contract_suspended: { audience: "admins", emailable: true, defaultEmail: true },
   task_assigned: { audience: "direct", emailable: true, defaultEmail: true },
   task_mentioned: { audience: "direct", emailable: true, defaultEmail: true },
   // Lembrete diário: fica no sino, como os outros.
@@ -120,6 +126,8 @@ export function notificationLinkPath(n: {
   projectId?: string | null;
   taskId?: string | null;
   bookingRequestId?: string | null;
+  serviceOrderId?: string | null;
+  serviceContractId?: string | null;
 }): string {
   switch (n.type) {
     case "transaction_due_reminder":
@@ -143,6 +151,10 @@ export function notificationLinkPath(n: {
       return n.taskId ? `/tasks?task=${n.taskId}` : "/tasks";
     case "booking_requested":
       return n.bookingRequestId ? `/calendar?pedido=${n.bookingRequestId}` : "/calendar";
+    case "service_order_assigned":
+      return n.serviceOrderId ? `/service-orders/${n.serviceOrderId}` : "/service-orders";
+    case "service_contract_suspended":
+      return n.serviceContractId ? `/contracts/${n.serviceContractId}` : "/contracts";
     default:
       return n.proposalId ? `/proposals/${n.proposalId}/view` : "/notifications";
   }

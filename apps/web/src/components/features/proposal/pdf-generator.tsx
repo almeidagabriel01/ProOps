@@ -107,7 +107,7 @@ export function PdfGenerator({ proposal, sections }: PdfGeneratorProps) {
             >
               {isGenerating ? (
                 <>
-                  <Loader size="sm" />
+                  <Loader size="sm" variant="button" />
                   Gerando...
                 </>
               ) : (

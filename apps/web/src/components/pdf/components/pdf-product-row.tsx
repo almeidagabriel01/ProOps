@@ -1,5 +1,5 @@
 import React from "react";
-import { PdfItemTypeBadge } from "./pdf-item-type-badge";
+import { PdfItemTypeBadge, PdfMonthlyBadge } from "./pdf-item-type-badge";
 import { Package, Wrench } from "lucide-react";
 import type { TenantNiche } from "@/types";
 import type { ProposalProductPricingDetails } from "@/lib/product-pricing";
@@ -27,6 +27,7 @@ interface ProductData {
   markup?: number;
   total: number;
   pricingDetails?: ProposalProductPricingDetails;
+  isMonthly?: boolean;
 }
 
 interface PdfProductRowProps {
@@ -109,7 +110,8 @@ export function PdfProductRow({
                   {product.productName}
                 </span>
               </div>
-              <div className="shrink-0 flex items-start">
+              <div className="shrink-0 flex items-start gap-1">
+                {product.isMonthly && <PdfMonthlyBadge />}
                 <PdfItemTypeBadge itemType={product.itemType || "product"} />
               </div>
             </div>

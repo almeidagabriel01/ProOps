@@ -15,6 +15,7 @@ export const FUNCIONALIDADE_SLUGS = [
   "aceite-online",
   "pdf-da-proposta",
   "obras",
+  "assistencia-tecnica",
   "agenda",
   "pos-venda",
   "financeiro",

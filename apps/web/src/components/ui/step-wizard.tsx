@@ -4,8 +4,8 @@ import * as React from "react";
 import { cn } from "@/lib/utils";
 import { Check, ChevronLeft, ChevronRight } from "lucide-react";
 import { LucideIcon } from "lucide-react";
-import { Spinner } from "@/components/ui/spinner";
 import { useScrollContainer } from "@/providers/scroll-container-provider";
+import { Loader } from "@/components/ui/loader";
 
 // ============================================
 // STEP WIZARD CONTEXT
@@ -458,7 +458,7 @@ export function StepNavigation({
         >
           {isSubmitting || isValidating ? (
             <>
-              <Spinner className="w-4 h-4 text-white" />
+              <Loader size="sm" variant="button" className="text-white" />
               {isValidating ? "Validando..." : "Salvando..."}
             </>
           ) : (
@@ -484,7 +484,7 @@ export function StepNavigation({
         >
           {isValidating ? (
             <>
-              <Spinner className="w-4 h-4 text-white" />
+              <Loader size="sm" variant="button" className="text-white" />
               Validando...
             </>
           ) : (

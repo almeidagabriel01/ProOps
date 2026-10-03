@@ -584,7 +584,7 @@ export function AsaasConnectCard({ onLoadingChange }: AsaasConnectCardProps) {
                 Cancelar
               </Button>
               <Button type="submit" disabled={isConnecting} className="gap-2">
-                {isConnecting && <Loader size="sm" />}
+                {isConnecting && <Loader size="sm" variant="button" />}
                 {isConnecting ? "Criando conta..." : "Habilitar Pagamentos"}
               </Button>
             </DialogFooter>
@@ -721,7 +721,7 @@ export function AsaasConnectCard({ onLoadingChange }: AsaasConnectCardProps) {
                         disabled={isLoadingStatus}
                       >
                         {isLoadingStatus && (
-                          <Loader size="sm" className="mr-2" />
+                          <Loader size="sm" variant="button" className="mr-2" />
                         )}
                         Verificar novamente
                       </Button>
@@ -753,7 +753,7 @@ export function AsaasConnectCard({ onLoadingChange }: AsaasConnectCardProps) {
                 onClick={() => setShowDisconnectDialog(true)}
                 disabled={isDisconnecting}
               >
-                {isDisconnecting && <Loader size="sm" className="mr-2" />}
+                {isDisconnecting && <Loader size="sm" variant="button" className="mr-2" />}
                 Desativar
               </Button>
             </>

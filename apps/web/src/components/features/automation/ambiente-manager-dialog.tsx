@@ -15,7 +15,6 @@ import { Plus, Trash2, Pencil, Home, Package } from "lucide-react";
 import { Ambiente } from "@/types/automation";
 import { AmbienteService } from "@/services/ambiente-service";
 import { useTenant } from "@/providers/tenant-provider";
-import { Spinner } from "@/components/ui/spinner";
 import { AmbienteProductsDialog } from "./ambiente-products-dialog";
 import {
   AlertDialog,
@@ -315,7 +314,7 @@ export function AmbienteManagerDialog({
                 disabled={!newAmbienteName.trim() || isCreating}
               >
                 {isCreating ? (
-                  <Spinner className="text-primary-foreground" />
+                  <Loader size="sm" variant="button" className="text-primary-foreground" />
                 ) : (
                   <Plus className="h-4 w-4" />
                 )}
@@ -326,7 +325,7 @@ export function AmbienteManagerDialog({
             <div className="space-y-2 max-h-[300px] overflow-y-auto">
               {isLoading ? (
                 <div className="flex justify-center py-8">
-                  <Spinner className="h-8 w-8" />
+                  <Loader size="md" />
                 </div>
               ) : ambientes.length === 0 ? (
                 <div className="text-center py-8 text-muted-foreground">
@@ -367,7 +366,7 @@ export function AmbienteManagerDialog({
                           }
                         >
                           {updatingId === ambiente.id ? (
-                            <Spinner className="h-3 w-3" />
+                            <Loader size="sm" variant="button" />
                           ) : (
                             "Salvar"
                           )}
@@ -389,7 +388,7 @@ export function AmbienteManagerDialog({
                           {ambiente.name}
                         </span>
                         {deletingId === ambiente.id ? (
-                          <Spinner className="h-4 w-4 text-destructive" />
+                          <Loader size="sm" variant="button" className="text-destructive" />
                         ) : (
                           <>
                             <Button
