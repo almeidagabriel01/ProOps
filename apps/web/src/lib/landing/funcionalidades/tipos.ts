@@ -58,11 +58,11 @@ export interface UnidadeDoLimite {
 
 /**
  * Onde o recurso depende do nicho: o preço por medida só existe onde o nicho
- * tem modo de medida, e os pacotes prontos (soluções, ambientes) só nos nichos
- * em que a tela está ligada. Derivado de `NICHE_CONFIGS`, nunca listado à mão:
+ * tem modo de medida, o PMOC só onde `fieldService.pmoc` está ligado, e os
+ * pacotes prontos (soluções, ambientes) só nos nichos em que a tela está ligada. Derivado de `NICHE_CONFIGS`, nunca listado à mão:
  * um nicho novo entra sozinho.
  */
-export type DisponibilidadePorNicho = "preco-por-medida" | NichePageKey;
+export type DisponibilidadePorNicho = "preco-por-medida" | "pmoc" | NichePageKey;
 
 export interface Recurso {
   /** kebab-case e único: vira âncora na página da funcionalidade que o reúne. */

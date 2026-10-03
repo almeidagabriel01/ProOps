@@ -40,8 +40,8 @@ export function nichosDoRecurso(disponibilidade: DisponibilidadePorNicho | undef
   if (!disponibilidade) return [];
   return TENANT_NICHES.filter((niche) => {
     const config = NICHE_CONFIGS[niche];
-    return disponibilidade === "preco-por-medida"
-      ? config.pricing.dimensionModes.length > 0
-      : config.pageAvailability[disponibilidade];
+    if (disponibilidade === "preco-por-medida") return config.pricing.dimensionModes.length > 0;
+    if (disponibilidade === "pmoc") return config.fieldService.pmoc;
+    return config.pageAvailability[disponibilidade];
   }).map((niche) => NICHE_REGISTRY[niche].label);
 }

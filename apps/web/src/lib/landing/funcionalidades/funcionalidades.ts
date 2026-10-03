@@ -220,6 +220,7 @@ const CONTEUDO: Record<FuncionalidadeSlug, Omit<Funcionalidade, "slug">> = {
       "ordens-de-servico",
       "equipamentos-do-cliente",
       "contratos-de-manutencao",
+      "pmoc",
     ],
     pagina: {
       titulo: "Da venda aprovada à",

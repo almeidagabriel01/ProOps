@@ -12,6 +12,7 @@ import {
   Ruler,
   ServerCog,
   FileSignature,
+  HardHat,
   Wrench,
 } from "lucide-react";
 
@@ -199,5 +200,21 @@ export const RECURSOS_DE_ENTREGA: readonly Recurso[] = [
     requisito: { tipo: "plano", recursos: ["hasFieldService"] },
     rota: "/contracts",
     ondeFica: "Assistência › Contratos",
+  },
+  {
+    id: "pmoc",
+    titulo: "PMOC",
+    resumo: "O plano de manutenção que a Lei 13.589/2018 exige do prédio climatizado, com a ART.",
+    detalhes: [
+      "Os itens da norma por tipo de aparelho, com a frequência de cada um.",
+      "Cada visita abre a ordem de serviço só com o que venceu no mês.",
+      "O responsável técnico com a ART, e aviso antes de ela vencer.",
+      "Plano e relatório de execução em PDF ou num link para a fiscalização.",
+    ],
+    icone: HardHat,
+    requisito: { tipo: "plano", recursos: ["hasFieldService"] },
+    rota: "/contracts",
+    ondeFica: "Assistência › Contratos, tipo PMOC",
+    nichos: "pmoc",
   },
 ];
