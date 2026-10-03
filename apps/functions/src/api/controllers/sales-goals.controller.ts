@@ -12,6 +12,7 @@ import {
   type SoldProposal,
 } from "../services/sales-goals";
 import { getMyCommissions as loadMyCommissions } from "../services/my-commissions.service";
+import { loadTeamPeople } from "../services/team-people";
 
 /**
  * Metas de vendas (capacidade `salesGoals`, montada por prefixo em
@@ -20,19 +21,14 @@ import { getMyCommissions as loadMyCommissions } from "../services/my-commission
  * sempre de `req.user.tenantId`.
  */
 
-const PEOPLE_LIMIT = 200;
 const PROPOSALS_LIMIT = 2000;
 
 function isAdmin(req: Request): boolean {
   return isTenantAdminRole(String(req.user?.role || "").toUpperCase());
 }
 
-async function loadPeople(tenantId: string): Promise<Array<{ id: string; name: string }>> {
-  const snap = await db.collection("users").where("tenantId", "==", tenantId).limit(PEOPLE_LIMIT).get();
-  return snap.docs
-    .filter((doc) => String(doc.data().role || "").toUpperCase() !== "SUPERADMIN")
-    .map((doc) => ({ id: doc.id, name: String(doc.data().name || doc.data().email || "Sem nome") }))
-    .sort((a, b) => a.name.localeCompare(b.name, "pt-BR"));
+function loadPeople(tenantId: string) {
+  return loadTeamPeople(tenantId);
 }
 
 async function loadGoals(tenantId: string, month: string) {

@@ -106,6 +106,8 @@ export default function CustomersPage() {
             setTypeFilter={actions.setTypeFilter}
             isFiltering={isFiltering}
             isLoadingAll={isLoadingAll}
+            responsibleFilter={state.responsibleFilter}
+            setResponsibleFilter={actions.setResponsibleFilter}
           />
         )}
 
@@ -118,10 +120,10 @@ export default function CustomersPage() {
             columns={columns}
             data={filteredClients}
             keyExtractor={(client) => client.id}
-            gridClassName="grid-cols-6"
+            gridClassName="grid-cols-7"
             onSort={actions.requestSort}
             sortConfig={sortConfig}
-            minWidth="900px"
+            minWidth="1040px"
           />
         ) : isFiltering && isLoadingAll ? (
           <ContactsTableSkeleton />
@@ -129,14 +131,14 @@ export default function CustomersPage() {
           <DataTable
             columns={columns}
             keyExtractor={(client) => client.id}
-            gridClassName="grid-cols-6"
+            gridClassName="grid-cols-7"
             fetchPage={actions.fetchPage}
             fetchEnabled={!!tenant}
             onResetRef={state.resetRef}
             onRefreshRef={state.refreshRef}
             onUpdateItemsRef={state.updateItemsRef}
             batchSize={12}
-            minWidth="900px"
+            minWidth="1040px"
             onSort={actions.requestSort}
             sortConfig={sortConfig}
             loadingSkeleton={<ContactsTableSkeleton />}

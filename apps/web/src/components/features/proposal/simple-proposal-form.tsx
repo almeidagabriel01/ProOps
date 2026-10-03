@@ -52,6 +52,8 @@ import { isDocumentoValido } from "@/lib/format-document";
 import { ClientService } from "@/services/client-service";
 import { useAuth } from "@/providers/auth-provider";
 import { ProposalSellerField } from "./form/proposal-seller-field";
+import { PartnerContactsField } from "@/components/features/responsibles/responsibles-fields";
+import { useContactResponsibles } from "@/hooks/use-contact-responsibles";
 import { useSellerCommission } from "@/hooks/proposal/use-seller-commission";
 import { usePlanLimits } from "@/hooks/usePlanLimits";
 import { MonthlyLineProvider } from "./form/monthly-line";
@@ -246,8 +248,9 @@ export function SimpleProposalForm({
     () => getNicheConfig(tenant?.niche).vocabulary,
     [tenant?.niche],
   );
-  const { hasSalesGoals, hasFieldService } = usePlanLimits();
+  const { hasFieldService } = usePlanLimits();
   const { user } = useAuth();
+  const { people: teamPeople, partners: partnerContacts } = useContactResponsibles();
   // A comissão do vendedor da equipe acompanha o responsável pela venda.
   const { changeSeller } = useSellerCommission({
     tenantId: tenant?.id,
@@ -696,6 +699,22 @@ export function SimpleProposalForm({
     return true;
   }, [setFieldError, clearFieldError]);
 
+  // Quem cuida do cliente passa a cuidar da venda: o responsável da equipe e
+  // os parceiros do contato entram na proposta, e podem ser trocados ali.
+  const inheritClientResponsibles = (clientId: string) => {
+    ClientService.getClientById(clientId)
+      .then((client) => {
+        if (!client) return;
+        if (client.responsibleMemberId) changeSeller(client.responsibleMemberId);
+        setFormData((prev) =>
+          prev.clientId === clientId
+            ? { ...prev, partnerContactIds: client.partnerContactIds ?? [] }
+            : prev,
+        );
+      })
+      .catch(() => undefined);
+  };
+
   // Handle client change
   const handleClientChange = (data: {
     clientId?: string;
@@ -727,7 +746,10 @@ export function SimpleProposalForm({
         clientEmail: data.clientEmail || "",
         clientPhone: data.clientPhone || "",
         clientAddress: data.clientAddress || "",
+        // Os parceiros eram do cliente anterior; os do novo chegam abaixo.
+        partnerContactIds: [],
       }));
+      if (!data.isNew && data.clientId) inheritClientResponsibles(data.clientId);
     } else {
       // Same client re-selected - preserve edited proposal data, only update name
       // This prevents overwriting user edits when clicking the same client in dropdown
@@ -1188,15 +1210,24 @@ export function SimpleProposalForm({
               }
               onDefaultValidUntil={applyDefaultValidUntil}
               addressSibling={
-                hasSalesGoals ? (
-                  <ProposalSellerField
-                    value={formData.sellerId}
-                    currentUserId={user?.id}
-                    onChange={changeSeller}
-                    disabled={isDemo}
-                  />
-                ) : undefined
+                <ProposalSellerField
+                  value={formData.sellerId}
+                  currentUserId={user?.id}
+                  people={teamPeople}
+                  onChange={changeSeller}
+                  disabled={isDemo}
+                />
               }
+            />
+            <PartnerContactsField
+              id="proposal-partners"
+              value={formData.partnerContactIds ?? []}
+              partners={partnerContacts}
+              onChange={(partnerContactIds) =>
+                setFormData((prev) => ({ ...prev, partnerContactIds }))
+              }
+              disabled={isDemo}
+              hint="Arquiteto ou vendedor de fora que acompanha esta venda. A comissão continua no passo de pagamento."
             />
           </div>
           <StepNavigation onBeforeNext={isDemo ? undefined : validateStep1} />

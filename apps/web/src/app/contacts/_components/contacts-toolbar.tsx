@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import { ContactsTypeFilter } from "../_hooks/use-contacts-ctrl";
 import { Loader } from "@/components/ui/loader";
+import { ResponsibleFilterSelect } from "@/components/features/responsibles/responsible-filter-select";
 
 interface ContactsToolbarProps {
   searchTerm: string;
@@ -17,6 +18,8 @@ interface ContactsToolbarProps {
   setTypeFilter: (filter: ContactsTypeFilter) => void;
   isFiltering: boolean;
   isLoadingAll: boolean;
+  responsibleFilter: string;
+  setResponsibleFilter: (value: string) => void;
 }
 
 export function ContactsToolbar({
@@ -26,6 +29,8 @@ export function ContactsToolbar({
   setTypeFilter,
   isFiltering,
   isLoadingAll,
+  responsibleFilter,
+  setResponsibleFilter,
 }: ContactsToolbarProps) {
   // items-center numa coluna centraliza os filhos e impede o campo de busca de
   // esticar — era por isso que ele saía mais estreito que o resto da página.
@@ -90,6 +95,13 @@ export function ContactsToolbar({
           Arquitetos
         </Button>
       </div>
+      <ResponsibleFilterSelect
+        value={responsibleFilter}
+        onChange={setResponsibleFilter}
+        mineLabel="Meus clientes"
+        includePartners
+        className="w-full sm:w-56"
+      />
     </div>
   );
 }

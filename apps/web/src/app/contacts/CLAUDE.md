@@ -87,6 +87,8 @@ export type Client = {
   types: ClientType[];      // Array — permite ser fornecedor E arquiteto ao mesmo tempo
   commissionPercentage?: number | null;  // Comissão padrão; só para vendedor/arquiteto
   linkedMemberId?: string | null;        // Parceiro (vendedor ou arquiteto) que é da equipe: o membro ligado
+  responsibleMemberId?: string | null;   // Quem da equipe cuida do cliente (nome em responsibleMemberName)
+  partnerContactIds?: string[];          // Parceiros externos (vendedor/arquiteto) que cuidam dele
   source: ClientSource;     // Origem do cadastro
   sourceId?: string;        // ID da proposta ou lançamento que criou o cliente
   createdAt: string;        // ISO 8601
@@ -157,6 +159,17 @@ enquanto a equipe carrega, só fica desabilitado), SEM dica no cabeçalho do
 fixa e divide a largura com a dica, e qualquer texto ali quebrava "É da equipe?"
 em duas linhas. Na proposta, o "Responsável pela venda" divide a linha com o
 Endereço pelo mesmo motivo (`addressSibling` de `ProposalClientSection`).
+
+**Quem cuida do cliente** (`responsibleMemberId` e `partnerContactIds`, bloco
+`_components/contact-responsibles-section.tsx`, o mesmo no cadastro e na
+edição): só para contato do tipo cliente, em todos os planos. A proposta herda
+os dois ao escolher o cliente. A lista ganha a coluna "Responsável" (o nome
+vem gravado no contato) e o filtro "Responsável" (`resp` no endereço: `eu`,
+`m:<uid>` ou `p:<contato>`, modelo em `lib/contacts/responsible-filter.ts`),
+que entra no modo filtrado e consulta por igualdade sem índice novo. A equipe
+vem de `GET /v1/team/people` (`useContactResponsibles`); a conta de
+demonstração não chama a API. Não confundir com o `linkedMemberId` acima, que
+é o lado do parceiro.
 
 `isCommissionPartner` e a lista dos papéis ficam em
 `src/lib/contacts/commission-partner.ts`, **fora** do `client-service`: aquele

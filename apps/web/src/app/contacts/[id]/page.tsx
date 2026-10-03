@@ -41,6 +41,10 @@ import { usePlanLimits } from "@/hooks/usePlanLimits";
 import { isCommissionPartner } from "@/lib/contacts/commission-partner";
 import { EntityLoadingState } from "@/components/shared/entity-loading-state";
 import { formatDocumento } from "@/lib/format-document";
+import {
+  ContactResponsiblesSection,
+  showsContactResponsibles,
+} from "../_components/contact-responsibles-section";
 
 
 const sourceLabels: Record<string, { label: string; color: string }> = {
@@ -100,6 +104,8 @@ interface EditCustomerFormData {
   types: CustomerType[];
   commissionPercentage: number | null;
   linkedMemberId: string | null;
+  responsibleMemberId: string | null;
+  partnerContactIds: string[];
   fiscal: ClientFiscalValues;
 }
 
@@ -114,6 +120,8 @@ const buildCustomerFormSnapshot = (formData: EditCustomerFormData): string =>
     types: [...formData.types].sort(),
     commissionPercentage: formData.commissionPercentage,
     linkedMemberId: formData.linkedMemberId,
+    responsibleMemberId: formData.responsibleMemberId,
+    partnerContactIds: formData.partnerContactIds,
     // Sem isto, editar só um campo fiscal não marcaria o formulário como sujo
     // e o botão de salvar continuaria desabilitado.
     fiscal: formData.fiscal,
@@ -162,6 +170,8 @@ export default function EditCustomerPage() {
     types: ["cliente"],
     commissionPercentage: null,
     linkedMemberId: null,
+    responsibleMemberId: null,
+    partnerContactIds: [],
     fiscal: EMPTY_CLIENT_FISCAL,
   });
   const [initialSnapshot, setInitialSnapshot] = React.useState<string | null>(
@@ -184,6 +194,8 @@ export default function EditCustomerPage() {
             types: data.types || ["cliente"],
             commissionPercentage: data.commissionPercentage ?? null,
             linkedMemberId: data.linkedMemberId ?? null,
+            responsibleMemberId: data.responsibleMemberId ?? null,
+            partnerContactIds: data.partnerContactIds ?? [],
             fiscal: {
               cep: data.enderecoFiscal?.cep ?? "",
               logradouro: data.enderecoFiscal?.logradouro ?? "",
@@ -230,7 +242,7 @@ export default function EditCustomerPage() {
       clearFieldError(
         name as Exclude<
           keyof typeof formData,
-          "types" | "fiscal" | "commissionPercentage" | "linkedMemberId"
+          "types" | "fiscal" | "commissionPercentage" | "linkedMemberId" | "responsibleMemberId" | "partnerContactIds"
         >,
       );
     }
@@ -253,7 +265,7 @@ export default function EditCustomerPage() {
       validateField(
         name as Exclude<
           keyof typeof formData,
-          "types" | "fiscal" | "commissionPercentage" | "linkedMemberId"
+          "types" | "fiscal" | "commissionPercentage" | "linkedMemberId" | "responsibleMemberId" | "partnerContactIds"
         >,
         value,
         formData,
@@ -311,6 +323,13 @@ export default function EditCustomerPage() {
         types: formData.types,
         commissionPercentage: formData.commissionPercentage,
         linkedMemberId: isCommissionPartner(formData) ? formData.linkedMemberId : null,
+        // Deixou de ser cliente: ninguém mais cuida dele.
+        responsibleMemberId: showsContactResponsibles(formData.types)
+          ? formData.responsibleMemberId
+          : null,
+        partnerContactIds: showsContactResponsibles(formData.types)
+          ? formData.partnerContactIds
+          : [],
         enderecoFiscal: {
           cep: formData.fiscal.cep.replace(/\D/g, ""),
           logradouro: formData.fiscal.logradouro.trim(),
@@ -433,6 +452,16 @@ export default function EditCustomerPage() {
                 </FormGroup>
               )}
               <FormStatic label="Endereço Completo" value={formData.address} />
+              <ContactResponsiblesSection
+                types={formData.types}
+                value={{
+                  responsibleMemberId: formData.responsibleMemberId,
+                  partnerContactIds: formData.partnerContactIds,
+                }}
+                onChange={() => undefined}
+                contactId={clientId}
+                readOnly
+              />
             </div>
             <StepNavigation />
           </FormStepCard>
@@ -650,6 +679,16 @@ export default function EditCustomerPage() {
                 icon={<MapPin className="w-4 h-4" />}
               />
             </FormItem>
+
+            <ContactResponsiblesSection
+              types={formData.types}
+              value={{
+                responsibleMemberId: formData.responsibleMemberId,
+                partnerContactIds: formData.partnerContactIds,
+              }}
+              onChange={(responsibles) => setFormData((prev) => ({ ...prev, ...responsibles }))}
+              contactId={clientId}
+            />
           </div>
           <StepNavigation onBeforeNext={validateStep1} />
         </FormStepCard>

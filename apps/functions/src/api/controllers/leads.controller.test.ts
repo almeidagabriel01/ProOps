@@ -254,6 +254,21 @@ describe("convertLead", () => {
     });
   });
 
+  it("quem cuidava do lead passa a ser o responsável do contato", async () => {
+    leads.l1.ownerId = "ana";
+    leads.l1.ownerName = "Ana";
+    const res = fakeRes();
+    await convertLead(fakeReq({ id: "l1" }), res);
+    expect(txSets[0].data).toMatchObject({ responsibleMemberId: "ana", responsibleMemberName: "Ana" });
+  });
+
+  it("lead sem dono gera contato sem responsável", async () => {
+    const res = fakeRes();
+    await convertLead(fakeReq({ id: "l1" }), res);
+    expect(txSets[0].data).not.toHaveProperty("responsibleMemberId");
+    expect(txSets[0].data).not.toHaveProperty("responsibleMemberName");
+  });
+
   it("respeita o teto de contatos do plano", async () => {
     enforceTenantPlanLimit.mockResolvedValue({
       allowed: false,

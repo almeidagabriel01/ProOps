@@ -291,6 +291,9 @@ export async function updateProposal(
     // Vendedor (metas de vendas): só vai quando o formulário tem o campo;
     // ausente, a criação grava quem criou e a edição não mexe.
     ...(formData.sellerId !== undefined ? { sellerId: formData.sellerId } : {}),
+    ...(formData.partnerContactIds !== undefined
+      ? { partnerContactIds: formData.partnerContactIds }
+      : {}),
     // PDF display settings (persisted for correct PDF rendering)
     pdfSettings: formData.pdfSettings || undefined,
   });
@@ -380,6 +383,9 @@ export function prepareCreatePayload(payload: CreateProposalPayload) {
     // Vendedor (metas de vendas): só vai quando o formulário tem o campo;
     // ausente, a criação grava quem criou e a edição não mexe.
     ...(formData.sellerId !== undefined ? { sellerId: formData.sellerId } : {}),
+    ...(formData.partnerContactIds !== undefined
+      ? { partnerContactIds: formData.partnerContactIds }
+      : {}),
     // PDF display settings (persisted for correct PDF rendering)
     pdfSettings: formData.pdfSettings || undefined,
   };
