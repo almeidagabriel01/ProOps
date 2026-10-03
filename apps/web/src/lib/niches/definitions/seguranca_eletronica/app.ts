@@ -84,6 +84,10 @@ export const nicheConfig: NicheConfig = {
   onboardingStepDescriptions: {
     solutions:
       "Kits prontos, como oito câmeras com gravador ou um alarme monitorado, com os produtos de cada área já definidos.",
+    "service-orders":
+      "O chamado do alarme que disparou ou da câmera que saiu do ar: abra a OS, escolha o técnico e a data, e ele atende pelo celular com a assinatura do cliente na tela.",
+    contracts:
+      "O monitoramento de cada cliente: a mensalidade entra no financeiro todo mês, sem lançar à mão, e a manutenção preventiva abre a OS sozinha.",
   },
   fieldService: {
     equipmentTypes: [

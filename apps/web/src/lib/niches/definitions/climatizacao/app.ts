@@ -100,7 +100,12 @@ export const nicheConfig: NicheConfig = {
     counts: { acceptance: 1, change_request: 0, expiring: 1, stale: 0 },
     total: 2,
   },
-  onboardingStepDescriptions: {},
+  onboardingStepDescriptions: {
+    "service-orders":
+      "O chamado do ar que não gela ou que pinga: abra a OS, escolha o técnico e a data, e ele atende pelo celular com a assinatura do cliente na tela. As visitas do PMOC também viram OS, com os itens da norma.",
+    contracts:
+      "A manutenção mensal e o PMOC: a mensalidade entra no financeiro todo mês, e cada visita abre a OS com o que venceu do plano. No PMOC, escolha o responsável técnico com a ART.",
+  },
   fieldService: {
     equipmentTypes: [
       "Split hi-wall",

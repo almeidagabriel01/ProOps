@@ -368,6 +368,21 @@ describe("vocabulário do nicho no passo", () => {
       vocabulary: withVocabulary ? getNicheConfig(niche).vocabulary : undefined,
     }).find((step) => step.id === id);
 
+  it.each(["service-orders", "contracts"])(
+    "o passo %s fala do uso de cada nicho, e nenhum nicho fica com o texto genérico",
+    (id) => {
+      const texts = TENANT_NICHES.map((niche) => stepIn(niche, id)?.description);
+      expect(texts.every(Boolean)).toBe(true);
+      expect(new Set(texts).size).toBe(TENANT_NICHES.length);
+      expect(texts).not.toContain(MENU_STEP_TEMPLATES[`/${id}`].description);
+    },
+  );
+
+  it("em climatização, o passo dos contratos fala do PMOC", () => {
+    expect(stepIn("climatizacao", "contracts")?.description).toContain("PMOC");
+    expect(stepIn("seguranca_eletronica", "contracts")?.description).not.toContain("PMOC");
+  });
+
   it("automação continua falando de soluções e ambientes", () => {
     const solutions = stepIn("automacao_residencial", "solutions");
     expect(solutions?.title).toBe("Soluções");

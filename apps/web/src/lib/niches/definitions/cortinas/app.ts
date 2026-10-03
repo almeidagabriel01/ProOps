@@ -83,7 +83,12 @@ export const nicheConfig: NicheConfig = {
     counts: { acceptance: 1, change_request: 0, expiring: 1, stale: 0 },
     total: 2,
   },
-  onboardingStepDescriptions: {},
+  onboardingStepDescriptions: {
+    "service-orders":
+      "O conserto e a revisão depois da instalação, no motor, no trilho ou na lona: abra a OS, escolha o técnico e a data, e ele atende pelo celular com a assinatura do cliente na tela.",
+    contracts:
+      "A manutenção periódica de toldos e persianas: a cobrança entra no financeiro sozinha, e a visita abre a OS com o checklist.",
+  },
   fieldService: {
     equipmentTypes: [
       "Persiana",

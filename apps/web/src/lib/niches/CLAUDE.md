@@ -54,7 +54,11 @@ Cada passo diz o que o cobra. Nenhum passo depende de lembrar.
    o `Record`, o tipo, `__tests__/niche-contract.test.ts` (o exemplo do card de
    atenção precisa apontar para propostas do dataset) e
    `seed-demo-field-service.test.ts`. No `app.ts` do nicho, `fieldService` diz
-   o que é um equipamento ali e o checklist da preventiva (campo obrigatório). Depois do deploy, rode o POST
+   o que é um equipamento ali e o checklist da preventiva (campo obrigatório), e
+   `onboardingStepDescriptions` traz o texto do tutorial de Ordens de serviço
+   e de Contratos com o uso típico do nicho (cobra:
+   `components/onboarding/__tests__/onboarding-steps.test.ts`, que reprova o
+   texto genérico). Depois do deploy, rode o POST
    `/internal/admin/seed-demo-tenant` em cada ambiente.
 5. **Página fina** `app/<landingPath>/page.tsx`: `buildNicheLandingMetadata`
    e `<NicheLandingRoute>`, como as outras. Cobra:
