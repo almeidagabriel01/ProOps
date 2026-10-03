@@ -132,6 +132,13 @@ export const metadata: Metadata = {
   description:
     "ProOps é o ERP completo para empresas de serviço: propostas, CRM, financeiro, agenda e WhatsApp integrados em uma plataforma online com editor de PDF profissional.",
   applicationName: "ProOps",
+  // Nome e modo de tela cheia do ícone na tela de início do iPhone. Sem isto o
+  // iOS usa o título da página como nome do ícone.
+  appleWebApp: {
+    capable: true,
+    title: "ProOps",
+    statusBarStyle: "default",
+  },
   keywords: [
     "ERP automação residencial",
     "ERP cortinas",

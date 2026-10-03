@@ -1,26 +1,23 @@
+import { headers } from "next/headers";
 import type { MetadataRoute } from "next";
 
-export default function manifest(): MetadataRoute.Manifest {
-  return {
-    name: "ProOps - ERP para gestão de serviços",
-    short_name: "ProOps",
-    description:
-      "ERP completo que adapta-se ao seu nicho: automação residencial; persianas e toldos; segurança eletrônica; vidraçaria e esquadrias; marcenaria e móveis planejados; climatização e ar-condicionado; e mais.",
-    start_url: "/",
-    display: "standalone",
-    background_color: "#ffffff",
-    theme_color: "#0a0a0a",
-    lang: "pt-BR",
-    categories: ["business", "productivity"],
-    icons: [
-      { src: "/icons/icon-192.png", sizes: "192x192", type: "image/png" },
-      { src: "/icons/icon-512.png", sizes: "512x512", type: "image/png" },
-      {
-        src: "/icons/icon-maskable-512.png",
-        sizes: "512x512",
-        type: "image/png",
-        purpose: "maskable",
-      },
-    ],
-  };
+import { buildWebManifest } from "@/lib/pwa/manifest";
+import { resolveSurface } from "@/lib/site/surfaces";
+
+/**
+ * Um manifest por host, pelo mesmo motivo do `sitemap.ts`: sem ler o host, o
+ * Next gera o arquivo uma vez e serve os mesmos bytes nos três domínios. A
+ * regra de cada superfície está em `buildWebManifest`.
+ */
+export const dynamic = "force-dynamic";
+
+const DESCRIPTION =
+  "ERP completo que adapta-se ao seu nicho: automação residencial; persianas e toldos; segurança eletrônica; vidraçaria e esquadrias; marcenaria e móveis planejados; climatização e ar-condicionado; e mais.";
+
+export default async function manifest(): Promise<MetadataRoute.Manifest> {
+  const cabecalhos = await headers();
+  const surface = resolveSurface(
+    cabecalhos.get("x-forwarded-host") ?? cabecalhos.get("host"),
+  );
+  return buildWebManifest(surface, DESCRIPTION);
 }

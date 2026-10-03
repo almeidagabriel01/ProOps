@@ -10,6 +10,9 @@ import { PlanProvider } from "@/providers/plan-provider";
 import { ThemeProvider } from "@/providers/theme-provider";
 import { ProtectedRoute } from "@/components/auth/protected-route";
 import { isAuthOnlyRoute } from "@/lib/auth/auth-only-routes";
+// Registra cedo o ouvinte de `beforeinstallprompt`, que pode chegar antes de
+// o menu do perfil montar (ver `lib/pwa/install-prompt.ts`).
+import "@/lib/pwa/install-prompt";
 import {
   isPublicMarketingRoute,
   isSessionlessPage as rendersWithoutSession,
