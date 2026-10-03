@@ -159,6 +159,27 @@ Stripe em atraso (portal) e com cancelamento agendado (reativar). Trial, demo e
 add-on seguem com a lógica própria. Guard: `lib/billing/__tests__/billing-banner.test.ts`
 e `tests/e2e/billing/billing-state-banners.spec.ts`.
 
+### Tela de quem perdeu o acesso (`/subscription-blocked`)
+
+A página é Server Component: `_lib/blocked-session.ts` (com `cache`, dividido
+com o layout, que decide se redireciona) lê a sessão e o tenant, e
+`resolveBlockedScreen` (`lib/billing/blocked-screen.ts`, puro) escreve o texto:
+
+- **Membro**: "O acesso da empresa X ao ERP está suspenso. Fale com Y,
+  responsável pela conta", só com "Sair". Nenhum botão de cobrança: o backend
+  recusa portal e checkout para quem não é dono ou admin.
+- **Dono/admin de plano manual**: "Seu plano venceu em dd/mm/aaaa", com "Falar
+  com a ProOps" (WhatsApp de suporte) e "Sair". Portal e compra por cartão não
+  servem a quem tem contrato.
+- **Dono/admin de Stripe**: "Renovar assinatura" (`/subscription-blocked/plans`),
+  "Atualizar pagamento", "Falar com a ProOps" e "Sair".
+
+Nunca cita o nome do plano. **A pessoa fica logada nessa tela**: nem o front
+(`auth-provider`, ao ler a claim de cobrança) nem o backend
+(`lib/billing-claims.ts`) deslogam ou revogam a sessão por status de cobrança.
+Guard: `lib/billing/__tests__/blocked-screen.test.ts` e
+`tests/e2e/billing/subscription-blocked-messages.spec.ts`.
+
 ---
 
 ## Aba "Planos" — `BillingTab`
