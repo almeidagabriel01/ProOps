@@ -77,21 +77,92 @@ test("agenda no celular abre em lista, mês em pontos e o dia abre ao toque", as
     timeout: 20000,
   });
 
-  // A chave "Fim de semana" não encosta no texto.
+  // A Lista cabe no card: com o título em `nowrap` a tabela alargava além
+  // dele, e título e data saíam cortados pela direita.
+  const listOverflow = await page.locator(".fc-list").evaluate((el) => {
+    const table = el.querySelector("table")!;
+    return table.getBoundingClientRect().right - el.getBoundingClientRect().right;
+  });
+  expect(listOverflow).toBeLessThanOrEqual(1);
+
+  // As setas do período ficam logo acima dos compromissos, na primeira tela.
+  // Antes elas estavam no meio de um cabeçalho de cinco blocos e sumiam assim
+  // que a pessoa rolava até a lista.
+  const navigation = page.getByTestId("calendar-mobile-navigation");
+  await expect(
+    navigation.getByRole("button", { name: "Próxima semana" }),
+  ).toBeVisible();
+  const viewportHeight = page.viewportSize()!.height;
+  expect((await navigation.boundingBox())!.y).toBeLessThan(viewportHeight);
+
+  // Rolando pela lista, a barra gruda no topo do <main>.
+  const stuck = await page.evaluate(() => {
+    const main = document.querySelector<HTMLElement>("main#main-content")!;
+    const bar = document.querySelector<HTMLElement>(
+      '[data-testid="calendar-mobile-navigation"]',
+    )!;
+    const mainTop = main.getBoundingClientRect().top;
+    main.scrollTop += bar.getBoundingClientRect().top - mainTop + 150;
+    return { mainTop, barTop: bar.getBoundingClientRect().top };
+  });
+  expect(stuck.barTop).toBeGreaterThanOrEqual(stuck.mainTop - 1);
+  expect(stuck.barTop).toBeLessThanOrEqual(stuck.mainTop + 1);
+  await page.evaluate(() => {
+    document.querySelector<HTMLElement>("main#main-content")!.scrollTop = 0;
+  });
+
+  // Busca, fim de semana e situação moram na janela de filtros, e a chave
+  // "Fim de semana" não encosta no texto.
+  await page.getByRole("button", { name: "Filtros" }).click();
+  const dialog = page.getByRole("dialog", { name: "Filtros da agenda" });
+  await expect(dialog).toBeVisible();
   const weekendGap = await page
-    .getByTestId("calendar-weekend-toggle")
+    .getByTestId("calendar-weekend-toggle-mobile")
     .evaluate((el) => {
       const label = el.querySelector("span")!.getBoundingClientRect();
       const toggle = el.querySelector("button")!.getBoundingClientRect();
       return toggle.left - label.right;
     });
   expect(weekendGap).toBeGreaterThanOrEqual(8);
+  await dialog.getByRole("button", { name: "Agendado" }).click();
+  await dialog.getByRole("button", { name: "Ver compromissos" }).click();
+  await expect(dialog).toBeHidden();
+  // Um filtro desligado aparece no botão.
+  await expect(page.getByRole("button", { name: "Filtros 1" })).toBeVisible();
+  await page.getByRole("button", { name: "Filtros 1" }).click();
+  await page
+    .getByRole("dialog", { name: "Filtros da agenda" })
+    .getByRole("button", { name: "Agendado" })
+    .click();
+  await page.getByRole("button", { name: "Ver compromissos" }).click();
 
   await page.getByRole("tab", { name: "Mes" }).click();
   await expect(page.locator(".fc-dayGridMonth-view")).toBeVisible();
   await expect(page.locator(".calendar-event-mark--dot").first()).toBeVisible({
     timeout: 20000,
   });
+
+  // A grade do mês cabe na largura da tela. O card corta o que passa, então
+  // o no-overflow não enxerga uma grade larga demais.
+  const gridRight = await page
+    .locator(".fc-dayGridMonth-view")
+    .evaluate((el) => el.getBoundingClientRect().right);
+  expect(gridRight).toBeLessThanOrEqual(page.viewportSize()!.width);
+
+  // O "+N" do dia cheio cabe na célula (o "mais +1" não cabia).
+  const moreLinks = await page.evaluate(() =>
+    Array.from(
+      document.querySelectorAll<HTMLElement>(".fc-daygrid-more-link"),
+    ).map((link) => ({
+      text: link.textContent?.trim(),
+      fits: link.scrollWidth <= link.clientWidth + 1,
+    })),
+  );
+  expect(moreLinks.length).toBeGreaterThan(0);
+  for (const link of moreLinks) {
+    expect(link.text).toMatch(/^\+\d+$/);
+    expect(link.fits).toBe(true);
+  }
 
   // Nenhuma marca de evento sai da célula do próprio dia.
   const escaped = await page.evaluate(() => {

@@ -1037,6 +1037,24 @@ html.theme-transitioning * {
     border-radius: 999px;
   }
 
+  /* Na Lista o título quebra em vez de cortar: com `nowrap` numa célula de
+     tabela, um título longo alargava a tabela além do card, e o título e a
+     data do cabeçalho do dia saíam cortados pela direita. */
+  .calendar-surface .fc .fc-list .calendar-event-chip__title,
+  .calendar-surface .fc .fc-list .calendar-event-chip__meta {
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+  .calendar-surface .fc .fc-list-day-cushion {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    gap: 0 0.75rem;
+  }
+  .calendar-surface .fc .fc-list-day-cushion > a {
+    float: none;
+  }
+
   /* Na semana cada coluna tem ~40px: local e situação ficam para o diálogo e
      para a visão Dia, e o selo nunca passa da coluna. */
   .calendar-surface .fc .fc-timeGridWeek-view .calendar-event-chip__meta,
