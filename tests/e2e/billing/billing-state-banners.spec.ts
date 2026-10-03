@@ -60,8 +60,11 @@ test.describe("STATE-02 cancel period end banner", () => {
     // — formatDateBR renders in BR timezone, so a midnight-UTC seed would land
     // at 21:00 on 14/06 BRT and render as "14/06/2026", breaking the assertion.
     // A data vem do currentPeriodEnd da RAIZ do tenant, que é o que o webhook
-    // grava: o subscription.cancelAt antigo nunca foi gravado em produção.
-    const periodEndIso = "2026-06-15T12:00:00.000Z";
+    // grava: o subscription.cancelAt antigo nunca foi gravado em produção. Tem
+    // que ser futura: cancelamento agendado com o período já encerrado bloqueia
+    // a conta (SubscriptionGuard), e a faixa nunca apareceria.
+    const periodEndDay = brDay(20);
+    const periodEndIso = `${periodEndDay}T12:00:00.000Z`;
     await seedBillingStateExtended(db, {
       tenantId: TENANT,
       subscriptionStatus: "active",
@@ -76,8 +79,8 @@ test.describe("STATE-02 cancel period end banner", () => {
 
     const banner = page.getByTestId("billing-state-banner-cancel-period-end");
     await expect(banner).toBeVisible({ timeout: 10000 });
-    // Date should appear formatted as BR (e.g., "15/06/2026")
-    await expect(banner).toContainText(/15\/06\/2026/);
+    // Date should appear formatted as BR (dd/mm/aaaa)
+    await expect(banner).toContainText(brLabel(periodEndDay));
   });
 });
 
