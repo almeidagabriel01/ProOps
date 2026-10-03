@@ -242,6 +242,28 @@ Componente local que exibe status da conexão Google e botões de conectar/recon
 
 Painel lateral com lista de próximos compromissos filtrada e ordenada. Clicando em um item abre o dialog de edição.
 
+A lista rola por dentro (`overflow-y-auto`), e isso depende de o wrapper dela
+no `<aside>` ser `flex flex-col`: sem isso o `flex-1` da lista não tem altura,
+ela cresce até o fim do conteúdo e o Card corta o resto sem deixar rolar.
+
+### Grade do mês e navegação
+
+- **O mês cabe inteiro na altura da tela** (xl+, onde o calendário tem altura
+  fixa): `dayMaxEvents={true}`, e o que não cabe no dia vira "+ mais". Na grade
+  do mês o chip é uma linha só (hora, título e o "G"), com o resto no `title`;
+  semana, dia e lista mantêm o chip completo. Com `dayMaxEvents={3}` e o chip de
+  quatro linhas, as semanas cresciam além da tela e a última saía cortada.
+  Abaixo de xl (altura `auto`) o teto continua 3.
+- **Piso de 3.25rem por semana** (`.fc-daygrid-day-frame` no `globals.css`),
+  o menor em que cabe um evento. Em tela baixa (1280x720) a grade rola em vez
+  de esmagar as semanas, e a última chega inteira ao fim da rolagem; dia cheio
+  mostra só o "+ mais". Subir o piso faz uma tela de 1600x713 voltar a rolar.
+- **As setas cercam o título do período** e o rótulo diz o que pulam
+  (`NAVIGATION_LABELS`: mês, semana ou dia, conforme a visão). O "Hoje" fica à
+  parte e só acende quando o período mostrado não contém hoje.
+
+Guard: `tests/e2e/layout/calendar-layout.spec.ts`.
+
 ### `CalendarEventDialog` (arquivo separado)
 
 Dialog completo de criação/edição de eventos (`calendar-event-dialog.tsx`). Exporta também funções auxiliares puras:
