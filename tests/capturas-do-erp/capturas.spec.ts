@@ -79,6 +79,13 @@ const ROTEIRO: Captura[] = [
   { arquivo: "funcionalidades/propostas", empresa: automacao, tela: "desktop", rota: "/proposals" },
   { arquivo: "funcionalidades/pdf-da-proposta", empresa: automacao, tela: "desktop", rota: "/proposals/demo_prop_1/edit-pdf" },
   { arquivo: "funcionalidades/obras", empresa: automacao, tela: "desktop", rota: "/projects/proposal_demo_prop_1" },
+  {
+    arquivo: "funcionalidades/assistencia-tecnica",
+    empresa: EMPRESAS.climatizacao,
+    tela: "desktop",
+    // A OS concluída e assinada da demonstração de climatização.
+    rota: "/service-orders/demo_clim_os_1",
+  },
   { arquivo: "funcionalidades/agenda", empresa: automacao, tela: "desktop", rota: "/calendar" },
   {
     arquivo: "funcionalidades/financeiro",
