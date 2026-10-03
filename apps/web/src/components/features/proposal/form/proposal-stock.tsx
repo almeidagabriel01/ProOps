@@ -102,18 +102,17 @@ export function ProductStockHint({ product, className }: ProductStockHintProps) 
   );
 }
 
-interface ProposalLineStockWarningProps {
+interface ProposalLineStockProps {
   productId: string;
   itemType?: "product" | "service";
   className?: string;
 }
 
-/** Aviso na linha quando a proposta inteira passa do estoque do produto. */
-export function ProposalLineStockWarning({
-  productId,
-  itemType,
-  className,
-}: ProposalLineStockWarningProps) {
+/**
+ * O estoque na linha da proposta: sempre o saldo do catálogo e, quando a
+ * proposta inteira usa mais do que há, o aviso logo abaixo.
+ */
+export function ProposalLineStock({ productId, itemType, className }: ProposalLineStockProps) {
   const context = React.useContext(ProposalStockContext);
   const format = useStockFormatter();
   if (!context || itemType === "service") return null;
@@ -121,21 +120,32 @@ export function ProposalLineStockWarning({
   const product = context.catalog.get(productId);
   if (!product) return null;
   const status = productStockStatus(product, context.usage.get(productId) ?? 0);
-  if (!status?.exceeded) return null;
+  if (!status) return null;
 
+  const empty = status.stock <= 0;
   return (
-    <p
-      role="status"
-      className={cn(
-        "flex items-start gap-1.5 text-xs text-amber-600 dark:text-amber-400",
-        className,
+    <div className={cn("space-y-0.5 text-xs", className)}>
+      <p
+        className={
+          empty || status.exceeded
+            ? "text-amber-600 dark:text-amber-400"
+            : "text-muted-foreground"
+        }
+      >
+        Em estoque: {format(status.stock, product)}
+      </p>
+      {status.exceeded && (
+        <p
+          role="status"
+          className="flex items-start gap-1.5 text-amber-600 dark:text-amber-400"
+        >
+          <AlertTriangle className="mt-px h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+          <span>
+            Acima do estoque: a proposta usa {format(status.used, product)} e há{" "}
+            {format(status.stock, product)}.
+          </span>
+        </p>
       )}
-    >
-      <AlertTriangle className="mt-px h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-      <span>
-        Acima do estoque: a proposta usa {format(status.used, product)} e há{" "}
-        {format(status.stock, product)}.
-      </span>
-    </p>
+    </div>
   );
 }

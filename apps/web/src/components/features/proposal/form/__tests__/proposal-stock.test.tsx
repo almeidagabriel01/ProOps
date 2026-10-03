@@ -14,7 +14,7 @@ import type { NicheConfig } from "@/lib/niches/config-types";
 import type { ProposalProduct } from "@/types/proposal";
 import {
   ProductStockHint,
-  ProposalLineStockWarning,
+  ProposalLineStock,
   ProposalStockProvider,
 } from "../proposal-stock";
 
@@ -75,27 +75,31 @@ describe("ProductStockHint", () => {
   });
 });
 
-describe("ProposalLineStockWarning", () => {
+describe("ProposalLineStock", () => {
+  it("a linha mostra sempre o saldo, mesmo dentro do estoque", () => {
+    renderWith([line("modulo", 2)], <ProposalLineStock productId="modulo" itemType="product" />);
+    expect(screen.getByText("Em estoque: 4 un")).toBeInTheDocument();
+    expect(screen.queryByRole("status")).not.toBeInTheDocument();
+  });
+
+  it("igual ao estoque nao avisa", () => {
+    renderWith([line("modulo", 4)], <ProposalLineStock productId="modulo" itemType="product" />);
+    expect(screen.getByText("Em estoque: 4 un")).toBeInTheDocument();
+    expect(screen.queryByRole("status")).not.toBeInTheDocument();
+  });
+
   it("avisa quando o mesmo produto em dois ambientes passa do estoque", () => {
     renderWith(
       [line("modulo", 3), line("modulo", 2)],
-      <ProposalLineStockWarning productId="modulo" itemType="product" />,
+      <ProposalLineStock productId="modulo" itemType="product" />,
     );
-    expect(
-      screen.getByText("Acima do estoque: a proposta usa 5 un e há 4 un."),
-    ).toBeInTheDocument();
+    expect(screen.getByText("Em estoque: 4 un")).toBeInTheDocument();
+    expect(screen.getByRole("status")).toHaveTextContent(
+      "Acima do estoque: a proposta usa 5 un e há 4 un.",
+    );
   });
 
-  it("dentro do estoque nao avisa", () => {
-    const { container } = render(
-      <ProposalStockProvider products={catalog} selectedProducts={[line("modulo", 4)]}>
-        <ProposalLineStockWarning productId="modulo" itemType="product" />
-      </ProposalStockProvider>,
-    );
-    expect(container).toBeEmptyDOMElement();
-  });
-
-  it("persianas: compara em metros pela largura das pecas", () => {
+  it("persianas: saldo e consumo em metros pela largura das pecas", () => {
     nicheRef.current = NICHE_CONFIGS.cortinas;
     renderWith(
       [
@@ -103,15 +107,16 @@ describe("ProposalLineStockWarning", () => {
           pricingDetails: { mode: "curtain_width", width: 2, panels: 2 },
         }),
       ],
-      <ProposalLineStockWarning productId="trilho" itemType="product" />,
+      <ProposalLineStock productId="trilho" itemType="product" />,
     );
+    expect(screen.getByText(/Em estoque: 3(,00)? m$/)).toBeInTheDocument();
     expect(screen.getByRole("status")).toHaveTextContent(/usa 4(,00)? m e há 3(,00)? m/);
   });
 
-  it("servico nunca avisa", () => {
+  it("servico nunca mostra estoque", () => {
     const { container } = render(
       <ProposalStockProvider products={catalog} selectedProducts={[line("instalacao", 9, { itemType: "service" })]}>
-        <ProposalLineStockWarning productId="instalacao" itemType="service" />
+        <ProposalLineStock productId="instalacao" itemType="service" />
       </ProposalStockProvider>,
     );
     expect(container).toBeEmptyDOMElement();

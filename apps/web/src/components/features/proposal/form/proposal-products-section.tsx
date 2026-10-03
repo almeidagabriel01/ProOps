@@ -20,7 +20,7 @@ import { compareCatalogDisplayItem } from "@/lib/sort-text";
 import { filterCatalogItems } from "@/lib/catalog-search";
 import { useNicheVocabulary } from "@/hooks/useNicheVocabulary";
 import { dos } from "@/lib/niches/vocabulary";
-import { ProductStockHint, ProposalLineStockWarning } from "./proposal-stock";
+import { ProductStockHint, ProposalLineStock } from "./proposal-stock";
 
 interface ProposalProductsSectionProps {
   products: Array<Product | Service>;
@@ -254,7 +254,7 @@ function ProductCard({
         </p>
       )}
 
-      <ProductStockHint product={product} className="block mb-2" />
+      {!selected && <ProductStockHint product={product} className="block mb-2" />}
 
       {/* Inactive message */}
       {!isActive && (
@@ -295,7 +295,7 @@ function ProductCard({
       )}
 
       {selected && (
-        <ProposalLineStockWarning
+        <ProposalLineStock
           productId={product.id}
           itemType={product.itemType}
           className="mt-2"

@@ -67,7 +67,7 @@ import {
 } from "@/lib/proposal-hide-zero-qty-storage";
 import { MonthlyLineBadge, MonthlyLineSwitch } from "./monthly-line";
 import { countsInProposalTotal } from "@/lib/proposal/monthly-lines";
-import { ProductStockHint, ProposalLineStockWarning } from "./proposal-stock";
+import { ProductStockHint, ProposalLineStock } from "./proposal-stock";
 
 interface ProposalSystemsSectionProps {
   /** Título e descrição do card, que mudam por nicho. */
@@ -1092,7 +1092,7 @@ function ProductRow({
         <p className="text-xs text-muted-foreground line-clamp-1 mt-0.5">
           {product.productDescription || "Sem descrição"}
         </p>
-        <ProposalLineStockWarning
+        <ProposalLineStock
           productId={product.productId}
           itemType={product.itemType}
           className="mt-1"
