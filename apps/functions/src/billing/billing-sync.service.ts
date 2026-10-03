@@ -50,6 +50,30 @@ export async function syncTenantBillingFromStripe(
   const existingPastDueSince =
     typeof tenantData.pastDueSince === "string" ? tenantData.pastDueSince : null;
 
+  // Contrato manual: plano, status e data vêm do painel do superadmin e do cron
+  // de assinaturas manuais, não do Stripe. Um Customer antigo (trial que não
+  // converteu, assinatura cancelada antes de a empresa passar a pagar por fora)
+  // faria esta sincronização gravar canceled + free por cima do contrato.
+  if (tenantData.isManualSubscription === true) {
+    return {
+      tenantId: tid,
+      stripeCustomerId,
+      stripeSubscriptionId: null,
+      stripePriceId: null,
+      plan: String(tenantData.plan || "free"),
+      billingInterval: "monthly",
+      subscriptionStatus: (existingSubscriptionStatus || "active") as BillingSnapshot["subscriptionStatus"],
+      currentPeriodEnd:
+        typeof tenantData.currentPeriodEnd === "string" ? tenantData.currentPeriodEnd : null,
+      cancelAtPeriodEnd: false,
+      pastDueSince: existingPastDueSince,
+      trialEndsAt: null,
+      billingSyncedAt: new Date().toISOString(),
+      billingSyncing: false,
+      source: opts.source,
+    };
+  }
+
   if (!stripeCustomerId && existingSubscriptionStatus !== "past_due") {
     const freeSnapshot: BillingSnapshot = {
       tenantId: tid,
