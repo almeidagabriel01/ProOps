@@ -11,8 +11,52 @@ import type Lenis from "lenis";
  */
 let instance: Lenis | null = null;
 
+/**
+ * Destino de uma rolagem nativa suave ainda em curso. O Lenis, ao nascer, fixa
+ * a posição em que a página está e a reafirma a cada frame: um clique na
+ * navbar antes do `requestIdleCallback` (comum em máquina lenta) ficava
+ * parado no meio do caminho, longe da seção. Quem registra o Lenis retoma
+ * daqui o que o nativo não terminou.
+ */
+let pendingTarget: number | null = null;
+let stopTrackingPending: (() => void) | null = null;
+
+const USER_TAKEOVER_EVENTS = ["wheel", "touchstart", "keydown"] as const;
+
+function trackPendingNativeScroll(target: number): void {
+  stopTrackingPending?.();
+  pendingTarget = target;
+
+  const stop = () => {
+    pendingTarget = null;
+    stopTrackingPending = null;
+    window.removeEventListener("scrollend", onScrollEnd);
+    for (const name of USER_TAKEOVER_EVENTS) {
+      window.removeEventListener(name, stop);
+    }
+  };
+  // `scrollend` também chega de uma rolagem anterior (a roda do mouse que
+  // revelou a navbar), então só encerra quem de fato chegou ao destino.
+  const onScrollEnd = () => {
+    const maxScroll =
+      document.documentElement.scrollHeight - window.innerHeight;
+    if (Math.abs(window.scrollY - Math.min(target, maxScroll)) < 2) stop();
+  };
+
+  window.addEventListener("scrollend", onScrollEnd);
+  for (const name of USER_TAKEOVER_EVENTS) {
+    window.addEventListener(name, stop, { passive: true });
+  }
+  stopTrackingPending = stop;
+}
+
 export function setLandingLenis(lenis: Lenis | null): void {
   instance = lenis;
+  if (lenis && pendingTarget !== null) {
+    const target = pendingTarget;
+    stopTrackingPending?.();
+    lenis.scrollTo(target);
+  }
 }
 
 /**
@@ -50,6 +94,7 @@ export function scrollToOffset(
     return;
   }
   window.scrollTo({ top: target, behavior: immediate ? "instant" : "smooth" });
+  if (!immediate) trackPendingNativeScroll(target);
 }
 
 /**

@@ -32,6 +32,34 @@ test.describe("FUNCIONALIDADES: a seção da home", () => {
     await expect(page.locator("#recursos")).toBeInViewport();
   });
 
+  // O Lenis nasce num requestIdleCallback. Num runner lento o clique chegava
+  // antes dele: a rolagem começava nativa, o Lenis nascia no meio dela, fixava
+  // a página onde estava e a seção nunca entrava na tela. Aqui o idle fica
+  // preso até depois do clique, para o atraso deixar de ser sorte.
+  test("o clique antes de o Lenis nascer ainda chega à seção", async ({ page }) => {
+    await page.addInitScript(() => {
+      const fila: Array<() => void> = [];
+      const original = window.requestIdleCallback.bind(window);
+      let solto = false;
+      window.requestIdleCallback = ((cb: IdleRequestCallback, opts?: IdleRequestOptions) => {
+        if (solto) return original(cb, opts);
+        fila.push(() => original(cb, opts));
+        return 0;
+      }) as typeof window.requestIdleCallback;
+      (window as unknown as { __soltarIdle: () => void }).__soltarIdle = () => {
+        solto = true;
+        fila.splice(0).forEach((agendar) => agendar());
+      };
+    });
+    await page.goto("/");
+    const link = page.getByRole("navigation").getByRole("link", { name: "Funcionalidades", exact: true }).first();
+    await page.mouse.wheel(0, 600);
+    await link.click();
+    await page.evaluate(() => (window as unknown as { __soltarIdle: () => void }).__soltarIdle());
+    await expect(page).toHaveURL(/\/#recursos$/);
+    await expect(page.locator("#recursos")).toBeInViewport();
+  });
+
   test("cita cinco funcionalidades, cada uma levando à página dela", async ({ page }) => {
     await page.goto("/");
     const recursos = page.locator("#recursos");
