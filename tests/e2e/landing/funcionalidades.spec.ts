@@ -1,5 +1,6 @@
 import { test, expect } from "@playwright/test";
 import { coletaErrosDeHidratacao } from "../helpers/erros-de-hidratacao";
+import { FUNCIONALIDADE_SLUGS } from "../../../apps/web/src/lib/landing/funcionalidades/slugs";
 
 /**
  * FUNCIONALIDADES: a seção da home, a página com todas em cards e a página de
@@ -13,7 +14,9 @@ import { coletaErrosDeHidratacao } from "../helpers/erros-de-hidratacao";
  * inventado é 404 e nada disso tem erro de hidratação.
  */
 
-const TOTAL_DE_FUNCIONALIDADES = 15;
+// Da lista de slugs, que é a fonte da página: funcionalidade nova não pede
+// para lembrar de atualizar um número aqui.
+const TOTAL_DE_FUNCIONALIDADES = FUNCIONALIDADE_SLUGS.length;
 
 test.describe("FUNCIONALIDADES: a seção da home", () => {
   test.use({ viewport: { width: 1280, height: 800 } });
