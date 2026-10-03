@@ -8,36 +8,81 @@ service firebase.storage {
 
     // Claims-based tenant source (trusted token claim)
     function getAuthTenantId() {
-      return isAuthenticated() ? request.auth.token.tenantId : null;
+      return isAuthenticated() ? request.auth.token.get('tenantId', '') : '';
     }
 
     // Claims-based role source (trusted token claim)
     function getAuthRole() {
-      return isAuthenticated() ? request.auth.token.role : null;
+      return isAuthenticated() ? request.auth.token.get('role', '') : '';
+    }
+
+    // Fallback para claims velhas ou ausentes, no mesmo criterio do
+    // firestore.rules (getUserDocTenantId/getUserDocRole) e do backend
+    // (lib/auth-context.ts). Sem ele uma conta cujo doc ja e de admin, mas cuja
+    // claim ficou vazia ou `free`, usava o ERP inteiro e so o upload de imagem
+    // era negado. O doc e confiavel: o cliente so o cria como `free` no
+    // proprio tenant e nao altera `role` nem `tenantId` depois.
+    function userDocPath() {
+      return /databases/(default)/documents/users/$(request.auth.uid);
+    }
+
+    function getUserDocTenantId() {
+      return firestore.exists(userDocPath())
+             ? firestore.get(userDocPath()).data.get('tenantId',
+                 firestore.get(userDocPath()).data.get('companyId', ''))
+             : '';
+    }
+
+    function getUserDocRole() {
+      return firestore.exists(userDocPath())
+             ? firestore.get(userDocPath()).data.get('role', '')
+             : '';
+    }
+
+    function getEffectiveTenantId() {
+      let claimTenantId = getAuthTenantId();
+      return claimTenantId != '' ? claimTenantId : getUserDocTenantId();
     }
 
     function isSuperAdmin() {
       return isAuthenticated() && getAuthRole() in ['superadmin', 'SUPERADMIN'];
     }
 
+    function isAdminRole(role) {
+      return role in ['admin', 'ADMIN', 'master', 'MASTER', 'wk', 'WK'];
+    }
+
     function hasTenantWriteRole() {
       return isAuthenticated()
-             && getAuthRole() in [
-               'admin',
-               'ADMIN',
-               'master',
-               'MASTER',
-               'wk',
-               'WK',
-               'superadmin',
-               'SUPERADMIN'
-             ];
+             && (isSuperAdmin()
+                 || isAdminRole(getAuthRole())
+                 || isAdminRole(getUserDocRole()));
+    }
+
+    // Membro grava imagem da pagina que ele pode criar ou editar
+    // (users/{uid}/permissions/{pageId}, o mesmo doc que a tela de Equipe grava).
+    // A pasta do Storage tem o nome do pageId: products, services, proposals.
+    function isMemberRole(role) {
+      return role in ['member', 'MEMBER'];
+    }
+
+    function memberCanWritePage(pageId) {
+      let permissionPath = /databases/(default)/documents/users/$(request.auth.uid)/permissions/$(pageId);
+      return isAuthenticated()
+             && (isMemberRole(getAuthRole()) || isMemberRole(getUserDocRole()))
+             && firestore.exists(permissionPath)
+             && (firestore.get(permissionPath).data.get('canCreate', false) == true
+                 || firestore.get(permissionPath).data.get('canEdit', false) == true);
+    }
+
+    function canWriteFolder(folder) {
+      return hasTenantWriteRole() || memberCanWritePage(folder);
     }
 
     function belongsToTenant(tenantId) {
       return isAuthenticated()
-             && getAuthTenantId() != null
-             && getAuthTenantId() == tenantId;
+             && getEffectiveTenantId() != ''
+             && getEffectiveTenantId() == tenantId;
     }
     
     // Helper function to check image file size (5MB max)
@@ -88,26 +133,26 @@ service firebase.storage {
       allow read: if isAllowedImageFolder(folder) && canReadTenantPath(tenantId);
       allow write: if isAllowedImageFolder(folder)
                    && canReadTenantPath(tenantId)
-                   && hasTenantWriteRole()
+                   && canWriteFolder(folder)
                    && isValidImageFileSize()
                    && isAllowedImageType()
                    && storageQuotaAvailable(tenantId);
       allow delete: if isAllowedImageFolder(folder)
                     && canReadTenantPath(tenantId)
-                    && hasTenantWriteRole();
+                    && canWriteFolder(folder);
     }
 
     match /tenants/{tenantId}/{folder}/{entityId}/{fileName} {
       allow read: if isAllowedImageFolder(folder) && canReadTenantPath(tenantId);
       allow write: if isAllowedImageFolder(folder)
                    && canReadTenantPath(tenantId)
-                   && hasTenantWriteRole()
+                   && canWriteFolder(folder)
                    && isValidImageFileSize()
                    && isAllowedImageType()
                    && storageQuotaAvailable(tenantId);
       allow delete: if isAllowedImageFolder(folder)
                     && canReadTenantPath(tenantId)
-                    && hasTenantWriteRole();
+                    && canWriteFolder(folder);
     }
 
     // Proposal attachments:
@@ -115,11 +160,11 @@ service firebase.storage {
     match /tenants/{tenantId}/proposals/{proposalId}/attachments/{fileName} {
       allow read: if canReadTenantPath(tenantId);
       allow write: if canReadTenantPath(tenantId)
-                   && hasTenantWriteRole()
+                   && canWriteFolder('proposals')
                    && isValidAttachmentFileSize()
                    && isAllowedAttachmentType()
                    && storageQuotaAvailable(tenantId);
-      allow delete: if canReadTenantPath(tenantId) && hasTenantWriteRole();
+      allow delete: if canReadTenantPath(tenantId) && canWriteFolder('proposals');
     }
 
     match /{allPaths=**} {
