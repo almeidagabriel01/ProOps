@@ -217,7 +217,9 @@ export function ReceivedInvoicesPanel({
         className: "col-span-2 flex min-w-0 items-center justify-end gap-1",
         headerClassName: "flex justify-end",
         render: (invoice) => (
-          <div className="flex items-center gap-1">
+          // No card do celular a coluna de ações divide a linha com a nota:
+          // três controles (~200px) quebram em vez de passar da borda.
+          <div className="flex items-center gap-1 max-md:flex-wrap max-md:justify-end">
             {/* Sempre disponível, e não só quando há itens: a chave de acesso e
                 os dados do fornecedor existem em TODA nota, e são o que se
                 confere. Esconder até a confirmação deixava o dado inalcançável

@@ -416,7 +416,7 @@ export default function InvoicesPage() {
 
   if (notConfigured) {
     return (
-      <main className="mx-auto w-full max-w-5xl p-4 md:p-8">
+      <div className="mx-auto w-full max-w-5xl md:p-8">
         <Card>
           <CardContent className="flex flex-col items-center gap-4 py-16 text-center">
             <FileText className="h-12 w-12 text-muted-foreground" />
@@ -437,14 +437,19 @@ export default function InvoicesPage() {
             </Button>
           </CardContent>
         </Card>
-      </main>
+      </div>
     );
   }
 
   return (
-    <main className="mx-auto flex w-full max-w-7xl flex-col gap-4 p-4 md:p-8">
-      <header className="flex flex-wrap items-start justify-between gap-3">
-        <div>
+    // `<div>`, e não um segundo `<main>`: o shell já é o `<main>` e já dá o
+    // `p-4` do celular. Dois somavam 32px de cada lado numa tela de 393px.
+    <div className="mx-auto flex w-full max-w-7xl flex-col gap-4 md:p-8">
+      {/* Em coluna no celular, como DRE e Comissões. Em linha que quebra, o
+          bloco do título não tinha limite e crescia até a largura natural do
+          seletor do Financeiro (~700px): a página inteira rolava de lado. */}
+      <header className="flex flex-col gap-3 md:flex-row md:flex-wrap md:items-start md:justify-between">
+        <div className="min-w-0">
           <h1 className="text-2xl font-bold">Notas Fiscais</h1>
           <p className="text-sm text-muted-foreground">
             Documentos emitidos pela sua empresa e recebidos dos fornecedores.
@@ -546,6 +551,6 @@ export default function InvoicesPage() {
           onCountChange={setReceivedCount}
         />
       </div>
-    </main>
+    </div>
   );
 }
