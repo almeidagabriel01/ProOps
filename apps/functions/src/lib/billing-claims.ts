@@ -1,6 +1,5 @@
 import { auth, db } from "../init";
 import { logger } from "./logger";
-import { invalidateRevocationState } from "./token-revocation";
 
 export interface BillingClaimsUpdate {
   subscriptionStatus: string;
@@ -8,16 +7,14 @@ export interface BillingClaimsUpdate {
   subscriptionUpdatedAt?: string;
 }
 
-// "canceled"/"cancelled" intentionally excluded: the user stays logged in after
-// cancellation and is blocked from ERP access by the billing-status Firestore gate.
-// Revoking the session for cancellation would force a full logout, which creates a
-// flash of the login screen and a poor UX. Hard failures (unpaid, inactive,
-// payment_failed) still revoke immediately.
-const REVOKE_TOKEN_STATUSES = new Set([
-  "unpaid",
-  "inactive",
-  "payment_failed",
-]);
+// Nenhum status de cobrança revoga a sessão. Até 2026-10 unpaid, inactive e
+// payment_failed revogavam, e quem perdia o acesso era jogado no login sem
+// explicação (o membro nem sabia com quem falar). Agora a pessoa continua
+// logada e fica em /subscription-blocked, com a mensagem e o caminho para
+// regularizar. O bloqueio segue imediato onde importa: o proxy, a API
+// (requireActiveSubscription) e as telas leem o doc do tenant a cada request.
+// Custo aceito: até o token renovar (~1h), as rules ainda veem a claim antiga e
+// deixam a pessoa ler os dados da PRÓPRIA empresa direto no Firestore.
 
 const BATCH_CONCURRENCY = 20;
 const BATCH_SIZE = 100;
@@ -26,7 +23,6 @@ const MAX_RETRIES = 3;
 async function applyClaimsToUser(
   uid: string,
   billingClaims: Record<string, string>,
-  shouldRevoke: boolean,
 ): Promise<void> {
   let lastErr: unknown;
   for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
@@ -35,10 +31,6 @@ async function applyClaimsToUser(
       const existing = userRecord.customClaims ?? {};
       // Spread existing first — setCustomUserClaims replaces, does not merge.
       await auth.setCustomUserClaims(uid, { ...existing, ...billingClaims });
-      if (shouldRevoke) {
-        await auth.revokeRefreshTokens(uid);
-        invalidateRevocationState(uid);
-      }
       return;
     } catch (err) {
       lastErr = err;
@@ -54,7 +46,7 @@ async function applyClaimsToUser(
 
 /**
  * Propagates billing status changes into Firebase Auth custom claims for every
- * user in the tenant, and revokes refresh tokens for terminal statuses.
+ * user in the tenant. Never revokes the session (see the note above).
  *
  * Paginates all users (no 50-user hard cap). Processes in concurrent batches of
  * 20 with per-user retry (3 attempts). Throws an aggregated error if any users
@@ -71,10 +63,6 @@ export async function applyBillingClaimsToTenantUsers(
 ): Promise<void> {
   const normalizedTenantId = String(tenantId || "").trim();
   if (!normalizedTenantId) return;
-
-  const shouldRevoke = REVOKE_TOKEN_STATUSES.has(
-    String(claimsUpdate.subscriptionStatus || "").toLowerCase(),
-  );
 
   const billingClaims: Record<string, string> = {
     subscriptionStatus: claimsUpdate.subscriptionStatus,
@@ -103,7 +91,7 @@ export async function applyBillingClaimsToTenantUsers(
       const chunk = docs.slice(i, i + BATCH_CONCURRENCY);
       const results = await Promise.allSettled(
         chunk.map((docSnap) =>
-          applyClaimsToUser(docSnap.id, billingClaims, shouldRevoke),
+          applyClaimsToUser(docSnap.id, billingClaims),
         ),
       );
       results.forEach((result, idx) => {
