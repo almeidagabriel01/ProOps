@@ -26,6 +26,7 @@ export default function AdminPage() {
     handleSave,
     handleDeactivate,
     handleReactivate,
+    handleEndManualAccess,
     handlePurge,
     handleLoginAs,
     handleRecompute,
@@ -162,6 +163,7 @@ export default function AdminPage() {
         initialData={editingData}
         onSave={handleSave}
         onRecompute={editingData ? () => handleRecompute(editingData.tenant.id) : undefined}
+        onEndManualAccess={editingData ? () => handleEndManualAccess(editingData.tenant.id) : undefined}
         isSaving={isSaving}
         isRecomputing={isRecomputing}
       />

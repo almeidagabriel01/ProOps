@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   contractDayLabel,
   graceLastDayLabel,
+  manualStatusFor,
   resolveBillingBanner,
   type BillingBannerInput,
 } from "../billing-banner";
@@ -116,5 +117,23 @@ describe("rótulos da aba Assinatura", () => {
     expect(contractDayLabel("2027-09-14T00:00:00.000Z")).toBe("14/09/2027");
     expect(graceLastDayLabel("2027-09-14")).toBe("21/09/2027");
     expect(contractDayLabel(undefined)).toBeNull();
+  });
+});
+
+describe("status do contrato pela data (painel do superadmin)", () => {
+  it("segue a regra da API: o dia do vencimento é ativo, depois 7 dias de carência", () => {
+    expect(manualStatusFor("2027-09-07", NOW)).toBe("active");
+    expect(manualStatusFor("2027-09-06", NOW)).toBe("past_due");
+    expect(manualStatusFor("2027-08-31", NOW)).toBe("past_due");
+    expect(manualStatusFor("2027-08-30", NOW)).toBe("canceled");
+  });
+
+  it("conta o dia em Brasília: 23h30 do dia do vencimento ainda é ativo", () => {
+    const lateNight = new Date("2027-09-08T02:30:00.000Z");
+    expect(manualStatusFor("2027-09-07", lateNight)).toBe("active");
+  });
+
+  it("sem data não decide nada", () => {
+    expect(manualStatusFor("", NOW)).toBeNull();
   });
 });

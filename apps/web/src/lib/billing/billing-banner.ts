@@ -88,6 +88,22 @@ export function graceLastDayLabel(value: string | null | undefined): string | nu
   return day ? formatDay(addDays(day, MANUAL_GRACE_DAYS)) : null;
 }
 
+/**
+ * Status do contrato manual pela data, com a regra do backend
+ * (`deriveManualStatusFromPeriodEnd`): o painel do superadmin mostra o mesmo
+ * status que a API vai gravar.
+ */
+export function manualStatusFor(
+  value: string | null | undefined,
+  now: Date,
+): "active" | "past_due" | "canceled" | null {
+  const day = contractDay(value);
+  if (!day) return null;
+  const remaining = daysBetween(todayInBrazil(now), day);
+  if (remaining >= 0) return "active";
+  return -remaining <= MANUAL_GRACE_DAYS ? "past_due" : "canceled";
+}
+
 const RENEW = "Fale com a ProOps para renovar.";
 
 function manualBanner(

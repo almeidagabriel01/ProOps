@@ -2040,6 +2040,85 @@ export const reactivateTenant = async (req: Request, res: Response) => {
 };
 
 /**
+ * "Encerrar acesso agora" do contrato manual: leva a empresa direto ao estado
+ * em que o cron a deixaria depois da carência (`canceled` + free), sem esperar
+ * a data. Para devolver o acesso, o superadmin escolhe o plano e uma data
+ * futura, como em qualquer renovação.
+ *
+ * Diferente de desativar: o login continua funcionando e a empresa vê a tela
+ * de assinatura bloqueada, com o caminho para regularizar. Recusa empresa
+ * cobrada pelo Stripe, cujo status vem do webhook.
+ */
+export const endManualAccess = async (req: Request, res: Response) => {
+  try {
+    if (!isSuperAdminClaim(req)) {
+      return res.status(403).json({ message: "Permissão negada." });
+    }
+    const tenantId = String(req.params.tenantId || "").trim();
+    if (!tenantId) return res.status(404).json({ message: "Empresa não encontrada." });
+    const tenantRef = db.collection("tenants").doc(tenantId);
+    const tenantSnap = await tenantRef.get();
+    if (!tenantSnap.exists) {
+      return res.status(404).json({ message: "Empresa não encontrada." });
+    }
+    const tenantData = (tenantSnap.data() || {}) as Record<string, unknown>;
+
+    const manualUsers = await db
+      .collection("users")
+      .where("tenantId", "==", tenantId)
+      .where("isManualSubscription", "==", true)
+      .limit(20)
+      .get();
+    const firstUser = (manualUsers.docs[0]?.data() || null) as Record<string, unknown> | null;
+
+    if (isStripeManagedBilling(tenantData, firstUser)) {
+      return res.status(409).json({
+        code: "STRIPE_MANAGED_SUBSCRIPTION",
+        message: "Esta empresa paga pelo Stripe: o acesso acompanha a assinatura.",
+      });
+    }
+    if (tenantData.isManualSubscription !== true && manualUsers.empty) {
+      return res.status(409).json({
+        code: "NOT_MANUAL_SUBSCRIPTION",
+        message: "Esta empresa não tem um plano manual para encerrar.",
+      });
+    }
+
+    const nowIso = new Date().toISOString();
+    const batch = db.batch();
+    for (const doc of manualUsers.docs) {
+      batch.update(doc.ref, {
+        subscriptionStatus: "canceled",
+        planId: "free",
+        pastDueSince: null,
+        updatedAt: nowIso,
+      });
+    }
+    batch.update(tenantRef, {
+      subscriptionStatus: "canceled",
+      plan: "free",
+      pastDueSince: null,
+      billingSyncedAt: nowIso,
+      updatedAt: nowIso,
+    });
+    await batch.commit();
+    clearTenantPlanCache(tenantId);
+
+    await auditAdminAction(req, "super_admin_manual_access_ended", {
+      tenantId,
+      reason: `users:${manualUsers.size}`,
+    });
+
+    return res.json({ success: true, message: "Acesso encerrado." });
+  } catch (error: unknown) {
+    logger.error("[endManualAccess] failed", {
+      error: error instanceof Error ? error.message : String(error),
+    });
+    return res.status(500).json({ message: "Erro ao encerrar o acesso." });
+  }
+};
+
+/**
  * "Excluir definitivamente": so para empresa ja desativada, e exige o nome da
  * empresa digitado. Cria o job; o trigger `onTenantPurgeJob` apaga em etapas.
  * Notas fiscais e o arquivo fiscal ficam (guarda legal de 5 anos).

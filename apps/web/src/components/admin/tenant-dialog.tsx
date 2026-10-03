@@ -29,6 +29,8 @@ import {
 } from "@/utils/date-utils";
 import { Loader } from "@/components/ui/loader";
 import { downscaleLogo } from "@/lib/image-downscale";
+import { manualStatusFor } from "@/lib/billing/billing-banner";
+import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 
 export interface TenantFormData {
   name: string;
@@ -64,6 +66,8 @@ interface TenantDialogProps {
   initialData?: TenantBillingInfo | null;
   onSave: (data: TenantFormData) => void;
   onRecompute?: () => Promise<void>;
+  /** Corta o contrato manual agora, sem esperar a data. Relança o erro. */
+  onEndManualAccess?: () => Promise<void>;
   isSaving?: boolean;
   isRecomputing?: boolean;
 }
@@ -108,9 +112,12 @@ export function TenantDialog({
   initialData,
   onSave,
   onRecompute,
+  onEndManualAccess,
   isSaving = false,
   isRecomputing = false,
 }: TenantDialogProps) {
+  const [confirmEndAccess, setConfirmEndAccess] = React.useState(false);
+  const [isEndingAccess, setIsEndingAccess] = React.useState(false);
   const [formData, setFormData] = React.useState<TenantFormData>({
     name: "",
     userName: "",
@@ -186,38 +193,37 @@ export function TenantDialog({
     if (isOpen) periodEditedRef.current = false;
   }, [isOpen]);
 
-  // Auto-calculate status based on date (Manual Subscription)
+  // Status pela data, com a mesma regra da API: o dia do vencimento ainda é
+  // ativo, depois 7 dias de carência e então cancelado.
   React.useEffect(() => {
     if (formData.planId === "free") return;
-    if (!formData.currentPeriodEnd) return;
-
-    const expiry = new Date(formData.currentPeriodEnd);
-    const now = new Date();
-
-    // Check if date is valid
-    if (isNaN(expiry.getTime())) return;
-
-    if (expiry < now) {
-      // Expired
-      if (
-        formData.subscriptionStatus !== "past_due" &&
-        formData.subscriptionStatus !== "canceled"
-      ) {
-        setFormData((prev) => ({ ...prev, subscriptionStatus: "past_due" }));
-      }
-    } else {
-      // Future date → reactivate if previously past_due or canceled
-      if (
-        formData.subscriptionStatus === "past_due" ||
-        formData.subscriptionStatus === "canceled"
-      ) {
-        setFormData((prev) => ({ ...prev, subscriptionStatus: "active" }));
-      }
+    const derived = manualStatusFor(formData.currentPeriodEnd, new Date());
+    if (derived && derived !== formData.subscriptionStatus) {
+      setFormData((prev) => ({ ...prev, subscriptionStatus: derived }));
     }
   }, [formData.currentPeriodEnd, formData.planId, formData.subscriptionStatus]);
 
   const isEditing = !!initialData;
   const stripeManaged = initialData?.billingManagedBy === "stripe";
+  const canEndManualAccess =
+    !!onEndManualAccess &&
+    isEditing &&
+    initialData?.billingManagedBy === "manual" &&
+    (initialData?.planId || "free") !== "free" &&
+    initialData?.subscriptionStatus !== "canceled";
+
+  const handleEndManualAccess = async () => {
+    if (!onEndManualAccess) return;
+    setIsEndingAccess(true);
+    try {
+      await onEndManualAccess();
+      setConfirmEndAccess(false);
+    } catch {
+      // O toast de erro já saiu de quem chamou; o diálogo continua aberto.
+    } finally {
+      setIsEndingAccess(false);
+    }
+  };
   const hasChanges = React.useMemo(() => {
     if (!isEditing || !initialSnapshot) return true;
 
@@ -248,10 +254,18 @@ export function TenantDialog({
       return;
     }
 
+    // Plano pago dado por aqui sem data não vence nunca: sem aviso de fim e
+    // sem corte. Empresa do Stripe tem a data vinda da assinatura.
+    if (!stripeManaged && (formData.planId || "free") !== "free" && !formData.currentPeriodEnd) {
+      toast.error("Informe o vencimento do plano pago, na aba Assinatura.");
+      return;
+    }
+
     onSave(formData);
   };
 
   return (
+    <>
     <Dialog
       open={isOpen}
       onOpenChange={(open) => !isSaving && !open && onClose()}
@@ -491,10 +505,26 @@ export function TenantDialog({
                       />
                       <p className="text-xs text-muted-foreground mt-1">
                         {formData.planId === "enterprise"
-                          ? "Fim do contrato (12 meses). Ao passar, a empresa entra em atraso."
-                          : "Define vencimento/expiração."}
+                          ? "Último dia do contrato (12 meses). Depois dele a empresa tem 7 dias de carência e é bloqueada."
+                          : "Último dia do plano. Depois dele a empresa tem 7 dias de carência e é bloqueada."}
                       </p>
                     </div>
+                  </div>
+                )}
+                {canEndManualAccess && (
+                  <div className="flex flex-col gap-3 rounded-md border border-destructive/30 p-3 sm:flex-row sm:items-center sm:justify-between">
+                    <p className="text-sm text-muted-foreground">
+                      Corta o acesso agora, sem esperar o vencimento nem a carência.
+                    </p>
+                    <Button
+                      type="button"
+                      variant="destructive"
+                      size="sm"
+                      onClick={() => setConfirmEndAccess(true)}
+                      disabled={isSaving || isEndingAccess}
+                    >
+                      Encerrar acesso agora
+                    </Button>
                   </div>
                 )}
                 <div className="rounded-md bg-muted p-3 text-sm text-muted-foreground">
@@ -658,5 +688,17 @@ export function TenantDialog({
         </form>
       </DialogContent>
     </Dialog>
+    <ConfirmDialog
+      open={confirmEndAccess}
+      onOpenChange={(open) => !isEndingAccess && setConfirmEndAccess(open)}
+      title="Encerrar o acesso agora?"
+      description={`${initialData?.tenant.name ?? "A empresa"} perde o acesso ao ERP na hora e volta ao plano gratuito, sem esperar o vencimento nem a carência. Para devolver o acesso, escolha o plano e uma data futura.`}
+      confirmLabel="Encerrar acesso"
+      pendingLabel="Encerrando..."
+      destructive
+      isPending={isEndingAccess}
+      onConfirm={handleEndManualAccess}
+    />
+    </>
   );
 }

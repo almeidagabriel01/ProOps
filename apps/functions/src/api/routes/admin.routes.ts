@@ -12,6 +12,7 @@ import {
   createTenant,
   deactivateTenant,
   reactivateTenant,
+  endManualAccess,
   purgeTenant,
   copyTenantData,
   recomputeTenantFeatures,
@@ -55,6 +56,7 @@ router.post("/tenants/copy-data", copyTenantData);
 router.post("/tenants/migrate-prices", migrateTenantPrices);
 router.post("/tenants/:tenantId/deactivate", deactivateTenant);
 router.post("/tenants/:tenantId/reactivate", reactivateTenant);
+router.post("/tenants/:tenantId/end-manual-access", endManualAccess);
 router.post("/tenants/:tenantId/purge", purgeTenant);
 router.post("/tenants/:tenantId/recompute-features", recomputeTenantFeatures);
 router.post("/tenants/:tenantId/force-set-plan", forceSetTenantPlan);
