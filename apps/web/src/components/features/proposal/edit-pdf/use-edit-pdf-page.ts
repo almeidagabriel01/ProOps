@@ -34,6 +34,7 @@ import {
   normalizePdfFontFamily,
 } from "@/services/pdf/pdf-fonts";
 import { downloadProposalPdfFromBackend } from "@/services/pdf/download-proposal-pdf";
+import { mergeEditorPdfSettings } from "@/lib/proposal/pdf-settings-merge";
 
 interface PdfSettings {
   primaryColor?: string;
@@ -671,7 +672,12 @@ export function useEditPdfPage() {
     if (!suppressLoading) setIsSaving(true);
 
     try {
-      const sanitizedSettings = cleanForFirestore(currentSettingsObj);
+      const sanitizedSettings = cleanForFirestore(
+        mergeEditorPdfSettings(
+          proposal.pdfSettings as Record<string, unknown> | undefined,
+          currentSettingsObj,
+        ),
+      );
       const payloadSize = JSON.stringify(sanitizedSettings).length;
       if (payloadSize > 950000) {
         toast.error(
@@ -688,7 +694,10 @@ export function useEditPdfPage() {
         pdfSettings: sanitizedSettings as Proposal["pdfSettings"],
       });
 
-      setInitialSettingsJson(JSON.stringify(sanitizedSettings));
+      setInitialSettingsJson(currentSettingsJson);
+      setProposal((prev) =>
+        prev ? { ...prev, pdfSettings: sanitizedSettings as Proposal["pdfSettings"] } : prev,
+      );
 
       if (!suppressToast) {
         toast.success("Proposta e personalizações salvas com sucesso!");
@@ -781,7 +790,9 @@ export function useEditPdfPage() {
       if (!tenant || !proposal) return;
       setIsSavingDefault(true);
       try {
-        const sanitizedSettings = cleanForFirestore(currentSettingsObj);
+        const sanitizedSettings = cleanForFirestore(
+          mergeEditorPdfSettings(tenant.proposalDefaults, currentSettingsObj),
+        );
 
         // PASSO 1: Salva as configurações como padrão no tenant
         // Essas configurações serão aplicadas automaticamente em NOVAS propostas criadas no futuro
