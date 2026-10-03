@@ -180,6 +180,14 @@ describe("technical_responsibles", () => {
     await assertFails(getDoc(doc(ctx("free-1", "free", "tenant_free1"), "technical_responsibles", "rt1")));
   });
 
+  it("o link público do PMOC não é lido nem gravado pelo cliente", async () => {
+    await testEnv.withSecurityRulesDisabled(async (c) => {
+      await setDoc(doc(c.firestore(), "shared_pmoc", "tok123"), { tenantId: ALPHA, contractId: "ct1" });
+    });
+    await assertFails(getDoc(doc(ctx("dono", "MASTER"), "shared_pmoc", "tok123")));
+    await assertFails(setDoc(doc(ctx("dono", "MASTER"), "shared_pmoc", "outro"), { tenantId: ALPHA }));
+  });
+
   it("escrita só pelo backend, nem o dono grava", async () => {
     await assertFails(setDoc(doc(ctx("dono", "MASTER"), "technical_responsibles", "novo"), { tenantId: ALPHA }));
     await assertFails(deleteDoc(doc(ctx("dono", "MASTER"), "technical_responsibles", "rt1")));

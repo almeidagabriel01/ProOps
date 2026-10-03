@@ -525,6 +525,11 @@ service cloud.firestore {
       allow write: if false;
     }
 
+    // Link público do PMOC (o id é o token). Admin SDK only.
+    match /shared_pmoc/{token} {
+      allow read, write: if false;
+    }
+
     // Trava da nota da mensalidade (uma por lançamento). Admin SDK only.
     match /contract_invoice_claims/{transactionId} {
       allow read, write: if false;

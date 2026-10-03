@@ -34,6 +34,7 @@ import {
   updateTechnicalResponsible,
   uploadTechnicalResponsibleArt,
 } from "../controllers/technical-responsibles.controller";
+import { createPmocShareLink, downloadPmocPdf, getSharedPmoc } from "../controllers/pmoc.controller";
 import { requirePlanCapability } from "../middleware/require-plan-capability";
 import { pdfRateLimiter } from "../middleware/pdf-rate-limiter";
 
@@ -76,6 +77,9 @@ router.post("/service-contracts/:id/suspend", suspendServiceContract);
 router.post("/service-contracts/:id/resume", resumeServiceContract);
 router.post("/service-contracts/:id/end", endServiceContract);
 
+router.post("/service-contracts/:id/pmoc/share-link", createPmocShareLink);
+router.get("/service-contracts/:id/pmoc/pdf", pdfRateLimiter, downloadPmocPdf);
+
 router.post("/technical-responsibles", createTechnicalResponsible);
 router.put("/technical-responsibles/:id", updateTechnicalResponsible);
 router.delete("/technical-responsibles/:id", deleteTechnicalResponsible);
@@ -87,4 +91,5 @@ export const fieldServiceRoutes = router;
 /** Pública: o token é a credencial. Montada antes da autenticação, sob /v1/share. */
 const publicRouter = Router();
 publicRouter.get("/share/service-order/:token", getSharedServiceOrder);
+publicRouter.get("/share/pmoc/:token", getSharedPmoc);
 export const publicFieldServiceRoutes = publicRouter;

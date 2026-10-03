@@ -311,7 +311,7 @@ export default function ContractDetailPage() {
       </div>
 
       {contract.type === "pmoc" && tenant?.id && (
-        <PmocCard contract={contract} tenantId={tenant.id} showSettingsLink={writable} />
+        <PmocCard contract={contract} tenantId={tenant.id} showSettingsLink={writable} canShare={!isReadOnly} />
       )}
 
       <Card>

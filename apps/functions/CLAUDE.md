@@ -772,9 +772,29 @@ um com a frequência (mensal, trimestral, semestral, anual).
   vai para a OS (`pmoc_<id>`), para o relatório juntar as visitas.
 - **Ativar exige o responsável técnico e o plano de visitas ligado.** Contrato
   PMOC sem os dados do PMOC é recusado; trocar o tipo para outro apaga o campo.
+- **O documento do PMOC** (`pmoc-document.ts`, `pmoc.controller.ts`): um link
+  público por contrato (`pmocShareToken` no contrato e `shared_pmoc/{token}`,
+  Admin SDK only), aberto em `GET /v1/share/pmoc/:token` e em
+  `/share/pmoc/[token]` no front. Mostra o plano (responsável com a ART,
+  prédio, aparelhos, itens por frequência) e o relatório de execução de um
+  período (`from`/`to`, padrão os últimos 12 meses, teto de dois anos; data
+  inválida cai no padrão em vez de dar erro, porque quem abre é a
+  fiscalização). É o que fica à mão no prédio. Sem valores da mensalidade, ids
+  de membro, IP de assinatura nem caminho de Storage. Token desconhecido,
+  contrato que deixou de ser PMOC ou empresa sem o módulo dão 404.
+- **O relatório** (`pmoc-report.ts`, puro): a visita é a OS do contrato, no dia
+  da conclusão (senão a saída, senão o agendado, no fuso de Brasília);
+  cancelada não entra. O item conta como feito quando a linha `pmoc_<id>` foi
+  marcada numa OS CONCLUÍDA.
+- **PDF** (`GET /v1/service-contracts/:id/pmoc/pdf?kind=plan|report&from=&to=`):
+  a mesma página impressa pelo Chromium, sem cache (o relatório muda com o
+  período e a cada visita). Montado também na função `pdf`, que não tem o gate
+  de plano: o controller confere a capacidade. Quem vê contratos gera o link e
+  o PDF.
 
-Guards: `shared/__tests__/pmoc.test.ts` e o bloco PMOC de
-`service-contracts.test.ts`.
+Guards: `shared/__tests__/pmoc.test.ts`, o bloco PMOC de
+`service-contracts.test.ts`, `pmoc-report.test.ts`, `pmoc.controller.test.ts`
+(o que o link público não pode levar) e `pdfApp.test.ts`.
 
 #### Responsáveis técnicos do PMOC (`technical-responsible-model.ts`)
 

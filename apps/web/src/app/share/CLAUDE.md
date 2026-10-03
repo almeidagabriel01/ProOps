@@ -20,6 +20,7 @@ share/
 ├── transaction/[token]/page.tsx  # Lançamento financeiro compartilhado
 ├── project/[token]/page.tsx      # Entrega da obra (projeto de instalação): conferir, ver a data das visitas e aceitar
 ├── os/[token]/page.tsx           # Comprovante da ordem de serviço (peças, fotos, assinatura); é o que o PDF da OS imprime
+├── pmoc/[token]/page.tsx         # PMOC do prédio: plano e relatório de execução por período; é o que os PDFs do PMOC imprimem
 ├── visita/[token]/page.tsx       # Link de agendamento: escolher horário e pedir a visita
 ├── portal/[token]/page.tsx       # Portal do cliente: propostas, pagamentos, obra e notas de um contato
 └── contador/[token]/page.tsx     # Link do contador: DRE, lançamentos e notas da empresa, só leitura
@@ -80,6 +81,7 @@ A resposta pública do backend retorna a proposta/lançamento junto com dados do
 | Aceitar a entrega da obra | `POST` (público) | `SharedProjectService.accept` | `/v1/share/project/:token/accept` |
 | Horários livres do link de agendamento | `GET` (público) | `BookingService.publicView` | `/v1/public/booking/:token` |
 | Pedir a visita | `POST` (público) | `BookingService.submit` | `/v1/public/booking/:token` |
+| Abrir o PMOC (plano e relatório) | `GET` (público) | `PmocService.view` | `/v1/share/pmoc/:token?from=&to=` |
 | Abrir o portal do cliente | `GET` (público) | `ClientPortalService.publicView` | `/v1/share/portal/:token` |
 | Abrir um item do portal | `POST` (público) | `ClientPortalService.openItem` | `/v1/share/portal/:token/open` |
 

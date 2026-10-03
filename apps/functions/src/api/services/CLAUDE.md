@@ -220,6 +220,7 @@ Para o endpoint publico (share token). Valida o shared link via `SharedTransacti
 | `GET /v1/proposals/:id/pdf` | `proposal-pdf.controller.ts` | Download PDF de proposta pelo dono |
 | `GET /v1/transactions/:id/pdf` | `transaction-pdf.controller.ts` | Download recibo de lancamento pelo dono |
 | `GET /v1/service-orders/:id/pdf` | `field-service.controller.ts` | PDF da ordem de servico (imprime `/share/os/{token}`; confere a capacidade `fieldService` no controller) |
+| `GET /v1/service-contracts/:id/pmoc/pdf` | `pmoc.controller.ts` | PDF do plano ou do relatorio do PMOC (`kind`, `from`, `to`; imprime `/share/pmoc/{token}`, sem cache) |
 
 Todos passam pelo middleware `pdfRateLimiter`.
 

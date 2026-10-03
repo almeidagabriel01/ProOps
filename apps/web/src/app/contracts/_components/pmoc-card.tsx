@@ -2,11 +2,16 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { HardHat } from "lucide-react";
+import { Download, HardHat, Link2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Loader } from "@/components/ui/loader";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatDay } from "@/lib/field-service/contracts";
 import { pmocItemsSummary } from "@/lib/field-service/pmoc-form";
+import { pmocPeriod } from "@/lib/field-service/pmoc-period";
+import { toast } from "@/lib/toast";
+import { PmocService } from "@/services/pmoc-service";
 import {
   ART_STATUS_LABELS,
   ART_STATUS_STYLES,
@@ -22,13 +27,46 @@ interface PmocCardProps {
   tenantId: string;
   /** Quem cuida do contrato pode ir cadastrar o responsável que falta. */
   showSettingsLink: boolean;
+  /** Gerar o link e o PDF grava o token: fora do modo somente leitura. */
+  canShare: boolean;
 }
 
+type Busy = "link" | "plan" | "report" | null;
+
 /** O PMOC do contrato: quem assina, o prédio e o tamanho do plano. */
-export function PmocCard({ contract, tenantId, showSettingsLink }: PmocCardProps) {
+export function PmocCard({ contract, tenantId, showSettingsLink, canShare }: PmocCardProps) {
   const pmoc = contract.pmoc;
   const responsibleId = pmoc?.responsibleId ?? null;
   const [responsible, setResponsible] = React.useState<TechnicalResponsible | null | undefined>(undefined);
+  const [busy, setBusy] = React.useState<Busy>(null);
+
+  const run = async (action: Exclude<Busy, null>, work: () => Promise<void>) => {
+    setBusy(action);
+    try {
+      await work();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Não foi possível concluir a ação.");
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const copyLink = () =>
+    run("link", async () => {
+      const { url } = await PmocService.shareLink(contract.id);
+      await navigator.clipboard.writeText(url);
+      toast.success("Link do PMOC copiado. Ele abre o plano e o relatório, sem login.");
+    });
+
+  const download = (kind: "plan" | "report") =>
+    run(kind, async () => {
+      await PmocService.downloadPdf({
+        contractId: contract.id,
+        code: contract.code,
+        kind,
+        period: kind === "report" ? pmocPeriod("last12", todayInBrazil()) : undefined,
+      });
+    });
 
   React.useEffect(() => {
     if (!responsibleId) {
@@ -55,11 +93,27 @@ export function PmocCard({ contract, tenantId, showSettingsLink }: PmocCardProps
 
   return (
     <Card>
-      <CardHeader>
+      <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:space-y-0">
         <CardTitle className="flex items-center gap-2 text-base">
           <HardHat className="h-4 w-4" />
           PMOC
         </CardTitle>
+        {canShare && (
+          <div className="flex flex-wrap gap-2">
+            <Button variant="outline" size="sm" onClick={() => void download("plan")} disabled={busy !== null}>
+              {busy === "plan" ? <Loader size="sm" variant="button" className="mr-2" /> : <Download className="mr-2 h-4 w-4" />}
+              Plano em PDF
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => void download("report")} disabled={busy !== null}>
+              {busy === "report" ? <Loader size="sm" variant="button" className="mr-2" /> : <Download className="mr-2 h-4 w-4" />}
+              Relatório dos últimos 12 meses
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => void copyLink()} disabled={busy !== null}>
+              {busy === "link" ? <Loader size="sm" variant="button" className="mr-2" /> : <Link2 className="mr-2 h-4 w-4" />}
+              Copiar link
+            </Button>
+          </div>
+        )}
       </CardHeader>
       <CardContent className="grid gap-4 text-sm md:grid-cols-3">
         <div className="space-y-1">

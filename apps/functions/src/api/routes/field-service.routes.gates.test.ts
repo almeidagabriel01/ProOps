@@ -40,6 +40,20 @@ jest.mock("../controllers/service-contracts.controller", () =>
   ),
 );
 
+jest.mock("../controllers/pmoc.controller", () =>
+  new Proxy(
+    {},
+    {
+      get: (_t, name) =>
+        name === "__esModule"
+          ? false
+          : (_req: express.Request, res: express.Response) => res.json({ handler: String(name) }),
+    },
+  ),
+);
+jest.mock("../middleware/pdf-rate-limiter", () => ({
+  pdfRateLimiter: (_req: express.Request, _res: express.Response, next: express.NextFunction) => next(),
+}));
 jest.mock("../controllers/technical-responsibles.controller", () =>
   new Proxy(
     {},
@@ -93,6 +107,8 @@ it.each([
   ["POST", "/service-contracts/c1/suspend", "suspendServiceContract"],
   ["POST", "/service-contracts/c1/resume", "resumeServiceContract"],
   ["POST", "/service-contracts/c1/end", "endServiceContract"],
+  ["POST", "/service-contracts/c1/pmoc/share-link", "createPmocShareLink"],
+  ["GET", "/service-contracts/c1/pmoc/pdf", "downloadPmocPdf"],
   ["POST", "/technical-responsibles", "createTechnicalResponsible"],
   ["PUT", "/technical-responsibles/r1", "updateTechnicalResponsible"],
   ["DELETE", "/technical-responsibles/r1", "deleteTechnicalResponsible"],
@@ -110,6 +126,13 @@ it("o link público da OS não passa pelo gate nem pede usuário", async () => {
   hits.length = 0;
   const res = await fetch(`${base}/share/service-order/tok123`);
   expect(await res.json()).toEqual({ handler: "getSharedServiceOrder" });
+  expect(hits).toEqual([]);
+});
+
+it("o link público do PMOC não passa pelo gate nem pede usuário", async () => {
+  hits.length = 0;
+  const res = await fetch(`${base}/share/pmoc/tok123`);
+  expect(await res.json()).toEqual({ handler: "getSharedPmoc" });
   expect(hits).toEqual([]);
 });
 
