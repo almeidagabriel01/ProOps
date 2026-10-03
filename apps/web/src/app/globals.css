@@ -3003,3 +3003,34 @@ html[data-cookie-consent="pending"] .cookie-banner {
   ) {
   opacity: 0.65;
 }
+
+/* Fileira de abas que rola na horizontal: esmaece a borda do lado em que ainda
+   há aba escondida, para a pessoa saber que dá para arrastar. Os atributos vêm
+   de `useHorizontalScrollAffordance`. Só abaixo de `md`: no desktop as
+   fileiras cabem e nada muda. */
+@media (max-width: 767.98px) {
+  .scroll-fade-x[data-fade-start="true"] {
+    -webkit-mask-image: linear-gradient(to right, transparent, #000 1.75rem);
+    mask-image: linear-gradient(to right, transparent, #000 1.75rem);
+  }
+  .scroll-fade-x[data-fade-end="true"] {
+    -webkit-mask-image: linear-gradient(to left, transparent, #000 1.75rem);
+    mask-image: linear-gradient(to left, transparent, #000 1.75rem);
+  }
+  .scroll-fade-x[data-fade-start="true"][data-fade-end="true"] {
+    -webkit-mask-image: linear-gradient(
+      to right,
+      transparent,
+      #000 1.75rem,
+      #000 calc(100% - 1.75rem),
+      transparent
+    );
+    mask-image: linear-gradient(
+      to right,
+      transparent,
+      #000 1.75rem,
+      #000 calc(100% - 1.75rem),
+      transparent
+    );
+  }
+}

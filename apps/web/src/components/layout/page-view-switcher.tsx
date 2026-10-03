@@ -20,10 +20,12 @@ import { usePlanLimits } from "@/hooks/usePlanLimits";
 import { cn } from "@/lib/utils";
 import { usePermissions } from "@/providers/permissions-provider";
 
-const WRAPPER_CLASSES = cn(
-  "-mx-4 overflow-x-auto px-4 pb-1 md:mx-0 md:px-0 md:pb-0",
-  "[scrollbar-width:none] [&::-webkit-scrollbar]:hidden",
-);
+// Quem rola é a barra do `SegmentedControl`, que também centra a visão ativa e
+// esmaece a borda com visões escondidas. O `contain` impede a fileira de impor
+// a própria largura ao pai no celular: num cabeçalho em linha que quebra, o
+// bloco do título crescia até ~700px (as sete visões do Financeiro) e a página
+// de Notas Fiscais inteira rolava de lado.
+const WRAPPER_CLASSES = "max-md:[contain:inline-size]";
 
 /**
  * A rota é visão de um grupo do menu, antes de qualquer gate. Serve só para
@@ -70,6 +72,12 @@ export function PageViewSwitcher({ className }: PageViewSwitcherProps) {
   const group = useActiveGroup(pathname);
   const { isLoading: isPlanLoading } = usePlanLimits();
   const { isLoading: arePermissionsLoading } = usePermissions();
+  // A visão tocada acende na hora; a rota nova pode levar um instante para
+  // abrir (loading.tsx), e sem isso o toque parecia não ter pegado.
+  const [pending, setPending] = React.useState<{
+    href: string;
+    from: string;
+  } | null>(null);
 
   if (!group) {
     // A navegação não desenha grupo enquanto plano e permissões carregam, e a
@@ -120,21 +128,26 @@ export function PageViewSwitcher({ className }: PageViewSwitcherProps) {
       return;
     }
 
+    setPending({ href, from: pathname });
     router.push(href);
   };
+
+  const activeHref =
+    pending && pending.from === pathname
+      ? pending.href
+      : (group.activeHref ?? group.views[0].href);
 
   return (
     <>
       {/*
         Quatro visões com rótulos longos passam da largura de um telefone de
-        360px. Rola na horizontal, sangrando até a borda do <main> (que tem p-4
-        no celular), em vez de encolher o rótulo: ícone sozinho não distingue
-        "Lançamentos" de "Comissões".
+        360px. Rola na horizontal em vez de encolher o rótulo: ícone sozinho
+        não distingue "Lançamentos" de "Comissões".
       */}
       <div className={cn(WRAPPER_CLASSES, className)}>
         <SegmentedControl
           id={`Visões de ${group.label}`}
-          value={group.activeHref ?? group.views[0].href}
+          value={activeHref}
           onChange={handleChange}
           options={group.views.map((view) => ({
             value: view.href,

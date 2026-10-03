@@ -9,6 +9,7 @@ hooks/
 ├── proposal/              # Hooks específicos de propostas (subpasta)
 ├── use-before-unload-warning.ts # Confirmação do navegador ao fechar a aba com trabalho não salvo
 ├── use-count-up.ts        # Animação de contagem numérica
+├── use-horizontal-scroll-affordance.ts # Fileira de abas que rola: centra a ativa e diz de que lado há mais (esmaecido .scroll-fade-x)
 ├── use-prefers-reduced-motion.ts
 ├── use-record-search.ts   # Busca de propostas e contatos para o Ctrl+K (índice searchTokens)
 ├── use-sort.ts            # Ordenação de listas
