@@ -40,6 +40,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { AiUsageCard } from "@/components/profile/ai-usage-card";
 import { Loader } from "@/components/ui/loader";
+import { contractDayLabel, graceLastDayLabel } from "@/lib/billing/billing-banner";
 
 interface MySubscriptionTabProps {
   user: User | null;
@@ -194,23 +195,17 @@ export function MySubscriptionTab({
     endsAt: trialEndsAt,
   } = computeTrialInfo(subscriptionStatus, tenant?.trialEndsAt);
   const cancelAtPeriodEnd = user?.cancelAtPeriodEnd;
-  const isManualSubscription = user?.isManualSubscription;
-  const hasStripeCustomer = !!user?.stripeCustomerId;
   const hasStripeSubscription = !!user?.stripeSubscriptionId;
-  const hasBillingStatusHistory = [
-    "active",
-    "trialing",
-    "past_due",
-    "unpaid",
-    "payment_failed",
-    "canceled",
-  ].includes(String(rawSubscriptionStatus || "").toLowerCase());
-  const hasBillingEvidence =
-    hasStripeCustomer ||
-    hasStripeSubscription ||
-    Boolean(currentPeriodEnd) ||
-    hasBillingStatusHistory;
-  const showManualTag = Boolean(isManualSubscription) && !hasBillingEvidence;
+  // Contrato dado pelo painel do superadmin. A data de fim e o status ativo NÃO
+  // são evidência de Stripe: um contrato manual sempre tem os dois, e contá-los
+  // como evidência escondia o selo justamente de quem ele descreve.
+  const showManualTag =
+    (tenant?.isManualSubscription ?? user?.isManualSubscription) === true &&
+    !hasStripeSubscription;
+  const manualPeriodEnd = tenant?.currentPeriodEnd ?? currentPeriodEnd;
+  const manualEndLabel = showManualTag ? contractDayLabel(manualPeriodEnd) : null;
+  const manualGraceLabel = showManualTag ? graceLastDayLabel(manualPeriodEnd) : null;
+  const isManualPastDue = showManualTag && (tenant?.subscriptionStatus ?? subscriptionStatus) === "past_due";
 
   const [isSyncing, setIsSyncing] = useState(false);
   const [botCopied, setBotCopied] = useState(false);
@@ -389,7 +384,9 @@ export function MySubscriptionTab({
 
   // Prefer the actual Stripe price snapshot stored on the tenant doc.
   // Falls back to the live tier lookup for manual subscriptions without Stripe.
-  const snapshotUnitAmount = tenant?.subscription?.unitAmount;
+  const snapshotUnitAmount = showManualTag
+    ? null
+    : (tenant?.unitAmount ?? tenant?.subscription?.unitAmount);
   const snapshotPriceInBRL =
     typeof snapshotUnitAmount === "number" && snapshotUnitAmount !== null
       ? snapshotUnitAmount / 100
@@ -414,7 +411,7 @@ export function MySubscriptionTab({
       : (effectivePlan?.pricing?.monthly ?? effectivePlan?.price ?? 0);
   const hasPriceDrift =
     snapshotPriceInBRL !== null &&
-    !isManualSubscription &&
+    !showManualTag &&
     hasStripeSubscription &&
     Math.round(snapshotPriceInBRL * 100) !== Math.round(liveTierPrice * 100);
 
@@ -503,7 +500,7 @@ export function MySubscriptionTab({
                 </div>
                 <p className="text-muted-foreground text-sm mt-1">
                   {showManualTag
-                    ? "Gerenciado pelo administrador"
+                    ? "Contrato com a ProOps"
                     : billingInterval === "yearly"
                       ? "Cobrança anual"
                       : "Cobrança mensal"}
@@ -549,6 +546,26 @@ export function MySubscriptionTab({
         </div>
 
         <CardContent className="p-6 space-y-6">
+          {manualEndLabel && (
+            <div
+              className="flex items-center gap-3 p-4 rounded-xl bg-muted/50 border"
+              data-testid="subscription-manual-period"
+            >
+              <Calendar className="w-5 h-5 text-muted-foreground shrink-0" />
+              <div>
+                <p className="text-sm text-muted-foreground">
+                  {isManualPastDue ? `Venceu em ${manualEndLabel}` : "Plano válido até"}
+                </p>
+                <p className="font-semibold">
+                  {isManualPastDue ? `Acesso até ${manualGraceLabel}` : manualEndLabel}
+                </p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Para renovar, fale com a ProOps.
+                </p>
+              </div>
+            </div>
+          )}
+
           {/* Billing Info - only for Stripe subscriptions */}
           {showBillingInfo && (
             <div className="flex flex-col sm:flex-row gap-4 p-4 rounded-xl bg-muted/50 border">

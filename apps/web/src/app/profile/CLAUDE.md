@@ -137,7 +137,27 @@ Restrita a `isMaster = true`. Usuários sem permissão veem um card de "Acesso R
 
 ### Assinaturas manuais
 
-Assinaturas marcadas com `isManualSubscription = true` e sem evidência de Stripe (`stripeCustomerId`, `stripeSubscriptionId`, `currentPeriodEnd`) exibem o badge "Manual" e omitem informações de faturamento Stripe.
+Plano dado pelo painel do superadmin: `isManualSubscription = true` (lido do
+tenant, com o usuário de reserva) e sem `stripeSubscriptionId`. Exibe o selo
+"Manual", "Contrato com a ProOps" e o bloco `subscription-manual-period`: "Plano
+válido até dd/mm/aaaa" ou, vencido, "Acesso até" o último dia da carência. As
+datas saem de `contractDayLabel`/`graceLastDayLabel`
+(`lib/billing/billing-banner.ts`), sem conversão de fuso. A data de fim e o
+status ativo NÃO contam como evidência de Stripe: contavam, e o selo nunca
+aparecia para quem ele descreve.
+
+O preço exibido é o `unitAmount` da RAIZ do tenant (o mapa `subscription.*` não
+é mais gravado), ignorado no contrato manual.
+
+### Faixas do topo do ERP
+
+`resolveBillingBanner` (`lib/billing/billing-banner.ts`, puro) decide a faixa de
+assinatura do `ProtectedAppShell`, lendo só o doc do tenant e só para dono e
+administradores (`usePermissions().isMaster`): contrato manual a 30 dias do fim
+(amarela) e vencido em carência (vermelha), as duas com "Falar com a ProOps";
+Stripe em atraso (portal) e com cancelamento agendado (reativar). Trial, demo e
+add-on seguem com a lógica própria. Guard: `lib/billing/__tests__/billing-banner.test.ts`
+e `tests/e2e/billing/billing-state-banners.spec.ts`.
 
 ---
 

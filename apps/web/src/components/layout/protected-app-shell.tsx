@@ -16,9 +16,11 @@ import { useIsMobile } from "@/hooks/use-is-mobile";
 import { useAuth } from "@/providers/auth-provider";
 import { useSessionPing } from "@/hooks/use-session-ping";
 import { useTenant } from "@/providers/tenant-provider";
+import { usePermissions } from "@/providers/permissions-provider";
+import { resolveBillingBanner } from "@/lib/billing/billing-banner";
+import { SUPPORT_WHATSAPP_DIGITS, buildWhatsAppHref } from "@/lib/whatsapp-contacts";
 import { StripeService } from "@/services/stripe-service";
 import { AddonService } from "@/services/addon-service";
-import { formatDateBR } from "@/utils/date-format";
 import { useRouter } from "next/navigation";
 import {
   ScrollContainerProvider,
@@ -28,7 +30,8 @@ import {
 function ProtectedShell({ children }: { children: React.ReactNode }) {
   const { planTier, pastDueAddons, trialInfo } = usePlanLimits();
   const { user } = useAuth();
-  const { isDemo } = useTenant();
+  const { tenant, isDemo } = useTenant();
+  const { isMaster } = usePermissions();
   const router = useRouter();
   const isMobile = useIsMobile();
   const [isOpeningPortal, setIsOpeningPortal] = React.useState(false);
@@ -60,9 +63,12 @@ function ProtectedShell({ children }: { children: React.ReactNode }) {
     );
   }, [activePastDueAddons]);
 
-  const subscriptionStatus = user?.subscriptionStatus;
-  const isPastDue = subscriptionStatus === "past_due";
-  const isCancelAtPeriodEnd = !isPastDue && user?.cancelAtPeriodEnd === true;
+  // Data do render inicial: a faixa conta dias, não precisa de relógio vivo.
+  const [now] = React.useState(() => new Date());
+  const billingBanner = React.useMemo(
+    () => resolveBillingBanner({ tenant, isTenantAdmin: isMaster, now }),
+    [tenant, isMaster, now],
+  );
 
   const handleOpenPortal = React.useCallback(async () => {
     if (!user) return;
@@ -95,12 +101,13 @@ function ProtectedShell({ children }: { children: React.ReactNode }) {
     }
   }, [user, router]);
 
-  const cancelAtFormatted =
-    user?.cancelAt
-      ? formatDateBR(user.cancelAt, "—")
-      : isCancelAtPeriodEnd && user?.currentPeriodEnd
-        ? formatDateBR(user.currentPeriodEnd, "—")
-        : "—";
+  const handleContactSupport = React.useCallback(() => {
+    window.open(
+      buildWhatsAppHref(SUPPORT_WHATSAPP_DIGITS, "Olá! Quero renovar o plano da minha empresa na ProOps."),
+      "_blank",
+      "noopener,noreferrer",
+    );
+  }, []);
 
   // Trial banner copy escalates as the 7-day period nears its end.
   const trialDays = trialInfo.daysRemaining;
@@ -140,26 +147,36 @@ function ProtectedShell({ children }: { children: React.ReactNode }) {
               dataTestid="billing-state-banner-trial"
             />
           )}
-          {user !== null && isPastDue && (
+          {user !== null && billingBanner?.kind === "past_due" && (
             <BillingStateBanner
-              variant="destructive"
-              message="Seu pagamento está em atraso. Regularize para manter o acesso."
+              variant={billingBanner.variant}
+              message={billingBanner.message}
               ctaLabel={isOpeningPortal ? "Abrindo..." : "Atualizar pagamento"}
               onCta={handleOpenPortal}
               ctaDisabled={isOpeningPortal}
-              dataTestid="billing-state-banner-past-due"
+              dataTestid={billingBanner.dataTestid}
             />
           )}
-          {user !== null && isCancelAtPeriodEnd && (
+          {user !== null && billingBanner?.kind === "cancel_scheduled" && (
             <BillingStateBanner
-              variant="warning"
-              message={`Sua assinatura será cancelada em ${cancelAtFormatted}. Reativar?`}
+              variant={billingBanner.variant}
+              message={billingBanner.message}
               ctaLabel={isReactivating ? "Reativando..." : "Reativar assinatura"}
               onCta={handleReactivate}
               ctaDisabled={isReactivating}
-              dataTestid="billing-state-banner-cancel-period-end"
+              dataTestid={billingBanner.dataTestid}
             />
           )}
+          {user !== null &&
+            (billingBanner?.kind === "manual_expiring" || billingBanner?.kind === "manual_expired") && (
+              <BillingStateBanner
+                variant={billingBanner.variant}
+                message={billingBanner.message}
+                ctaLabel="Falar com a ProOps"
+                onCta={handleContactSupport}
+                dataTestid={billingBanner.dataTestid}
+              />
+            )}
           {user !== null && activePastDueAddons.length === 1 && (
             <BillingStateBanner
               variant="warning"

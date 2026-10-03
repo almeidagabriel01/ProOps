@@ -22,22 +22,28 @@ const formatBRL = (value: number) =>
  * current live price for their plan tier. When drift is detected and the
  * renewal is within 30 days, the UI shows a warning banner.
  *
- * Data sources:
- * - `tenant.subscription.unitAmount` — the price actually billed today (centavos),
- *   written by the backend cron that detects Stripe price drift
+ * Data sources (tenant doc first: it is what the single billing writer keeps
+ * current, and every member of the company can read it):
+ * - `tenant.unitAmount` — the price actually billed today (centavos), at the
+ *   ROOT. The nested `tenant.subscription.unitAmount` is no longer written, and
+ *   reading only it kept this banner from ever showing.
  * - live plan pricing from PlanService (fetched once, cached 5 min)
- * - `user.stripeSubscriptionId` — confirms this is a Stripe-managed subscription
- * - `user.isManualSubscription` — manual subs are exempt from drift logic
- * - `user.currentPeriodEnd` — next renewal date
- * - `user.billingInterval` — monthly or yearly
+ * - `stripeSubscriptionId` — confirms this is a Stripe-managed subscription
+ * - `isManualSubscription` — manual subs are exempt from drift logic
+ * - `currentPeriodEnd` — next renewal date
+ * - `billingInterval` — monthly or yearly
  */
 export function usePriceChange(): PriceChangeInfo {
   const { user } = useAuth();
   const { tenant } = useTenant();
   const [livePlan, setLivePlan] = useState<UserPlan | null>(null);
 
-  const { planId, stripeSubscriptionId, isManualSubscription, billingInterval, currentPeriodEnd } =
-    user ?? {};
+  const planId = user?.planId;
+  const stripeSubscriptionId = tenant?.stripeSubscriptionId || user?.stripeSubscriptionId;
+  const isManualSubscription = tenant?.isManualSubscription ?? user?.isManualSubscription;
+  const billingInterval = tenant?.billingInterval ?? user?.billingInterval;
+  const currentPeriodEnd = tenant?.currentPeriodEnd ?? user?.currentPeriodEnd;
+  const snapshotUnitAmount = tenant?.unitAmount ?? tenant?.subscription?.unitAmount ?? null;
 
   // Fetch the live plan for the user's plan tier once.
   // effectiveLivePlan is null whenever the subscription is not Stripe-managed so
@@ -84,7 +90,7 @@ export function usePriceChange(): PriceChangeInfo {
     }
 
     // Snapshot price the customer currently pays (written to tenant doc by backend)
-    const snapshotCentavos = tenant?.subscription?.unitAmount;
+    const snapshotCentavos = snapshotUnitAmount;
     if (snapshotCentavos == null || effectiveLivePlan == null) {
       return noChange;
     }
@@ -123,7 +129,7 @@ export function usePriceChange(): PriceChangeInfo {
     isManualSubscription,
     billingInterval,
     currentPeriodEnd,
-    tenant?.subscription?.unitAmount,
+    snapshotUnitAmount,
     effectiveLivePlan,
   ]);
 }
