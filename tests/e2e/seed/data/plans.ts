@@ -23,6 +23,8 @@ export interface SeedPlanTenant {
   uid: string;
   email: string;
   name: string;
+  /** Nicho da empresa; sem ele, automação. */
+  niche?: "automacao_residencial" | "climatizacao";
   /** Add-ons ativos na coleção `addons`. */
   addons?: Array<
     | "financial"
@@ -108,6 +110,22 @@ export const PLAN_CONTRACTS_CLIENT_ID = "contact-contracts-loja";
 export const PLAN_CONTRACTS_WALLET_ID = "wallet-contracts-main";
 
 /**
+ * Empresa de climatização, exclusiva de `field-service/pmoc.spec.ts`: o PMOC
+ * só existe nesse nicho. Pro, que traz contratos e o financeiro.
+ */
+export const PLAN_PMOC: SeedPlanTenant = {
+  tenantId: "tenant-plan-pmoc",
+  tier: "pro",
+  uid: "user-plan-pmoc",
+  email: "pmoc@plans.test",
+  name: "Master Climatização",
+  niche: "climatizacao",
+};
+export const PLAN_PMOC_CLIENT_ID = "contact-pmoc-clinica";
+export const PLAN_PMOC_WALLET_ID = "wallet-pmoc-main";
+export const PLAN_PMOC_EQUIPMENT_ID = "equipment-pmoc-split";
+
+/**
  * Donos de conta Pro exclusivos do tutorial (`onboarding/` e
  * `mobile/onboarding.spec.ts`). O spec reescreve `users/{uid}.onboarding` a
  * cada teste, então nenhum outro arquivo pode usar estes usuários: o card
@@ -137,6 +155,7 @@ export const PLAN_TENANTS = [
   PLAN_PRO_ADDONS,
   PLAN_STARTER_FIELD_SERVICE,
   PLAN_CONTRACTS,
+  PLAN_PMOC,
   PLAN_ONBOARDING,
   PLAN_ONBOARDING_MOBILE,
 ];
@@ -156,7 +175,7 @@ export async function seedPlanTenants(
       id: seed.tenantId,
       tenantId: seed.tenantId,
       name: `Plan ${seed.tier}`,
-      niche: "automacao_residencial",
+      niche: seed.niche ?? "automacao_residencial",
       primaryColor: "#0EA5E9",
       plan: seed.tier,
       planId: seed.tier,
@@ -238,6 +257,43 @@ export async function seedPlanTenants(
     balance: 0,
     color: "#2563EB",
     isDefault: true,
+    status: "active",
+    createdAt: new Date("2024-01-01T00:00:00Z").toISOString(),
+    updatedAt: new Date("2024-01-01T00:00:00Z").toISOString(),
+  });
+
+  await db.collection("clients").doc(PLAN_PMOC_CLIENT_ID).set({
+    id: PLAN_PMOC_CLIENT_ID,
+    tenantId: PLAN_PMOC.tenantId,
+    name: "Clínica Centro",
+    email: "clinica.centro@example.com",
+    phone: "(11) 3333-5555",
+    address: { street: "Rua das Flores", number: "100", city: "São Paulo", state: "SP" },
+    types: ["cliente"],
+    searchTokens: buildSearchTokens("Clínica Centro", "clinica.centro@example.com", "(11) 3333-5555"),
+    createdAt: new Date("2024-01-01T00:00:00Z").toISOString(),
+    updatedAt: new Date("2024-01-01T00:00:00Z").toISOString(),
+  });
+  await db.collection("wallets").doc(PLAN_PMOC_WALLET_ID).set({
+    id: PLAN_PMOC_WALLET_ID,
+    tenantId: PLAN_PMOC.tenantId,
+    name: "Conta Principal",
+    type: "bank",
+    balance: 0,
+    color: "#2563EB",
+    isDefault: true,
+    status: "active",
+    createdAt: new Date("2024-01-01T00:00:00Z").toISOString(),
+    updatedAt: new Date("2024-01-01T00:00:00Z").toISOString(),
+  });
+  await db.collection("customer_equipment").doc(PLAN_PMOC_EQUIPMENT_ID).set({
+    tenantId: PLAN_PMOC.tenantId,
+    clientId: PLAN_PMOC_CLIENT_ID,
+    clientName: "Clínica Centro",
+    name: "Split da recepção",
+    type: "Split hi-wall",
+    brand: "Frioteck",
+    model: "Inverter 18.000",
     status: "active",
     createdAt: new Date("2024-01-01T00:00:00Z").toISOString(),
     updatedAt: new Date("2024-01-01T00:00:00Z").toISOString(),
