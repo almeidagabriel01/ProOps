@@ -63,8 +63,11 @@ Runs on PRs and Merge Queue events:
   `*.integration.test.ts` ficam de fora). O Jest do backend entrou no CI em
   2026-09-29: até ali só rodava na máquina de quem lembrasse, e a cobrança dos
   contratos (rotina diária que grava lançamentos) não podia depender disso.
-  Localmente, rode por arquivo com `--runInBand`: a suíte inteira em paralelo
-  trava uma máquina de desenvolvimento (em série, ~25 min)
+  O ts-jest roda com `isolatedModules` (só transpila, sem checar tipos): com a
+  checagem a suíte levava ~25 min em série, passou dos 20 min do job em
+  2026-10-03 e o CI cancelava sem reprovar teste nenhum, escondendo uma falha
+  real. Hoje ela leva ~1 min em série. Os tipos dos testes seguem cobrados pelo
+  `tsc --noEmit` do `type-check`
 - `firestore-rules` — Jest security rules (reusable)
 - `e2e` — Playwright E2E **sharded across 4 parallel runners** (`--shard=N/4`), ~7 min
 - `e2e-mobile` — Playwright no projeto `mobile-chrome` (Pixel 5, 393x851, `hasTouch`), **em 2 shards** (`--shard=N/2`). Roda **em paralelo** com `e2e`, não depende dele. Cobre `tests/e2e/mobile/**` + `smoke.spec.ts`.

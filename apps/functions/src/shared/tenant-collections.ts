@@ -42,6 +42,7 @@ export const TENANT_PURGE_BY_FIELD = [
   "technical_responsibles",
   "contract_invoice_claims",
   "shared_service_orders",
+  "shared_pmoc",
   "stock_movements",
   "tasks",
   "sales_goals",

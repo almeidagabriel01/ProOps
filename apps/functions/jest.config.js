@@ -12,6 +12,13 @@ module.exports = {
   testPathIgnorePatterns: ['/node_modules/', '\\.integration\\.test\\.ts$'],
   transform: {
     '^.+\\.ts$': ['ts-jest', {
+      // Só transpila, sem checar tipos: com a checagem cada arquivo de teste
+      // montava o programa TypeScript inteiro (~10s por arquivo, e o
+      // workerIdleMemoryLimit jogava o cache fora), e a suíte passou dos
+      // 20 min do job no CI, que cancelava sem reprovar teste nenhum. Em série
+      // ela leva ~1 min. Os tipos dos testes continuam cobrados pelo
+      // `tsc --noEmit` do job type-check (o tsconfig inclui todo o src).
+      isolatedModules: true,
       tsconfig: {
         module: 'commonjs',
         target: 'es2018',
