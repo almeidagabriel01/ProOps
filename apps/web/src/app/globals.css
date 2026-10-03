@@ -1006,6 +1006,70 @@ html.theme-transitioning * {
   padding-block: 0;
 }
 
+/* Celular: o mês é um mapa de pontos (ver `renderEventContent`). O evento do
+   FullCalendar perde o fundo e a borda que ele aplica por estilo inline, e o
+   que sobra é o ponto (ou a faixa, no evento de mais de um dia). */
+@media (max-width: 767.98px) {
+  .calendar-surface .fc .fc-dayGridMonth-view .calendar-event--mobile {
+    background: transparent !important;
+    border: 0 !important;
+    box-shadow: none;
+    margin-inline: 0.15rem;
+  }
+
+  .calendar-surface .fc .fc-dayGridMonth-view .fc-daygrid-day-frame {
+    min-height: 3.5rem;
+  }
+
+  .calendar-event-mark--dot {
+    display: block;
+    width: 0.45rem;
+    height: 0.45rem;
+    margin: 0.1rem auto;
+    border-radius: 999px;
+  }
+
+  .calendar-event-mark--bar {
+    display: block;
+    width: 100%;
+    height: 0.3rem;
+    margin-block: 0.15rem;
+    border-radius: 999px;
+  }
+
+  /* Na Lista o título quebra em vez de cortar: com `nowrap` numa célula de
+     tabela, um título longo alargava a tabela além do card, e o título e a
+     data do cabeçalho do dia saíam cortados pela direita. */
+  .calendar-surface .fc .fc-list .calendar-event-chip__title,
+  .calendar-surface .fc .fc-list .calendar-event-chip__meta {
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+  .calendar-surface .fc .fc-list-day-cushion {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    gap: 0 0.75rem;
+  }
+  .calendar-surface .fc .fc-list-day-cushion > a {
+    float: none;
+  }
+
+  /* Na semana cada coluna tem ~40px: local e situação ficam para o diálogo e
+     para a visão Dia, e o selo nunca passa da coluna. */
+  .calendar-surface .fc .fc-timeGridWeek-view .calendar-event-chip__meta,
+  .calendar-surface .fc .fc-timeGridWeek-view .calendar-event-chip__status {
+    display: none;
+  }
+
+  .calendar-event-chip__status {
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
+
 .calendar-event-chip__status {
   display: inline-flex;
   width: fit-content;
@@ -3002,4 +3066,35 @@ html[data-cookie-consent="pending"] .cookie-banner {
     [role="radio"]
   ) {
   opacity: 0.65;
+}
+
+/* Fileira de abas que rola na horizontal: esmaece a borda do lado em que ainda
+   há aba escondida, para a pessoa saber que dá para arrastar. Os atributos vêm
+   de `useHorizontalScrollAffordance`. Só abaixo de `md`: no desktop as
+   fileiras cabem e nada muda. */
+@media (max-width: 767.98px) {
+  .scroll-fade-x[data-fade-start="true"] {
+    -webkit-mask-image: linear-gradient(to right, transparent, #000 1.75rem);
+    mask-image: linear-gradient(to right, transparent, #000 1.75rem);
+  }
+  .scroll-fade-x[data-fade-end="true"] {
+    -webkit-mask-image: linear-gradient(to left, transparent, #000 1.75rem);
+    mask-image: linear-gradient(to left, transparent, #000 1.75rem);
+  }
+  .scroll-fade-x[data-fade-start="true"][data-fade-end="true"] {
+    -webkit-mask-image: linear-gradient(
+      to right,
+      transparent,
+      #000 1.75rem,
+      #000 calc(100% - 1.75rem),
+      transparent
+    );
+    mask-image: linear-gradient(
+      to right,
+      transparent,
+      #000 1.75rem,
+      #000 calc(100% - 1.75rem),
+      transparent
+    );
+  }
 }

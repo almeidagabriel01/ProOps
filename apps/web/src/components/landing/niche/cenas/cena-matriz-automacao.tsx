@@ -20,6 +20,39 @@ const k = LARGURA / 100;
 
 const chave = (ambiente: number, sistema: number) => `${ambiente}:${sistema}`;
 
+const PASSO_X = 56;
+const PASSO_Y = 52;
+/** Meia largura do maior símbolo (o Wi-Fi) com uma folga até a parede. */
+const FOLGA_DA_PAREDE = 22;
+
+/**
+ * Onde cada símbolo ligado fica dentro do cômodo. Numa fileira só, quatro
+ * sistemas no Quarto (o cômodo estreito) passavam da parede e saíam da planta;
+ * quando a fileira não cabe, os símbolos quebram em linhas equilibradas (2x2 em
+ * vez de 3+1), centradas no cômodo.
+ */
+export function posicoesNoComodo(
+  quantidade: number,
+  comodo: { x: number; y: number; w: number; h: number },
+): Array<{ x: number; y: number }> {
+  if (quantidade === 0) return [];
+  const largura = comodo.w * k;
+  const cabemNaFileira = Math.max(1, Math.floor((largura - 2 * FOLGA_DA_PAREDE) / PASSO_X) + 1);
+  const linhas = Math.ceil(quantidade / Math.min(quantidade, cabemNaFileira));
+  const porLinha = Math.ceil(quantidade / linhas);
+  const cx = (comodo.x + comodo.w / 2) * k;
+  const cy = (comodo.y + comodo.h / 2) * k + 6;
+  return Array.from({ length: quantidade }, (_, n) => {
+    const linha = Math.floor(n / porLinha);
+    const naLinha = Math.min(porLinha, quantidade - linha * porLinha);
+    const coluna = n - linha * porLinha;
+    return {
+      x: cx + (coluna - (naLinha - 1) / 2) * PASSO_X,
+      y: cy + (linha - (linhas - 1) / 2) * PASSO_Y,
+    };
+  });
+}
+
 /** O símbolo de cada sistema dentro do cômodo, desenhado em torno de (x, y). */
 function GlifoDoSistema({ glifo, x, y, gradiente }: { glifo: Glifo; x: number; y: number; gradiente: string }) {
   switch (glifo) {
@@ -117,21 +150,26 @@ export function CenaMatrizAutomacao({ dados }: { dados: Dados; modulos: readonly
       <rect x="2" y="2" width={LARGURA - 4} height={ALTURA - 4} rx="6" fill="none" stroke="currentColor" strokeWidth="3" />
       {dados.ambientes.map((ambiente, a) => {
         const ativos = dados.sistemas.map((s, i) => ({ s, i })).filter(({ i }) => ligadas.has(chave(a, i)));
-        const cx = (ambiente.x + ambiente.w / 2) * k;
-        const cy = (ambiente.y + ambiente.h / 2) * k;
-        const passo = 56;
+        const posicoes = posicoesNoComodo(ativos.length, ambiente);
+        const recorte = `${gradiente}-comodo-${a}`;
         return (
           <g key={ambiente.nome}>
+            {/* O halo da luz é mais largo que o símbolo: o recorte o mantém dentro das paredes. */}
+            <clipPath id={recorte}>
+              <rect x={ambiente.x * k} y={ambiente.y * k} width={ambiente.w * k} height={ambiente.h * k} rx="4" />
+            </clipPath>
             <rect x={ambiente.x * k} y={ambiente.y * k} width={ambiente.w * k} height={ambiente.h * k} rx="4" fill="none" stroke="currentColor" strokeWidth="1.5" />
             <text x={ambiente.x * k + 12} y={ambiente.y * k + 22} className="fill-current text-[12px] font-semibold" opacity="0.65">
               {ambiente.nome}
             </text>
-            {ativos.map(({ s, i }, n) => (
-              <g key={s.nome} className="cena-peca" style={{ "--ordem": n, "--de-y": "8px" } as React.CSSProperties}>
-                <GlifoDoSistema glifo={s.glifo} x={cx + (n - (ativos.length - 1) / 2) * passo} y={cy + 6} gradiente={gradiente} />
-                <title>{`${ambiente.nome}: ${dados.sistemas[i].nome}`}</title>
-              </g>
-            ))}
+            <g clipPath={`url(#${recorte})`}>
+              {ativos.map(({ s, i }, n) => (
+                <g key={s.nome} className="cena-peca" style={{ "--ordem": n, "--de-y": "8px" } as React.CSSProperties}>
+                  <GlifoDoSistema glifo={s.glifo} x={posicoes[n].x} y={posicoes[n].y} gradiente={gradiente} />
+                  <title>{`${ambiente.nome}: ${dados.sistemas[i].nome}`}</title>
+                </g>
+              ))}
+            </g>
           </g>
         );
       })}

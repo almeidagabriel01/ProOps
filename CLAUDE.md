@@ -260,10 +260,17 @@ a chave principal; `sm` (640px) onde ajuda. Regras ao mexer em UI autenticada:
   Por serem media queries elas vencem um `p-0` sem prefixo (e o twMerge não as
   remove — modificadores diferentes não conflitam). Conteúdo que precisa ir até
   a borda no celular tem que pedir `p-0 max-sm:p-0`.
+- **Fileira de abas que rola** (`SegmentedControl`, `TabsList`, a nav de
+  Configurações) usa `useHorizontalScrollAffordance`: centra a opção ativa
+  (marcada com `data-scroll-active`) e esmaece a borda com opções escondidas
+  (`.scroll-fade-x`). Sem isso a aba escolhida cai fora da tela e parece ter
+  voltado para a primeira. Num contêiner que rola, nunca `justify-center`:
+  use `justify-center-safe`, senão o começo fica inalcançável à esquerda.
 - **Guardrails:** `tests/e2e/mobile/no-overflow.spec.ts` falha se qualquer rota
   autenticada vazar na horizontal a 393px; `mobile/auth-forms.spec.ts` cobre os
   16px do login/cadastro; `mobile/transactions-layout.spec.ts` cobre a sangria e
-  o alinhamento dos lançamentos. Rode-os ao mexer em layout.
+  o alinhamento dos lançamentos; `mobile/abas-visiveis.spec.ts` cobre a aba
+  ativa à vista. Rode-os ao mexer em layout.
 
 ## Stack Versions
 

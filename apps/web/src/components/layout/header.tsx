@@ -3,6 +3,7 @@
 import * as React from "react";
 import {
   Compass,
+  Download,
   LifeBuoy,
   LogOut,
   MessageCircle,
@@ -38,6 +39,8 @@ import { getUserColor, getInitials } from "@/lib/avatar-utils";
 import { ImpersonationBar } from "@/components/layout/impersonation-bar";
 import { useOptionalOnboarding } from "@/components/onboarding/onboarding-provider";
 import { HelpPanel } from "@/components/layout/help-panel";
+import { InstallAppDialog } from "@/components/layout/install-app-dialog";
+import { useInstallPrompt } from "@/lib/pwa/install-prompt";
 import { HEADER_ICON_BUTTON_CLASS } from "@/components/layout/header-icon-button";
 
 const SUPPORT_HREF = buildWhatsAppHref(
@@ -85,6 +88,8 @@ export function Header({}: HeaderProps) {
     onboarding.steps.length > 0 &&
     String(user?.role || "").toLowerCase() !== "superadmin";
   const { isLoading: isPermLoading } = usePermissions();
+  const { option: installOption, promptInstall } = useInstallPrompt();
+  const [installHelpOpen, setInstallHelpOpen] = React.useState(false);
   const {
     tenant,
     clearViewingTenant,
@@ -218,6 +223,20 @@ export function Header({}: HeaderProps) {
                   <span>Tutorial da plataforma</span>
                 </DropdownMenuItem>
               )}
+              {/* Some quando já está instalado ou o navegador não instala. */}
+              {installOption && (
+                <DropdownMenuItem
+                  onClick={() =>
+                    installOption === "native"
+                      ? void promptInstall()
+                      : setInstallHelpOpen(true)
+                  }
+                  className="cursor-pointer"
+                >
+                  <Download className="mr-2 h-4 w-4" />
+                  <span>Instalar a ProOps</span>
+                </DropdownMenuItem>
+              )}
               {/* O bot no WhatsApp: link externo, não um módulo do ERP. Ele não
                   tem página, permissão nem nicho, e ocupava um lugar fixo na
                   dock para uma ação que nem é navegação. Sem a flag do tenant,
@@ -252,6 +271,10 @@ export function Header({}: HeaderProps) {
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
+          <InstallAppDialog
+            open={installHelpOpen}
+            onOpenChange={setInstallHelpOpen}
+          />
         </div>
       </div>
     </header>

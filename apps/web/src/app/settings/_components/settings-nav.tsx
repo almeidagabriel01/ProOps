@@ -10,6 +10,7 @@ import { getUserColor, getInitials } from "@/lib/avatar-utils";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useCurrentNicheConfig } from "@/hooks/useCurrentNicheConfig";
+import { useHorizontalScrollAffordance } from "@/hooks/use-horizontal-scroll-affordance";
 import { SETTINGS_NAV_GROUPS } from "./settings-nav-items";
 
 export function SettingsNav() {
@@ -18,6 +19,8 @@ export function SettingsNav() {
   const { user, isLoading: authLoading } = useAuth();
   const { companyName, logoUrl, avatarSeed } = useHeaderPresentation();
   const niche = useCurrentNicheConfig();
+  const { ref: rowRef, fadeProps } =
+    useHorizontalScrollAffordance<HTMLDivElement>(pathname);
 
   const userName = user?.name?.trim() || companyName;
 
@@ -28,7 +31,15 @@ export function SettingsNav() {
         aria-label="Navegação de configurações"
         className="rounded-xl border border-border/60 bg-card p-2"
       >
-        <div className="flex flex-row justify-center gap-1 overflow-x-auto lg:flex-col lg:justify-start lg:gap-3 lg:overflow-visible">
+        {/* Abaixo de `lg` a nav é uma fileira que rola. `justify-center-safe`,
+            e não `justify-center`: centrar um conteúdo mais largo que o
+            contêiner empurra o começo para fora pela esquerda, onde a rolagem
+            não alcança, e "Segurança" e "Equipe" ficavam inacessíveis. */}
+        <div
+          ref={rowRef}
+          {...fadeProps}
+          className="scroll-fade-x flex flex-row justify-center-safe gap-1 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden lg:flex-col lg:justify-start lg:gap-3 lg:overflow-visible"
+        >
           {SETTINGS_NAV_GROUPS.map((group) => (
             <div
               key={group.label}
@@ -46,6 +57,7 @@ export function SettingsNav() {
                     key={item.href}
                     href={item.href}
                     aria-current={isActive ? "page" : undefined}
+                    data-scroll-active={isActive ? "true" : undefined}
                     className={cn(
                       "relative flex shrink-0 items-center gap-2 lg:gap-3 whitespace-nowrap rounded-lg px-2 lg:px-3 py-2 text-xs lg:text-sm transition-colors",
                       isActive

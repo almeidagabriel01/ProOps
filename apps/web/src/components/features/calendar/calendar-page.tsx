@@ -6,7 +6,10 @@ import dayGridPlugin from "@fullcalendar/daygrid";
 import timeGridPlugin from "@fullcalendar/timegrid";
 import listPlugin from "@fullcalendar/list";
 import interactionPlugin from "@fullcalendar/interaction";
-import type { EventResizeDoneArg } from "@fullcalendar/interaction";
+import type {
+  DateClickArg,
+  EventResizeDoneArg,
+} from "@fullcalendar/interaction";
 import ptBrLocale from "@fullcalendar/core/locales/pt-br";
 import type {
   CalendarApi,
@@ -27,6 +30,7 @@ import {
   Link2,
   RefreshCcw,
   Search,
+  SlidersHorizontal,
   Unlink2,
   XCircle,
 } from "lucide-react";
@@ -36,6 +40,14 @@ import { SelectTenantState } from "@/components/shared/select-tenant-state";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -45,6 +57,7 @@ import { useAuth } from "@/providers/auth-provider";
 import { useTenant } from "@/providers/tenant-provider";
 import { usePagePermission } from "@/hooks/usePagePermission";
 import { useIsMobile, useMediaQuery } from "@/hooks/use-is-mobile";
+import { useHorizontalScrollAffordance } from "@/hooks/use-horizontal-scroll-affordance";
 import { usePermissions } from "@/providers/permissions-provider";
 import { usePlanLimits } from "@/hooks/usePlanLimits";
 import { CalendarService } from "@/services/calendar-service";
@@ -202,6 +215,13 @@ const NAVIGATION_LABELS: Record<
   timeGridDay: { prev: "Dia anterior", next: "Próximo dia" },
   listWeek: { prev: "Semana anterior", next: "Próxima semana" },
 };
+
+const ALL_STATUSES: CalendarEvent["status"][] = [
+  "pending",
+  "scheduled",
+  "completed",
+  "canceled",
+];
 
 function CalendarStatPill(props: {
   label: string;
@@ -381,12 +401,15 @@ function UpcomingEventsCard(props: {
             >
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
-                  <div className="flex items-center gap-2">
+                  {/* `min-w-0` na linha e no título: sem ele o `truncate` não
+                      encolhe nada, e um título longo empurrava o selo para
+                      fora do card no celular. */}
+                  <div className="flex min-w-0 items-center gap-2">
                     <span
-                      className="h-2.5 w-2.5 rounded-full"
+                      className="h-2.5 w-2.5 shrink-0 rounded-full"
                       style={{ backgroundColor: event.color }}
                     />
-                    <p className="truncate font-medium">{event.title}</p>
+                    <p className="min-w-0 truncate font-medium">{event.title}</p>
                   </div>
                   <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
                     <span>
@@ -401,7 +424,7 @@ function UpcomingEventsCard(props: {
                     ) : null}
                   </div>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex shrink-0 items-center gap-2">
                   <Badge variant={STATUS_BADGES[event.status]}>
                     {STATUS_LABELS[event.status]}
                   </Badge>
@@ -434,10 +457,13 @@ export function CalendarPage() {
   });
   const [statusFilter, setStatusFilter] = React.useState<
     CalendarEvent["status"][]
-  >(["pending", "scheduled", "completed", "canceled"]);
+  >([...ALL_STATUSES]);
   const [searchTerm, setSearchTerm] = React.useState("");
   const deferredSearch = React.useDeferredValue(searchTerm);
   const [showWeekends, setShowWeekends] = React.useState(true);
+  const [filtersOpen, setFiltersOpen] = React.useState(false);
+  const { ref: statsRowRef, fadeProps: statsFadeProps } =
+    useHorizontalScrollAffordance<HTMLDivElement>(undefined);
   const [currentView, setCurrentView] =
     React.useState<CalendarViewType>("dayGridMonth");
   const isMobile = useIsMobile();
@@ -874,6 +900,11 @@ export function CalendarPage() {
     };
   }, [isMobile]);
 
+  function handleOpenMobileDay(date: Date) {
+    setCurrentView("timeGridDay");
+    getCalendarApi()?.changeView("timeGridDay", date);
+  }
+
   function handleCalendarNavigation(action: "prev" | "next" | "today") {
     const api = getCalendarApi();
     if (!api) return;
@@ -898,6 +929,27 @@ export function CalendarPage() {
       content.event.extendedProps.googleSyncStatus || "disabled",
     );
     const statusLabel = STATUS_LABELS[status as CalendarEvent["status"]];
+    const summary = [content.event.title, content.timeText, location, statusLabel]
+      .filter(Boolean)
+      .join(" · ");
+
+    // No celular cada dia do mês tem ~40px: nem o horário cabe, e ele
+    // transbordava para o dia vizinho. O mês vira um mapa de quando há
+    // compromisso (um ponto por evento, uma faixa para o que atravessa dias), e
+    // tocar no dia abre a visão Dia com o detalhe.
+    if (isMobile && content.view.type === "dayGridMonth") {
+      const spansDays = !(content.isStart && content.isEnd);
+      return (
+        <span
+          className={
+            spansDays ? "calendar-event-mark--bar" : "calendar-event-mark--dot"
+          }
+          style={{ backgroundColor: content.event.borderColor }}
+          title={summary}
+          aria-label={summary}
+        />
+      );
+    }
 
     // Na grade do mês o chip é uma linha só: com título, hora, local e status
     // empilhados, cada semana crescia além da altura da tela e a última ficava
@@ -907,9 +959,7 @@ export function CalendarPage() {
       return (
         <div
           className={`calendar-event-chip calendar-event-chip--compact calendar-event-chip--${status}`}
-          title={[content.event.title, content.timeText, location, statusLabel]
-            .filter(Boolean)
-            .join(" · ")}
+          title={summary}
         >
           {content.timeText ? (
             <span className="calendar-event-chip__time">
@@ -967,10 +1017,147 @@ export function CalendarPage() {
     );
   }
 
+  const activeFilterCount =
+    (searchTerm.trim() ? 1 : 0) +
+    (showWeekends ? 0 : 1) +
+    (ALL_STATUSES.length - statusFilter.length);
+
+  const periodNavigation = (
+    <>
+      <div className="flex h-10 items-center gap-1 rounded-full border border-border/60 bg-background/80 p-1">
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          className="h-8 w-8 rounded-full"
+          onClick={() => handleCalendarNavigation("prev")}
+          aria-label={NAVIGATION_LABELS[currentView].prev}
+          title={NAVIGATION_LABELS[currentView].prev}
+        >
+          <ChevronLeft className="h-4 w-4" />
+        </Button>
+        <span
+          className="min-w-[9.5rem] px-1 text-center text-sm font-medium text-foreground"
+          aria-live="polite"
+        >
+          {currentTitle ||
+            formatRangeLabel(range.startMs, range.endMs)}
+        </span>
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          className="h-8 w-8 rounded-full"
+          onClick={() => handleCalendarNavigation("next")}
+          aria-label={NAVIGATION_LABELS[currentView].next}
+          title={NAVIGATION_LABELS[currentView].next}
+        >
+          <ChevronRight className="h-4 w-4" />
+        </Button>
+      </div>
+
+      <Button
+        type="button"
+        variant="outline"
+        className="h-10 rounded-full border-border/60 bg-background/80 px-4"
+        onClick={() => handleCalendarNavigation("today")}
+        disabled={isTodayInView}
+        title="Voltar para o período de hoje"
+      >
+        Hoje
+      </Button>
+
+      <Tabs
+        value={currentView}
+        onValueChange={handleCalendarViewChange}
+        className="w-auto max-md:max-w-full"
+      >
+        <TabsList className="h-10 rounded-full bg-muted/35 p-1">
+          <TabsTrigger
+            value="dayGridMonth"
+            className="rounded-full px-3 py-1"
+          >
+            Mes
+          </TabsTrigger>
+          <TabsTrigger
+            value="timeGridWeek"
+            className="rounded-full px-3 py-1"
+          >
+            Semana
+          </TabsTrigger>
+          <TabsTrigger
+            value="timeGridDay"
+            className="rounded-full px-3 py-1"
+          >
+            Dia
+          </TabsTrigger>
+          <TabsTrigger
+            value="listWeek"
+            className="rounded-full px-3 py-1"
+          >
+            Lista
+          </TabsTrigger>
+        </TabsList>
+      </Tabs>
+    </>
+  );
+
+  const searchField = (
+    <Input
+      value={searchTerm}
+      onChange={(event) => setSearchTerm(event.target.value)}
+      placeholder="Buscar por titulo, local ou observacao"
+      icon={<Search className="h-4 w-4" />}
+      className="h-10 rounded-full border-border/60 bg-background/80 py-2 shadow-none focus:shadow-lg"
+    />
+  );
+
+  const renderWeekendToggle = (testId: string) => (
+    // Abaixo de `sm` não há largura mínima, e o `justify-between` sozinho
+    // encostava o texto na chave.
+    <div
+      data-testid={testId}
+      className="flex h-10 items-center justify-between rounded-full border border-border/60 bg-muted/20 px-3 text-sm max-sm:gap-3 sm:min-w-[170px]"
+    >
+      <span className="text-muted-foreground">Fim de semana</span>
+      <Switch checked={showWeekends} onCheckedChange={setShowWeekends} />
+    </div>
+  );
+
+  const statusFilterButtons = ALL_STATUSES.map((status) => {
+    const enabled = statusFilter.includes(status);
+    return (
+      <button
+        key={status}
+        type="button"
+        onClick={() =>
+          setStatusFilter((current) =>
+            current.includes(status)
+              ? current.filter((item) => item !== status)
+              : [...current, status],
+          )
+        }
+        className={`inline-flex h-9 items-center whitespace-nowrap rounded-full border px-3 text-sm transition ${
+          enabled
+            ? "cursor-pointer border-primary/30 bg-primary/10 text-primary"
+            : "cursor-pointer border-border/60 bg-background/80 text-muted-foreground"
+        }`}
+      >
+        {STATUS_LABELS[status]}
+      </button>
+    );
+  });
+
   return (
-    <div className="flex min-h-0 flex-col overflow-hidden xl:h-[calc(100dvh-8rem)]">
-      <Card className="calendar-surface flex min-h-0 flex-1 overflow-hidden rounded-[32px] border-border/60 bg-card/95 shadow-[0_28px_90px_rgba(15,23,42,0.08)]">
-        <div className="flex min-h-0 flex-1 flex-col xl:flex-row">
+    // `overflow-clip` no celular, e não `hidden`: `hidden` faz do card um
+    // contêiner de rolagem, e a barra do período, que gruda no topo enquanto
+    // o <main> rola, ficaria presa a ele e nunca grudaria.
+    <div className="flex min-h-0 flex-col overflow-hidden max-md:overflow-clip xl:h-[calc(100dvh-8rem)]">
+      <Card className="calendar-surface flex min-h-0 flex-1 overflow-hidden max-md:overflow-clip rounded-[32px] border-border/60 bg-card/95 shadow-[0_28px_90px_rgba(15,23,42,0.08)]">
+        {/* `min-w-0`: a fileira de contadores, que no celular é uma linha
+            só, impunha a própria largura (~580px) ao bloco inteiro, e a grade
+            do mês saía da tela, cortada pelo card. */}
+        <div className="flex min-h-0 flex-1 flex-col max-md:min-w-0 xl:flex-row">
           <section className="flex min-h-0 flex-1 flex-col">
             <div className="shrink-0 border-b border-border/60 px-5 py-3 xl:px-6">
               <div className="flex flex-col gap-3">
@@ -991,7 +1178,13 @@ export function CalendarPage() {
                     <PageViewSwitcher className="mt-3" />
                   </div>
 
-                  <div className="flex flex-wrap items-center gap-2 xl:justify-end">
+                  {/* Numa linha só no celular, rolando de lado: em duas
+                      linhas os contadores empurravam o calendário. */}
+                  <div
+                    ref={statsRowRef}
+                    {...statsFadeProps}
+                    className="scroll-fade-x flex flex-wrap items-center gap-2 xl:justify-end max-md:flex-nowrap max-md:overflow-x-auto max-md:[scrollbar-width:none] max-md:[&::-webkit-scrollbar]:hidden"
+                  >
                     <CalendarStatPill
                       label="Hoje"
                       value={stats.today}
@@ -1018,107 +1211,41 @@ export function CalendarPage() {
                 </div>
 
                 <div className="flex flex-col gap-2">
-                  <div className="flex min-w-0 flex-wrap items-center gap-2">
-                    <div className="flex h-10 items-center gap-1 rounded-full border border-border/60 bg-background/80 p-1">
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8 rounded-full"
-                        onClick={() => handleCalendarNavigation("prev")}
-                        aria-label={NAVIGATION_LABELS[currentView].prev}
-                        title={NAVIGATION_LABELS[currentView].prev}
-                      >
-                        <ChevronLeft className="h-4 w-4" />
-                      </Button>
-                      <span
-                        className="min-w-[9.5rem] px-1 text-center text-sm font-medium text-foreground"
-                        aria-live="polite"
-                      >
-                        {currentTitle ||
-                          formatRangeLabel(range.startMs, range.endMs)}
-                      </span>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8 rounded-full"
-                        onClick={() => handleCalendarNavigation("next")}
-                        aria-label={NAVIGATION_LABELS[currentView].next}
-                        title={NAVIGATION_LABELS[currentView].next}
-                      >
-                        <ChevronRight className="h-4 w-4" />
-                      </Button>
+                  {/* No celular a navegação do período fica presa acima dos
+                      compromissos (ver logo abaixo do cabeçalho). */}
+                  {isMobile ? null : (
+                    <div className="flex min-w-0 flex-wrap items-center gap-2">
+                      {periodNavigation}
                     </div>
-
-                    <Button
-                      type="button"
-                      variant="outline"
-                      className="h-10 rounded-full border-border/60 bg-background/80 px-4"
-                      onClick={() => handleCalendarNavigation("today")}
-                      disabled={isTodayInView}
-                      title="Voltar para o período de hoje"
-                    >
-                      Hoje
-                    </Button>
-
-                    <Tabs
-                      value={currentView}
-                      onValueChange={handleCalendarViewChange}
-                      className="w-auto"
-                    >
-                      <TabsList className="h-10 rounded-full bg-muted/35 p-1">
-                        <TabsTrigger
-                          value="dayGridMonth"
-                          className="rounded-full px-3 py-1"
-                        >
-                          Mes
-                        </TabsTrigger>
-                        <TabsTrigger
-                          value="timeGridWeek"
-                          className="rounded-full px-3 py-1"
-                        >
-                          Semana
-                        </TabsTrigger>
-                        <TabsTrigger
-                          value="timeGridDay"
-                          className="rounded-full px-3 py-1"
-                        >
-                          Dia
-                        </TabsTrigger>
-                        <TabsTrigger
-                          value="listWeek"
-                          className="rounded-full px-3 py-1"
-                        >
-                          Lista
-                        </TabsTrigger>
-                      </TabsList>
-                    </Tabs>
-                  </div>
+                  )}
 
                   <div className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_auto] xl:items-center">
                     <div className="flex min-w-0 flex-wrap items-center gap-2">
-                      <div className="w-full min-w-[280px] sm:flex-1 sm:max-w-[360px] xl:max-w-[420px]">
-                        <Input
-                          value={searchTerm}
-                          onChange={(event) =>
-                            setSearchTerm(event.target.value)
-                          }
-                          placeholder="Buscar por titulo, local ou observacao"
-                          icon={<Search className="h-4 w-4" />}
-                          className="h-10 rounded-full border-border/60 bg-background/80 py-2 shadow-none focus:shadow-lg"
-                        />
+                      <div className="w-full min-w-0 sm:min-w-[280px] sm:flex-1 sm:max-w-[360px] xl:max-w-[420px] max-md:hidden">
+                        {searchField}
                       </div>
 
-                      <div className="flex h-10 items-center justify-between rounded-full border border-border/60 bg-muted/20 px-3 text-sm sm:min-w-[170px]">
-                        <span className="text-muted-foreground">
-                          Fim de semana
-                        </span>
-                        <Switch
-                          checked={showWeekends}
-                          onCheckedChange={setShowWeekends}
-                        />
+                      <div className="max-md:hidden">
+                        {renderWeekendToggle("calendar-weekend-toggle")}
                       </div>
+
+                      {/* No celular busca, fim de semana e situação moram
+                          numa janela: no cabeçalho eles empurravam o
+                          calendário para baixo da primeira tela. */}
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="h-10 rounded-full border-border/60 bg-background/80 px-4 md:hidden"
+                        onClick={() => setFiltersOpen(true)}
+                      >
+                        <SlidersHorizontal className="mr-2 h-4 w-4" />
+                        Filtros
+                        {activeFilterCount > 0 ? (
+                          <span className="ml-2 rounded-full bg-primary px-1.5 text-xs font-semibold text-primary-foreground">
+                            {activeFilterCount}
+                          </span>
+                        ) : null}
+                      </Button>
 
                       <Button
                         type="button"
@@ -1151,37 +1278,8 @@ export function CalendarPage() {
                       ) : null}
                     </div>
 
-                    <div className="flex min-w-0 flex-wrap items-center gap-2 xl:justify-end">
-                      {(
-                        [
-                          "pending",
-                          "scheduled",
-                          "completed",
-                          "canceled",
-                        ] as CalendarEvent["status"][]
-                      ).map((status) => {
-                        const enabled = statusFilter.includes(status);
-                        return (
-                          <button
-                            key={status}
-                            type="button"
-                            onClick={() =>
-                              setStatusFilter((current) =>
-                                current.includes(status)
-                                  ? current.filter((item) => item !== status)
-                                  : [...current, status],
-                              )
-                            }
-                            className={`inline-flex h-9 items-center whitespace-nowrap rounded-full border px-3 text-sm transition ${
-                              enabled
-                                ? "cursor-pointer border-primary/30 bg-primary/10 text-primary"
-                                : "cursor-pointer border-border/60 bg-background/80 text-muted-foreground"
-                            }`}
-                          >
-                            {STATUS_LABELS[status]}
-                          </button>
-                        );
-                      })}
+                    <div className="flex min-w-0 flex-wrap items-center gap-2 xl:justify-end max-md:hidden">
+                      {statusFilterButtons}
                       {isLoadingEvents ? (
                         <span className="text-sm text-muted-foreground">
                           Atualizando compromissos...
@@ -1192,6 +1290,19 @@ export function CalendarPage() {
                 </div>
               </div>
             </div>
+
+            {/* Num lugar só, conforme a tela: duas cópias deixariam dois
+                títulos de período no DOM. `-top-4` desconta o `p-4` do
+                <main>; com `top-0` a barra grudava 16px abaixo da borda e a
+                lista aparecia rolando por cima dela. */}
+            {isMobile ? (
+              <div
+                data-testid="calendar-mobile-navigation"
+                className="sticky -top-4 z-20 flex flex-wrap items-center gap-2 border-b border-border/60 bg-card/95 px-3 py-2 backdrop-blur"
+              >
+                {periodNavigation}
+              </div>
+            ) : null}
 
             <div className="relative min-h-0 flex-1 px-3 pb-3 pt-2 xl:px-4 xl:pb-4">
               <FullCalendar
@@ -1212,6 +1323,19 @@ export function CalendarPage() {
                 weekends={showWeekends}
                 events={calendarEvents}
                 eventContent={renderEventContent}
+                eventClassNames={
+                  isMobile ? "calendar-event--mobile" : undefined
+                }
+                dateClick={(arg: DateClickArg) => {
+                  if (isMobile && arg.view.type === "dayGridMonth") {
+                    handleOpenMobileDay(arg.date);
+                  }
+                }}
+                moreLinkClick={isMobile ? "timeGridDay" : "popover"}
+                // "mais +3" não cabe nos ~40px de um dia no celular.
+                moreLinkContent={
+                  isMobile ? (arg) => `+${arg.num}` : undefined
+                }
                 datesSet={(arg: DatesSetArg) => {
                   setCurrentView(arg.view.type as CalendarViewType);
                   setCurrentTitle(arg.view.title);
@@ -1298,6 +1422,33 @@ export function CalendarPage() {
           </aside>
         </div>
       </Card>
+
+      <Dialog open={filtersOpen} onOpenChange={setFiltersOpen}>
+        <DialogContent
+          className="sm:max-w-md"
+          // Sem isto o foco ia para a busca e o teclado subia por cima dos
+          // filtros assim que a janela abria.
+          onOpenAutoFocus={(event) => event.preventDefault()}
+        >
+          <DialogHeader>
+            <DialogTitle>Filtros da agenda</DialogTitle>
+            <DialogDescription>
+              O que aparece no calendário e na lista de compromissos.
+            </DialogDescription>
+          </DialogHeader>
+          {searchField}
+          {renderWeekendToggle("calendar-weekend-toggle-mobile")}
+          <div className="space-y-2">
+            <p className="text-sm font-medium">Situação</p>
+            <div className="flex flex-wrap gap-2">{statusFilterButtons}</div>
+          </div>
+          <DialogFooter>
+            <Button onClick={() => setFiltersOpen(false)}>
+              Ver compromissos
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <CalendarEventDialog
         open={dialogOpen}

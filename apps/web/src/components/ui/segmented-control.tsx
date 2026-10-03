@@ -3,6 +3,7 @@
 import * as React from "react";
 import { m as motion, AnimatePresence, useReducedMotion } from "motion/react";
 import { cn } from "@/lib/utils";
+import { useHorizontalScrollAffordance } from "@/hooks/use-horizontal-scroll-affordance";
 
 /**
  * Alternância entre visões de uma mesma tela.
@@ -42,17 +43,23 @@ export function SegmentedControl({
   onChange,
 }: SegmentedControlProps) {
   const shouldReduceMotion = useReducedMotion();
+  // Rolando, a opção ativa pode cair fora da barra: ela é trazida para o
+  // centro, e a borda com opções escondidas esmaece.
+  const { ref, fadeProps } = useHorizontalScrollAffordance<HTMLDivElement>(value);
 
   return (
     <div
+      ref={ref}
       role="group"
       aria-label={id}
+      {...fadeProps}
       className={cn(
         "bg-muted/60 p-1 rounded-xl inline-flex items-center gap-0.5",
         // Abas que não cabem rolam dentro da própria barra, em vez de
         // alargar a página: quatro filtros com contador ("Criadas por mim 12")
         // passam dos 393px de um celular e vazavam o <main> de Tarefas.
         "max-w-full overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden",
+        "scroll-fade-x",
       )}
     >
       {options.map((opt) => {
@@ -64,6 +71,7 @@ export function SegmentedControl({
             type="button"
             onClick={() => onChange(opt.value)}
             aria-pressed={isActive}
+            data-scroll-active={isActive ? "true" : undefined}
             className={cn(
               "relative h-8 px-3 rounded-lg text-xs font-medium",
               "transition-colors duration-150 cursor-pointer whitespace-nowrap",
