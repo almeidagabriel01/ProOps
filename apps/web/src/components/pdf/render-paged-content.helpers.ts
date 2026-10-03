@@ -24,6 +24,23 @@ import {
 import type { ProposalProductPricingDetails } from "@/lib/product-pricing";
 import type { TenantNiche } from "@/types";
 import { countsInProposalTotal } from "@/lib/proposal/monthly-lines";
+import {
+  chunkProducts,
+  groupProductArrangement,
+  looseProductArrangement,
+  resolvePdfProductLayout,
+} from "./product-layout";
+
+/** Altura estimada de uma linha do layout "Tabela"; a medição real corrige. */
+function estimateTableRowHeight(product: Product, settings: PdfDisplaySettings): number {
+  let height = settings.showProductImages ? 54 : 36;
+  if (settings.showProductDescriptions && product.productDescription) {
+    height += Math.ceil(product.productDescription.length / 80) * 13;
+  }
+  return height;
+}
+
+const TABLE_HEAD_HEIGHT = 28;
 
 export interface Product {
   productId: string;
@@ -262,6 +279,53 @@ export function buildContentItems(
   const items: ContentItem[] = [];
   let idCounter = 0;
   const generateId = (prefix: string) => `${prefix}-${idCounter++}`;
+  const productLayout = resolvePdfProductLayout(settings.productLayout);
+  const groupArrangement = groupProductArrangement(productLayout);
+  const looseArrangement = looseProductArrangement(productLayout);
+
+  // Itens avulsos (sem grupo), depois do cabeçalho deles, no layout escolhido.
+  const pushLooseProducts = (looseProducts: Product[]) => {
+    if (looseArrangement === "table") {
+      items.push({
+        type: "product-table-head",
+        id: generateId("product-table-head"),
+        data: { framed: false },
+        height: TABLE_HEAD_HEIGHT,
+      });
+      looseProducts.forEach((product, idx) => {
+        items.push({
+          type: "product-table-row",
+          id: generateId("product-table-row"),
+          data: { product, index: idx, framed: false },
+          height: estimateTableRowHeight(product, settings),
+        });
+      });
+      return;
+    }
+    if (looseArrangement === "pairs") {
+      chunkProducts(looseProducts, 2).forEach(([left, right]) => {
+        items.push({
+          type: "product-pair",
+          id: generateId("product-pair"),
+          data: { left, right: right || null },
+          height: Math.max(
+            calculateProductHeight(left, 80, settings),
+            right ? calculateProductHeight(right, 80, settings) : 0,
+          ),
+        });
+      });
+      return;
+    }
+    looseProducts.forEach((product, idx) => {
+      const h = calculateProductHeight(product, 80, settings);
+      items.push({
+        type: "product-row",
+        id: generateId("product-row"),
+        data: { ...product, index: idx },
+        height: h,
+      });
+    });
+  };
 
   const hasSistemas = proposal.sistemas && proposal.sistemas.length > 0;
   const hasExplicitPaymentTermsSection = sections.some(
@@ -387,15 +451,7 @@ export function buildContentItems(
         id: generateId("extra-products-header"),
         height: 60,
       });
-      extraProducts.forEach((product, idx) => {
-        const h = calculateProductHeight(product, 80, settings);
-        items.push({
-          type: "product-row",
-          id: generateId("product-row"),
-          data: { ...product, index: idx },
-          height: h,
-        });
-      });
+      pushLooseProducts(extraProducts);
     }
     items.push({
       type: "totals",
@@ -460,12 +516,23 @@ export function buildContentItems(
         if (visibleSortedProducts.length > 0) {
           // Ambiente header height (approx 40px)
           envHeight += 40;
-          // Products height - 2 products per row, so roughly half the total product height
-          const rawProductHeight =
-            calculateSistemaBlockHeight(visibleSortedProducts, settings) -
-            60 -
-            100; // Subtract footer/header base from helper
-          envHeight += Math.ceil(rawProductHeight / 2);
+          if (groupArrangement === "table") {
+            envHeight +=
+              TABLE_HEAD_HEIGHT +
+              visibleSortedProducts.reduce(
+                (sum, p) => sum + estimateTableRowHeight(p, settings),
+                0,
+              );
+          } else {
+            // Cards: dois por linha dividem a altura ao meio; um por linha, não.
+            const rawProductHeight =
+              calculateSistemaBlockHeight(visibleSortedProducts, settings) -
+              60 -
+              100; // Subtract footer/header base from helper
+            envHeight += Math.ceil(
+              rawProductHeight / (groupArrangement === "single" ? 1 : 2),
+            );
+          }
         }
 
         return {
@@ -508,28 +575,46 @@ export function buildContentItems(
           });
         }
 
-        // Add products as pairs (2 per row)
         const visibleProducts = group.products;
-        for (let idx = 0; idx < visibleProducts.length; idx += 2) {
-          const left = visibleProducts[idx];
-          const right = visibleProducts[idx + 1];
-          const h1 = calculateProductHeight(left, 80, settings);
-          const h2 = right ? calculateProductHeight(right, 80, settings) : 0;
-          const rowHeight = Math.max(h1, h2);
-
+        if (groupArrangement === "table") {
           items.push({
-            type: "sistema-product-pair",
-            id: generateId("sistema-product-pair"),
-            data: {
-              left,
-              right: right || null,
-              sistema,
-              isFirst: idx === 0,
-              isLast: idx + 2 >= visibleProducts.length,
-              pdfDisplaySettings: settings,
-            },
-            height: rowHeight,
+            type: "product-table-head",
+            id: generateId("product-table-head"),
+            data: { framed: true },
+            height: TABLE_HEAD_HEIGHT,
           });
+          visibleProducts.forEach((product, idx) => {
+            items.push({
+              type: "product-table-row",
+              id: generateId("product-table-row"),
+              data: { product, index: idx, framed: true },
+              height: estimateTableRowHeight(product, settings),
+            });
+          });
+        } else {
+          // Cards: dois por linha (padrão e grade) ou um por linha (lista).
+          const perRow = groupArrangement === "single" ? 1 : 2;
+          for (let idx = 0; idx < visibleProducts.length; idx += perRow) {
+            const left = visibleProducts[idx];
+            const right = perRow === 2 ? visibleProducts[idx + 1] : undefined;
+            const h1 = calculateProductHeight(left, 80, settings);
+            const h2 = right ? calculateProductHeight(right, 80, settings) : 0;
+            const rowHeight = Math.max(h1, h2);
+
+            items.push({
+              type: "sistema-product-pair",
+              id: generateId("sistema-product-pair"),
+              data: {
+                left,
+                right: right || null,
+                sistema,
+                isFirst: idx === 0,
+                isLast: idx + perRow >= visibleProducts.length,
+                pdfDisplaySettings: settings,
+              },
+              height: rowHeight,
+            });
+          }
         }
 
         // Add per-environment subtotal if setting is enabled and there are multiple environments
@@ -593,15 +678,7 @@ export function buildContentItems(
         id: generateId("product-header"),
         height: ESTIMATED_HEIGHTS.PRODUCT_HEADER,
       });
-      visibleProducts.forEach((product, i) => {
-        const h = calculateProductHeight(product, 80, settings);
-        items.push({
-          type: "product-row",
-          id: generateId("product-row"),
-          data: { ...product, index: i },
-          height: h,
-        });
-      });
+      pushLooseProducts(visibleProducts);
       items.push({
         type: "totals",
         id: generateId("totals"),
@@ -828,6 +905,7 @@ export function distributeIntoPages(
     "sistema-header",
     "ambiente-header",
     "extra-products-header",
+    "product-table-head",
   ]);
 
   // Minimum space threshold - only break if we've used at least 20% of the page

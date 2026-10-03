@@ -19,6 +19,11 @@ import { compareConfiguredDisplayItemWithExtras } from "@/lib/sort-text";
 import { getNicheConfig } from "@/lib/niches/config";
 import { cap } from "@/lib/niches/vocabulary";
 import { countsInProposalTotal } from "@/lib/proposal/monthly-lines";
+import {
+  groupProductArrangement,
+  resolvePdfProductLayout,
+} from "../product-layout";
+import { PdfProductTable } from "./pdf-product-table";
 
 /** Nome do local sem nome ("Ambiente", "Área"), pelo nicho da proposta. */
 function getPlaceFallbackName(tenantNiche?: TenantNiche | null): string {
@@ -266,6 +271,10 @@ export function PdfSistemaBlock({
   tenantNiche,
 }: PdfSistemaBlockProps) {
   const settings = resolvePdfDisplaySettings(pdfDisplaySettings);
+  const arrangement = groupProductArrangement(
+    resolvePdfProductLayout(settings.productLayout),
+  );
+  const perRow = arrangement === "single" ? 1 : 2;
   const placeFallbackName = getPlaceFallbackName(tenantNiche);
   const ambientes = resolveSistemaAmbientes(sistema, placeFallbackName);
   const productsForTotals = products.filter(
@@ -331,78 +340,88 @@ export function PdfSistemaBlock({
                   />
                 )}
 
-                <table
-                  style={{
-                    width: "100%",
-                    borderCollapse: "separate",
-                    borderSpacing: "8px",
-                    tableLayout: "fixed",
-                    margin: "0 auto",
-                    padding: "0 8px",
-                    boxSizing: "border-box",
-                  }}
-                >
-                  <tbody>
-                    {Array.from(
-                      { length: Math.ceil(activeProducts.length / 2) },
-                      (_, rowIdx) => {
-                        const left = activeProducts[rowIdx * 2];
-                        const right = activeProducts[rowIdx * 2 + 1];
-                        return (
-                          <tr key={rowIdx}>
-                            {right ? (
-                              <>
+                {arrangement === "table" ? (
+                  <PdfProductTable
+                    products={activeProducts}
+                    settings={settings}
+                    primaryColor={primaryColor}
+                    tenantNiche={tenantNiche}
+                  />
+                ) : (
+                  <table
+                    style={{
+                      width: "100%",
+                      borderCollapse: "separate",
+                      borderSpacing: "8px",
+                      tableLayout: "fixed",
+                      margin: "0 auto",
+                      padding: "0 8px",
+                      boxSizing: "border-box",
+                    }}
+                  >
+                    <tbody>
+                      {Array.from(
+                        { length: Math.ceil(activeProducts.length / perRow) },
+                        (_, rowIdx) => {
+                          const left = activeProducts[rowIdx * perRow];
+                          const right =
+                            perRow === 2 ? activeProducts[rowIdx * 2 + 1] : undefined;
+                          return (
+                            <tr key={rowIdx}>
+                              {right ? (
+                                <>
+                                  <td
+                                    style={{
+                                      verticalAlign: "top",
+                                      width: "50%",
+                                      padding: 0,
+                                    }}
+                                  >
+                                    <PdfSistemaProductCard
+                                      product={left}
+                                      primaryColor={primaryColor}
+                                      settings={settings}
+                                      evenBackground={(rowIdx * 2) % 2 === 0}
+                                      tenantNiche={tenantNiche}
+                                    />
+                                  </td>
+                                  <td
+                                    style={{
+                                      verticalAlign: "top",
+                                      width: "50%",
+                                      padding: 0,
+                                    }}
+                                  >
+                                    <PdfSistemaProductCard
+                                      product={right}
+                                      primaryColor={primaryColor}
+                                      settings={settings}
+                                      evenBackground={(rowIdx * 2 + 1) % 2 === 0}
+                                      tenantNiche={tenantNiche}
+                                    />
+                                  </td>
+                                </>
+                              ) : (
                                 <td
-                                  style={{
-                                    verticalAlign: "top",
-                                    width: "50%",
-                                    padding: 0,
-                                  }}
+                                  colSpan={2}
+                                  style={{ verticalAlign: "top", padding: 0 }}
                                 >
                                   <PdfSistemaProductCard
                                     product={left}
                                     primaryColor={primaryColor}
                                     settings={settings}
-                                    evenBackground={(rowIdx * 2) % 2 === 0}
+                                    evenBackground={perRow === 2 || rowIdx % 2 === 0}
                                     tenantNiche={tenantNiche}
                                   />
                                 </td>
-                                <td
-                                  style={{
-                                    verticalAlign: "top",
-                                    width: "50%",
-                                    padding: 0,
-                                  }}
-                                >
-                                  <PdfSistemaProductCard
-                                    product={right}
-                                    primaryColor={primaryColor}
-                                    settings={settings}
-                                    evenBackground={(rowIdx * 2 + 1) % 2 === 0}
-                                    tenantNiche={tenantNiche}
-                                  />
-                                </td>
-                              </>
-                            ) : (
-                              <td
-                                colSpan={2}
-                                style={{ verticalAlign: "top", padding: 0 }}
-                              >
-                                <PdfSistemaProductCard
-                                  product={left}
-                                  primaryColor={primaryColor}
-                                  settings={settings}
-                                  evenBackground={(rowIdx * 2) % 2 === 0}
-                                  tenantNiche={tenantNiche}
-                                />
-                              </td>
-                            )}
-                          </tr>
-                        );
-                      },
-                    )}
-                  </tbody>
-                </table>
+                              )}
+                            </tr>
+                          );
+                        },
+                      )}
+                    </tbody>
+                  </table>
+                )}
 
                 {settings.showEnvironmentSubtotals && ambientes.length > 1 && (
                   <div

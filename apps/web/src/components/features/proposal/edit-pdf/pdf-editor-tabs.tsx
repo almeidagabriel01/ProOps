@@ -13,6 +13,7 @@ import { PdfCoverTab } from "./pdf-cover-tab";
 import { PdfStyleTab } from "./pdf-style-tab";
 import { ThemeType } from "./pdf-theme-utils";
 import { computePrimaryForeground } from "@/utils/color-utils";
+import type { PdfProductLayout } from "@/components/pdf/product-layout";
 
 interface PdfEditorTabsProps {
   // Cover Tab Props
@@ -42,6 +43,8 @@ interface PdfEditorTabsProps {
   setFontFamily: (val: string) => void;
   repeatHeader: boolean;
   setRepeatHeader: (val: boolean) => void;
+  productLayout: PdfProductLayout;
+  setProductLayout: (val: PdfProductLayout) => void;
 
   // Content Tab Props
   sections: PdfSection[];
@@ -95,6 +98,8 @@ export function PdfEditorTabs({
   setFontFamily,
   repeatHeader,
   setRepeatHeader,
+  productLayout,
+  setProductLayout,
   sections,
   setSections,
   canEditPdfSections,
@@ -259,6 +264,8 @@ export function PdfEditorTabs({
           setFontFamily={setFontFamily}
           repeatHeader={repeatHeader}
           setRepeatHeader={setRepeatHeader}
+          productLayout={productLayout}
+          setProductLayout={setProductLayout}
           setSections={setSections}
           tenantColor={tenantColor}
           theme={theme}

@@ -65,6 +65,8 @@ export default function EditPdfPage() {
     setSections,
     repeatHeader,
     setRepeatHeader,
+    productLayout,
+    setProductLayout,
     canEditPdfSections,
     maxPdfTemplates,
 
@@ -211,6 +213,8 @@ export default function EditPdfPage() {
             setFontFamily={setFontFamily}
             repeatHeader={repeatHeader}
             setRepeatHeader={setRepeatHeader}
+            productLayout={productLayout}
+            setProductLayout={setProductLayout}
             sections={sections}
             setSections={setSections}
             canEditPdfSections={canEditPdfSections}
@@ -294,6 +298,7 @@ export default function EditPdfPage() {
                       sections,
                       coverElements,
                       repeatHeader,
+                      productLayout,
                     }}
                   />
                 </div>

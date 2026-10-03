@@ -35,6 +35,10 @@ import {
 } from "@/services/pdf/pdf-fonts";
 import { downloadProposalPdfFromBackend } from "@/services/pdf/download-proposal-pdf";
 import { mergeEditorPdfSettings } from "@/lib/proposal/pdf-settings-merge";
+import {
+  type PdfProductLayout,
+  resolvePdfProductLayout,
+} from "@/components/pdf/product-layout";
 
 interface PdfSettings {
   primaryColor?: string;
@@ -46,6 +50,7 @@ interface PdfSettings {
   coverImageFit?: "cover" | "contain";
   coverImagePosition?: string;
   repeatHeader?: boolean;
+  productLayout?: unknown;
   sections?: unknown[];
   coverElements?: CoverElement[];
   logoStyle?: "original" | "rounded" | "circle";
@@ -329,6 +334,7 @@ export function useEditPdfPage() {
     [proposal],
   );
   const [repeatHeader, setRepeatHeader] = useState(false);
+  const [productLayout, setProductLayout] = useState<PdfProductLayout>("default");
 
   // Cover elements
   const [coverElements, setCoverElements] = useState<CoverElement[]>([]);
@@ -359,6 +365,7 @@ export function useEditPdfPage() {
     coverImageFit,
     coverImagePosition,
     repeatHeader,
+    productLayout,
     sections,
     coverElements,
   };
@@ -506,6 +513,7 @@ export function useEditPdfPage() {
               if (s.coverImagePosition)
                 setCoverImagePosition(s.coverImagePosition);
               if (s.repeatHeader !== undefined) setRepeatHeader(s.repeatHeader);
+              setProductLayout(resolvePdfProductLayout(s.productLayout));
 
               // Load sections
               if (s.sections && s.sections.length > 0) {
@@ -573,6 +581,7 @@ export function useEditPdfPage() {
               if (s.coverImagePosition)
                 setCoverImagePosition(s.coverImagePosition);
               if (s.repeatHeader !== undefined) setRepeatHeader(s.repeatHeader);
+              setProductLayout(resolvePdfProductLayout(s.productLayout));
 
               // Load sections from tenant defaults
               if (s.sections && s.sections.length > 0) {
@@ -769,6 +778,8 @@ export function useEditPdfPage() {
     setSections: setSectionsNormalized,
     repeatHeader,
     setRepeatHeader,
+    productLayout,
+    setProductLayout,
     canEditPdfSections,
     maxPdfTemplates,
 

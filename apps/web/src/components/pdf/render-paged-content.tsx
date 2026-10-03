@@ -22,6 +22,10 @@ import {
   PdfPaymentTerms,
   PdfSistemaProductCard,
 } from "./components";
+import {
+  PdfProductTableHead,
+  PdfProductTableRow,
+} from "./components/pdf-product-table";
 import { defaultPdfDisplaySettings } from "@/types/pdf-display-settings";
 import { shouldCountInPdfTotals } from "./product-visibility";
 import { countsInProposalTotal, monthlyTotal } from "@/lib/proposal/monthly-lines";
@@ -413,6 +417,72 @@ export const RenderPagedContent: React.FC<RenderPagedContentProps> = ({
             </div>
           </div>
         );
+
+      case "product-table-head":
+        return (
+          <div key={item.id} style={{ width: "100%" }}>
+            <PdfProductTableHead
+              settings={settings}
+              primaryColor={primaryColor}
+              framed={item.data?.framed === true}
+            />
+          </div>
+        );
+
+      case "product-table-row":
+        return (
+          <div key={item.id} style={{ width: "100%" }}>
+            <PdfProductTableRow
+              product={item.data.product}
+              settings={settings}
+              primaryColor={primaryColor}
+              index={item.data.index}
+              tenantNiche={tenantNiche}
+              framed={item.data.framed === true}
+            />
+          </div>
+        );
+
+      case "product-pair": {
+        const { left, right } = item.data as { left: Product; right: Product | null };
+        return (
+          <div key={item.id} style={{ width: "100%" }}>
+            <table
+              style={{
+                width: "100%",
+                borderCollapse: "separate",
+                borderSpacing: "8px 4px",
+                tableLayout: "fixed",
+              }}
+            >
+              <tbody>
+                <tr>
+                  <td style={{ verticalAlign: "top", width: "50%", padding: 0 }}>
+                    <PdfSistemaProductCard
+                      product={left}
+                      primaryColor={primaryColor}
+                      settings={settings}
+                      evenBackground
+                      tenantNiche={tenantNiche}
+                    />
+                  </td>
+                  <td style={{ verticalAlign: "top", width: "50%", padding: 0 }}>
+                    {right && (
+                      <PdfSistemaProductCard
+                        product={right}
+                        primaryColor={primaryColor}
+                        settings={settings}
+                        evenBackground={false}
+                        tenantNiche={tenantNiche}
+                      />
+                    )}
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        );
+      }
 
       default:
         return null;
