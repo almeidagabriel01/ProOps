@@ -243,7 +243,7 @@ export async function syncTenantPlanBillingSnapshot(
     }
   }
 
-  const skippedPurged = await db.runTransaction(async (transaction) => {
+  const { skippedPurged, clearedManual } = await db.runTransaction(async (transaction) => {
     const tenantSnap = await transaction.get(tenantRef);
     const tenantData = tenantSnap.exists
       ? (tenantSnap.data() as Record<string, unknown> | undefined)
@@ -257,7 +257,7 @@ export async function syncTenantPlanBillingSnapshot(
         tenantId,
         source: params.source,
       });
-      return true;
+      return { skippedPurged: true, clearedManual: false };
     }
 
     const lifecyclePatch = buildTenantSubscriptionLifecyclePatch({
@@ -331,10 +331,44 @@ export async function syncTenantPlanBillingSnapshot(
     // caused real harm when the two copies diverged. Nested keys are removed
     // by cleanup-billing-redundant-fields.
 
+    // Empresa que estava num contrato manual (teste ou plano dado pelo painel)
+    // e passou a pagar pelo cartão: sem tirar a marca, o cron do plano manual
+    // cortaria quem está pagando, a sincronização diária pularia o Stripe e o
+    // painel deixaria o superadmin escrever por cima da assinatura. Só uma
+    // assinatura VIVA tira a marca: evento de uma assinatura antiga ou
+    // cancelada não pode desfazer o contrato de quem passou a pagar por fora.
+    const linksLiveSubscription =
+      typeof params.stripeSubscriptionId === "string" &&
+      params.stripeSubscriptionId.trim() !== "" &&
+      (lifecyclePatch.subscriptionStatus === "active" ||
+        lifecyclePatch.subscriptionStatus === "trialing");
+    const clearsManual = linksLiveSubscription && tenantData?.isManualSubscription === true;
+    if (clearsManual) patch.isManualSubscription = false;
+
     transaction.set(tenantRef, patch, { merge: true });
-    return false;
+    return { skippedPurged: false, clearedManual: clearsManual };
   });
   if (skippedPurged) return;
+
+  if (clearedManual) {
+    // O cron do plano manual consulta os USUÁRIOS marcados: a marca sai deles também.
+    const manualUsers = await db
+      .collection("users")
+      .where("tenantId", "==", tenantId)
+      .where("isManualSubscription", "==", true)
+      .limit(50)
+      .get();
+    if (!manualUsers.empty) {
+      const batch = db.batch();
+      for (const doc of manualUsers.docs) batch.update(doc.ref, { isManualSubscription: false });
+      await batch.commit();
+    }
+    logger.info("[syncTenantPlanBillingSnapshot] manual contract converted to Stripe", {
+      tenantId,
+      source: params.source,
+      users: manualUsers.size,
+    });
+  }
 
   // Re-evaluate WhatsApp eligibility against the freshly-written plan.
   // CRITICAL (Pitfall 2): tenantPlanAllowsWhatsApp reads addon docs and the plan
