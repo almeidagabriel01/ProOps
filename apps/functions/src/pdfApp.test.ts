@@ -9,6 +9,11 @@ jest.mock("./api/middleware/auth", () => ({
     /* mocked */
   },
 }));
+jest.mock("./api/middleware/impersonation", () => ({
+  resolveImpersonation: function resolveImpersonation() {
+    /* mocked */
+  },
+}));
 jest.mock("./api/middleware/pdf-rate-limiter", () => ({
   pdfRateLimiter: function pdfRateLimiter() {
     /* mocked */
@@ -78,5 +83,16 @@ describe("pdfApp route table", () => {
     expect(indexOfRoute("/v1/transactions/:id/pdf")).toBeGreaterThan(indexOfAuth);
     expect(indexOfRoute("/v1/service-orders/:id/pdf")).toBeGreaterThan(indexOfAuth);
     expect(indexOfRoute("/v1/service-contracts/:id/pmoc/pdf")).toBeGreaterThan(indexOfAuth);
+  });
+
+  // Regressao: sem a troca de empresa, o PDF baixado pelo superadmin no
+  // "Acessar Painel" era procurado no tenant dele.
+  it("aplica o Acessar Painel depois da autenticacao e antes das rotas", () => {
+    const indexOfAuth = stack.findIndex((l) => l.name === "validateFirebaseIdToken");
+    const indexOfImpersonation = stack.findIndex((l) => l.name === "resolveImpersonation");
+    expect(indexOfImpersonation).toBeGreaterThan(indexOfAuth);
+    expect(indexOfImpersonation).toBeLessThan(
+      stack.findIndex((l) => l.route?.path === "/v1/proposals/:id/pdf"),
+    );
   });
 });
