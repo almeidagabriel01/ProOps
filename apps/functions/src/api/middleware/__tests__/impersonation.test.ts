@@ -13,9 +13,11 @@ jest.mock("../../../init", () => ({
         }),
       }),
       where: () => ({
-        limit: () => ({
+        limit: (n: number) => ({
           get: async () => ({
-            docs: usersQueryDocs.map((d) => ({ id: d.id, get: (f: string) => d.data[f] })),
+            docs: usersQueryDocs
+              .slice(0, n)
+              .map((d) => ({ id: d.id, get: (f: string) => d.data[f] })),
           }),
         }),
       }),
@@ -107,6 +109,17 @@ describe("resolveImpersonation", () => {
       { id: "member", data: { masterId: "owner", createdAt: "2026-01-01" } },
       { id: "owner", data: { role: "MASTER", masterId: "owner", createdAt: "2025-05-01" } },
     );
+    const ctx = build(superadmin(), { headers: { "x-tenant-id": "alvo" } });
+    await run(ctx);
+    expect((ctx.req.user as unknown as Record<string, unknown>).masterId).toBe("owner");
+  });
+
+  it("acha o dono mesmo numa empresa com muitas pessoas na frente dele", async () => {
+    usersQueryDocs.length = 0;
+    for (let i = 0; i < 40; i++) {
+      usersQueryDocs.push({ id: `m${i}`, data: { masterId: "owner", createdAt: "2026-01-01" } });
+    }
+    usersQueryDocs.push({ id: "owner", data: { role: "MASTER", createdAt: "2025-05-01" } });
     const ctx = build(superadmin(), { headers: { "x-tenant-id": "alvo" } });
     await run(ctx);
     expect((ctx.req.user as unknown as Record<string, unknown>).masterId).toBe("owner");

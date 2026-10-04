@@ -91,8 +91,11 @@ export async function getCommissionReport(
     claims,
   );
 
+  // No "Acessar Painel" o tenant ja e o da empresa vista; o parametro antigo
+  // so vale para o superadmin fora dele, senao uma aba com outro tenant em
+  // memoria somaria as comissoes de outra empresa.
   const effectiveTenantId =
-    isSuperAdmin && options.requestedTenantId?.trim()
+    isSuperAdmin && !claims?.impersonation && options.requestedTenantId?.trim()
       ? options.requestedTenantId.trim()
       : tenantId;
 

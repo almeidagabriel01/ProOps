@@ -121,6 +121,15 @@ Os eventos com contador também geram audit events no Firestore (`security_audit
 | `auth/*` (Firebase Auth errors) | 401 |
 | outros | 403 |
 
+### Idempotente na mesma request
+
+Fiscal, Asaas, notificações e a função `pdf` repetem `validateFirebaseIdToken`
+por rota. Com `req.user` já preenchido ele só segue: refazer o usuário desfazia
+a troca do "Acessar Painel" (`resolveImpersonation`), e essas telas agiam no
+tenant do superadmin (a de Notas Fiscais mostrava erro no toast). A função
+`pdf` também monta `resolveImpersonation` logo depois da autenticação. Guards:
+`__tests__/auth.idempotent.test.ts` e `pdfApp.test.ts`.
+
 ### Regras ao Modificar
 
 - Nunca mover a posição de `app.use(validateFirebaseIdToken)` para antes das rotas públicas sem garantir que as rotas públicas estejam explicitamente no bypass ou registradas antes

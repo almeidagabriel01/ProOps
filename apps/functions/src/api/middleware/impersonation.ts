@@ -125,7 +125,11 @@ export async function resolveTenantOwnerUid(tenantId: string): Promise<string | 
   const snap = await db
     .collection("users")
     .where("tenantId", "==", tenantId)
-    .limit(20)
+    // O filtro do dono e em memoria: com um teto baixo, uma empresa com mais
+    // pessoas que ele podia deixar o dono de fora, e o superadmin passava a
+    // agir com o proprio doc como `masterData`. 200 e o mesmo teto da lista
+    // de membros do painel; o resultado fica 60s em cache.
+    .limit(200)
     .get();
   const owners = snap.docs
     .filter((doc) => {

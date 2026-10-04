@@ -13,8 +13,15 @@ export async function getLinkedAccountsHandler(req: Request, res: Response) {
     return res.status(403).json({ message: "Tenant não identificado." });
   }
 
+  // O WhatsApp e da PESSOA. Na visao da empresa do "Acessar Painel" quem se
+  // ve e o dono (antes saia o numero do proprio superadmin); na "Ver como
+  // membro" o uid ja e o do membro.
+  const impersonation = req.user?.impersonation;
+  const personUid =
+    impersonation && !impersonation.memberUid ? impersonation.ownerUid || uid : uid;
+
   try {
-    const accounts = await getLinkedAccounts(tenantId, uid, {
+    const accounts = await getLinkedAccounts(tenantId, personUid, {
       role: req.user?.role || "",
       isSuperAdmin: req.user?.isSuperAdmin === true,
     });
