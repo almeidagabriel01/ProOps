@@ -12,8 +12,8 @@ import { Notification, NotificationType } from "@/types/notification";
 import { NotificationService } from "@/services/notification-service";
 import { toast } from "@/lib/toast";
 import { useNotificationScope } from "@/hooks/useNotificationScope";
-import { useAuth } from "@/providers/auth-provider";
 import { useTenant } from "@/providers/tenant-provider";
+import { useEffectiveViewer } from "@/hooks/use-effective-viewer";
 import {
   isNotificationRead,
   markReadFor,
@@ -28,24 +28,26 @@ export function useNotifications() {
   const [clearingIds, setClearingIds] = useState<string[]>([]);
   const { scope, scopeKey } = useNotificationScope();
   const { tenant, isDemo: isDemoTenant } = useTenant();
-  const { user } = useAuth();
+  // No "Ver como membro" o sino mostra o que chegou para o membro.
+  const { uid: viewerUid, role: viewerRole, isMemberView } = useEffectiveViewer();
 
   const viewer = useMemo(
     () =>
       resolveNotificationViewer({
-        uid: user?.id,
-        role: user?.role,
+        uid: viewerUid,
+        role: viewerRole,
         scope,
         demoTenantId: isDemoTenant ? tenant?.id : null,
       }),
-    [scope, user?.id, user?.role, isDemoTenant, tenant?.id],
+    [scope, viewerUid, viewerRole, isDemoTenant, tenant?.id],
   );
   const viewerKey =
     viewer && scopeKey
       ? `${scopeKey}:${viewer.mode}:${viewer.uid}:${viewer.demoTenantId ?? ""}`
       : null;
-  // A conta free só lê as notificações de exemplo: nada é gravado.
-  const isReadOnly = viewer?.mode === "demo";
+  // A conta free só lê as notificações de exemplo, e o superadmin vendo um
+  // membro não marca nada como lido em nome dele: nada é gravado.
+  const isReadOnly = viewer?.mode === "demo" || isMemberView;
 
   const notificationsRef = useRef<Notification[]>([]);
   const activeViewerKeyRef = useRef<string | null>(viewerKey);

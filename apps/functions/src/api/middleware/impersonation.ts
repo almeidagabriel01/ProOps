@@ -24,7 +24,13 @@ import type { ImpersonationContext } from "../../lib/auth-context";
  *   cabecalho, sem estado no servidor.
  * - toda escrita liberada e auditada aqui, num ponto so.
  *
- * Para qualquer outro usuario o cabecalho e descartado.
+ * "Ver como membro": com `x-view-as-member` junto, a request passa a valer como
+ * aquele membro da empresa vista (uid, papel, master e doc dele). E assim que
+ * permissao por pagina, tarefas, OS, metas e "Minhas comissoes" respondem o que
+ * o membro ve, sem nenhum controller saber disso. Nesse modo nada grava: o que
+ * fosse gravado ficaria em nome do membro.
+ *
+ * Para qualquer outro usuario os cabecalhos sao descartados.
  */
 
 const MUTATING_METHODS = new Set(["POST", "PUT", "PATCH", "DELETE"]);
@@ -46,7 +52,15 @@ const READ_ONLY_EXEMPT_PREFIXES = [
   "/v1/ai",
 ];
 
+/**
+ * Caminhos que continuam agindo como o PROPRIO superadmin na visao de membro:
+ * o painel (encerrar, trocar de membro) e a conta dele. Nos demais a identidade
+ * vira a do membro, e toda escrita e recusada.
+ */
+const MEMBER_VIEW_ACTOR_PREFIXES = ["/v1/admin", "/v1/auth", "/v1/profile"];
+
 const OWNER_CACHE_TTL_MS = 60_000;
+const MEMBER_CACHE_TTL_MS = 60_000;
 const ownerCache = new Map<string, { ownerUid: string | null; expiresAt: number }>();
 
 function normalize(value: unknown): string {
@@ -57,15 +71,52 @@ function requestPath(req: Request): string {
   return String(req.originalUrl || req.url || req.path || "").split("?")[0];
 }
 
+function matchesPrefix(path: string, prefixes: string[]): boolean {
+  return prefixes.some((prefix) => path === prefix || path.startsWith(`${prefix}/`));
+}
+
 export function isReadOnlyExemptPath(path: string): boolean {
-  return READ_ONLY_EXEMPT_PREFIXES.some(
-    (prefix) => path === prefix || path.startsWith(`${prefix}/`),
-  );
+  return matchesPrefix(path, READ_ONLY_EXEMPT_PREFIXES);
+}
+
+export function isMemberViewActorPath(path: string): boolean {
+  return matchesPrefix(path, MEMBER_VIEW_ACTOR_PREFIXES);
+}
+
+const memberCache = new Map<
+  string,
+  { doc: Record<string, unknown> | null; expiresAt: number }
+>();
+
+async function loadMemberDoc(uid: string): Promise<Record<string, unknown> | null> {
+  const cached = memberCache.get(uid);
+  if (cached && cached.expiresAt > Date.now()) return cached.doc;
+  const snap = await db.collection("users").doc(uid).get();
+  const doc = snap.exists ? ((snap.data() ?? {}) as Record<string, unknown>) : null;
+  memberCache.set(uid, { doc, expiresAt: Date.now() + MEMBER_CACHE_TTL_MS });
+  return doc;
 }
 
 /**
- * Dono da empresa: o usuario mais antigo do tenant sem `masterId`. E o doc que
- * os controllers legados usam como `masterData` (limites e contadores).
+ * O membro so vale se for da empresa vista e nao for superadmin: o cabecalho
+ * vem do navegador, e sem isso o superadmin "veria como" alguem de outra
+ * empresa com o tenant de uma terceira.
+ */
+export function isViewableMember(
+  doc: Record<string, unknown> | null,
+  targetTenantId: string,
+): doc is Record<string, unknown> {
+  if (!doc) return false;
+  const tenantId = String(doc.tenantId || doc.companyId || "").trim();
+  if (tenantId !== targetTenantId) return false;
+  return String(doc.role || "").trim().toUpperCase() !== "SUPERADMIN";
+}
+
+/**
+ * Dono da empresa: o usuario mais antigo do tenant sem `masterId` (ou com o
+ * `masterId` apontando para si mesmo, como os seeds e contas antigas gravam).
+ * E o doc que os controllers legados usam como `masterData` (limites e
+ * contadores).
  */
 export async function resolveTenantOwnerUid(tenantId: string): Promise<string | null> {
   const cached = ownerCache.get(tenantId);
@@ -74,10 +125,17 @@ export async function resolveTenantOwnerUid(tenantId: string): Promise<string | 
   const snap = await db
     .collection("users")
     .where("tenantId", "==", tenantId)
-    .limit(20)
+    // O filtro do dono e em memoria: com um teto baixo, uma empresa com mais
+    // pessoas que ele podia deixar o dono de fora, e o superadmin passava a
+    // agir com o proprio doc como `masterData`. 200 e o mesmo teto da lista
+    // de membros do painel; o resultado fica 60s em cache.
+    .limit(200)
     .get();
   const owners = snap.docs
-    .filter((doc) => !String(doc.get("masterId") || "").trim())
+    .filter((doc) => {
+      const masterId = String(doc.get("masterId") || "").trim();
+      return !masterId || masterId === doc.id;
+    })
     .filter((doc) => String(doc.get("role") || "").toUpperCase() !== "SUPERADMIN")
     .sort((a, b) =>
       String(a.get("createdAt") || "").localeCompare(String(b.get("createdAt") || "")),
@@ -90,6 +148,7 @@ export async function resolveTenantOwnerUid(tenantId: string): Promise<string | 
 
 export function clearImpersonationOwnerCacheForTest(): void {
   ownerCache.clear();
+  memberCache.clear();
 }
 
 export async function resolveImpersonation(
@@ -108,6 +167,7 @@ export async function resolveImpersonation(
   if (!user.isSuperAdmin) {
     delete req.headers["x-tenant-id"];
     delete req.headers["x-impersonation-write"];
+    delete req.headers["x-view-as-member"];
     next();
     return;
   }
@@ -138,6 +198,67 @@ export async function resolveImpersonation(
     });
   }
 
+  const method = String(req.method || "").toUpperCase();
+  const path = requestPath(req);
+  const memberUid = normalize(req.headers["x-view-as-member"]);
+
+  if (memberUid) {
+    let memberDoc: Record<string, unknown> | null = null;
+    try {
+      memberDoc = await loadMemberDoc(memberUid);
+    } catch (err) {
+      logger.warn("impersonation: member lookup failed", {
+        tenantId: targetTenantId,
+        error: err instanceof Error ? err.message : String(err),
+      });
+    }
+    if (!isViewableMember(memberDoc, targetTenantId)) {
+      res.status(400).json({
+        code: "MEMBER_VIEW_NOT_FOUND",
+        message: "O membro que você está visualizando não faz mais parte desta empresa.",
+      });
+      return;
+    }
+
+    const actorPath = isMemberViewActorPath(path);
+    if (MUTATING_METHODS.has(method) && !actorPath) {
+      res.status(403).json({
+        code: "MEMBER_VIEW_READ_ONLY",
+        message:
+          "Você está vendo o painel de um membro em modo somente leitura. Volte para a visão da empresa para alterar dados.",
+      });
+      return;
+    }
+
+    user.impersonation = {
+      originalTenantId,
+      targetTenantId,
+      ownerUid,
+      writeEnabled: false,
+      memberUid,
+      actorUid: user.uid,
+    };
+    user.tenantId = targetTenantId;
+
+    if (actorPath) {
+      user.masterId = ownerUid ?? undefined;
+      next();
+      return;
+    }
+
+    const memberMasterId = String(
+      memberDoc.masterId || memberDoc.masterID || memberDoc.ownerId || "",
+    ).trim();
+    user.uid = memberUid;
+    user.role = String(memberDoc.role || "MEMBER").trim().toUpperCase();
+    user.isSuperAdmin = false;
+    user.masterId = memberMasterId || undefined;
+    user.userDoc = memberDoc;
+    user.userDocTenantId = targetTenantId;
+    next();
+    return;
+  }
+
   const writeEnabled = normalize(req.headers["x-impersonation-write"]) === "1";
   const impersonation: ImpersonationContext = {
     originalTenantId,
@@ -149,8 +270,6 @@ export async function resolveImpersonation(
   user.tenantId = targetTenantId;
   user.masterId = ownerUid ?? undefined;
 
-  const method = String(req.method || "").toUpperCase();
-  const path = requestPath(req);
   if (MUTATING_METHODS.has(method) && !isReadOnlyExemptPath(path)) {
     if (!writeEnabled) {
       res.status(403).json({

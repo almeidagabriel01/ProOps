@@ -17,6 +17,7 @@ import {
   WHATSAPP_OVERAGE_PRICE_ID,
 } from "../../stripe/stripeHelpers";
 import { syncTenantPlanBillingSnapshot } from "../../stripe/stripeWebhook";
+import { recordTenantActivity } from "../../lib/tenant-activity";
 import { applyBillingClaimsToTenantUsers } from "../../lib/billing-claims";
 import { invalidateBillingCache } from "../middleware/require-active-subscription";
 import { invalidateNextjsBillingCache } from "../../lib/billing-cache-invalidation";
@@ -1041,6 +1042,39 @@ export const createAddonCheckoutSession = async (
   }
 };
 
+/** Meta do "Abriu o checkout" na atividade da empresa (painel do super admin). */
+export function buildCheckoutStartedMeta(input: {
+  planTier: string;
+  billingInterval: BillingInterval;
+  trial: boolean;
+  kind: "new" | "plan_change";
+}): Record<string, unknown> {
+  return {
+    plan: input.planTier,
+    interval: input.billingInterval,
+    trial: input.trial,
+    kind: input.kind,
+  };
+}
+
+async function recordCheckoutStarted(
+  req: Request,
+  tenantId: string,
+  userId: string,
+  meta: Record<string, unknown>,
+): Promise<void> {
+  // Super admin no "Acessar Painel" nao e a empresa clicando em assinar.
+  if (req.user?.isSuperAdmin || req.user?.impersonation) return;
+  await recordTenantActivity({
+    tenantId,
+    uid: userId,
+    role: req.user?.role,
+    type: "checkout_started",
+    meta,
+    source: "server",
+  });
+}
+
 export const createCheckoutSession = async (req: Request, res: Response) => {
   try {
     const {
@@ -1247,6 +1281,18 @@ export const createCheckoutSession = async (req: Request, res: Response) => {
         hydratedSubscription.cancel_at_period_end,
       );
 
+      await recordCheckoutStarted(
+        req,
+        tenantId,
+        userId,
+        buildCheckoutStartedMeta({
+          planTier,
+          billingInterval: validInterval,
+          trial: false,
+          kind: "plan_change",
+        }),
+      );
+
       return res.json({
         success: true,
         message: "Plan changed successfully with proration",
@@ -1360,6 +1406,18 @@ export const createCheckoutSession = async (req: Request, res: Response) => {
       await clearCheckoutReservation(tenantId).catch(() => {});
       throw err;
     }
+
+    await recordCheckoutStarted(
+      req,
+      tenantId,
+      userId,
+      buildCheckoutStartedMeta({
+        planTier,
+        billingInterval: validInterval,
+        trial: trialEligible,
+        kind: "new",
+      }),
+    );
 
     return res.json({
       url: session.url,

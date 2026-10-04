@@ -43,6 +43,7 @@ import {
 import { tenantPlanAllowsWhatsApp } from "../lib/whatsapp-eligibility";
 import { runSecretRotationGuard } from "../lib/secret-rotation-guard";
 import { logger } from "../lib/logger";
+import { recordTenantActivity } from "../lib/tenant-activity";
 import { applyBillingClaimsToTenantUsers } from "../lib/billing-claims";
 import { invalidateBillingCache } from "../api/middleware/require-active-subscription";
 import type { SyncTenantPlanBillingSnapshotParams } from "../shared/billing-types";
@@ -242,7 +243,7 @@ export async function syncTenantPlanBillingSnapshot(
     }
   }
 
-  const skippedPurged = await db.runTransaction(async (transaction) => {
+  const { skippedPurged, clearedManual } = await db.runTransaction(async (transaction) => {
     const tenantSnap = await transaction.get(tenantRef);
     const tenantData = tenantSnap.exists
       ? (tenantSnap.data() as Record<string, unknown> | undefined)
@@ -256,7 +257,7 @@ export async function syncTenantPlanBillingSnapshot(
         tenantId,
         source: params.source,
       });
-      return true;
+      return { skippedPurged: true, clearedManual: false };
     }
 
     const lifecyclePatch = buildTenantSubscriptionLifecyclePatch({
@@ -330,10 +331,44 @@ export async function syncTenantPlanBillingSnapshot(
     // caused real harm when the two copies diverged. Nested keys are removed
     // by cleanup-billing-redundant-fields.
 
+    // Empresa que estava num contrato manual (teste ou plano dado pelo painel)
+    // e passou a pagar pelo cartão: sem tirar a marca, o cron do plano manual
+    // cortaria quem está pagando, a sincronização diária pularia o Stripe e o
+    // painel deixaria o superadmin escrever por cima da assinatura. Só uma
+    // assinatura VIVA tira a marca: evento de uma assinatura antiga ou
+    // cancelada não pode desfazer o contrato de quem passou a pagar por fora.
+    const linksLiveSubscription =
+      typeof params.stripeSubscriptionId === "string" &&
+      params.stripeSubscriptionId.trim() !== "" &&
+      (lifecyclePatch.subscriptionStatus === "active" ||
+        lifecyclePatch.subscriptionStatus === "trialing");
+    const clearsManual = linksLiveSubscription && tenantData?.isManualSubscription === true;
+    if (clearsManual) patch.isManualSubscription = false;
+
     transaction.set(tenantRef, patch, { merge: true });
-    return false;
+    return { skippedPurged: false, clearedManual: clearsManual };
   });
   if (skippedPurged) return;
+
+  if (clearedManual) {
+    // O cron do plano manual consulta os USUÁRIOS marcados: a marca sai deles também.
+    const manualUsers = await db
+      .collection("users")
+      .where("tenantId", "==", tenantId)
+      .where("isManualSubscription", "==", true)
+      .limit(50)
+      .get();
+    if (!manualUsers.empty) {
+      const batch = db.batch();
+      for (const doc of manualUsers.docs) batch.update(doc.ref, { isManualSubscription: false });
+      await batch.commit();
+    }
+    logger.info("[syncTenantPlanBillingSnapshot] manual contract converted to Stripe", {
+      tenantId,
+      source: params.source,
+      users: manualUsers.size,
+    });
+  }
 
   // Re-evaluate WhatsApp eligibility against the freshly-written plan.
   // CRITICAL (Pitfall 2): tenantPlanAllowsWhatsApp reads addon docs and the plan
@@ -654,6 +689,18 @@ async function finalizeStripeEventProcessing(
     );
 }
 
+/**
+ * Qual evento de jornada uma assinatura recem-criada vira na atividade da
+ * empresa (painel do super admin): em teste gratis ou ja paga.
+ */
+export function resolveCheckoutActivityType(status: string | null | undefined): "trial_started" | "subscribed" {
+  return status === "trialing" ? "trial_started" : "subscribed";
+}
+
+function activityInterval(billingInterval: string): "monthly" | "yearly" {
+  return billingInterval === "yearly" ? "yearly" : "monthly";
+}
+
 async function handleCheckoutCompleted(
   session: Stripe.Checkout.Session,
 ): Promise<void> {
@@ -806,6 +853,14 @@ async function handleCheckoutCompleted(
         to: resolvedCheckoutTier,
         interval: billingInterval === "yearly" ? "anual" : "mensal",
       },
+    });
+    await recordTenantActivity({
+      tenantId,
+      uid: userId,
+      type: resolveCheckoutActivityType(subscription.status),
+      meta: { plan: resolvedCheckoutTier, interval: activityInterval(billingInterval) },
+      source: "server",
+      docId: `checkout_${session.id}`,
     });
     await clearCheckoutReservation(tenantId).catch(() => {});
     return;
@@ -1025,6 +1080,13 @@ async function handleSubscriptionUpdated(
         userId: userId || undefined,
         plan: { from: storedTier, to: newTier, effectiveAt: scheduledPlanAt.toDate() },
       });
+      await recordTenantActivity({
+        tenantId,
+        uid: userId || null,
+        type: "plan_changed",
+        meta: { from: storedTier, to: newTier },
+        source: "server",
+      });
     }
   } else {
     // Upgrade, same-tier, or deferral disabled: apply plan snapshot immediately.
@@ -1048,6 +1110,13 @@ async function handleSubscriptionUpdated(
         tenantId,
         userId: userId || undefined,
         plan: { from: storedTier, to: newTier },
+      });
+      await recordTenantActivity({
+        tenantId,
+        uid: userId || null,
+        type: "plan_changed",
+        meta: { from: storedTier, to: newTier },
+        source: "server",
       });
     }
   }
@@ -1085,6 +1154,14 @@ async function handleSubscriptionUpdated(
           tenantId,
           userId: userId || undefined,
           plan: { from: storedTier, to: "free", effectiveAt: cancelAt.toDate() },
+        });
+        await recordTenantActivity({
+          tenantId,
+          uid: userId || null,
+          type: "cancel_scheduled",
+          meta: { plan: storedTier },
+          source: "server",
+          docId: `cancel_${subscription.id}_${cancelAt.toMillis()}`,
         });
       }
     }
@@ -1195,6 +1272,14 @@ async function handleInvoicePaymentFailed(
       error: err instanceof Error ? err.message : String(err),
     }),
   );
+
+  await recordTenantActivity({
+    tenantId,
+    uid: userId || null,
+    type: "payment_failed",
+    source: "server",
+    docId: `payment_failed_${invoice.id}`,
+  });
 
   console.log(`[StripeWebhook] Tenant ${tenantId} marked past_due after invoice payment failure`);
 }
@@ -1427,6 +1512,14 @@ async function handleSubscriptionDeleted(
       from: normalizePlanTier(tenantDocData?.plan) ?? undefined,
       to: "free",
     },
+  });
+  await recordTenantActivity({
+    tenantId,
+    uid: userId || null,
+    type: "subscription_canceled",
+    meta: { from: normalizePlanTier(tenantDocData?.plan) ?? undefined },
+    source: "server",
+    docId: `canceled_${subscription.id}`,
   });
 
   // Legacy cleanup: mark any residual whatsapp_addon doc as cancelled so the

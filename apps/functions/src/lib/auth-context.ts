@@ -186,6 +186,13 @@ export interface ImpersonationContext {
   targetTenantId: string;
   ownerUid: string | null;
   writeEnabled: boolean;
+  /**
+   * "Ver como membro": a request vale como este membro (uid, role, masterId e
+   * userDoc ja trocados), sempre em somente leitura.
+   */
+  memberUid?: string;
+  /** uid do superadmin que esta vendo, quando a identidade foi trocada. */
+  actorUid?: string;
 }
 
 type ResolveAuthContextOptions = {

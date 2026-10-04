@@ -43,15 +43,16 @@ test.describe("plano manual vencido", () => {
     await restoreTenantState(db, TENANT, USER_ADMIN_BETA.uid);
   });
 
-  test("dono lê que o plano venceu, com a data, e só tem falar com a ProOps e sair", async ({ page, loginPage }) => {
+  test("dono lê que o plano venceu, com a data: falar com a ProOps, assinar pelo cartão ou sair", async ({ page, loginPage }) => {
     await loginPage.goto();
     await loginPage.login(USER_ADMIN_BETA.email, USER_ADMIN_BETA.password);
     await page.waitForURL(/subscription-blocked/, { timeout: 30000 });
 
     const card = page.getByTestId("subscription-blocked-card");
     await expect(card.getByText("Seu plano venceu", { exact: true })).toBeVisible({ timeout: 15000 });
-    await expect(card).toContainText(`Seu plano venceu em ${brLabel(end)}. Para voltar a usar o ERP, fale com a ProOps para renovar.`);
+    await expect(card).toContainText(`Seu plano venceu em ${brLabel(end)}. Para voltar a usar o ERP, fale com a ProOps ou assine pelo cartão.`);
     await expect(card.getByRole("button", { name: "Falar com a ProOps" })).toBeVisible();
+    await expect(card.getByRole("button", { name: "Assinar pelo cartão" })).toBeVisible();
     await expect(card.getByRole("button", { name: "Sair da conta" })).toBeVisible();
     await expect(card.getByRole("button", { name: "Renovar assinatura" })).toHaveCount(0);
     await expect(card.getByRole("button", { name: "Atualizar pagamento" })).toHaveCount(0);

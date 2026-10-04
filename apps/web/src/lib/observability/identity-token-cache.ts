@@ -1,12 +1,10 @@
 import { onIdTokenChanged } from "firebase/auth";
 import { auth } from "@/lib/firebase";
+import { getCachedIdToken, setCachedIdToken } from "./identity-token-store";
 
-let cachedToken: string | null = null;
+export { getCachedIdToken };
+
 let installed = false;
-
-export function getCachedIdToken(): string | null {
-  return cachedToken;
-}
 
 /**
  * Subscribe to Firebase ID-token changes (login, ~hourly auto-refresh, logout)
@@ -19,13 +17,13 @@ export function installIdentityTokenCache(): () => void {
 
   const unsubscribe = onIdTokenChanged(auth, (user) => {
     if (!user) {
-      cachedToken = null;
+      setCachedIdToken(null);
       return;
     }
     user
       .getIdToken()
       .then((token) => {
-        cachedToken = token;
+        setCachedIdToken(token);
       })
       .catch(() => {
         // keep the prior token; never throw from the cache
@@ -34,14 +32,14 @@ export function installIdentityTokenCache(): () => void {
 
   return () => {
     unsubscribe();
-    cachedToken = null;
+    setCachedIdToken(null);
     installed = false;
   };
 }
 
 // test-only: inject a cache value without Firebase auth (justified for unit tests)
 export function __setCachedIdTokenForTest(token: string | null): void {
-  cachedToken = token;
+  setCachedIdToken(token);
 }
 
 // test-only: reset the installed flag (justified for unit tests that call installIdentityTokenCache multiple times)

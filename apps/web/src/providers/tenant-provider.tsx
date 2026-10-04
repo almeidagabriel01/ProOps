@@ -25,6 +25,7 @@ import {
   writeViewingTenantId,
 } from "@/lib/viewing-tenant-session";
 import { AdminService, type TenantBillingInfo } from "@/services/admin-service";
+import { useViewingMember } from "@/providers/viewing-member-provider";
 import { setDemoMode } from "@/lib/demo-mode";
 import {
   ensureDarkModeContrast,
@@ -73,7 +74,12 @@ interface TenantContextType {
   accountTenant: Tenant | null;
   refreshTenant: () => void;
   clearViewingTenant: () => void;
-  setViewingTenant: (tenant: Tenant) => void;
+  /**
+   * Abre a empresa no Acessar Painel. `targetPath` é para onde a navegação
+   * seguinte vai (o carregamento global termina ao chegar lá); o padrão é o
+   * Dashboard, e o "Ver como membro" passa o início do membro.
+   */
+  setViewingTenant: (tenant: Tenant, targetPath?: string) => void;
   isGlobalLoading: boolean;
   setGlobalLoading: (isLoading: boolean, reason?: string) => void;
   beginGlobalLoading: (reason?: string) => void;
@@ -147,6 +153,7 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
   const [isLoading, setIsLoading] = React.useState(true);
   const [refreshTrigger, setRefreshTrigger] = React.useState(0);
   const { user, isLoading: isAuthLoading } = useAuth();
+  const { member: viewingMember, clearViewingMember } = useViewingMember();
   const pathname = usePathname();
 
   const currentTenantIdRef = React.useRef<string | null>(null);
@@ -226,6 +233,7 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
       if (viewingAsId) {
         // Saida implicita (entrou no /admin sem usar o botao): registra o fim
         // da sessao do mesmo jeito.
+        void clearViewingMember({ reason: "admin_route" });
         void AdminService.stopImpersonation(viewingAsId, "admin_route").catch(() => {});
       }
       viewingAsId = null;
@@ -483,6 +491,7 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
         } else {
           console.warn(`Tenant ${tenantIdToLoad} not found in Firestore`);
           if (viewingAsId === tenantIdToLoad) {
+            void clearViewingMember({ silent: true });
             clearViewingTenantId();
           }
           setTenant(null);
@@ -668,6 +677,7 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
   const clearViewingTenant = React.useCallback(() => {
     const viewingId = readViewingTenantId();
     if (viewingId) {
+      void clearViewingMember({ reason: "exit_button" });
       void AdminService.stopImpersonation(viewingId, "exit_button").catch(() => {});
     }
     routeTransitionTargetsRef.current["return-admin"] = "/admin";
@@ -675,17 +685,20 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
     clearViewingTenantId();
     setImpersonationWriteState(false);
     setRefreshTrigger((prev) => prev + 1);
-  }, [beginGlobalLoading]);
+  }, [beginGlobalLoading, clearViewingMember]);
 
   const setImpersonationWriteEnabled = React.useCallback((enabled: boolean) => {
     writeImpersonationWriteEnabled(enabled);
     setImpersonationWriteState(readImpersonationWriteEnabled());
   }, []);
 
-  const setViewingTenant = (newTenant: Tenant) => {
+  const setViewingTenant = (newTenant: Tenant, targetPath = "/dashboard") => {
     bypassAdminClearRef.current = true;
-    routeTransitionTargetsRef.current["tenant-switch"] = "/dashboard";
+    routeTransitionTargetsRef.current["tenant-switch"] = targetPath;
     beginGlobalLoading("tenant-switch");
+    // Toda empresa aberta comeca na visao da empresa; o "Ver como membro"
+    // escolhe o membro logo depois.
+    void clearViewingMember({ silent: true });
     writeViewingTenantId(newTenant.id);
     // Toda empresa aberta comeca em somente leitura.
     writeImpersonationWriteEnabled(false);
@@ -699,6 +712,7 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
   const isDemo = String(user?.role || "").toLowerCase() === "free";
   const isImpersonating =
     String(user?.role || "").toLowerCase() === "superadmin" && Boolean(tenant?.id);
+  const isMemberView = isImpersonating && Boolean(viewingMember);
 
   // Reidrata o modo de edicao apos recarregar a aba (fica no sessionStorage).
   React.useEffect(() => {
@@ -743,9 +757,10 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
         tenantOwnerPlanName,
         isLoading,
         isDemo,
-        isReadOnly: isDemo || (isImpersonating && !impersonationWriteEnabled),
+        isReadOnly:
+          isDemo || (isImpersonating && (!impersonationWriteEnabled || isMemberView)),
         isImpersonating,
-        impersonationWriteEnabled: isImpersonating && impersonationWriteEnabled,
+        impersonationWriteEnabled: isImpersonating && impersonationWriteEnabled && !isMemberView,
         setImpersonationWriteEnabled,
         accountTenantId,
         accountTenant,

@@ -1,6 +1,35 @@
 import type { Request, Response } from "express";
 import { recordTenantLastSeen } from "../../lib/tenant-last-seen";
 import { logger } from "../../lib/logger";
+import { recordTenantActivity } from "../../lib/tenant-activity";
+
+/** "Entrou no ERP" conta uma vez a cada meia hora por pessoa, por instancia. */
+export const SESSION_ACTIVITY_DEDUPE_MS = 30 * 60 * 1000;
+const MAX_TRACKED_SESSIONS = 5000;
+const lastSessionActivityAt = new Map<string, number>();
+
+export function clearSessionActivityCacheForTest(): void {
+  lastSessionActivityAt.clear();
+}
+
+async function recordSessionStarted(req: Request, nowMs: number): Promise<void> {
+  const uid = req.user?.uid;
+  if (!uid || req.user?.isSuperAdmin || req.user?.impersonation) return;
+  const last = lastSessionActivityAt.get(uid);
+  if (last !== undefined && nowMs - last < SESSION_ACTIVITY_DEDUPE_MS) return;
+  lastSessionActivityAt.set(uid, nowMs);
+  if (lastSessionActivityAt.size > MAX_TRACKED_SESSIONS) {
+    const oldest = lastSessionActivityAt.keys().next().value;
+    if (oldest) lastSessionActivityAt.delete(oldest);
+  }
+  await recordTenantActivity({
+    tenantId: req.user?.tenantId,
+    uid,
+    role: req.user?.role,
+    type: "session_started",
+    source: "server",
+  });
+}
 
 /**
  * `POST /v1/session/ping` — a plataforma abriu autenticada.
@@ -18,6 +47,7 @@ export const pingSession = async (req: Request, res: Response) => {
       tenantId: req.user?.tenantId,
       role: req.user?.role,
     });
+    await recordSessionStarted(req, Date.now());
     return res.status(204).send();
   } catch (error: unknown) {
     // Registrar presenca nunca derruba a tela de quem entrou.

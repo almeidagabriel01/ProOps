@@ -10,6 +10,7 @@ import { EmptyState } from "@/components/shared/empty-state";
 import { SelectTenantState } from "@/components/shared/select-tenant-state";
 import { useTenant } from "@/providers/tenant-provider";
 import { useAuth } from "@/providers/auth-provider";
+import { useEffectiveViewer } from "@/hooks/use-effective-viewer";
 import { usePermissions } from "@/providers/permissions-provider";
 import { usePlanLimits } from "@/hooks/usePlanLimits";
 import { usePagePermission } from "@/hooks/usePagePermission";
@@ -37,6 +38,7 @@ export default function ProjectsPage() {
   const router = useRouter();
   const { tenant, isReadOnly } = useTenant();
   const { user } = useAuth();
+  const viewer = useEffectiveViewer();
   const { isMaster } = usePermissions();
   const { hasProjects, isLoading: isPlanLoading } = usePlanLimits();
   const { canCreate } = usePagePermission("projects");
@@ -85,9 +87,9 @@ export default function ProjectsPage() {
   }
   if (loading) return <ProjectsSkeleton />;
 
-  const visible = filterProjects(projects, filter, user.id ?? null);
+  const visible = filterProjects(projects, filter, viewer.uid);
   const writable = !isReadOnly;
-  const count = (f: ProjectFilter) => filterProjects(projects, f, user.id ?? null).length;
+  const count = (f: ProjectFilter) => filterProjects(projects, f, viewer.uid).length;
 
   return (
     <div className="space-y-6">

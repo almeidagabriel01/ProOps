@@ -7,6 +7,7 @@ import { UserPlan, User, Tenant, BillingInterval } from "@/types";
 import { PlanPreview } from "@/types/plan";
 import { PlanService } from "@/services/plan-service";
 import { UserService } from "@/services/user-service";
+import { trackActivity } from "@/lib/activity/activity-tracker";
 
 interface UsePlanChangeReturn {
   // User data
@@ -304,6 +305,9 @@ export function usePlanChange(
   };
 
   const handleUpgrade = (plan: UserPlan, skip = false) => {
+    trackActivity("subscribe_clicked", {
+      meta: { source: "plan_card", plan: plan.tier, interval: billingInterval, skipTrial: skip },
+    });
     setSkipTrial(skip);
     showPlanChangeConfirmation(plan);
   };

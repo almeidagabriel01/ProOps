@@ -21,6 +21,10 @@ interface ImpersonationBarProps {
   writeEnabled: boolean;
   onToggleWrite: (enabled: boolean) => void;
   onExit: () => void;
+  /** Nome do membro no "Ver como membro". Sempre somente leitura. */
+  memberName?: string | null;
+  /** Seletor "Ver como" (empresa ou um membro). */
+  memberSwitcher?: React.ReactNode;
 }
 
 /**
@@ -28,6 +32,9 @@ interface ImpersonationBarProps {
  * em qual plano e se o que ele fizer grava de verdade. Abre sempre em somente
  * leitura; habilitar edicao pede confirmacao porque cada gravacao cai nos dados
  * reais do cliente (e fica auditada).
+ *
+ * No "Ver como membro" a faixa diz QUEM está sendo visto e não oferece
+ * edição: o que fosse gravado ficaria em nome do membro.
  */
 export function ImpersonationBar({
   companyName,
@@ -35,15 +42,18 @@ export function ImpersonationBar({
   writeEnabled,
   onToggleWrite,
   onExit,
+  memberName,
+  memberSwitcher,
 }: ImpersonationBarProps) {
   const [confirmOpen, setConfirmOpen] = React.useState(false);
+  const isMemberView = Boolean(memberName);
 
   return (
     <>
       <div
         role="status"
         data-testid="impersonation-bar"
-        data-mode={writeEnabled ? "write" : "read"}
+        data-mode={isMemberView ? "member" : writeEnabled ? "write" : "read"}
         className={cn(
           "flex min-w-0 items-center gap-2 rounded-full border px-3 py-1.5 text-xs shadow-sm animate-in fade-in slide-in-from-top-1 duration-300",
           writeEnabled
@@ -56,10 +66,20 @@ export function ImpersonationBar({
         ) : (
           <Eye className="h-3.5 w-3.5 shrink-0 text-muted-foreground" aria-hidden />
         )}
-        <span className="min-w-0 truncate font-medium text-foreground/90">
-          <span className="hidden sm:inline">Visualizando </span>
-          {companyName}
-        </span>
+        {isMemberView ? (
+          <span className="min-w-0 truncate font-medium text-foreground/90">
+            <span className="hidden sm:inline">Vendo como </span>
+            {memberName}
+            <span className="hidden font-normal text-muted-foreground sm:inline">
+              {" "}· {companyName}
+            </span>
+          </span>
+        ) : (
+          <span className="min-w-0 truncate font-medium text-foreground/90">
+            <span className="hidden sm:inline">Visualizando </span>
+            {companyName}
+          </span>
+        )}
         {planLabel && (
           <span className="hidden shrink-0 text-muted-foreground lg:inline">
             · {planLabel}
@@ -76,16 +96,27 @@ export function ImpersonationBar({
           {writeEnabled ? "Edição habilitada" : "Somente leitura"}
         </span>
 
-        <div className="h-3 w-px shrink-0 bg-border" />
+        {memberSwitcher && (
+          <>
+            <div className="h-3 w-px shrink-0 bg-border" />
+            {memberSwitcher}
+          </>
+        )}
 
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => (writeEnabled ? onToggleWrite(false) : setConfirmOpen(true))}
-          className="h-auto shrink-0 p-0 max-md:min-h-9 max-md:px-1 text-xs font-medium text-muted-foreground hover:bg-transparent hover:text-foreground"
-        >
-          {writeEnabled ? "Voltar a só leitura" : "Habilitar edição"}
-        </Button>
+        {!isMemberView && (
+          <>
+            <div className="h-3 w-px shrink-0 bg-border" />
+
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => (writeEnabled ? onToggleWrite(false) : setConfirmOpen(true))}
+              className="h-auto shrink-0 p-0 max-md:min-h-9 max-md:px-1 text-xs font-medium text-muted-foreground hover:bg-transparent hover:text-foreground"
+            >
+              {writeEnabled ? "Voltar a só leitura" : "Habilitar edição"}
+            </Button>
+          </>
+        )}
 
         <div className="h-3 w-px shrink-0 bg-border" />
 

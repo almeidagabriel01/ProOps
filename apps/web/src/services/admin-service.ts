@@ -2,6 +2,7 @@
 
 import { callApi } from "@/lib/api-client";
 import { PlanFeatures } from "@/types";
+import type { ActivityCategory, TenantActivityType } from "@/lib/activity/catalog";
 
 interface AdminCredentialsData {
   userId: string;
@@ -27,6 +28,21 @@ interface CreateTenantInput {
   currentPeriodEnd?: string;
 }
 
+export interface TenantMemberInfo {
+  id: string;
+  name: string;
+  email: string;
+  /** Papel como gravado no backend, em maiúsculas (MEMBER, ADMIN, MASTER...). */
+  role: string;
+  masterId: string | null;
+  isOwner: boolean;
+  createdAt: string | null;
+  permissions: Record<
+    string,
+    { canView: boolean; canCreate: boolean; canEdit: boolean; canDelete: boolean }
+  >;
+}
+
 export interface AdminAuditActor {
   uid: string;
   name: string;
@@ -47,6 +63,38 @@ export interface AdminAuditEvent {
   eventId?: string | null;
   source?: string | null;
   createdAt: string;
+}
+
+/** Um evento da atividade das empresas (GET /v1/admin/activity). */
+export interface TenantActivityEvent {
+  id: string;
+  tenantId: string | null;
+  uid: string | null;
+  role: string | null;
+  isDemo: boolean;
+  category: ActivityCategory;
+  type: TenantActivityType;
+  route: string | null;
+  meta: Record<string, string | number | boolean>;
+  source: "client" | "server" | null;
+  sessionId: string | null;
+  createdAt: string | null;
+  /** Quem agiu, resolvido pelo backend a partir do uid. */
+  actor?: AdminAuditActor;
+}
+
+export interface TenantActivityPage {
+  events: TenantActivityEvent[];
+  nextCursor: string | null;
+}
+
+export interface TenantActivityQuery {
+  tenantId?: string;
+  category?: ActivityCategory;
+  type?: TenantActivityType;
+  uid?: string;
+  cursor?: string | null;
+  limit?: number;
 }
 
 export interface TenantIndexItem {
@@ -225,15 +273,44 @@ export const AdminService = {
     return result.events ?? [];
   },
 
-  startImpersonation: async (tenantId: string): Promise<void> => {
-    await callApi("/v1/admin/impersonation/start", "POST", { tenantId });
+  /** Atividade das empresas: telas, ações, jornada e erros, mais recente primeiro. */
+  getTenantActivity: async (params: TenantActivityQuery): Promise<TenantActivityPage> => {
+    const search = new URLSearchParams();
+    if (params.tenantId) search.set("tenantId", params.tenantId);
+    if (params.category) search.set("category", params.category);
+    if (params.type) search.set("type", params.type);
+    if (params.uid) search.set("uid", params.uid);
+    if (params.cursor) search.set("cursor", params.cursor);
+    search.set("limit", String(params.limit ?? 50));
+    const result = await callApi<TenantActivityPage>(`/v1/admin/activity?${search}`, "GET");
+    return { events: result.events ?? [], nextCursor: result.nextCursor ?? null };
+  },
+
+  startImpersonation: async (tenantId: string, memberUid?: string): Promise<void> => {
+    await callApi("/v1/admin/impersonation/start", "POST", {
+      tenantId,
+      ...(memberUid ? { memberUid } : {}),
+    });
   },
 
   stopImpersonation: async (
     tenantId: string,
-    reason: "exit_button" | "admin_route" | "logout",
+    reason: "exit_button" | "admin_route" | "logout" | "switch",
+    memberUid?: string,
   ): Promise<void> => {
-    await callApi("/v1/admin/impersonation/stop", "POST", { tenantId, reason });
+    await callApi("/v1/admin/impersonation/stop", "POST", {
+      tenantId,
+      reason,
+      ...(memberUid ? { memberUid } : {}),
+    });
+  },
+
+  /** Pessoas da empresa para o "Ver como membro" (dono marcado, sem superadmin). */
+  getTenantMembers: async (tenantId: string): Promise<TenantMemberInfo[]> => {
+    const data = await callApi<{ members: TenantMemberInfo[] }>(
+      `/v1/admin/tenants/${tenantId}/members`,
+    );
+    return data.members ?? [];
   },
 
   updateUserPlan: async (userId: string, planId: string): Promise<void> => {

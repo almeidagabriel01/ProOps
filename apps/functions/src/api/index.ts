@@ -9,6 +9,8 @@ import { verifyTurnstileToken } from "./middleware/verify-captcha";
 import { CORS_OPTIONS } from "../deploymentConfig";
 
 import { observabilityRoutes } from "./routes/observability.routes";
+import { activityRoutes } from "./routes/activity.routes";
+import { activityLimitResponse } from "./controllers/activity.controller";
 import { observabilityAdminRoutes } from "./routes/observability-admin.routes";
 import { attachUserIfPresent } from "./middleware/optional-auth";
 import { coreRoutes } from "./routes/core.routes";
@@ -267,6 +269,18 @@ const observabilityIngestLimiter = createRateLimiter({
   keyResolver: buildRateLimitIdentity,
 });
 
+// Atividade das empresas (painel do super admin). Por IP, porque o lote chega
+// por sendBeacon, sem cabecalho de auth; o limite por usuario fica no
+// controller, depois de verificar o token. O 429 daqui nao grava evento de
+// auditoria (ver activityLimitResponse).
+const activityIngestLimiter = createRateLimiter({
+  keyPrefix: "activity_ingest",
+  maxRequests: Number(process.env.RATE_LIMIT_ACTIVITY_MAX || 120),
+  windowMs: 60_000,
+  keyResolver: buildRateLimitIdentity,
+  onLimit: activityLimitResponse,
+});
+
 // One-time startup diagnostic (dev/emulator only — silent in Cloud Run, where
 // NODE_ENV==="production"). Confirms whether the rate-limit emulator bypass is
 // active so a misdetected runtime is obvious instead of surfacing as 429s.
@@ -490,6 +504,10 @@ app.use(
   attachUserIfPresent,
   observabilityRoutes,
 );
+
+// Atividade das empresas: antes da barreira de auth e do gate de assinatura,
+// para registrar a conta free e a bloqueada. A identidade sai do token no corpo.
+app.use("/v1/activity", activityIngestLimiter, activityRoutes);
 
 // Protected routes - everything below requires authentication
 app.use(validateFirebaseIdToken);

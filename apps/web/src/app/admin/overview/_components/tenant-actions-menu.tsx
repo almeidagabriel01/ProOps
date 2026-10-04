@@ -10,18 +10,20 @@ import {
     DropdownMenuSeparator,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { MoreHorizontal, Copy, ArrowRightLeft, LayoutGrid, ShieldOff } from "lucide-react";
+import { MoreHorizontal, Copy, ArrowRightLeft, LayoutGrid, ShieldOff, History } from "lucide-react";
 import { TenantBillingInfo, AdminService } from "@/services/admin-service";
 import { toast } from '@/lib/toast';
 
 interface TenantActionsMenuProps {
     item: TenantBillingInfo;
     onManageModules?: (item: TenantBillingInfo) => void;
+    onViewActivity?: (item: TenantBillingInfo) => void;
 }
 
 export function TenantActionsMenu({
     item,
     onManageModules,
+    onViewActivity,
 }: TenantActionsMenuProps) {
     const [isMigrating, setIsMigrating] = useState(false);
     const [isResettingMfa, setIsResettingMfa] = useState(false);
@@ -110,6 +112,15 @@ export function TenantActionsMenu({
                     Copiar ID Empresa
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
+                {onViewActivity && (
+                    <DropdownMenuItem
+                        onClick={() => onViewActivity(item)}
+                        className="flex items-center gap-2 cursor-pointer"
+                    >
+                        <History className="h-3.5 w-3.5" />
+                        Atividade
+                    </DropdownMenuItem>
+                )}
                 {onManageModules && (
                     <DropdownMenuItem
                         onClick={() => onManageModules(item)}

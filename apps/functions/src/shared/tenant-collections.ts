@@ -62,6 +62,7 @@ export const TENANT_PURGE_BY_FIELD = [
   "payout_attempts",
   "drive_delivery_jobs",
   "ai_traces",
+  "tenant_activity",
 ] as const;
 
 /** Um documento por empresa, com o id da empresa (subcolecoes incluidas). */

@@ -25,6 +25,7 @@ import { isPathAllowedForUser } from "@/lib/auth/resolve-user-home";
 import { ProtectedAppShell } from "@/components/layout/protected-app-shell";
 import { RouteContentSkeleton } from "@/components/layout/route-content-skeleton";
 import { EmailVerificationPending } from "@/components/auth/email-verification-pending";
+import { trackActivity } from "@/lib/activity/activity-tracker";
 
 // Routes that handle their own auth logic
 const SELF_HANDLED_ROUTES = [
@@ -134,6 +135,7 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
     // only gate that applies to them.
     if (user.role === "free") {
       if (!isPathAllowedForUser(pathname, user)) {
+        trackActivity("route_blocked", { meta: { reason: "free_tier", target: pathname } });
         router.replace("/");
       }
       return;
@@ -143,6 +145,7 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
     if (!permissions) return;
 
     if (pageIsMasterOnly(pathname) && permissions.role !== "MASTER") {
+      trackActivity("route_blocked", { meta: { reason: "master_only", target: pathname } });
       router.push("/403");
       return;
     }
@@ -152,6 +155,7 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
       const requiredAction = pageConfig.requiredPermission;
 
       if (!hasPermission(pageId, requiredAction)) {
+        trackActivity("route_blocked", { meta: { reason: "permission", target: pathname } });
         router.push("/403");
       }
     }

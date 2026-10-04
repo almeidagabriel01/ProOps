@@ -1,10 +1,13 @@
 // apps/web/src/lib/observability/client-error-reporter.ts
 import { buildClientErrorPayload, dedupeKey } from "./report-error";
 import { getCachedIdToken, installIdentityTokenCache } from "./identity-token-cache";
+import { trackActivity } from "@/lib/activity/activity-tracker";
 
 const ENDPOINT = "/api/backend/v1/observability/client-error";
 const FLUSH_DEBOUNCE_MS = 2000;
 const MAX_BUFFER = 20;
+/** `route` que o api-client passa ("POST /v1/..."): esse erro já vira `api_error`. */
+const API_FAILURE_ROUTE = /^[A-Z]+ \//;
 
 type Payload = ReturnType<typeof buildClientErrorPayload>;
 
@@ -50,6 +53,11 @@ export function reportClientError(err: unknown, ctx?: { route?: string; status?:
     const route =
       ctx?.route ?? (typeof window !== "undefined" ? window.location.pathname : null) ?? undefined;
     const payload = buildClientErrorPayload(err, { route, status: ctx?.status });
+    // Atividade da empresa no painel do super admin: só o tipo do erro e a
+    // tela, nunca a mensagem. Falha de API já é registrada pelo api-client.
+    if (ctx?.status === undefined && !API_FAILURE_ROUTE.test(ctx?.route ?? "")) {
+      trackActivity("client_error", { meta: { errorType: payload.errorType } });
+    }
     const key = dedupeKey(payload);
     if (!buffer.has(key)) buffer.set(key, payload);
     if (buffer.size >= MAX_BUFFER) {

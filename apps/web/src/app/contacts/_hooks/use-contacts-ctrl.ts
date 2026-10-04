@@ -9,7 +9,7 @@ import { useClientActions } from "@/hooks/useClientActions";
 import { useTenant } from "@/providers/tenant-provider";
 import { useSort } from "@/hooks/use-sort";
 import { QueryDocumentSnapshot, DocumentData } from "firebase/firestore";
-import { useAuth } from "@/providers/auth-provider";
+import { useEffectiveViewer } from "@/hooks/use-effective-viewer";
 import {
   matchesResponsibleFilter,
   parseResponsibleFilter,
@@ -41,7 +41,7 @@ export function parseContactsTypeFilter(
 
 export function useContactsCtrl() {
   const { tenant, isLoading: tenantLoading } = useTenant();
-  const { user } = useAuth();
+  const viewer = useEffectiveViewer();
   
   // All clients — only loaded when search/filter is active
   const [allClients, setAllClients] = React.useState<Client[] | null>(null);
@@ -65,8 +65,8 @@ export function useContactsCtrl() {
     () => searchParams.get("resp") ?? "",
   );
   const responsible = React.useMemo(
-    () => parseResponsibleFilter(responsibleFilter, user?.id),
-    [responsibleFilter, user?.id],
+    () => parseResponsibleFilter(responsibleFilter, viewer.uid ?? undefined),
+    [responsibleFilter, viewer.uid],
   );
   React.useEffect(() => {
     replaceUrlSearchParams({

@@ -27,6 +27,11 @@ jest.mock("./services/email/internal-notify", () => ({
   notifyInternalLifecycle: (opts: unknown) => notifyMock(opts),
 }));
 
+const recordActivityMock = jest.fn();
+jest.mock("./lib/tenant-activity", () => ({
+  recordTenantActivity: (input: unknown) => recordActivityMock(input),
+}));
+
 jest.mock("firebase-functions/v2/firestore", () => ({
   onDocumentCreated: jest.fn(() => jest.fn()),
 }));
@@ -46,6 +51,7 @@ beforeEach(() => {
   isEmulatedRuntimeMock.mockReturnValue(false);
   claimCreateMock.mockResolvedValue(undefined);
   notifyMock.mockResolvedValue(undefined);
+  recordActivityMock.mockResolvedValue(undefined);
 });
 
 describe("handleUserCreatedNotify", () => {
@@ -131,5 +137,38 @@ describe("handleUserCreatedNotify", () => {
     ).resolves.toBeUndefined();
 
     expect(logger.error).toHaveBeenCalled();
+  });
+
+  describe("atividade da empresa (painel do super admin)", () => {
+    it("dono: grava signup com id fixo, também no emulador", async () => {
+      isEmulatedRuntimeMock.mockReturnValue(true);
+      await handleUserCreatedNotify(makeEvent("u1", { tenantId: "tenant_u1", role: "free" }));
+      expect(recordActivityMock).toHaveBeenCalledWith({
+        tenantId: "tenant_u1",
+        uid: "u1",
+        role: "free",
+        type: "signup",
+        source: "server",
+        docId: "signup_u1",
+      });
+    });
+
+    it("membro de equipe: grava team_member_added na empresa do dono", async () => {
+      await handleUserCreatedNotify(makeEvent("member1", { tenantId: "tenant_owner9", role: "MEMBER" }));
+      expect(recordActivityMock).toHaveBeenCalledWith(
+        expect.objectContaining({ tenantId: "tenant_owner9", type: "team_member_added", docId: "signup_member1" }),
+      );
+    });
+
+    it("repetição do gatilho continua gravando pelo mesmo id (o create descarta)", async () => {
+      claimCreateMock.mockRejectedValue(new Error("ALREADY_EXISTS"));
+      await handleUserCreatedNotify(makeEvent("u1", { tenantId: "tenant_u1" }));
+      expect(recordActivityMock.mock.calls[0][0].docId).toBe("signup_u1");
+    });
+
+    it("sem tenantId não grava atividade", async () => {
+      await handleUserCreatedNotify(makeEvent("u1", { email: "a@b.com" }));
+      expect(recordActivityMock).not.toHaveBeenCalled();
+    });
   });
 });

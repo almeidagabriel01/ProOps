@@ -45,6 +45,7 @@ interface TenantsTableProps {
   filterStatus: string;
   onFilterChange: (status: string) => void;
   onManageModules?: (item: TenantBillingInfo) => void;
+  onViewActivity?: (item: TenantBillingInfo) => void;
 }
 
 function TableEmptyState() {
@@ -68,9 +69,11 @@ function TableEmptyState() {
 function TenantMobileRow({
   item,
   onManageModules,
+  onViewActivity,
 }: {
   item: TenantBillingInfo;
   onManageModules?: (item: TenantBillingInfo) => void;
+  onViewActivity?: (item: TenantBillingInfo) => void;
 }) {
   const lastSeenDays = daysSinceLastSeen(item.tenant.lastSeenAt);
   return (
@@ -84,7 +87,7 @@ function TenantMobileRow({
             <span className="truncate">{item.admin.email}</span>
           </p>
         </div>
-        <TenantActionsMenu item={item} onManageModules={onManageModules} />
+        <TenantActionsMenu item={item} onManageModules={onManageModules} onViewActivity={onViewActivity} />
       </div>
       <div className="mt-3 flex flex-wrap items-center gap-2">
         <PlanBadge
@@ -114,9 +117,10 @@ interface TenantRowProps {
   item: TenantBillingInfo;
   index: number;
   onManageModules?: (item: TenantBillingInfo) => void;
+  onViewActivity?: (item: TenantBillingInfo) => void;
 }
 
-function TenantRow({ item, index, onManageModules }: TenantRowProps) {
+function TenantRow({ item, index, onManageModules, onViewActivity }: TenantRowProps) {
   const lastSeenDays = daysSinceLastSeen(item.tenant.lastSeenAt);
   return (
     <motion.tr
@@ -189,7 +193,7 @@ function TenantRow({ item, index, onManageModules }: TenantRowProps) {
         <StatusBadge status={item.subscriptionStatus || "active"} />
       </TableCell>
       <TableCell className="pr-6 py-4 text-right">
-        <TenantActionsMenu item={item} onManageModules={onManageModules} />
+        <TenantActionsMenu item={item} onManageModules={onManageModules} onViewActivity={onViewActivity} />
       </TableCell>
     </motion.tr>
   );
@@ -202,6 +206,7 @@ export function TenantsTable({
   filterStatus,
   onFilterChange,
   onManageModules,
+  onViewActivity,
 }: TenantsTableProps) {
   return (
     <motion.div
@@ -265,6 +270,7 @@ export function TenantsTable({
                   key={item.tenant.id}
                   item={item}
                   onManageModules={onManageModules}
+                  onViewActivity={onViewActivity}
                 />
               ))
             )}
@@ -319,6 +325,7 @@ export function TenantsTable({
                       item={item}
                       index={index}
                       onManageModules={onManageModules}
+                      onViewActivity={onViewActivity}
                     />
                   ))
                 )}

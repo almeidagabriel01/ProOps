@@ -25,6 +25,7 @@ import {
 const ADMIN_ROUTES = [
   "/admin",
   "/admin/overview",
+  "/admin/activity",
   "/admin/audit",
   "/admin/analytics",
   "/admin/observability",

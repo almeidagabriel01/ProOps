@@ -54,6 +54,14 @@ export const validateFirebaseIdToken = async (
     return next();
   }
 
+  // Ja autenticado nesta request (o `app.use` global roda antes de tudo).
+  // Fiscal, Asaas, notificacoes e a funcao de PDF repetem este middleware por
+  // rota; refazer o `req.user` desfazia a troca do "Acessar Painel"
+  // (`resolveImpersonation`), e essas telas agiam no tenant do superadmin.
+  if (req.user) {
+    return next();
+  }
+
   // Shared links are intentionally public.
   if (req.path.startsWith("/v1/share/") || req.path.startsWith("/share/")) {
     return next();

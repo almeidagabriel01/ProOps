@@ -3,6 +3,7 @@ import {
   BarChart3,
   Building2,
   CreditCard,
+  History,
   LayoutDashboard,
   ScrollText,
   ShieldCheck,
@@ -26,11 +27,14 @@ export interface AdminSection {
  * A ORDEM importa no celular: a tab bar mostra as 4 primeiras e manda o resto
  * para o "Mais" (`VISIBLE_TABS` em `mobile-tab-bar.tsx`). As quatro primeiras
  * são as de uso diário E têm rótulo curto: a 360px cada aba tem ~72px, e
- * "Observabilidade" sairia cortado ali, então ela fica no "Mais".
+ * "Observabilidade" sairia cortado ali, então ela fica no "Mais". "Atividade"
+ * (o que as empresas fizeram) entra logo depois da Visão geral por ser a de
+ * acompanhar todo dia; com isso Analytics desce para o "Mais".
  */
 export const ADMIN_SECTIONS: AdminSection[] = [
   { href: "/admin", label: "Empresas", icon: Building2 },
   { href: "/admin/overview", label: "Visão geral", icon: LayoutDashboard },
+  { href: "/admin/activity", label: "Atividade", icon: History },
   { href: "/admin/audit", label: "Auditoria", icon: ScrollText },
   { href: "/admin/analytics", label: "Analytics", icon: BarChart3 },
   { href: "/admin/observability", label: "Observabilidade", icon: Activity },

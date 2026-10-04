@@ -173,3 +173,43 @@ describe("resolveUserAndTenant durante o Acessar Painel", () => {
     ).rejects.toThrow("FORBIDDEN_TENANT_MISMATCH");
   });
 });
+
+describe("resolveUserAndTenant na visao de membro", () => {
+  // Identidade como o middleware de impersonacao a deixa depois de trocar
+  // o superadmin pelo membro (`x-view-as-member`).
+  const asMember = {
+    uid: "vendedor",
+    role: "MEMBER",
+    tenantId: "alvo",
+    masterId: "dono",
+    isSuperAdmin: false,
+    userDoc: { role: "MEMBER", tenantId: "alvo", masterId: "dono" },
+    impersonation: {
+      originalTenantId: "proprio",
+      targetTenantId: "alvo",
+      ownerUid: "dono",
+      writeEnabled: false,
+      memberUid: "vendedor",
+      actorUid: "root",
+    },
+  };
+
+  it("resolve como membro comum: sem bypass de master nem de superadmin", async () => {
+    docGetMock.mockImplementation((id: string) => {
+      if (id === "dono") {
+        return { exists: true, data: () => ({ role: "MASTER", tenantId: "alvo" }) };
+      }
+      throw new Error(`unexpected:${id}`);
+    });
+    const result = await resolveUserAndTenant("vendedor", asMember);
+    expect(result.isMaster).toBe(false);
+    expect(result.isSuperAdmin).toBe(false);
+    expect(result.tenantId).toBe("alvo");
+    expect(result.userRef.id).toBe("vendedor");
+    expect(result.masterRef.id).toBe("dono");
+  });
+
+  it("o uid do superadmin nao passa mais pela checagem de identidade", async () => {
+    await expect(resolveUserAndTenant("root", asMember)).rejects.toThrow("UNAUTHENTICATED");
+  });
+});

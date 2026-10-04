@@ -104,11 +104,22 @@ npm run test:functions:integration  # (na raiz) integração — sobe o emulador
   resposta só o tamanho. Args carregam nome de cliente, valor e CPF — o teste
   `src/ai/trace.test.ts` falha se algum desses campos entrar no doc.
 
+- `tenant_activity/{id}` — atividade das empresas para o painel do super admin
+  (`src/lib/tenant-activity.ts`): telas abertas, ações principais, jornada do
+  cadastro à assinatura e erros que a pessoa viu, um doc por evento. O que
+  entra é fechado pelo catálogo `src/shared/tenant-activity-catalog.ts` (tipo e
+  chaves de `meta` por tipo); **nunca** texto digitado, rótulo de botão,
+  mensagem de erro ou query string. O navegador manda lotes por
+  `POST /v1/activity/events` (montado antes da auth, identidade só do ID token
+  no corpo); o servidor grava `signup`, checkout e assinatura. Super admin não
+  grava. TTL de 90 dias via `expiresAt` (Timestamp).
+
 **Estado das TTL policies (verificado 2026-08-27 via `gcloud firestore fields ttls list`):**
 
 | Collection group | dev | prod |
 |---|---|---|
 | `ai_traces` | ✅ habilitada | ✅ habilitada |
+| `tenant_activity` | ⏳ habilitar no deploy (comando abaixo) | ⏳ idem |
 | `occurrences` | ❌ não habilitada (e habilitar não resolveria) | ❌ idem |
 
 **A nota de deploy antiga do pipeline de erros está incorreta: habilitar a TTL
@@ -128,6 +139,13 @@ construção, não ilimitado.
 
 Alternativa, se um dia importar: cron varrendo `expiresAt <= nowIso`, que
 funciona com string — é exatamente o que `cleanupSecurityAuditEvents.ts` faz.
+
+Para `tenant_activity`, por ambiente:
+
+```bash
+gcloud firestore fields ttls update expiresAt --collection-group=tenant_activity --enable-ttl --async --project=erp-softcode
+gcloud firestore fields ttls update expiresAt --collection-group=tenant_activity --enable-ttl --async --project=erp-softcode-prod
+```
 
 `--async` no comando de TTL importa: sem ele o gcloud bloqueia esperando a
 operação e estoura timeout. Confirme com `ttls list` (passa por `CREATING`

@@ -43,6 +43,7 @@ export function clearViewingTenantId() {
   cleanupLegacyViewingTenantStorage();
   sessionStorage.removeItem(VIEWING_TENANT_KEY);
   sessionStorage.removeItem("viewingAsTenantWrite");
+  sessionStorage.removeItem("viewingAsMember");
 }
 
 // Edicao habilitada no "Acessar Painel". Guarda o tenant junto para nunca
@@ -65,15 +66,47 @@ export function writeImpersonationWriteEnabled(enabled: boolean) {
   }
 }
 
+// "Ver como membro". Guardado como `tenantId:uid`, pelo mesmo motivo da chave
+// de escrita: trocar de empresa nunca leva o membro da anterior junto.
+const VIEWING_MEMBER_KEY = "viewingAsMember";
+
+export function readViewingMemberId(): string | null {
+  if (!canUseSessionStorage()) return null;
+  const tenantId = sessionStorage.getItem(VIEWING_TENANT_KEY);
+  const stored = sessionStorage.getItem(VIEWING_MEMBER_KEY);
+  if (!tenantId || !stored) return null;
+  const prefix = `${tenantId}:`;
+  if (!stored.startsWith(prefix)) return null;
+  return stored.slice(prefix.length) || null;
+}
+
+export function writeViewingMemberId(memberId: string | null) {
+  if (!canUseSessionStorage()) return;
+  const tenantId = sessionStorage.getItem(VIEWING_TENANT_KEY);
+  if (memberId && tenantId) {
+    sessionStorage.setItem(VIEWING_MEMBER_KEY, `${tenantId}:${memberId}`);
+    // A visao de membro e sempre somente leitura.
+    sessionStorage.removeItem(IMPERSONATION_WRITE_KEY);
+  } else {
+    sessionStorage.removeItem(VIEWING_MEMBER_KEY);
+  }
+}
+
 /**
- * Cabecalhos que dizem ao backend qual empresa o superadmin esta vendo e se a
- * edicao esta habilitada (`api/middleware/impersonation.ts`). Vazio fora do
- * "Acessar Painel". Unico lugar que monta esses cabecalhos.
+ * Cabecalhos que dizem ao backend qual empresa o superadmin esta vendo, se a
+ * edicao esta habilitada e, no "Ver como membro", qual membro
+ * (`api/middleware/impersonation.ts`). Vazio fora do "Acessar Painel". Unico
+ * lugar que monta esses cabecalhos.
  */
 export function buildImpersonationHeaders(): Record<string, string> {
   const tenantId = readViewingTenantId();
   if (!tenantId) return {};
   const headers: Record<string, string> = { "x-tenant-id": tenantId };
+  const memberId = readViewingMemberId();
+  if (memberId) {
+    headers["x-view-as-member"] = memberId;
+    return headers;
+  }
   if (readImpersonationWriteEnabled()) headers["x-impersonation-write"] = "1";
   return headers;
 }

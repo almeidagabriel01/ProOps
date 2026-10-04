@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { useAuth } from "@/providers/auth-provider";
+import { useEffectiveViewer } from "@/hooks/use-effective-viewer";
 import { usePagePermission } from "@/hooks/usePagePermission";
 import { FieldService } from "@/services/field-service-service";
 import type { ServiceOrder } from "@/types/field-service";
@@ -12,9 +12,9 @@ import type { ServiceOrder } from "@/types/field-service";
  * vale nas rules e na API; aqui ela decide a consulta.
  */
 export function useServiceOrderScope() {
-  const { user } = useAuth();
+  const { uid } = useEffectiveViewer();
   const all = usePagePermission("service_orders_all");
-  return { seesAll: all.canView, uid: user?.id ?? null, isLoading: all.isLoading };
+  return { seesAll: all.canView, uid, isLoading: all.isLoading };
 }
 
 /** As OS do tenant (ou do técnico), em tempo real. */

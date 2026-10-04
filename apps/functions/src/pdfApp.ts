@@ -1,5 +1,6 @@
 import express from "express";
 import { validateFirebaseIdToken } from "./api/middleware/auth";
+import { resolveImpersonation } from "./api/middleware/impersonation";
 import { pdfRateLimiter } from "./api/middleware/pdf-rate-limiter";
 import { downloadSharedProposalPdf } from "./api/controllers/shared-proposal-pdf.controller";
 import { downloadSharedTransactionPdf } from "./api/controllers/shared-transaction-pdf.controller";
@@ -38,6 +39,9 @@ pdfApp.get(
 
 // Autenticadas
 pdfApp.use(validateFirebaseIdToken);
+// Mesmo pipeline do monolito: sem isto o PDF baixado pelo superadmin no
+// "Acessar Painel" era procurado no tenant dele, e dava 404.
+pdfApp.use(resolveImpersonation);
 pdfApp.get("/v1/proposals/:id/pdf", pdfRateLimiter, downloadProposalPdf);
 pdfApp.get("/v1/transactions/:id/pdf", pdfRateLimiter, downloadTransactionPdf);
 pdfApp.get("/v1/service-orders/:id/pdf", pdfRateLimiter, downloadServiceOrderPdf);

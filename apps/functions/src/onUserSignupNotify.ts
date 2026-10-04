@@ -3,6 +3,7 @@ import { db } from "./init";
 import { logger } from "./lib/logger";
 import { isEmulatedRuntime } from "./lib/rate-limit/emulator";
 import { notifyInternalLifecycle } from "./services/email/internal-notify";
+import { recordTenantActivity } from "./lib/tenant-activity";
 
 /**
  * Notifica a ProOps por email quando um novo usuário é criado. O signup é
@@ -28,7 +29,6 @@ export async function handleUserCreatedNotify(event: EventLike): Promise<void> {
   try {
     const data = event.data?.data();
     if (!data) return;
-    if (isEmulatedRuntime()) return;
 
     const uid = event.params.uid;
     const tenantId = asString(data.tenantId);
@@ -36,6 +36,22 @@ export async function handleUserCreatedNotify(event: EventLike): Promise<void> {
       logger.warn("[onUserSignupNotify] user doc without tenantId", { uid });
       return;
     }
+
+    const isOwnerSignup = tenantId === `tenant_${uid}`;
+
+    // Atividade da empresa no painel do super admin. Antes do desvio do
+    // emulador (o e-mail interno nao sai em dev local, o registro sim) e com
+    // id fixo: o gatilho e at-least-once.
+    await recordTenantActivity({
+      tenantId,
+      uid,
+      role: asString(data.role),
+      type: isOwnerSignup ? "signup" : "team_member_added",
+      source: "server",
+      docId: `signup_${uid}`,
+    });
+
+    if (isEmulatedRuntime()) return;
 
     // Trigger é at-least-once: claim determinístico garante 1 email por uid.
     try {
@@ -46,8 +62,6 @@ export async function handleUserCreatedNotify(event: EventLike): Promise<void> {
     } catch {
       return; // ALREADY_EXISTS — retry do trigger, email já enviado.
     }
-
-    const isOwnerSignup = tenantId === `tenant_${uid}`;
 
     await notifyInternalLifecycle({
       event: isOwnerSignup ? "signup" : "team_member_added",

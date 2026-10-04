@@ -29,15 +29,19 @@ import {
   revokeCourtesyAddon,
   getTenantsIndex,
 } from "../controllers/admin-tenant-modules.controller";
+import { listTenantActivity } from "../controllers/admin-activity.controller";
+import { listTenantMembers } from "../controllers/admin-tenant-members.controller";
 
 const router = Router();
 
 router.get("/tenants/billing", getAllTenantsBilling);
 router.get("/tenants/index", getTenantsIndex);
 router.get("/tenants/:tenantId/modules", getTenantModules);
+router.get("/tenants/:tenantId/members", listTenantMembers);
 router.post("/tenants/:tenantId/addons/:addonId", grantCourtesyAddon);
 router.delete("/tenants/:tenantId/addons/:addonId", revokeCourtesyAddon);
 router.get("/audit-events", getAuditEvents);
+router.get("/activity", listTenantActivity);
 router.post("/impersonation/start", startImpersonation);
 router.post("/impersonation/stop", stopImpersonation);
 router.post("/members", createMember);

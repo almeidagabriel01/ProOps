@@ -28,6 +28,8 @@ import { toast } from "@/lib/toast";
 const EVENT_LABELS: Record<string, string> = {
   super_admin_impersonation_started: "Entrou no painel da empresa",
   super_admin_impersonation_stopped: "Saiu do painel da empresa",
+  super_admin_member_view_started: "Abriu o painel como um membro",
+  super_admin_member_view_stopped: "Saiu do painel do membro",
   super_admin_tenant_write: "Alterou dados da empresa (Acessar Painel)",
   super_admin_tenant_created: "Criou empresa",
   super_admin_tenant_deactivated: "Desativou empresa",

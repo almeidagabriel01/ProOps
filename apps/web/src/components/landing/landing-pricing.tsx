@@ -14,6 +14,7 @@ import { cn } from "@/lib/utils";
 import { toast } from "@/lib/toast";
 import { ApiError } from "@/lib/api-client";
 import { Loader } from "@/components/ui/loader";
+import { trackActivity } from "@/lib/activity/activity-tracker";
 
 if (typeof window !== "undefined") {
   gsap.registerPlugin(ScrollTrigger);
@@ -249,6 +250,10 @@ export function LandingPricing({
       return;
     }
 
+    trackActivity("subscribe_clicked", {
+      meta: { source: "landing_pricing", plan: planTier, interval: billingInterval, skipTrial },
+      flush: true,
+    });
     setProcessingTier(planTier);
     try {
       const { StripeService } = await import("@/services/stripe-service");

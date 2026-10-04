@@ -90,6 +90,20 @@ describe("getTransactionsSummary", () => {
     expect(whereChain.where).toHaveBeenCalledWith("tenantId", "==", "t-alvo");
   });
 
+  it("superadmin no Acessar Painel: vale a empresa vista, não o param", async () => {
+    resolveUserAndTenantMock.mockResolvedValue({ tenantId: "t-vista", isSuperAdmin: true });
+    aggregateGetMock.mockResolvedValue({ data: () => ({ paid: 0, pending: 0 }) });
+
+    await getTransactionsSummary(
+      "uid-sa",
+      { uid: "uid-sa", impersonation: { targetTenantId: "t-vista" } },
+      "t-OUTRO",
+    );
+
+    expect(whereChain.where).toHaveBeenCalledWith("tenantId", "==", "t-vista");
+    expect(whereChain.where).not.toHaveBeenCalledWith("tenantId", "==", "t-OUTRO");
+  });
+
   it("sem tenant resolvível → AUTH_CLAIMS_MISSING_TENANT", async () => {
     resolveUserAndTenantMock.mockResolvedValue({
       tenantId: "",

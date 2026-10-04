@@ -121,6 +121,15 @@ Os eventos com contador também geram audit events no Firestore (`security_audit
 | `auth/*` (Firebase Auth errors) | 401 |
 | outros | 403 |
 
+### Idempotente na mesma request
+
+Fiscal, Asaas, notificações e a função `pdf` repetem `validateFirebaseIdToken`
+por rota. Com `req.user` já preenchido ele só segue: refazer o usuário desfazia
+a troca do "Acessar Painel" (`resolveImpersonation`), e essas telas agiam no
+tenant do superadmin (a de Notas Fiscais mostrava erro no toast). A função
+`pdf` também monta `resolveImpersonation` logo depois da autenticação. Guards:
+`__tests__/auth.idempotent.test.ts` e `pdfApp.test.ts`.
+
 ### Regras ao Modificar
 
 - Nunca mover a posição de `app.use(validateFirebaseIdToken)` para antes das rotas públicas sem garantir que as rotas públicas estejam explicitamente no bypass ou registradas antes
@@ -144,12 +153,34 @@ superadmin com `x-tenant-id` diferente do próprio tenant:
   `/v1/profile`, `/v1/notifications` e `/v1/ai` (a Lia barra as ferramentas de
   escrita no executor).
 
-Para qualquer outro usuário os dois cabeçalhos são descartados.
+Para qualquer outro usuário os cabeçalhos são descartados.
+
+**"Ver como membro"** (`x-view-as-member: <uid>`, junto do `x-tenant-id`): a
+request passa a valer como aquele membro. O middleware confere que ele é da
+empresa vista e não é superadmin (400 `MEMBER_VIEW_NOT_FOUND`, cache de 60s) e
+troca `uid`, `role`, `isSuperAdmin` (false), `masterId` e `userDoc` pelos do
+membro; `impersonation` guarda `memberUid` e `actorUid` (o superadmin). Por
+isso `checkPermission(req.user.uid)`, `hasPagePermission`, tarefas, OS, metas
+e "Minhas comissões" respondem o que o membro vê sem nenhum controller saber.
+
+- **Nada grava** nesse modo, inclusive `/v1/notifications` e `/v1/ai`, e o
+  `x-impersonation-write` é ignorado: 403 `MEMBER_VIEW_READ_ONLY`. O que fosse
+  gravado ficaria em nome do membro.
+- `/v1/admin`, `/v1/auth` e `/v1/profile` **não** trocam a identidade: são o
+  painel e a conta do superadmin (encerrar, trocar de membro).
+- O rate limiter por uid conta na cota do membro. Só há leitura, então o
+  efeito é pequeno, e é o preço de não espalhar a exceção pelos limitadores.
 
 Consequências para quem escreve controller:
 
 - `resolveUserAndTenant` reconhece `claims.impersonation`: não acusa
   `FORBIDDEN_TENANT_MISMATCH` e devolve o dono da empresa vista como `masterRef`.
+  `checkFinancialPermission` (`lib/finance-helpers.ts`) tem a mesma exceção;
+  até 2026-10 não tinha, e todo endpoint financeiro dava 403 ao superadmin no
+  Acessar Painel. Helper novo que confira tenant contra o doc do usuário
+  precisa dela também.
+- O dono é o usuário mais antigo sem `masterId` **ou com `masterId` igual ao
+  próprio id** (seeds e contas antigas gravam assim).
 - `requirePlanCapability` avalia o plano da empresa vista (em `enforce`), sem o
   bypass de superadmin: o superadmin vê o que o cliente vê.
 - **Pegue o tenant de `req.user.tenantId`.** Ler `x-tenant-id` ou `targetTenantId`

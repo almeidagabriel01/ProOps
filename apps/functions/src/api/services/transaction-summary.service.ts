@@ -61,8 +61,10 @@ export async function getTransactionsSummary(
 
   // Superadmin pode consultar outro tenant (impersonation no dashboard);
   // qualquer outro role SEMPRE usa o tenant do próprio auth context.
+  // No "Acessar Painel" o tenant ja e o da empresa vista (middleware de
+  // impersonacao); o parametro so vale para o superadmin fora dele.
   const effectiveTenantId =
-    isSuperAdmin && requestedTenantId?.trim()
+    isSuperAdmin && !claims?.impersonation && requestedTenantId?.trim()
       ? requestedTenantId.trim()
       : tenantId;
 

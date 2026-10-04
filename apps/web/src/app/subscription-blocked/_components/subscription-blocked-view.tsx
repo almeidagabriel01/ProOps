@@ -75,6 +75,17 @@ export function SubscriptionBlockedView({ screen }: SubscriptionBlockedViewProps
             </Button>
           )}
 
+          {actions.includes("subscribe") && (
+            <Button
+              onClick={() => router.push("/subscription-blocked/plans")}
+              variant="outline"
+              className="w-full"
+            >
+              <CreditCard className="h-4 w-4 mr-2" />
+              Assinar pelo cartão
+            </Button>
+          )}
+
           {actions.includes("update_payment") && (
             <Button
               onClick={handleUpdatePayment}

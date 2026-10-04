@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/card";
 import { ArrowLeft, LogOut } from "lucide-react";
 import { Loader } from "@/components/ui/loader";
+import { trackActivity } from "@/lib/activity/activity-tracker";
 
 export default function SubscriptionBlockedPlansPage() {
   const router = useRouter();
@@ -75,6 +76,10 @@ export default function SubscriptionBlockedPlansPage() {
   const handleSelectPlan = async (planTier: string) => {
     if (!user) return;
 
+    trackActivity("subscribe_clicked", {
+      meta: { source: "subscription_blocked", plan: planTier, interval: billingInterval },
+      flush: true,
+    });
     setProcessingTier(planTier);
     setError(null);
 

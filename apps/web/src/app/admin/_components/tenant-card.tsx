@@ -36,6 +36,8 @@ import {
   RotateCcw,
   Ban,
   LayoutGrid,
+  History,
+  Users,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { formatDateBR } from "@/utils/date-format";
@@ -57,6 +59,8 @@ interface TenantCardProps {
   onLoginAs: (item: TenantBillingInfo) => void;
   onCopy?: (data: TenantBillingInfo) => void;
   onManageModules?: (data: TenantBillingInfo) => void;
+  onViewActivity?: (data: TenantBillingInfo) => void;
+  onViewMembers?: (data: TenantBillingInfo) => void;
 }
 
 export function TenantCard({
@@ -68,6 +72,8 @@ export function TenantCard({
   onLoginAs,
   onCopy,
   onManageModules,
+  onViewActivity,
+  onViewMembers,
 }: TenantCardProps) {
   const { tenant, planName, subscriptionStatus, billingInterval, admin, isBillingStale } = item;
   const isFreePlan = item.planId === "free";
@@ -229,6 +235,18 @@ export function TenantCard({
             >
               <Pencil className="w-4 h-4" />
             </Button>
+            {onViewActivity && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 max-md:h-10 max-md:w-10 text-muted-foreground hover:text-foreground"
+                onClick={() => onViewActivity(item)}
+                title="Atividade"
+                aria-label="Atividade"
+              >
+                <History className="w-4 h-4" />
+              </Button>
+            )}
             {onManageModules && (
               <Button
                 variant="ghost"
@@ -455,14 +473,31 @@ export function TenantCard({
                 : "Conta no plano gratuito não possui acesso ao painel ERP"
           }
         >
-          <Button
-            className="w-full cursor-pointer bg-white dark:bg-slate-950 border hover:bg-muted/50 text-foreground transition-colors shadow-sm"
-            variant="ghost"
-            onClick={() => onLoginAs(item)}
-            disabled={isDeleting || !canAccessPanel}
-          >
-            <LogIn className="w-4 h-4 mr-2 text-primary" /> Acessar Painel
-          </Button>
+          {/* "Membros" é só o ícone: com rótulo, os dois botões não cabem no
+              card estreito da grade de 4 colunas e o segundo era cortado. */}
+          <span className="flex w-full min-w-0 gap-2">
+            <Button
+              className="min-w-0 flex-1 cursor-pointer bg-white dark:bg-slate-950 border hover:bg-muted/50 text-foreground transition-colors shadow-sm"
+              variant="ghost"
+              onClick={() => onLoginAs(item)}
+              disabled={isDeleting || !canAccessPanel}
+            >
+              <LogIn className="w-4 h-4 mr-2 text-primary" /> Acessar Painel
+            </Button>
+            {onViewMembers && (
+              <Button
+                className="shrink-0 bg-white dark:bg-slate-950 border hover:bg-muted/50 text-foreground transition-colors shadow-sm"
+                variant="ghost"
+                size="icon"
+                onClick={() => onViewMembers(item)}
+                disabled={isDeleting || !canAccessPanel}
+                aria-label={`Ver o painel de um membro de ${tenant.name}`}
+                title="Membros: ver o painel como um membro da equipe"
+              >
+                <Users className="w-4 h-4 text-primary" />
+              </Button>
+            )}
+          </span>
           {/* O title acima não aparece no toque: no celular o motivo vira texto. */}
           {!canAccessPanel && (
             <span className="mt-2 block text-center text-xs text-muted-foreground md:hidden">

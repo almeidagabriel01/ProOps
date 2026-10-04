@@ -199,6 +199,16 @@ describe("getCommissionReport", () => {
     expect(ultimoTenantConsultado).toBe("outro-tenant");
   });
 
+  it("no Acessar Painel vale a empresa vista, nao o tenant pedido", async () => {
+    checkFinancialPermission.mockResolvedValue({ tenantId: "alvo", isSuperAdmin: true });
+    await getCommissionReport(
+      "u1",
+      { uid: "u1", impersonation: { targetTenantId: "alvo" } },
+      { month: "2026-10", requestedTenantId: "outro-tenant" },
+    );
+    expect(ultimoTenantConsultado).toBe("alvo");
+  });
+
   it("sem tenant nenhum falha em vez de varrer a colecao inteira", async () => {
     checkFinancialPermission.mockResolvedValue({
       tenantId: "",

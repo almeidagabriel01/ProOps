@@ -1,6 +1,6 @@
 ﻿"use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useThemePrimaryColor } from "@/hooks/useThemePrimaryColor";
 import { DEFAULT_PLANS } from "@/services/plan-service";
@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Crown, Sparkles, Check, ArrowRight } from "lucide-react";
+import { trackActivity } from "@/lib/activity/activity-tracker";
 
 /**
  * Destaques por plano, derivados de DEFAULT_PLANS — que o guard de paridade
@@ -79,7 +80,12 @@ export function UpgradeModal({
   const planName =
     requiredPlan === "enterprise" ? "Enterprise" : "Profissional";
 
+  useEffect(() => {
+    if (open) trackActivity("upgrade_prompt_shown", { meta: { feature, surface: "modal" } });
+  }, [open, feature]);
+
   const handleUpgrade = () => {
+    trackActivity("upgrade_prompt_clicked", { meta: { feature, surface: "modal" } });
     onOpenChange(false);
     router.push("/profile?tab=billing");
   };
