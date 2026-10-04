@@ -15,7 +15,7 @@ export default function PrivacyPage() {
     <LegalPage
       title="Política de Privacidade"
       description="Esta Política de Privacidade explica como a ProOps coleta, utiliza, armazena e protege dados pessoais de usuários, clientes e contatos cadastrados na plataforma."
-      updatedAt="25 de setembro de 2026"
+      updatedAt="3 de outubro de 2026"
       sections={[
         {
           title: "1. Quem somos",
@@ -48,6 +48,13 @@ export default function PrivacyPage() {
                 clientes, contatos, propostas, compromissos, transações e
                 observações registradas dentro da plataforma.
               </p>
+              <p>
+                Dados de uso da plataforma: as telas abertas, as ações
+                principais (como iniciar uma assinatura ou concluir um passo do
+                tutorial) e os erros encontrados, com data, horário e o usuário
+                que as realizou. Não registramos o que é digitado nos campos nem
+                o conteúdo exibido nas telas.
+              </p>
             </>
           ),
         },
@@ -64,6 +71,11 @@ export default function PrivacyPage() {
               <p>
                 prestar suporte, corrigir falhas técnicas, prevenir fraude e
                 cumprir obrigações legais;
+              </p>
+              <p>
+                entender como a plataforma é usada, para melhorar a experiência,
+                prestar suporte e corrigir falhas, com base no legítimo
+                interesse da ProOps;
               </p>
               <p>
                 viabilizar integrações ativadas pelo próprio usuário ou pela
@@ -178,6 +190,11 @@ export default function PrivacyPage() {
                 serviço, execução das rotinas da empresa usuária, cumprimento de
                 obrigações legais e defesa de direitos. Após esse período, podem
                 ser excluídos ou anonimizados, quando aplicável.
+              </p>
+              <p>
+                Os registros de uso da plataforma são mantidos pela própria
+                ProOps, sem ferramentas de terceiros, e excluídos
+                automaticamente após 90 dias.
               </p>
             </>
           ),
