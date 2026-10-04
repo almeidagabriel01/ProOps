@@ -491,6 +491,7 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
         } else {
           console.warn(`Tenant ${tenantIdToLoad} not found in Firestore`);
           if (viewingAsId === tenantIdToLoad) {
+            void clearViewingMember({ silent: true });
             clearViewingTenantId();
           }
           setTenant(null);

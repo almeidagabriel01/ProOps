@@ -27,6 +27,7 @@ Prefixo montado em `/admin` pelo Express principal.
 | `POST` | `/admin/tenants/:tenantId/reactivate` | `reactivateTenant` | SUPERADMIN |
 | `POST` | `/admin/tenants/:tenantId/purge` | `purgeTenant` | SUPERADMIN |
 | `GET` | `/admin/tenants/:tenantId/modules` | `getTenantModules` | SUPERADMIN |
+| `GET` | `/admin/tenants/:tenantId/members` | `listTenantMembers` | SUPERADMIN |
 | `POST` | `/admin/tenants/:tenantId/addons/:addonId` | `grantCourtesyAddon` | SUPERADMIN |
 | `DELETE` | `/admin/tenants/:tenantId/addons/:addonId` | `revokeCourtesyAddon` | SUPERADMIN |
 | `POST` | `/admin/impersonation/start` | `startImpersonation` | SUPERADMIN |
@@ -35,7 +36,12 @@ Prefixo montado em `/admin` pelo Express principal.
 | `GET` | `/admin/activity` | `listTenantActivity` | SUPERADMIN |
 
 `getTenantsIndex`, `getTenantModules` e as rotas de add-on vivem em
-`admin-tenant-modules.controller.ts`. `listTenantActivity` vive em
+`admin-tenant-modules.controller.ts`. `listTenantMembers` vive em
+`admin-tenant-members.controller.ts`: as pessoas da empresa para o "Ver como
+membro" (dono marcado, sem superadmin, permissões normalizadas de cada membro).
+`impersonation/start` e `/stop` aceitam `memberUid`: com ele gravam
+`super_admin_member_view_started` / `_stopped` (o membro em `eventId`), e o
+start recusa membro que não é da empresa. `listTenantActivity` vive em
 `admin-activity.controller.ts`: a atividade das empresas (`tenant_activity`),
 paginada por cursor opaco (`createdAt` + id), com filtros `tenantId`,
 `category`, `type` e `uid`. `planActivityQuery` decide o que vai para o índice

@@ -252,7 +252,8 @@ sem provar nada.
 
 Ordem em que uma request atravessa: `validateFirebaseIdToken` →
 `resolveImpersonation` (superadmin no "Acessar Painel": troca o tenant pelo da
-empresa vista e barra escrita em modo leitura) → `requireActiveSubscription`
+empresa vista e barra escrita em modo leitura; no "Ver como membro" troca
+também a identidade pela do membro e barra toda escrita) → `requireActiveSubscription`
 (free vs pagante) → rate limiter → `requirePlanCapability` (módulo) → controller
 (`checkPermission`).
 
@@ -262,3 +263,8 @@ empresa vista e barra escrita em modo leitura) → `requireActiveSubscription`
 > impersonação já trocou o tenant. Ler `x-tenant-id` ou `targetTenantId` por
 > conta própria recria o problema antigo, em que cada módulo decidia sozinho e
 > metade deles gravava no tenant do superadmin.
+>
+> Pelo mesmo motivo, **o usuário vem de `req.user.uid`**: no "Ver como membro"
+> ele já é o membro visto. No front, consulta que filtre pela pessoa ("só as
+> minhas") usa `useEffectiveViewer()`, não `user.id`, senão o superadmin vê a
+> empresa inteira achando que está vendo o membro.

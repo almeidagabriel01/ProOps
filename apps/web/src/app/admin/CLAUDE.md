@@ -20,7 +20,7 @@ src/app/admin/
 ├── _components/
 │   ├── admin-guard.tsx              # Bloqueia não-superadmin
 │   ├── admin-skeleton.tsx
-│   ├── tenant-card.tsx              # Card da empresa: editar, módulos, copiar, MFA, ciclo de vida
+│   ├── tenant-card.tsx              # Card da empresa: editar, módulos, copiar, MFA, ciclo de vida, membros
 │   └── copy-data-dialog.tsx         # Copiar catálogo entre empresas
 ├── _hooks/useTenantManagement.ts    # Estado da página /admin (lista, busca, save, ciclo de vida)
 ├── _utils/tenant-save-plan.ts       # O que salvar ao editar (função pura)
@@ -35,10 +35,13 @@ src/app/admin/
 src/components/admin/
 ├── tenant-dialog.tsx                # Criar/editar empresa
 ├── tenant-modules-dialog.tsx        # "Plano e módulos" (substitui o antigo Editar Limites)
+├── tenant-members-dialog.tsx        # Membros da empresa, com o "Ver como membro"
 └── activity/                        # Linha do tempo da atividade: formato, jornada, painel lateral
 
 src/lib/admin-sections.ts            # Seções do painel: fonte da dock e da tab bar do superadmin
 src/components/layout/impersonation-bar.tsx  # Faixa do "Acessar Painel"
+src/components/layout/member-view-switcher.tsx  # "Ver como" da faixa (empresa ou membro)
+src/providers/viewing-member-provider.tsx    # Membro visto no "Ver como membro"
 ```
 
 ---
@@ -171,6 +174,31 @@ free (`canAccessTenantPanel`) e para empresa desativada.
   inclusive a implícita ao entrar em `/admin`).
 - Sair: botão "Sair" da faixa, ou abrir qualquer rota `/admin`.
 
+### "Ver como membro"
+
+Abre o painel **como um membro da equipe** vê: dock, guarda de rota (`/403`),
+botões, "só as minhas" de tarefas, OS e projetos, notificações e o que a API
+responde. **Sempre somente leitura**, sem "Habilitar edição".
+
+- **Entradas:** o botão "Membros" do card (`TenantMembersDialog`, lista de
+  `GET /v1/admin/tenants/:id/members`; o dono leva ao Acessar Painel normal) e
+  o seletor "Ver como" da faixa (`MemberViewSwitcher`), que troca entre a
+  empresa e cada membro sem voltar ao `/admin`. A troca pela faixa recarrega a
+  página: o que estava na tela foi lido com a identidade anterior.
+- **Estado:** `ViewingMemberProvider` (acima do `PermissionsProvider`), com o
+  membro em `sessionStorage` junto da empresa (`tenantId:uid`, então trocar de
+  empresa descarta o membro). `buildImpersonationHeaders` manda
+  `x-view-as-member` e, com membro, nunca o cabeçalho de escrita.
+- **Permissões:** o `PermissionsProvider` usa o papel e o mapa do membro
+  (`buildMemberViewPermissions`, `lib/permissions/member-view.ts`). Ele cai no
+  início que teria no login (`resolveMemberViewHome`).
+- **Escopo de dados:** as leituras diretas do Firestore saem com o token do
+  superadmin, que as rules liberam por inteiro. O "só as minhas" vem de
+  `useEffectiveViewer()` (o membro visto, senão o usuário logado), nunca da
+  rule. Consulta nova que filtre pela pessoa usa esse hook, não `user.id`.
+- A Lia some nesse modo (ela grava conversa e histórico).
+- **Auditoria:** `super_admin_member_view_started` / `_stopped`, com o membro.
+
 ---
 
 ## Auditoria (`/admin/audit`)
@@ -276,7 +304,8 @@ de toda request. O unico tempo que sobrou e antirrepeticao de 1 min no backend
 | `updateUserPlan` | `PUT /v1/admin/users/:id/plan` |
 | `updateUserSubscription` | `PUT /v1/admin/users/:id/subscription` |
 | `updateAdminCredentials` | `POST /v1/admin/credentials` |
-| `startImpersonation` / `stopImpersonation` | `POST /v1/admin/impersonation/{start,stop}` |
+| `startImpersonation` / `stopImpersonation` | `POST /v1/admin/impersonation/{start,stop}` (com `memberUid` no "Ver como membro") |
+| `getTenantMembers` | `GET /v1/admin/tenants/:id/members` |
 | `getAuditEvents` | `GET /v1/admin/audit-events` |
 | `getTenantActivity` | `GET /v1/admin/activity` |
 
