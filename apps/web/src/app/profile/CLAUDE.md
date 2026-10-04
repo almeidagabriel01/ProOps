@@ -154,7 +154,8 @@ O preço exibido é o `unitAmount` da RAIZ do tenant (o mapa `subscription.*` n�
 `resolveBillingBanner` (`lib/billing/billing-banner.ts`, puro) decide a faixa de
 assinatura do `ProtectedAppShell`, lendo só o doc do tenant e só para dono e
 administradores (`usePermissions().isMaster`): contrato manual a 30 dias do fim
-(amarela) e vencido em carência (vermelha), as duas com "Falar com a ProOps";
+(amarela) e vencido em carência (vermelha), as duas com "Assinar pelo cartão"
+(aba Planos) e "Falar com a ProOps";
 Stripe em atraso (portal) e com cancelamento agendado (reativar). Trial, demo e
 add-on seguem com a lógica própria. Guard: `lib/billing/__tests__/billing-banner.test.ts`
 e `tests/e2e/billing/billing-state-banners.spec.ts`.
@@ -175,6 +176,14 @@ com o layout, que decide se redireciona) lê a sessão e o tenant, e
 - **Dono/admin de Stripe**: "Renovar assinatura" (`/subscription-blocked/plans`),
   "Atualizar pagamento", "Falar com a ProOps" e "Sair".
 
+Papel, empresa e responsável saem do doc `users/{uid}`, com as claims só
+preenchendo o que falta (`lib/billing/blocked-session-identity.ts`): é o doc
+que o login e o `SubscriptionGuard` leem para mandar a pessoa até aqui. Lendo
+só as claims, uma conta com claim vazia ou `free` e doc de dono era devolvida à
+landing sem mensagem. Pelo mesmo motivo, `/api/auth/billing-status` busca o
+tenant no doc quando a claim não o traz (antes liberava tudo), e a landing
+mostra "Entrar no ERP" para a conta bloqueada, que leva a esta tela.
+
 Nunca cita o nome do plano. **A pessoa fica logada nessa tela**: nem o front
 (`auth-provider`, ao ler a claim de cobrança) nem o backend
 (`lib/billing-claims.ts`) deslogam ou revogam a sessão por status de cobrança.
@@ -191,6 +200,10 @@ Exibe cards de todos os planos disponíveis (`UserPlan[]` via `PlanService.getPl
 - Botão de upgrade redireciona para Stripe Checkout
 - Botão de downgrade abre `PlanChangeDialog` para confirmação
 - Plano atual é destacado (sem botão de ação)
+- **Contrato manual** sem assinatura no Stripe (`isManualContract` do
+  `usePlanChange`): nenhum card é o "atual" e todos levam ao checkout com
+  "Assinar este plano", inclusive o do mesmo plano. É por aqui que o contrato
+  vira assinatura pelo cartão sem esperar o bloqueio.
 - Restrita a `isMaster = true`
 
 ---

@@ -115,19 +115,19 @@ describe("texto", () => {
   it("antes de vencer diz a data e manda falar com a ProOps", () => {
     expect(planExpiryText("manual", "2027-09-14", 7)).toEqual({
       title: "Seu plano vence em 7 dias",
-      message: "O plano da sua empresa vale até 14/09/2027. Fale com a ProOps para renovar.",
+      message: "O plano da sua empresa vale até 14/09/2027. Para renovar, assine pelo cartão em Perfil, Planos, ou fale com a ProOps.",
     });
     expect(planExpiryText("manual", "2027-09-08", 1).title).toBe("Seu plano vence amanhã");
   });
 
   it("depois de vencer diz até quando vai o acesso", () => {
     expect(planExpiryText("manual", "2027-09-14", -1).message).toBe(
-      "O plano da sua empresa venceu em 14/09/2027. O acesso continua até 21/09/2027. Fale com a ProOps para renovar.",
+      "O plano da sua empresa venceu em 14/09/2027. O acesso continua até 21/09/2027. Para renovar, assine pelo cartão em Perfil, Planos, ou fale com a ProOps.",
     );
     expect(planExpiryText("manual", "2027-09-14", -6)).toEqual({
       title: "Seu acesso termina amanhã",
       message:
-        "O plano da sua empresa venceu em 14/09/2027, e o acesso ao ERP vai até amanhã, 21/09/2027. Fale com a ProOps para renovar.",
+        "O plano da sua empresa venceu em 14/09/2027, e o acesso ao ERP vai até amanhã, 21/09/2027. Para renovar, assine pelo cartão em Perfil, Planos, ou fale com a ProOps.",
     });
   });
 

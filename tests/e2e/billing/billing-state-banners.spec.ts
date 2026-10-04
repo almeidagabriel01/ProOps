@@ -155,7 +155,7 @@ test.describe("STATE-04 plano manual acabando", () => {
     await restoreTenantState(db, TENANT, USER_ADMIN_BETA.uid);
   });
 
-  test("dono vê a faixa amarela com a data e o botão para falar com a ProOps", async ({ page, loginPage }) => {
+  test("dono vê a faixa amarela com a data, assinar pelo cartão e falar com a ProOps", async ({ page, loginPage }) => {
     const end = brDay(7);
     await seedBillingStateExtended(db, {
       tenantId: TENANT,
@@ -175,6 +175,12 @@ test.describe("STATE-04 plano manual acabando", () => {
     await expect(banner.getByRole("button", { name: /Falar com a ProOps/i })).toBeVisible();
     // Contrato manual não oferece o portal do Stripe.
     await expect(page.getByTestId("billing-state-banner-past-due")).toHaveCount(0);
+
+    // Assinar leva à aba Planos. Os cards não aparecem aqui (o emulador não tem
+    // planos nem Stripe); o texto deles no contrato manual é coberto em
+    // components/profile/__tests__/plan-card.manual-contract.test.tsx.
+    await banner.getByRole("button", { name: "Assinar pelo cartão" }).click();
+    await page.waitForURL(/\/profile\?tab=billing/, { timeout: 30000 });
   });
 
   test("membro da mesma empresa não vê a faixa", async ({ page, loginPage }) => {

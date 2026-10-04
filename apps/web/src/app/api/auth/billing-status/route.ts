@@ -70,7 +70,16 @@ export async function GET(req: NextRequest) {
       });
     }
 
-    const tenantId = String(decoded.tenantId || "").trim();
+    let tenantId = String(decoded.tenantId || "").trim();
+    let role = decoded.role as string | undefined;
+    if (!tenantId) {
+      // Claim sem tenant (conta montada à mão, claim antiga): o doc do usuário
+      // é a fonte, como no fallback do backend. Sem isto uma conta com o acesso
+      // encerrado andava pelo ERP inteiro passando por este gate.
+      const userData = (await getAdminFirestore().collection("users").doc(decoded.uid).get()).data();
+      tenantId = String(userData?.tenantId || userData?.companyId || "").trim();
+      if (!role && typeof userData?.role === "string") role = userData.role;
+    }
     if (!tenantId) {
       // No tenantId in claims yet (e.g., mid-onboarding) — let other layers handle it.
       return NextResponse.json({ allowed: true, status: "no_tenant" });
@@ -89,7 +98,7 @@ export async function GET(req: NextRequest) {
     // Paying roles are gated by their subscription/grace status.
     const requestedPath = req.nextUrl.searchParams.get("path") || "";
     const decision = resolveBillingAccess({
-      role: decoded.role as string | undefined,
+      role,
       subscriptionStatus,
       pastDueSince,
       requestedPath,
@@ -101,7 +110,7 @@ export async function GET(req: NextRequest) {
         ? {
             ...decision,
             snapshot: {
-              role: (decoded.role as string | undefined) ?? null,
+              role: role ?? null,
               subscriptionStatus,
               pastDueSince,
             },

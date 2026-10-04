@@ -301,13 +301,24 @@ export function LandingNavbar({ currentUser, onSignOut, isAuthLoading = false }:
                         Painel Admin
                       </DropdownMenuItem>
                     ) : isBlockedAccount ? (
-                      <DropdownMenuItem
-                        onClick={() => scrollToAnchor("#pricing")}
-                        className="mt-1 cursor-pointer gap-2 rounded-xl text-[13px] text-black/70 focus:bg-black/[0.04] focus:text-black dark:text-white/70 dark:focus:bg-white/[0.06] dark:focus:text-white"
-                      >
-                        <Sparkles className="h-4 w-4" />
-                        Ver planos
-                      </DropdownMenuItem>
+                      <>
+                        {/* Leva à tela de bloqueio (appHref), com a mensagem e o
+                            caminho para regularizar. */}
+                        <DropdownMenuItem
+                          onClick={() => router.push(appHref)}
+                          className="mt-1 cursor-pointer gap-2 rounded-xl text-[13px] text-black/70 focus:bg-black/[0.04] focus:text-black dark:text-white/70 dark:focus:bg-white/[0.06] dark:focus:text-white"
+                        >
+                          <LayoutDashboard className="h-4 w-4" />
+                          Entrar no ERP
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onClick={() => scrollToAnchor("#pricing")}
+                          className="cursor-pointer gap-2 rounded-xl text-[13px] text-black/70 focus:bg-black/[0.04] focus:text-black dark:text-white/70 dark:focus:bg-white/[0.06] dark:focus:text-white"
+                        >
+                          <Sparkles className="h-4 w-4" />
+                          Ver planos
+                        </DropdownMenuItem>
+                      </>
                     ) : isFreeAccount ? (
                       <>
                         <DropdownMenuItem
@@ -469,14 +480,24 @@ export function LandingNavbar({ currentUser, onSignOut, isAuthLoading = false }:
                         Painel Admin
                       </LandingButton>
                     ) : isBlockedAccount ? (
-                      <LandingButton
-                        variant="link"
-                        tone="muted"
-                        onClick={() => scrollToAnchor("#pricing", true)}
-                        className="text-lg"
-                      >
-                        Ver planos
-                      </LandingButton>
+                      <>
+                        <LandingButton
+                          href={appHref}
+                          variant="link"
+                          tone="muted"
+                          onClick={() => setMobileOpen(false)}
+                          className="text-lg"
+                        >
+                          Entrar no ERP
+                        </LandingButton>
+                        <button
+                          type="button"
+                          onClick={() => scrollToAnchor("#pricing", true)}
+                          className="text-lg text-black/70 transition-colors hover:text-black dark:text-white/70 dark:hover:text-white"
+                        >
+                          Ver planos
+                        </button>
+                      </>
                     ) : isFreeAccount ? (
                       <>
                         <LandingButton
