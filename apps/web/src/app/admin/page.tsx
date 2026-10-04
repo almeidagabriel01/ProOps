@@ -5,6 +5,10 @@ import { Button } from "@/components/ui/button";
 import { Plus, Search, Building2 } from "lucide-react";
 import { TenantDialog } from "@/components/admin/tenant-dialog";
 import { TenantModulesDialog } from "@/components/admin/tenant-modules-dialog";
+import {
+  TenantActivityDrawer,
+  type ActivityTenantTarget,
+} from "@/components/admin/activity/tenant-activity-drawer";
 import { useTenantManagement } from "./_hooks/useTenantManagement";
 import { TenantCard, CopyDataDialog } from "./_components";
 import { AdminSkeleton } from "./_components/admin-skeleton";
@@ -45,6 +49,7 @@ export default function AdminPage() {
   const [copySourceTenant, setCopySourceTenant] = React.useState<TenantBillingInfo | null>(null);
   const [isCopying, setIsCopying] = React.useState(false);
   const [modulesTarget, setModulesTarget] = React.useState<TenantBillingInfo | null>(null);
+  const [activityTarget, setActivityTarget] = React.useState<ActivityTenantTarget | null>(null);
 
   const handleOpenCopyModal = (tenant: TenantBillingInfo) => {
     setCopySourceTenant(tenant);
@@ -121,6 +126,7 @@ export default function AdminPage() {
             onLoginAs={handleLoginAs}
             onCopy={handleOpenCopyModal}
             onManageModules={setModulesTarget}
+            onViewActivity={(data) => setActivityTarget({ id: data.tenant.id, name: data.tenant.name })}
           />
         ))}
 
@@ -167,6 +173,8 @@ export default function AdminPage() {
         isSaving={isSaving}
         isRecomputing={isRecomputing}
       />
+
+      <TenantActivityDrawer tenant={activityTarget} onClose={() => setActivityTarget(null)} />
 
       <TenantModulesDialog
         tenantId={modulesTarget?.tenant.id ?? null}

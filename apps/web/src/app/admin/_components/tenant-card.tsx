@@ -36,6 +36,7 @@ import {
   RotateCcw,
   Ban,
   LayoutGrid,
+  History,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { formatDateBR } from "@/utils/date-format";
@@ -57,6 +58,7 @@ interface TenantCardProps {
   onLoginAs: (item: TenantBillingInfo) => void;
   onCopy?: (data: TenantBillingInfo) => void;
   onManageModules?: (data: TenantBillingInfo) => void;
+  onViewActivity?: (data: TenantBillingInfo) => void;
 }
 
 export function TenantCard({
@@ -68,6 +70,7 @@ export function TenantCard({
   onLoginAs,
   onCopy,
   onManageModules,
+  onViewActivity,
 }: TenantCardProps) {
   const { tenant, planName, subscriptionStatus, billingInterval, admin, isBillingStale } = item;
   const isFreePlan = item.planId === "free";
@@ -229,6 +232,18 @@ export function TenantCard({
             >
               <Pencil className="w-4 h-4" />
             </Button>
+            {onViewActivity && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 max-md:h-10 max-md:w-10 text-muted-foreground hover:text-foreground"
+                onClick={() => onViewActivity(item)}
+                title="Atividade"
+                aria-label="Atividade"
+              >
+                <History className="w-4 h-4" />
+              </Button>
+            )}
             {onManageModules && (
               <Button
                 variant="ghost"

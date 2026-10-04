@@ -28,12 +28,14 @@ src/app/admin/
 ├── analytics/                       # /admin/analytics — KPIs e gráficos
 ├── billing/                         # /admin/billing — faturamento
 ├── observability/                   # /admin/observability — erros agrupados
+├── activity/                        # /admin/activity — atividade das empresas (telas, ações, jornada, erros)
 ├── audit/                           # /admin/audit — eventos de security_audit_events (com a coluna Quem)
 └── setup-mfa/                       # /admin/setup-mfa — MFA do superadmin
 
 src/components/admin/
 ├── tenant-dialog.tsx                # Criar/editar empresa
-└── tenant-modules-dialog.tsx        # "Plano e módulos" (substitui o antigo Editar Limites)
+├── tenant-modules-dialog.tsx        # "Plano e módulos" (substitui o antigo Editar Limites)
+└── activity/                        # Linha do tempo da atividade: formato, jornada, painel lateral
 
 src/lib/admin-sections.ts            # Seções do painel: fonte da dock e da tab bar do superadmin
 src/components/layout/impersonation-bar.tsx  # Faixa do "Acessar Painel"
@@ -177,7 +179,7 @@ Mostra `security_audit_events`, que junta duas coisas: o que o super admin fez
 em cada empresa e o que o backend recusou para os usuarios delas (conta
 gratuita barrada, plano insuficiente, limite, rate limit, CORS, login). As duas
 carregam o mesmo `tenantId`, entao a tela resolve **quem agiu**: o backend
-(`withActors` em `admin.controller.ts`) busca `users/{uid}` dos eventos da
+(`withActors` em `lib/admin-actors.ts`) busca `users/{uid}` dos eventos da
 pagina e devolve nome, e-mail e papel, e a linha ganha selo quando o papel e
 `superadmin`. Sem isso nao havia como separar "eu entrei pelo Acessar Painel"
 de "o cliente tentou".
@@ -186,6 +188,31 @@ Os rotulos dos eventos e dos motivos vivem em `EVENT_LABELS` e `REASON_LABELS`
 na propria pagina. Evento sem rotulo aparece cru (foi assim que
 `BILLING_SUBSCRIPTION_BLOCK` / `FREE_TIER_FORBIDDEN_ROUTE` apareceu em
 producao): ao criar um `eventType` novo, acrescente o rotulo ali.
+
+## Atividade das empresas (`/admin/activity`)
+
+A auditoria é o rastro do super admin e das recusas do backend; esta tela é o
+lado do cliente: o que os usuários de cada empresa fizeram no ERP. Coleção
+`tenant_activity` (um doc por evento, 90 dias de TTL), lida por
+`GET /v1/admin/activity` com cursor. Regras do backend e do catálogo em
+`apps/functions/CLAUDE.md` (seção Error Observability, `tenant_activity`).
+
+- **O que entra:** telas abertas (`useActivityTracking`, montado no shell
+  autenticado), cliques em Assinar (com a origem: faixa da demonstração, tela
+  de planos, landing, link de assinatura, acesso suspenso), aviso de plano
+  visto e clicado, tentativa de alterar dados na demonstração, tela bloqueada,
+  passos do tutorial, erros de API (4xx e 5xx, menos 401) e erros de tela. O
+  servidor grava cadastro, entrada no ERP, checkout, teste grátis, assinatura,
+  troca de plano, cancelamento e falha de pagamento.
+- **O que nunca entra:** texto digitado, rótulo de botão, mensagem de erro,
+  query string ou id cru na rota (vira `[id]`). O catálogo
+  (`lib/activity/catalog.ts`, espelho do backend com paridade) fecha os tipos.
+- **Super admin não é registrado**, nem no "Acessar Painel".
+- **Onde abre:** a tela Atividade (todas as empresas, filtro por empresa e por
+  tipo, "Erros" incluso) e o botão "Atividade" no card da empresa e no menu da
+  Visão geral, que abrem o painel lateral (`TenantActivityDrawer`) com a
+  jornada do cadastro à assinatura no topo e o filtro por usuário.
+- Dias e horários no fuso de Brasília (`activity-format.ts`).
 
 ## Última vez online
 
@@ -251,6 +278,7 @@ de toda request. O unico tempo que sobrou e antirrepeticao de 1 min no backend
 | `updateAdminCredentials` | `POST /v1/admin/credentials` |
 | `startImpersonation` / `stopImpersonation` | `POST /v1/admin/impersonation/{start,stop}` |
 | `getAuditEvents` | `GET /v1/admin/audit-events` |
+| `getTenantActivity` | `GET /v1/admin/activity` |
 
 Toda mutação do superadmin grava um evento em `security_audit_events`, com
 `await` (no Cloud Run, write sem await se perde).
@@ -287,6 +315,6 @@ desktop não muda, toda diferença é aditiva com prefixo.
 - **Toque:** botões de ícone ganham `max-md:h-10 max-md:w-10`; nada de ação que
   só aparece no hover. Tooltip de informação vira texto visível abaixo de `md`.
 - **Guard:** `tests/e2e/mobile/admin-no-overflow.spec.ts`, logado como super
-  admin, mede as 7 rotas e confere que os filtros da Visão geral aparecem
+  admin, mede as 8 rotas e confere que os filtros da Visão geral aparecem
   inteiros (card com `overflow-hidden` corta em vez de vazar, e a medida de
   overflow sozinha não enxerga isso).

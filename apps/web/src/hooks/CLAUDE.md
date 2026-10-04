@@ -7,12 +7,14 @@ React hooks customizados que encapsulam lógica reutilizável de dados e UI.
 ```
 hooks/
 ├── proposal/              # Hooks específicos de propostas (subpasta)
+├── use-activity-tracking.ts # Telas abertas no ERP, para a atividade da empresa no painel do super admin
 ├── use-before-unload-warning.ts # Confirmação do navegador ao fechar a aba com trabalho não salvo
 ├── use-count-up.ts        # Animação de contagem numérica
 ├── use-horizontal-scroll-affordance.ts # Fileira de abas que rola: centra a ativa e diz de que lado há mais (esmaecido .scroll-fade-x)
 ├── use-prefers-reduced-motion.ts
 ├── use-record-search.ts   # Busca de propostas e contatos para o Ctrl+K (índice searchTokens)
 ├── use-sort.ts            # Ordenação de listas
+├── use-tenant-activity.ts # Atividade das empresas no painel do super admin, paginada por cursor
 ├── use-task-reader.ts     # Como a pessoa lê as tarefas (empresa inteira ou só as dela)
 ├── use-tasks.ts           # Tarefas (lista ou de um contato/proposta/lead), pessoas e concluir otimista
 ├── use-window-focus.ts    # Detecção de foco da janela

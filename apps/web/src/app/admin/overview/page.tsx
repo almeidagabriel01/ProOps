@@ -5,6 +5,10 @@ import { ArrowLeft, BarChart2, Download, LayoutDashboard } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useTenantsData } from "./_hooks/useTenantsData";
 import { TenantModulesDialog } from "@/components/admin/tenant-modules-dialog";
+import {
+  TenantActivityDrawer,
+  type ActivityTenantTarget,
+} from "@/components/admin/activity/tenant-activity-drawer";
 import type { TenantBillingInfo } from "@/services/admin-service";
 import * as React from "react";
 import {
@@ -27,6 +31,7 @@ export default function AdminOverviewPage() {
     metrics,
   } = useTenantsData();
   const [modulesTarget, setModulesTarget] = React.useState<TenantBillingInfo | null>(null);
+  const [activityTarget, setActivityTarget] = React.useState<ActivityTenantTarget | null>(null);
 
   if (isLoading) {
     return <AdminOverviewSkeleton />;
@@ -99,7 +104,10 @@ export default function AdminOverviewPage() {
         filterStatus={filterStatus}
         onFilterChange={setFilterStatus}
         onManageModules={setModulesTarget}
+        onViewActivity={(item) => setActivityTarget({ id: item.tenant.id, name: item.tenant.name })}
       />
+
+      <TenantActivityDrawer tenant={activityTarget} onClose={() => setActivityTarget(null)} />
 
       <TenantModulesDialog
         tenantId={modulesTarget?.tenant.id ?? null}
