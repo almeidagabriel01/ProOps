@@ -929,6 +929,13 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
+    // Atividade das empresas (telas, acoes, jornada e erros), lida so pelo
+    // painel do super admin via API (GET /v1/admin/activity). Escrita so pelo
+    // backend (POST /v1/activity/events e eventos do servidor).
+    match /tenant_activity/{eventId} {
+      allow read, write: if false;
+    }
+
     // Armazenamento em uso (bytes + flag de estouro), mantido pelos gatilhos de
     // Storage. A empresa le para mostrar o uso na tela de assinatura e avisar
     // antes do upload; quem barra de fato e a storage.rules, que le a flag.

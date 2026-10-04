@@ -323,6 +323,7 @@ Funcao HTTP separada (nao faz parte do monolito `api`):
 | `whatsappUsage/{tenantId}/months/{YYYY-MM}` | WhatsApp | Uso mensal e overage |
 | `whatsappLogs` | WhatsApp | Audit trail de acoes do bot |
 | `drive_delivery_jobs/{tenantId}_{proposalId}` | Drive | Fila de entrega da proposta no Drive. Admin SDK only |
+| `tenant_activity/{id}` | Admin | Atividade das empresas (telas, acoes, jornada, erros), um doc por evento (`lib/tenant-activity.ts`). Lida pelo painel do super admin via API. TTL 90 dias via `expiresAt`. Admin SDK only |
 | `tenant_presence/{tenantId}` | Admin | Ultimo acesso da empresa (`lastSeenAt`), gravado por `POST /v1/session/ping`. Fora do doc do tenant porque aquele e escutado em tempo real por toda aba aberta. Admin SDK only |
 | `tenant_storage_usage/{tenantId}` | Plano | Armazenamento em uso (`storageBytes`) e `overQuota`, lido pela storage.rules. Subcolecao `events` = dedup de evento do Storage (`expiresAt` para TTL). Tenant le; escrita so Admin SDK |
 | `tenant_purge_jobs/{tenantId}` | Admin | Job de exclusao definitiva de empresa. Escrita so pelo backend; superadmin com MFA le o progresso |
