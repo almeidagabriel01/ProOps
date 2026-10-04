@@ -16,6 +16,9 @@ export interface BillingStateBannerProps {
   onCta?: () => void;
   ctaDisabled?: boolean;
   ctaDisabledTooltip?: string;
+  /** Segundo botão, mais discreto, à direita do principal. */
+  secondaryCtaLabel?: string;
+  onSecondaryCta?: () => void;
   dataTestid: string;
   icon?: React.ReactNode;
 }
@@ -51,6 +54,8 @@ export function BillingStateBanner({
   onCta,
   ctaDisabled,
   ctaDisabledTooltip,
+  secondaryCtaLabel,
+  onSecondaryCta,
   dataTestid,
   icon,
 }: BillingStateBannerProps) {
@@ -96,7 +101,22 @@ export function BillingStateBanner({
         {icon ?? styles.icon}
         <span className="text-sm font-medium truncate">{message}</span>
       </div>
-      {buttonNode}
+      {secondaryCtaLabel ? (
+        <div className="flex shrink-0 items-center gap-2">
+          {buttonNode}
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={onSecondaryCta}
+            className={cn("h-8 text-xs", variant === "destructive" && "text-destructive hover:text-destructive")}
+            data-testid={`${dataTestid}-secondary-cta`}
+          >
+            {secondaryCtaLabel}
+          </Button>
+        </div>
+      ) : (
+        buttonNode
+      )}
     </div>
   );
 }

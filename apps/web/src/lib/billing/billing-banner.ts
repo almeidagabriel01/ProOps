@@ -104,7 +104,7 @@ export function manualStatusFor(
   return -remaining <= MANUAL_GRACE_DAYS ? "past_due" : "canceled";
 }
 
-const RENEW = "Fale com a ProOps para renovar.";
+const RENEW = "Assine pelo cartão ou fale com a ProOps para renovar.";
 
 function manualBanner(
   tenant: NonNullable<BillingBannerInput["tenant"]>,

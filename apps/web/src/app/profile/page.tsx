@@ -56,6 +56,7 @@ function ProfileContent() {
     setDialogOpen,
     isCurrentPlan,
     canUpgrade,
+    isManualContract,
     billingInterval,
     setBillingInterval,
   } = usePlanChange(user, tenant);
@@ -241,6 +242,7 @@ function ProfileContent() {
                 openingPortal={openingPortal}
                 subscriptionStatus={user?.subscriptionStatus}
                 trialEligible={!effectiveTenant?.trialUsedAt}
+                isManualContract={isManualContract}
               />
             </motion.div>
           </TabsContent>

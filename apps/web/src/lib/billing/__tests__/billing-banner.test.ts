@@ -27,17 +27,17 @@ describe("contrato manual (plano dado pelo superadmin)", () => {
     expect(resolve(manual("2027-10-07"))).toEqual({
       kind: "manual_expiring",
       variant: "warning",
-      message: "Seu plano vence em 07/10/2027: faltam 30 dias. Fale com a ProOps para renovar.",
+      message: "Seu plano vence em 07/10/2027: faltam 30 dias. Assine pelo cartão ou fale com a ProOps para renovar.",
       dataTestid: "billing-state-banner-plan-expiring",
     });
   });
 
   it("amanhã e hoje têm texto próprio", () => {
     expect(resolve(manual("2027-09-08"))?.message).toBe(
-      "Seu plano vence amanhã, 08/09/2027. Fale com a ProOps para renovar.",
+      "Seu plano vence amanhã, 08/09/2027. Assine pelo cartão ou fale com a ProOps para renovar.",
     );
     expect(resolve(manual("2027-09-07"))?.message).toBe(
-      "Seu plano vence hoje, 07/09/2027. Fale com a ProOps para renovar.",
+      "Seu plano vence hoje, 07/09/2027. Assine pelo cartão ou fale com a ProOps para renovar.",
     );
   });
 
@@ -49,7 +49,7 @@ describe("contrato manual (plano dado pelo superadmin)", () => {
     expect(resolve(manual("2027-09-05", "past_due"))).toEqual({
       kind: "manual_expired",
       variant: "destructive",
-      message: "Seu plano venceu em 05/09/2027. O acesso continua até 12/09/2027. Fale com a ProOps para renovar.",
+      message: "Seu plano venceu em 05/09/2027. O acesso continua até 12/09/2027. Assine pelo cartão ou fale com a ProOps para renovar.",
       dataTestid: "billing-state-banner-plan-expired",
     });
   });

@@ -61,7 +61,7 @@ export function planExpiryText(
       message: `O cancelamento que você agendou encerra a assinatura em ${end}. Para continuar usando o ERP, reative em Perfil, Assinatura.`,
     };
   }
-  const renew = "Fale com a ProOps para renovar.";
+  const renew = "Para renovar, assine pelo cartão em Perfil, Planos, ou fale com a ProOps.";
   if (remainingDays >= 0) {
     return {
       title: `Seu plano vence ${inDays(remainingDays)}`,

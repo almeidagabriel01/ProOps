@@ -8,6 +8,7 @@ import { PlanPreview } from "@/types/plan";
 import { PlanService } from "@/services/plan-service";
 import { UserService } from "@/services/user-service";
 import { trackActivity } from "@/lib/activity/activity-tracker";
+import { isManualContractWithoutStripe } from "@/lib/billing/manual-contract";
 
 interface UsePlanChangeReturn {
   // User data
@@ -44,6 +45,8 @@ interface UsePlanChangeReturn {
   // Helpers
   isCurrentPlan: (plan: UserPlan) => boolean;
   canUpgrade: (plan: UserPlan) => boolean;
+  /** Plano dado pelo superadmin, sem assinatura no Stripe: todo card assina. */
+  isManualContract: boolean;
 }
 
 export function usePlanChange(
@@ -230,10 +233,13 @@ export function usePlanChange(
     loadPlans();
   }, [effectiveUser, resolvePlanFromCollection]);
 
+  const isManualContract = isManualContractWithoutStripe(tenant, effectiveUser);
+
   const isCurrentPlan = (plan: UserPlan) => {
     // A free/demo account has no current PAID plan — never highlight one as
     // active (e.g. a leftover "starter" from a churned trial).
     if (String(effectiveUser?.role || "").toLowerCase() === "free") return false;
+    if (isManualContract) return false;
     // Check if plan tier matches AND billing interval matches
     // If user has no billingInterval set (legacy), default to monthly
     const userInterval = effectiveUser?.billingInterval || "monthly";
@@ -242,7 +248,7 @@ export function usePlanChange(
 
   const canUpgrade = useCallback(
     (plan: UserPlan) => {
-      if (!userPlan) return true;
+      if (!userPlan || isManualContract) return true;
 
       if (plan.order > userPlan.order) return true;
       if (plan.order < userPlan.order) return false;
@@ -256,7 +262,7 @@ export function usePlanChange(
 
       return false;
     },
-    [userPlan, effectiveUser, billingInterval],
+    [userPlan, effectiveUser, billingInterval, isManualContract],
   );
 
   const showPlanChangeConfirmation = async (plan: UserPlan) => {
@@ -409,5 +415,6 @@ export function usePlanChange(
     setDialogOpen,
     isCurrentPlan,
     canUpgrade,
+    isManualContract,
   };
 }

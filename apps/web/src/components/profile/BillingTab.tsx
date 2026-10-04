@@ -32,6 +32,8 @@ interface BillingTabProps {
   subscriptionStatus?: string;
   /** False when the account already consumed its one-per-account trial. */
   trialEligible?: boolean;
+  /** Contrato manual: o card do plano atual também assina pelo cartão. */
+  isManualContract?: boolean;
 }
 
 export function BillingTab({
@@ -51,6 +53,7 @@ export function BillingTab({
   openingPortal,
   subscriptionStatus,
   trialEligible = true,
+  isManualContract = false,
 }: BillingTabProps) {
   if (!isMaster && !isFree) {
     return (
@@ -147,6 +150,7 @@ export function BillingTab({
               isFree={isFree}
               isActivePlan={isActivePlan}
               trialEligible={trialEligible}
+              isManualContract={isManualContract}
             />
           );
         })}

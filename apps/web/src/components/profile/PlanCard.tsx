@@ -28,6 +28,8 @@ interface PlanCardProps {
   isActivePlan?: boolean;
   /** False when the account already consumed its one-per-account trial. */
   trialEligible?: boolean;
+  /** Contrato manual: assinar não é upgrade, é passar o plano para o cartão. */
+  isManualContract?: boolean;
 }
 
 export function PlanCard({
@@ -43,6 +45,7 @@ export function PlanCard({
   isFree = false,
   isActivePlan = false,
   trialEligible = true,
+  isManualContract = false,
 }: PlanCardProps) {
   const displayPrice =
     billingInterval === "yearly" && plan.pricing
@@ -379,6 +382,8 @@ export function PlanCard({
                       </>
                     ) : isEnterprise ? (
                       "Entrar em contato"
+                    ) : isManualContract ? (
+                      "Assinar este plano"
                     ) : (
                       "Fazer Upgrade Agora"
                     )}

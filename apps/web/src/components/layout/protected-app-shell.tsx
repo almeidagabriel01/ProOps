@@ -183,8 +183,10 @@ function ProtectedShell({ children }: { children: React.ReactNode }) {
               <BillingStateBanner
                 variant={billingBanner.variant}
                 message={billingBanner.message}
-                ctaLabel="Falar com a ProOps"
-                onCta={handleContactSupport}
+                ctaLabel="Assinar pelo cartão"
+                onCta={() => router.push("/profile?tab=billing")}
+                secondaryCtaLabel="Falar com a ProOps"
+                onSecondaryCta={handleContactSupport}
                 dataTestid={billingBanner.dataTestid}
               />
             )}
