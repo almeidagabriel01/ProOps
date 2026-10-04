@@ -473,9 +473,11 @@ export function TenantCard({
                 : "Conta no plano gratuito não possui acesso ao painel ERP"
           }
         >
-          <span className="flex w-full gap-2">
+          {/* "Membros" é só o ícone: com rótulo, os dois botões não cabem no
+              card estreito da grade de 4 colunas e o segundo era cortado. */}
+          <span className="flex w-full min-w-0 gap-2">
             <Button
-              className="flex-1 cursor-pointer bg-white dark:bg-slate-950 border hover:bg-muted/50 text-foreground transition-colors shadow-sm"
+              className="min-w-0 flex-1 cursor-pointer bg-white dark:bg-slate-950 border hover:bg-muted/50 text-foreground transition-colors shadow-sm"
               variant="ghost"
               onClick={() => onLoginAs(item)}
               disabled={isDeleting || !canAccessPanel}
@@ -486,13 +488,13 @@ export function TenantCard({
               <Button
                 className="shrink-0 bg-white dark:bg-slate-950 border hover:bg-muted/50 text-foreground transition-colors shadow-sm"
                 variant="ghost"
+                size="icon"
                 onClick={() => onViewMembers(item)}
                 disabled={isDeleting || !canAccessPanel}
                 aria-label={`Ver o painel de um membro de ${tenant.name}`}
-                title="Ver como um membro da equipe"
+                title="Membros: ver o painel como um membro da equipe"
               >
-                <Users className="w-4 h-4 md:mr-2 text-primary" />
-                <span className="hidden md:inline">Membros</span>
+                <Users className="w-4 h-4 text-primary" />
               </Button>
             )}
           </span>
