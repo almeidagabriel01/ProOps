@@ -5,15 +5,17 @@
  * - **Membro**: não paga nada nem consegue (o backend recusa portal e checkout
  *   para quem não é dono ou administrador). Vê que a empresa está suspensa e
  *   com quem falar, e só pode sair.
- * - **Dono/admin de plano manual** (dado pelo superadmin): o plano venceu, e só
- *   a ProOps renova. Portal do Stripe e compra por cartão não servem.
+ * - **Dono/admin de plano manual** (dado pelo superadmin, inclusive o teste):
+ *   o plano venceu. Renova falando com a ProOps ou assina pelo cartão; ao
+ *   assinar, a empresa deixa de ser manual (writer único). O portal do Stripe
+ *   não serve, porque não há assinatura para atualizar.
  * - **Dono/admin de assinatura Stripe**: renovar a assinatura, atualizar o
  *   pagamento ou falar com a ProOps.
  *
  * Nunca cita o nome do plano.
  */
 
-export type BlockedAction = "renew" | "update_payment" | "contact" | "logout" | "login";
+export type BlockedAction = "renew" | "subscribe" | "update_payment" | "contact" | "logout" | "login";
 
 export interface BlockedScreenInput {
   /** Sessão válida (a pessoa está logada). Sem ela a tela é genérica. */
@@ -70,8 +72,8 @@ export function resolveBlockedScreen(input: BlockedScreenInput): BlockedScreen {
     return {
       kind: "suspended",
       title: "Seu plano venceu",
-      description: `Seu plano venceu${when}. Para voltar a usar o ERP, fale com a ProOps para renovar.`,
-      actions: ["contact", "logout"],
+      description: `Seu plano venceu${when}. Para voltar a usar o ERP, fale com a ProOps ou assine pelo cartão.`,
+      actions: ["contact", "subscribe", "logout"],
     };
   }
 

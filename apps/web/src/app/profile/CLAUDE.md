@@ -168,9 +168,10 @@ com o layout, que decide se redireciona) lê a sessão e o tenant, e
 - **Membro**: "O acesso da empresa X ao ERP está suspenso. Fale com Y,
   responsável pela conta", só com "Sair". Nenhum botão de cobrança: o backend
   recusa portal e checkout para quem não é dono ou admin.
-- **Dono/admin de plano manual**: "Seu plano venceu em dd/mm/aaaa", com "Falar
-  com a ProOps" (WhatsApp de suporte) e "Sair". Portal e compra por cartão não
-  servem a quem tem contrato.
+- **Dono/admin de plano manual** (inclusive o teste dado pelo painel): "Seu
+  plano venceu em dd/mm/aaaa", com "Falar com a ProOps" (WhatsApp de suporte),
+  "Assinar pelo cartão" () e "Sair". Ao assinar,
+  a empresa deixa de ser manual (ver ).
 - **Dono/admin de Stripe**: "Renovar assinatura" (`/subscription-blocked/plans`),
   "Atualizar pagamento", "Falar com a ProOps" e "Sair".
 

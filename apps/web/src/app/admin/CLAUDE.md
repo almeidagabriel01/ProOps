@@ -95,6 +95,14 @@ da API.
   direto a `canceled` + free, sem esperar a data nem a carência. O login
   continua (ela vê a tela de assinatura bloqueada); isso é diferente de
   desativar. Para devolver o acesso, escolha o plano e uma data futura.
+  **Nada é apagado**: os dados da empresa ficam no tenant, só inacessíveis, e
+  voltam como estavam quando o acesso volta. A empresa também não vira conta
+  de demonstração: o papel continua pago, e o Demo é só do papel "free".
+- **Teste dado pelo painel que vira assinatura no cartão:** o writer único
+  () tira  do tenant e dos
+  usuários quando uma assinatura Stripe ATIVA ou em trial é vinculada. Sem isso
+  o cron do plano manual cortaria quem paga e a sincronização diária pularia o
+  Stripe. Evento de assinatura cancelada não mexe na marca.
 
 ### Criar empresa
 

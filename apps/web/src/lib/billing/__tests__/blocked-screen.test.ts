@@ -16,23 +16,23 @@ function screen(overrides: Partial<BlockedScreenInput>) {
 }
 
 describe("dono ou administrador, plano manual", () => {
-  it("diz que o plano venceu, com a data, e manda falar com a ProOps", () => {
+  it("diz que o plano venceu, com a data: falar com a ProOps ou assinar pelo cartão", () => {
     expect(screen({})).toEqual({
       kind: "suspended",
       title: "Seu plano venceu",
-      description: "Seu plano venceu em 14/09/2027. Para voltar a usar o ERP, fale com a ProOps para renovar.",
-      actions: ["contact", "logout"],
+      description: "Seu plano venceu em 14/09/2027. Para voltar a usar o ERP, fale com a ProOps ou assine pelo cartão.",
+      actions: ["contact", "subscribe", "logout"],
     });
   });
 
-  it("não oferece portal do Stripe nem compra por cartão", () => {
+  it("não oferece o portal do Stripe: não há assinatura para atualizar", () => {
     expect(screen({}).actions).not.toContain("update_payment");
     expect(screen({}).actions).not.toContain("renew");
   });
 
   it("sem data continua fazendo sentido", () => {
     expect(screen({ periodEndLabel: null }).description).toBe(
-      "Seu plano venceu. Para voltar a usar o ERP, fale com a ProOps para renovar.",
+      "Seu plano venceu. Para voltar a usar o ERP, fale com a ProOps ou assine pelo cartão.",
     );
   });
 
