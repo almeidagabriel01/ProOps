@@ -32,9 +32,15 @@ Prefixo montado em `/admin` pelo Express principal.
 | `POST` | `/admin/impersonation/start` | `startImpersonation` | SUPERADMIN |
 | `POST` | `/admin/impersonation/stop` | `stopImpersonation` | SUPERADMIN |
 | `GET` | `/admin/audit-events` | `getAuditEvents` | SUPERADMIN |
+| `GET` | `/admin/activity` | `listTenantActivity` | SUPERADMIN |
 
 `getTenantsIndex`, `getTenantModules` e as rotas de add-on vivem em
-`admin-tenant-modules.controller.ts`. Toda mutacao do superadmin grava evento em
+`admin-tenant-modules.controller.ts`. `listTenantActivity` vive em
+`admin-activity.controller.ts`: a atividade das empresas (`tenant_activity`),
+paginada por cursor opaco (`createdAt` + id), com filtros `tenantId`,
+`category`, `type` e `uid`. `planActivityQuery` decide o que vai para o índice
+e o que é filtrado em memória (janela de 300 docs). O nome de quem agiu sai de
+`withActors` (`lib/admin-actors.ts`), o mesmo da auditoria. Toda mutacao do superadmin grava evento em
 `security_audit_events` com `await` (`lib/admin-audit.ts`).
 
 > **Atencao de rota:** `PUT /admin/members/permissions` deve vir ANTES de `PUT /admin/members/:id` no arquivo de rotas para evitar que "permissions" seja interpretado como `:id`.
