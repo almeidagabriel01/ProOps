@@ -43,6 +43,7 @@ import {
 import { tenantPlanAllowsWhatsApp } from "../lib/whatsapp-eligibility";
 import { runSecretRotationGuard } from "../lib/secret-rotation-guard";
 import { logger } from "../lib/logger";
+import { recordTenantActivity } from "../lib/tenant-activity";
 import { applyBillingClaimsToTenantUsers } from "../lib/billing-claims";
 import { invalidateBillingCache } from "../api/middleware/require-active-subscription";
 import type { SyncTenantPlanBillingSnapshotParams } from "../shared/billing-types";
@@ -654,6 +655,18 @@ async function finalizeStripeEventProcessing(
     );
 }
 
+/**
+ * Qual evento de jornada uma assinatura recem-criada vira na atividade da
+ * empresa (painel do super admin): em teste gratis ou ja paga.
+ */
+export function resolveCheckoutActivityType(status: string | null | undefined): "trial_started" | "subscribed" {
+  return status === "trialing" ? "trial_started" : "subscribed";
+}
+
+function activityInterval(billingInterval: string): "monthly" | "yearly" {
+  return billingInterval === "yearly" ? "yearly" : "monthly";
+}
+
 async function handleCheckoutCompleted(
   session: Stripe.Checkout.Session,
 ): Promise<void> {
@@ -806,6 +819,14 @@ async function handleCheckoutCompleted(
         to: resolvedCheckoutTier,
         interval: billingInterval === "yearly" ? "anual" : "mensal",
       },
+    });
+    await recordTenantActivity({
+      tenantId,
+      uid: userId,
+      type: resolveCheckoutActivityType(subscription.status),
+      meta: { plan: resolvedCheckoutTier, interval: activityInterval(billingInterval) },
+      source: "server",
+      docId: `checkout_${session.id}`,
     });
     await clearCheckoutReservation(tenantId).catch(() => {});
     return;
@@ -1025,6 +1046,13 @@ async function handleSubscriptionUpdated(
         userId: userId || undefined,
         plan: { from: storedTier, to: newTier, effectiveAt: scheduledPlanAt.toDate() },
       });
+      await recordTenantActivity({
+        tenantId,
+        uid: userId || null,
+        type: "plan_changed",
+        meta: { from: storedTier, to: newTier },
+        source: "server",
+      });
     }
   } else {
     // Upgrade, same-tier, or deferral disabled: apply plan snapshot immediately.
@@ -1048,6 +1076,13 @@ async function handleSubscriptionUpdated(
         tenantId,
         userId: userId || undefined,
         plan: { from: storedTier, to: newTier },
+      });
+      await recordTenantActivity({
+        tenantId,
+        uid: userId || null,
+        type: "plan_changed",
+        meta: { from: storedTier, to: newTier },
+        source: "server",
       });
     }
   }
@@ -1085,6 +1120,14 @@ async function handleSubscriptionUpdated(
           tenantId,
           userId: userId || undefined,
           plan: { from: storedTier, to: "free", effectiveAt: cancelAt.toDate() },
+        });
+        await recordTenantActivity({
+          tenantId,
+          uid: userId || null,
+          type: "cancel_scheduled",
+          meta: { plan: storedTier },
+          source: "server",
+          docId: `cancel_${subscription.id}_${cancelAt.toMillis()}`,
         });
       }
     }
@@ -1195,6 +1238,14 @@ async function handleInvoicePaymentFailed(
       error: err instanceof Error ? err.message : String(err),
     }),
   );
+
+  await recordTenantActivity({
+    tenantId,
+    uid: userId || null,
+    type: "payment_failed",
+    source: "server",
+    docId: `payment_failed_${invoice.id}`,
+  });
 
   console.log(`[StripeWebhook] Tenant ${tenantId} marked past_due after invoice payment failure`);
 }
@@ -1427,6 +1478,14 @@ async function handleSubscriptionDeleted(
       from: normalizePlanTier(tenantDocData?.plan) ?? undefined,
       to: "free",
     },
+  });
+  await recordTenantActivity({
+    tenantId,
+    uid: userId || null,
+    type: "subscription_canceled",
+    meta: { from: normalizePlanTier(tenantDocData?.plan) ?? undefined },
+    source: "server",
+    docId: `canceled_${subscription.id}`,
   });
 
   // Legacy cleanup: mark any residual whatsapp_addon doc as cancelled so the
