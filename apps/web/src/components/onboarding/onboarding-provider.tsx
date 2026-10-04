@@ -22,6 +22,7 @@ import {
   type OnboardingCapabilityMap,
   type OnboardingStep,
 } from "./onboarding-steps";
+import { trackActivity } from "@/lib/activity/activity-tracker";
 
 const SETTINGS_ROUTES = flattenSettingsNavItems().map((item) => item.href);
 const CALENDAR_SYNC_ENABLED = isGoogleCalendarSyncEnabled();
@@ -281,6 +282,7 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
       skippedAt: undefined,
     });
     if (!ok) return;
+    trackActivity("onboarding_step_completed", { meta: { stepId: matchedStep.id } });
     if (!next) {
       toast.success(
         "Tutorial concluído. Para rever, use Tutorial da plataforma no menu do seu perfil.",
@@ -301,11 +303,12 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
       skippedAt: now,
     });
     if (ok) {
+      trackActivity("onboarding_exited", { meta: { stepId: matchedStep?.id } });
       toast.info(
         "Tutorial fechado. Você pode retomar quando quiser pelo menu do seu perfil.",
       );
     }
-  }, [baseState, isSaving, save]);
+  }, [baseState, isSaving, matchedStep, save]);
 
   const restart = React.useCallback(async () => {
     if (isSaving || steps.length === 0) return;

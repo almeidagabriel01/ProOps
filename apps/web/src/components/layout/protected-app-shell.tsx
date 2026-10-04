@@ -15,6 +15,8 @@ import { usePlanLimits } from "@/hooks/usePlanLimits";
 import { useIsMobile } from "@/hooks/use-is-mobile";
 import { useAuth } from "@/providers/auth-provider";
 import { useSessionPing } from "@/hooks/use-session-ping";
+import { useActivityTracking } from "@/hooks/use-activity-tracking";
+import { trackActivity } from "@/lib/activity/activity-tracker";
 import { useTenant } from "@/providers/tenant-provider";
 import { usePermissions } from "@/providers/permissions-provider";
 import { resolveBillingBanner } from "@/lib/billing/billing-banner";
@@ -41,6 +43,8 @@ function ProtectedShell({ children }: { children: React.ReactNode }) {
   // Marca o acesso da empresa (uma vez por navegador, por dia). Ver
   // hooks/use-session-ping.ts.
   useSessionPing(user);
+  // Telas abertas, para a atividade da empresa no painel do super admin.
+  useActivityTracking(user);
 
   React.useEffect(() => {
     document.documentElement.dataset.shell = "locked";
@@ -136,7 +140,10 @@ function ProtectedShell({ children }: { children: React.ReactNode }) {
               variant="info"
               message="Você está no modo demonstração: os dados são fictícios e não podem ser alterados. Assine para usar o ERP com seus próprios dados."
               ctaLabel="Assinar agora"
-              onCta={() => router.push("/profile?tab=billing")}
+              onCta={() => {
+                trackActivity("subscribe_clicked", { meta: { source: "demo_banner" } });
+                router.push("/profile?tab=billing");
+              }}
               dataTestid="billing-state-banner-demo"
             />
           )}

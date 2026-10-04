@@ -119,6 +119,17 @@ describe("sanitizeActivityMeta", () => {
     ).toEqual({ method: "POST", path: "/v1/proposals/[id]", status: 402, code: "FREE_TIER_FORBIDDEN" });
   });
 
+  it("o nome do módulo do aviso de plano aceita acento e espaço, mas não texto solto", () => {
+    expect(sanitizeActivityMeta("upgrade_prompt_shown", { feature: "Notas Fiscais", surface: "modal" })).toEqual({
+      feature: "Notas Fiscais",
+      surface: "modal",
+    });
+    expect(sanitizeActivityMeta("upgrade_prompt_shown", { feature: "Módulo Financeiro" })).toEqual({
+      feature: "Módulo Financeiro",
+    });
+    expect(sanitizeActivityMeta("upgrade_prompt_shown", { feature: "<script>alert(1)</script>" })).toEqual({});
+  });
+
   it("aceita meta ausente ou de tipo errado", () => {
     expect(sanitizeActivityMeta("api_error", null)).toEqual({});
     expect(sanitizeActivityMeta("api_error", ["x"])).toEqual({});

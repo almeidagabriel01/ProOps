@@ -4,12 +4,47 @@ import { reportClientError } from "@/lib/observability/client-error-reporter";
 import { isDemoBlockedMutation } from "@/lib/demo-mode";
 import { toast } from "@/lib/toast";
 import { buildImpersonationHeaders } from "@/lib/viewing-tenant-session";
+import { trackActivity } from "@/lib/activity/activity-tracker";
+import { normalizeActivityRoute } from "@/lib/activity/normalize-route";
 import {
   forceWhatsappMfaReauth,
   isWhatsappMfaRequiredError,
 } from "@/lib/auth/whatsapp-mfa-reauth";
 
 const OBSERVABILITY_PREFIX = "/v1/observability";
+const ACTIVITY_PREFIX = "/v1/activity";
+const ACTIVITY_ERROR_CODE = /^[A-Z0-9_]{2,64}$/;
+
+/**
+ * Erro de API na atividade da empresa (painel do super admin). Diferente do
+ * relatório de erros, aqui o 4xx interessa: um 402 de plano ou um 403 de
+ * permissão é exatamente o "tentou e não conseguiu" que o painel quer ver.
+ * Ficam de fora o 401 (sessão expirando, ruído), o bloqueio da demonstração
+ * (já registrado como tal) e as chamadas da própria telemetria.
+ */
+export function shouldTrackApiError(path: string, error: unknown): boolean {
+  if (path.startsWith(OBSERVABILITY_PREFIX) || path.startsWith(ACTIVITY_PREFIX)) return false;
+  if (error instanceof ApiError) {
+    if (error.status === 401) return false;
+    if (isDemoReadOnlyError(error)) return false;
+    return error.status >= 400;
+  }
+  return true;
+}
+
+function trackApiError(method: string, path: string, error: unknown): void {
+  if (!shouldTrackApiError(path, error)) return;
+  const status = error instanceof ApiError ? error.status : 0;
+  const rawCode = error instanceof ApiError ? (error.data as { code?: unknown } | null)?.code : undefined;
+  trackActivity("api_error", {
+    meta: {
+      method,
+      path: normalizeActivityRoute(path) ?? undefined,
+      status,
+      code: typeof rawCode === "string" && ACTIVITY_ERROR_CODE.test(rawCode) ? rawCode : undefined,
+    },
+  });
+}
 
 /**
  * Only server errors (5xx) and unexpected non-ApiError failures (network, JS)
@@ -98,6 +133,7 @@ export const callApi = async <T = unknown>(
   // Read-only demo mode: block data mutations before hitting the network and
   // surface a friendly message (the backend would otherwise return 402).
   if (isDemoBlockedMutation(method, path)) {
+    trackActivity("demo_write_blocked", { meta: { method, path: normalizeActivityRoute(path) ?? undefined } });
     toast.info(
       "Modo demonstração: assine um plano para criar, editar ou excluir seus próprios dados.",
     );
@@ -189,6 +225,7 @@ export const callApi = async <T = unknown>(
     return await response.json();
   } catch (error) {
     reportApiFailure(method, path, error);
+    trackApiError(method, path, error);
     throw error;
   }
 };

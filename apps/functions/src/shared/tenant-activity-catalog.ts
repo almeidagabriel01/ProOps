@@ -41,7 +41,9 @@ export type ActivityMetaField =
 const PLAN_TIER: ActivityMetaField = { kind: "string", pattern: /^[a-z0-9_-]{1,32}$/, max: 32 };
 const INTERVAL: ActivityMetaField = { kind: "enum", values: BILLING_INTERVALS };
 const API_PATH: ActivityMetaField = { kind: "string", pattern: /^\/[A-Za-z0-9/_\-[\].]*$/, max: 120 };
-const FEATURE: ActivityMetaField = { kind: "string", pattern: /^[A-Za-z0-9_.-]{1,60}$/, max: 60 };
+// Nome do módulo como a tela o mostra ("Notas Fiscais"): texto do produto, com
+// acento e espaço, nunca dado do cliente.
+const FEATURE: ActivityMetaField = { kind: "string", pattern: /^[\p{L}\p{N} _.()-]{1,60}$/u, max: 60 };
 const STEP_ID: ActivityMetaField = { kind: "string", pattern: /^[a-z0-9_/-]{1,60}$/, max: 60 };
 
 export interface ActivityTypeDefinition {

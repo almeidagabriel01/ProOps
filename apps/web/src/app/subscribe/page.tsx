@@ -9,6 +9,7 @@ import { Suspense } from "react";
 import { auth } from "@/lib/firebase";
 import { ApiError } from "@/lib/api-client";
 import { Loader } from "@/components/ui/loader";
+import { trackActivity } from "@/lib/activity/activity-tracker";
 
 const PLAN_NAMES: Record<string, string> = {
   starter: "Starter",
@@ -69,6 +70,10 @@ function SubscribeContent() {
     // Only set processing on first attempt
     if (retryCount === 0) {
       setError(null);
+      trackActivity("subscribe_clicked", {
+        meta: { source: "subscribe_page", plan: planTier, interval: billingInterval, skipTrial },
+        flush: true,
+      });
     }
 
     try {

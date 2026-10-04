@@ -1,9 +1,11 @@
 "use client";
 
+import { useEffect } from "react";
 import Link from "next/link";
 import { Lock, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { trackActivity } from "@/lib/activity/activity-tracker";
 
 interface UpgradeRequiredProps {
   feature: string;
@@ -14,6 +16,10 @@ export function UpgradeRequired({
   feature,
   description,
 }: UpgradeRequiredProps) {
+  useEffect(() => {
+    trackActivity("upgrade_prompt_shown", { meta: { feature, surface: "page" } });
+  }, [feature]);
+
   return (
     <div className="min-h-[60vh] flex items-center justify-center p-8">
       <Card className="max-w-md w-full border-dashed">
@@ -29,7 +35,12 @@ export function UpgradeRequired({
               `O módulo "${feature}" não está disponível no seu plano atual.`}
           </p>
 
-          <Link href="/profile?tab=billing">
+          <Link
+            href="/profile?tab=billing"
+            onClick={() =>
+              trackActivity("upgrade_prompt_clicked", { meta: { feature, surface: "page" } })
+            }
+          >
             <Button size="lg" className="gap-2">
               <Sparkles className="w-5 h-5" />
               Fazer Upgrade
