@@ -12,7 +12,10 @@ jest.mock("../../../lib/logger", () => ({ logger: { error: jest.fn() } }));
 import { getLinkedAccountsHandler } from "../linked-accounts.controller";
 
 async function call(user: Record<string, unknown>) {
-  const res = { status: jest.fn(() => res), json: jest.fn(() => res) };
+  const res: { status: jest.Mock; json: jest.Mock } = {
+    status: jest.fn(() => res),
+    json: jest.fn(() => res),
+  };
   await getLinkedAccountsHandler({ user } as never, res as never);
   return (getLinkedAccounts.mock.calls[0] as unknown as unknown[]) ?? [];
 }
