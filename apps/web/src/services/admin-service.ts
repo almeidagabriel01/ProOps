@@ -266,6 +266,11 @@ export const AdminService = {
     return await callApi(`/v1/admin/tenants/${tenantId}/reactivate`, "POST", {});
   },
 
+  /** Corta o contrato manual agora: canceled + free, sem esperar a data. */
+  endManualAccess: async (tenantId: string): Promise<{ message?: string }> => {
+    return await callApi(`/v1/admin/tenants/${tenantId}/end-manual-access`, "POST", {});
+  },
+
   purgeTenant: async (
     tenantId: string,
     confirmName: string,

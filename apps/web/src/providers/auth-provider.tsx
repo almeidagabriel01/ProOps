@@ -737,13 +737,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // Firebase SDK silently refreshes the ID token every ~55 min.
     // We must keep the __session cookie in sync so the middleware
     // doesn't reject the next server-side navigation.
-    // Also checks billing claims — if the refreshed token carries a blocked
-    // subscriptionStatus (written by billing-claims.ts on cancel), sign out immediately.
+    // Also checks billing claims. A blocked subscription NEVER signs the user
+    // out: the account goes to /subscription-blocked and stays there, logged in,
+    // with the message and the way to regularize. Signing out (as this did until
+    // 2026-10) dropped the person on the login page with no explanation, and the
+    // member lost even the name of who to talk to.
     // For past_due we delegate the grace-period check to /api/auth/billing-status
     // (which reads Firestore) because pastDueSince is not embedded in JWT claims.
-    // "canceled"/"cancelled" excluded: these users stay logged in and are blocked
-    // from ERP access by the billing-status Firestore gate. Signing them out here
-    // would cause a login flash and force full re-authentication.
+    const goToBlockedPage = (reason: string) => {
+      if (window.location.pathname.startsWith("/subscription-blocked")) return;
+      // Durante o login o cookie de sessão ainda não existe: sair daqui abriria
+      // a tela sem sessão. O login termina e o proxy leva à tela de bloqueio.
+      if (explicitSignInInProgressRef.current) return;
+      // Navegação dura: o evento é raro, e a tela de bloqueio lê sessão e
+      // tenant no servidor.
+      window.location.replace(`/subscription-blocked?reason=${encodeURIComponent(reason)}`);
+    };
     const TERMINAL_BLOCKED_STATUSES = new Set([
       "unpaid",
       "inactive",
@@ -760,11 +769,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           const subStatus = String(
             tokenResult.claims.subscriptionStatus || "",
           );
-          if (TERMINAL_BLOCKED_STATUSES.has(subStatus)) {
-            // Sign out so the user must re-authenticate. The server-side middleware
-            // redirects to /subscription-blocked on any subsequent navigation —
-            // keeping redirect logic in one place prevents false positives from stale JWT claims.
-            await signOut(auth);
+          // Conta free (demo) não tem assinatura para estar bloqueada.
+          const isFreeRole =
+            String(tokenResult.claims.role || "").toLowerCase() === "free";
+          if (TERMINAL_BLOCKED_STATUSES.has(subStatus) && !isFreeRole) {
+            if (!explicitSignInInProgressRef.current) {
+              await syncServerSession(firebaseUser);
+            }
+            goToBlockedPage(subStatus);
             return;
           }
           // Canceled accounts stay logged in. Sync the session cookie so it reflects
@@ -782,8 +794,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               const res = await fetch("/api/auth/billing-status");
               if (res.ok) {
                 const data = (await res.json()) as { allowed?: boolean; status?: string };
-                if (data.allowed === false) {
-                  await signOut(auth);
+                if (data.allowed === false && !isFreeRole) {
+                  goToBlockedPage("past_due");
                   return;
                 }
               }

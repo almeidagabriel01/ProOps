@@ -36,6 +36,7 @@ interface UseTenantManagementReturn {
   handleSave: (data: TenantFormData) => Promise<void>;
   handleDeactivate: (id: string) => Promise<void>;
   handleReactivate: (id: string) => Promise<void>;
+  handleEndManualAccess: (id: string) => Promise<void>;
   handlePurge: (id: string, confirmName: string) => Promise<void>;
   handleLoginAs: (item: TenantBillingInfo) => void;
   handleRecompute: (tenantId: string) => Promise<void>;
@@ -391,6 +392,15 @@ export function useTenantManagement(): UseTenantManagementReturn {
       "Erro ao reativar empresa",
     );
 
+  const handleEndManualAccess = async (id: string) => {
+    await runLifecycle(
+      () => AdminService.endManualAccess(id),
+      "Acesso encerrado.",
+      "Erro ao encerrar o acesso",
+    );
+    setIsDialogOpen(false);
+  };
+
   const handlePurge = (id: string, confirmName: string) =>
     runLifecycle(
       () => AdminService.purgeTenant(id, confirmName),
@@ -458,6 +468,7 @@ export function useTenantManagement(): UseTenantManagementReturn {
     handleSave,
     handleDeactivate,
     handleReactivate,
+    handleEndManualAccess,
     handlePurge,
     handleLoginAs,
     handleRecompute,

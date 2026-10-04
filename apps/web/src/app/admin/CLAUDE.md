@@ -80,8 +80,21 @@ e vencimento ficam travados no formulário, e o backend recusa com 409
 `isManualSubscription: true`, e o cron de assinaturas manuais rebaixava para free
 quem pagava pelo Stripe.
 
-Contrato manual: a data de vencimento é o interruptor (o cron move para
-`past_due` e depois `canceled` + free). Enterprise nasce com 12 meses.
+Contrato manual: a data de vencimento é o interruptor. Ela é o ÚLTIMO dia do
+plano (inclusiva, fuso de Brasília); depois vêm 7 dias de carência em
+`past_due`, com faixa vermelha para a empresa, e então `canceled` + free.
+Enterprise nasce com 12 meses. Dono e admins recebem aviso pela central e por
+e-mail em D-30, D-15, D-7 e D-1, e faixa amarela nos últimos 30 dias
+(`plan-expiry-reminders.ts` no backend, `lib/billing/billing-banner.ts` no
+front). O status que o diálogo mostra sai de `manualStatusFor`, a mesma regra
+da API.
+
+- **Plano pago sem data não salva**: sem ela não há aviso nem corte.
+- **"Encerrar acesso agora"** (aba Assinatura, só contrato manual não free e
+  não cancelado): `POST /v1/admin/tenants/:id/end-manual-access` leva a empresa
+  direto a `canceled` + free, sem esperar a data nem a carência. O login
+  continua (ela vê a tela de assinatura bloqueada); isso é diferente de
+  desativar. Para devolver o acesso, escolha o plano e uma data futura.
 
 ### Criar empresa
 

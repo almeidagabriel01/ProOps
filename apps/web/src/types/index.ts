@@ -34,6 +34,11 @@ export type Tenant = {
   trialEndsAt?: string | null; // ISO — fim do trial de 7 dias (durante trialing)
   trialUsedAt?: string | null; // ISO — trial já consumido (regra 1 trial por conta)
   billingSyncedAt?: string; // ISO — quando o Firestore foi sincronizado do Stripe
+  /** Plano dado pelo painel do superadmin: vence na data, sem renovação pelo Stripe. */
+  isManualSubscription?: boolean;
+  /** Preço que a assinatura Stripe cobra hoje, em centavos (writer único, na raiz). */
+  unitAmount?: number | null;
+  billingInterval?: BillingInterval | null;
   isBillingStale?: boolean; // flag calculada pelo backend
   checkoutInFlightAt?: string | null;
   /** Nested subscription map written by syncTenantPlanBillingSnapshot */

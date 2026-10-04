@@ -66,6 +66,7 @@ describe("buildManualSubscriptionUpdate", () => {
         currentPeriodEnd: "2027-09-14",
         isManualSubscription: true,
         subscriptionStatus: "active",
+        pastDueSince: null,
       },
     });
   });
@@ -76,6 +77,30 @@ describe("buildManualSubscriptionUpdate", () => {
       { stripeManaged: false, now: NOW },
     );
     expect(decision.ok && decision.updates.subscriptionStatus).toBe("past_due");
+  });
+
+  it("em carencia grava o pastDueSince do contrato (sem ele a empresa era bloqueada na hora)", () => {
+    const decision = buildManualSubscriptionUpdate(
+      { currentPeriodEnd: "2026-09-18" },
+      { stripeManaged: false, now: NOW },
+    );
+    expect(decision.ok && decision.updates.pastDueSince).toBe("2026-09-19T03:00:00.000Z");
+  });
+
+  it("renovar uma empresa em carencia apaga o pastDueSince", () => {
+    const decision = buildManualSubscriptionUpdate(
+      { currentPeriodEnd: "2027-09-21" },
+      { stripeManaged: false, now: NOW },
+    );
+    expect(decision.ok && decision.updates).toMatchObject({ subscriptionStatus: "active", pastDueSince: null });
+  });
+
+  it("passada a carencia fica canceled, sem pastDueSince", () => {
+    const decision = buildManualSubscriptionUpdate(
+      { currentPeriodEnd: "2026-09-01" },
+      { stripeManaged: false, now: NOW },
+    );
+    expect(decision.ok && decision.updates).toMatchObject({ subscriptionStatus: "canceled", pastDueSince: null });
   });
 
   it("data invalida da 400", () => {
@@ -96,5 +121,13 @@ describe("deriveManualStatusFromPeriodEnd", () => {
     expect(deriveManualStatusFromPeriodEnd(new Date("2026-09-22"), NOW)).toBe("active");
     expect(deriveManualStatusFromPeriodEnd(new Date("2026-09-15T12:00:00Z"), NOW)).toBe("past_due");
     expect(deriveManualStatusFromPeriodEnd(new Date("2026-09-01"), NOW)).toBe("canceled");
+  });
+
+  it("o dia do vencimento ainda e ativo, contado em Brasilia", () => {
+    // 21/09 23:30 em Brasilia (ja 22/09 em UTC): o contrato ate 21/09 segue ativo.
+    const lateNight = new Date("2026-09-22T02:30:00.000Z");
+    expect(deriveManualStatusFromPeriodEnd("2026-09-21", lateNight)).toBe("active");
+    expect(deriveManualStatusFromPeriodEnd("2026-09-21T00:00:00.000Z", lateNight)).toBe("active");
+    expect(deriveManualStatusFromPeriodEnd("2026-09-20", lateNight)).toBe("past_due");
   });
 });

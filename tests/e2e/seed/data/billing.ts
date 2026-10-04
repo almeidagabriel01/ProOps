@@ -161,6 +161,8 @@ export async function restoreTenantState(
     cancelAtPeriodEnd: admin.firestore.FieldValue.delete(),
     pastDueSince: admin.firestore.FieldValue.delete(),
     subscription: admin.firestore.FieldValue.delete(),
+    currentPeriodEnd: admin.firestore.FieldValue.delete(),
+    isManualSubscription: admin.firestore.FieldValue.delete(),
   });
 
   if (userId) {
@@ -169,6 +171,8 @@ export async function restoreTenantState(
       cancelAtPeriodEnd: admin.firestore.FieldValue.delete(),
       subscriptionStatus: admin.firestore.FieldValue.delete(),
       subscription: admin.firestore.FieldValue.delete(),
+      currentPeriodEnd: admin.firestore.FieldValue.delete(),
+      isManualSubscription: admin.firestore.FieldValue.delete(),
     });
   }
 
@@ -220,6 +224,11 @@ export interface SeedBillingExtendedOptions {
   userId?: string;
   // optional: seed a fake stripeSubscriptionId so hasStripeSubscription evaluates to true
   stripeSubscriptionId?: string;
+  // Campos na RAIZ do tenant, como o writer único e o cron de contrato manual
+  // gravam em produção (o mapa subscription.* acima é legado e ninguém mais o grava).
+  currentPeriodEnd?: string;
+  pastDueSince?: string;
+  isManualSubscription?: boolean;
 }
 
 /**
@@ -257,6 +266,11 @@ export async function seedBillingStateExtended(
       tenantPatch.pastDueSince = opts.subscriptionMap.pastDueSince;
     }
   }
+  if (opts.currentPeriodEnd !== undefined) tenantPatch.currentPeriodEnd = opts.currentPeriodEnd;
+  if (opts.pastDueSince !== undefined) tenantPatch.pastDueSince = opts.pastDueSince;
+  if (opts.isManualSubscription !== undefined) {
+    tenantPatch.isManualSubscription = opts.isManualSubscription;
+  }
   await db.collection("tenants").doc(opts.tenantId).set(tenantPatch, { merge: true });
 
   if (opts.userId) {
@@ -271,6 +285,10 @@ export async function seedBillingStateExtended(
     }
     if (opts.stripeSubscriptionId) {
       userPatch.stripeSubscriptionId = opts.stripeSubscriptionId;
+    }
+    if (opts.currentPeriodEnd !== undefined) userPatch.currentPeriodEnd = opts.currentPeriodEnd;
+    if (opts.isManualSubscription !== undefined) {
+      userPatch.isManualSubscription = opts.isManualSubscription;
     }
     await db.collection("users").doc(opts.userId).set(userPatch, { merge: true });
   }
