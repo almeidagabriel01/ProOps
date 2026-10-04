@@ -1,10 +1,17 @@
 import type { NextFunction, Request, Response } from "express";
 
 const usersQueryDocs: Array<{ id: string; data: Record<string, unknown> }> = [];
+const userDocs: Record<string, Record<string, unknown>> = {};
 
 jest.mock("../../../init", () => ({
   db: {
     collection: () => ({
+      doc: (id: string) => ({
+        get: async () => ({
+          exists: Boolean(userDocs[id]),
+          data: () => userDocs[id],
+        }),
+      }),
       where: () => ({
         limit: () => ({
           get: async () => ({
@@ -67,6 +74,11 @@ beforeEach(() => {
   jest.clearAllMocks();
   clearImpersonationOwnerCacheForTest();
   usersQueryDocs.length = 0;
+  for (const key of Object.keys(userDocs)) delete userDocs[key];
+  userDocs.vendedor = { role: "MEMBER", tenantId: "alvo", masterId: "owner", name: "Vendedor" };
+  userDocs.gerente = { role: "ADMIN", tenantId: "alvo", masterId: "owner" };
+  userDocs.deOutra = { role: "MEMBER", tenantId: "outra", masterId: "x" };
+  userDocs.root2 = { role: "SUPERADMIN", tenantId: "alvo" };
   usersQueryDocs.push(
     { id: "member", data: { masterId: "owner", createdAt: "2026-01-01" } },
     { id: "owner", data: { role: "MASTER", createdAt: "2025-05-01" } },
@@ -175,5 +187,113 @@ describe("resolveImpersonation", () => {
     const ctx = build(undefined, { headers: { "x-tenant-id": "alvo" } });
     await run(ctx);
     expect(ctx.next).toHaveBeenCalled();
+  });
+
+  describe("ver como membro", () => {
+    const asMember = (memberUid: string, extra: Record<string, string> = {}) => ({
+      "x-tenant-id": "alvo",
+      "x-view-as-member": memberUid,
+      ...extra,
+    });
+
+    it("a request passa a valer como o membro, com o superadmin registrado", async () => {
+      const ctx = build(superadmin(), { headers: asMember("vendedor") });
+      await run(ctx);
+      expect(ctx.next).toHaveBeenCalled();
+      const user = ctx.req.user as unknown as Record<string, unknown>;
+      expect(user.uid).toBe("vendedor");
+      expect(user.role).toBe("MEMBER");
+      expect(user.isSuperAdmin).toBe(false);
+      expect(user.tenantId).toBe("alvo");
+      expect(user.masterId).toBe("owner");
+      expect(user.userDoc).toEqual(userDocs.vendedor);
+      expect(user.impersonation).toEqual({
+        originalTenantId: "own",
+        targetTenantId: "alvo",
+        ownerUid: "owner",
+        writeEnabled: false,
+        memberUid: "vendedor",
+        actorUid: "root",
+      });
+    });
+
+    it("administrador da empresa tambem pode ser visto, com o papel dele", async () => {
+      const ctx = build(superadmin(), { headers: asMember("gerente") });
+      await run(ctx);
+      expect((ctx.req.user as unknown as Record<string, unknown>).role).toBe("ADMIN");
+    });
+
+    it.each([
+      ["de outra empresa", "deOutra"],
+      ["superadmin", "root2"],
+      ["inexistente", "fantasma"],
+    ])("membro %s leva 400 MEMBER_VIEW_NOT_FOUND", async (_label, uid) => {
+      const ctx = build(superadmin(), { headers: asMember(uid) });
+      await run(ctx);
+      expect(ctx.next).not.toHaveBeenCalled();
+      expect(ctx.status).toHaveBeenCalledWith(400);
+      expect(ctx.json).toHaveBeenCalledWith(
+        expect.objectContaining({ code: "MEMBER_VIEW_NOT_FOUND" }),
+      );
+    });
+
+    it("escrita e recusada mesmo com edicao habilitada", async () => {
+      const ctx = build(superadmin(), {
+        method: "PUT",
+        url: "/v1/proposals/p1",
+        headers: asMember("vendedor", { "x-impersonation-write": "1" }),
+      });
+      await run(ctx);
+      expect(ctx.next).not.toHaveBeenCalled();
+      expect(ctx.status).toHaveBeenCalledWith(403);
+      expect(ctx.json).toHaveBeenCalledWith(
+        expect.objectContaining({ code: "MEMBER_VIEW_READ_ONLY" }),
+      );
+      expect(writeSecurityAuditEvent).not.toHaveBeenCalled();
+    });
+
+    it.each(["/v1/notifications/n1/read", "/v1/ai/chat"])(
+      "%s nao grava em nome do membro",
+      async (url) => {
+        const ctx = build(superadmin(), { method: "POST", url, headers: asMember("vendedor") });
+        await run(ctx);
+        expect(ctx.status).toHaveBeenCalledWith(403);
+        expect(ctx.next).not.toHaveBeenCalled();
+      },
+    );
+
+    it.each(["/v1/admin/impersonation/stop", "/v1/profile"])(
+      "%s continua agindo como o superadmin",
+      async (url) => {
+        const ctx = build(superadmin(), { method: "POST", url, headers: asMember("vendedor") });
+        await run(ctx);
+        expect(ctx.next).toHaveBeenCalled();
+        const user = ctx.req.user as unknown as Record<string, unknown>;
+        expect(user.uid).toBe("root");
+        expect(user.isSuperAdmin).toBe(true);
+        expect(user.role).toBe("SUPERADMIN");
+      },
+    );
+
+    it("sem x-tenant-id o cabecalho do membro e ignorado", async () => {
+      const ctx = build(superadmin(), { headers: { "x-view-as-member": "vendedor" } });
+      await run(ctx);
+      expect(ctx.next).toHaveBeenCalled();
+      const user = ctx.req.user as unknown as Record<string, unknown>;
+      expect(user.uid).toBe("root");
+      expect(user.impersonation).toBeUndefined();
+    });
+
+    it.each([
+      ["master", { uid: "m", tenantId: "alvo", isSuperAdmin: false, role: "MASTER" }],
+      ["membro", { uid: "u", tenantId: "alvo", isSuperAdmin: false, role: "MEMBER" }],
+      ["free", { uid: "f", tenantId: "alvo", isSuperAdmin: false, role: "FREE" }],
+    ])("%s nao vira outro usuario pelo cabecalho", async (_label, user) => {
+      const ctx = build(user, { headers: asMember("vendedor") });
+      await run(ctx);
+      expect(ctx.next).toHaveBeenCalled();
+      expect((ctx.req.user as unknown as Record<string, unknown>).uid).toBe(user.uid);
+      expect(ctx.req.headers["x-view-as-member"]).toBeUndefined();
+    });
   });
 });
