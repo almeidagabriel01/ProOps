@@ -148,7 +148,12 @@ export async function checkFinancialPermission(
   }
 
   const docTenantId = normalizeTenantId(userDoc.tenantId || userDoc.companyId);
-  if (tenantId && docTenantId && tenantId !== docTenantId) {
+  // Superadmin no "Acessar Painel": o middleware de impersonacao trocou o
+  // tenant das claims pelo da empresa vista, que nao casa com o doc dele por
+  // construcao (a mesma excecao de `resolveUserAndTenant`). Sem ela, todo
+  // endpoint financeiro respondia 403 ao suporte.
+  const impersonating = isSuperAdmin && Boolean(claims.impersonation);
+  if (tenantId && docTenantId && tenantId !== docTenantId && !impersonating) {
     throw new Error("FORBIDDEN_TENANT_MISMATCH");
   }
 

@@ -101,6 +101,17 @@ describe("resolveImpersonation", () => {
     });
   });
 
+  it("dono com masterId apontando para si mesmo continua sendo o dono", async () => {
+    usersQueryDocs.length = 0;
+    usersQueryDocs.push(
+      { id: "member", data: { masterId: "owner", createdAt: "2026-01-01" } },
+      { id: "owner", data: { role: "MASTER", masterId: "owner", createdAt: "2025-05-01" } },
+    );
+    const ctx = build(superadmin(), { headers: { "x-tenant-id": "alvo" } });
+    await run(ctx);
+    expect((ctx.req.user as unknown as Record<string, unknown>).masterId).toBe("owner");
+  });
+
   it("escrita sem habilitar edicao leva 403 IMPERSONATION_READ_ONLY", async () => {
     const ctx = build(superadmin(), {
       method: "POST",

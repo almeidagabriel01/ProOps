@@ -113,8 +113,10 @@ export function isViewableMember(
 }
 
 /**
- * Dono da empresa: o usuario mais antigo do tenant sem `masterId`. E o doc que
- * os controllers legados usam como `masterData` (limites e contadores).
+ * Dono da empresa: o usuario mais antigo do tenant sem `masterId` (ou com o
+ * `masterId` apontando para si mesmo, como os seeds e contas antigas gravam).
+ * E o doc que os controllers legados usam como `masterData` (limites e
+ * contadores).
  */
 export async function resolveTenantOwnerUid(tenantId: string): Promise<string | null> {
   const cached = ownerCache.get(tenantId);
@@ -126,7 +128,10 @@ export async function resolveTenantOwnerUid(tenantId: string): Promise<string | 
     .limit(20)
     .get();
   const owners = snap.docs
-    .filter((doc) => !String(doc.get("masterId") || "").trim())
+    .filter((doc) => {
+      const masterId = String(doc.get("masterId") || "").trim();
+      return !masterId || masterId === doc.id;
+    })
     .filter((doc) => String(doc.get("role") || "").toUpperCase() !== "SUPERADMIN")
     .sort((a, b) =>
       String(a.get("createdAt") || "").localeCompare(String(b.get("createdAt") || "")),

@@ -138,6 +138,61 @@ describe("master e superadmin seguem com bypass", () => {
   });
 });
 
+describe("superadmin no Acessar Painel", () => {
+  const impersonation = {
+    originalTenantId: "proprio",
+    targetTenantId: "alvo",
+    ownerUid: "dono",
+    writeEnabled: false,
+  };
+
+  it("lê o financeiro da empresa vista sem acusar mismatch", async () => {
+    userDoc = { role: "SUPERADMIN", tenantId: "proprio" };
+    const result = await checkFinancialPermission("root", "transactions", "canView", {
+      uid: "root",
+      role: "SUPERADMIN",
+      tenantId: "alvo",
+      impersonation,
+    });
+    expect(result).toMatchObject({ tenantId: "alvo", isSuperAdmin: true });
+  });
+
+  it("sem impersonacao o mismatch do superadmin continua valendo", async () => {
+    userDoc = { role: "SUPERADMIN", tenantId: "proprio" };
+    await expect(
+      checkFinancialPermission("root", "transactions", "canView", {
+        uid: "root",
+        role: "SUPERADMIN",
+        tenantId: "alvo",
+      }),
+    ).rejects.toThrow("FORBIDDEN_TENANT_MISMATCH");
+  });
+
+  it("claim de impersonacao em master nao escapa do mismatch", async () => {
+    userDoc = { role: "MASTER", tenantId: "proprio" };
+    await expect(
+      checkFinancialPermission("m1", "transactions", "canView", {
+        uid: "m1",
+        role: "MASTER",
+        tenantId: "alvo",
+        impersonation,
+      }),
+    ).rejects.toThrow("FORBIDDEN_TENANT_MISMATCH");
+  });
+
+  it("na visao de membro vale a permissao do membro, nao o bypass", async () => {
+    userDoc = { role: "MEMBER", tenantId: "alvo", masterId: "dono" };
+    await expect(
+      checkFinancialPermission("member-1", "transactions", "canView", {
+        uid: "member-1",
+        role: "MEMBER",
+        tenantId: "alvo",
+        impersonation: { ...impersonation, memberUid: "member-1", actorUid: "root" },
+      }),
+    ).rejects.toThrow("Sem permissão financeira.");
+  });
+});
+
 describe("reaproveita o users/{uid} que o middleware já leu", () => {
   it("membro: usa claims.userDoc e não relê o doc do usuário", async () => {
     grant("transactions", { canEdit: true });
