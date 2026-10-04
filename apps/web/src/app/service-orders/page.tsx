@@ -11,6 +11,7 @@ import { SelectTenantState } from "@/components/shared/select-tenant-state";
 import { PageViewSwitcher } from "@/components/layout/page-view-switcher";
 import { useTenant } from "@/providers/tenant-provider";
 import { useAuth } from "@/providers/auth-provider";
+import { useEffectiveViewer } from "@/hooks/use-effective-viewer";
 import { usePlanLimits } from "@/hooks/usePlanLimits";
 import { usePagePermission } from "@/hooks/usePagePermission";
 import { useServiceOrders } from "@/hooks/useServiceOrders";
@@ -24,6 +25,7 @@ export default function ServiceOrdersPage() {
   const router = useRouter();
   const { tenant, isReadOnly } = useTenant();
   const { user } = useAuth();
+  const viewer = useEffectiveViewer();
   const { hasFieldService, isLoading: isPlanLoading } = usePlanLimits();
   const { canCreate } = usePagePermission("service_orders");
   const allowed = hasFieldService || user?.role === "superadmin";
@@ -46,7 +48,7 @@ export default function ServiceOrdersPage() {
   }
   if (loading) return <ServiceOrdersSkeleton />;
 
-  const uid = user.id ?? null;
+  const uid = viewer.uid;
   const visible = filter === "completed" || filter === "all"
     ? filterOrders(orders, filter, uid)
     : sortQueue(filterOrders(orders, filter, uid));

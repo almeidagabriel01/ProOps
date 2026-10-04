@@ -28,6 +28,21 @@ interface CreateTenantInput {
   currentPeriodEnd?: string;
 }
 
+export interface TenantMemberInfo {
+  id: string;
+  name: string;
+  email: string;
+  /** Papel como gravado no backend, em maiúsculas (MEMBER, ADMIN, MASTER...). */
+  role: string;
+  masterId: string | null;
+  isOwner: boolean;
+  createdAt: string | null;
+  permissions: Record<
+    string,
+    { canView: boolean; canCreate: boolean; canEdit: boolean; canDelete: boolean }
+  >;
+}
+
 export interface AdminAuditActor {
   uid: string;
   name: string;
@@ -271,15 +286,31 @@ export const AdminService = {
     return { events: result.events ?? [], nextCursor: result.nextCursor ?? null };
   },
 
-  startImpersonation: async (tenantId: string): Promise<void> => {
-    await callApi("/v1/admin/impersonation/start", "POST", { tenantId });
+  startImpersonation: async (tenantId: string, memberUid?: string): Promise<void> => {
+    await callApi("/v1/admin/impersonation/start", "POST", {
+      tenantId,
+      ...(memberUid ? { memberUid } : {}),
+    });
   },
 
   stopImpersonation: async (
     tenantId: string,
-    reason: "exit_button" | "admin_route" | "logout",
+    reason: "exit_button" | "admin_route" | "logout" | "switch",
+    memberUid?: string,
   ): Promise<void> => {
-    await callApi("/v1/admin/impersonation/stop", "POST", { tenantId, reason });
+    await callApi("/v1/admin/impersonation/stop", "POST", {
+      tenantId,
+      reason,
+      ...(memberUid ? { memberUid } : {}),
+    });
+  },
+
+  /** Pessoas da empresa para o "Ver como membro" (dono marcado, sem superadmin). */
+  getTenantMembers: async (tenantId: string): Promise<TenantMemberInfo[]> => {
+    const data = await callApi<{ members: TenantMemberInfo[] }>(
+      `/v1/admin/tenants/${tenantId}/members`,
+    );
+    return data.members ?? [];
   },
 
   updateUserPlan: async (userId: string, planId: string): Promise<void> => {

@@ -18,6 +18,7 @@ import { useSessionPing } from "@/hooks/use-session-ping";
 import { useActivityTracking } from "@/hooks/use-activity-tracking";
 import { trackActivity } from "@/lib/activity/activity-tracker";
 import { useTenant } from "@/providers/tenant-provider";
+import { useViewingMember } from "@/providers/viewing-member-provider";
 import { usePermissions } from "@/providers/permissions-provider";
 import { resolveBillingBanner } from "@/lib/billing/billing-banner";
 import { SUPPORT_WHATSAPP_DIGITS, buildWhatsAppHref } from "@/lib/whatsapp-contacts";
@@ -33,6 +34,9 @@ function ProtectedShell({ children }: { children: React.ReactNode }) {
   const { planTier, pastDueAddons, trialInfo } = usePlanLimits();
   const { user } = useAuth();
   const { tenant, isDemo } = useTenant();
+  // A Lia grava conversa e histórico: no "Ver como membro" ela ficaria em nome
+  // do membro, e o backend recusa a escrita nesse modo.
+  const { member: viewingMember } = useViewingMember();
   const { isMaster } = usePermissions();
   const router = useRouter();
   const isMobile = useIsMobile();
@@ -214,7 +218,7 @@ function ProtectedShell({ children }: { children: React.ReactNode }) {
           <AppOnboarding />
         </div>
         {!isMobile && <BottomDock />}
-        {planTier !== undefined && user !== null && user.role !== "free" && (
+        {planTier !== undefined && user !== null && user.role !== "free" && !viewingMember && (
           <LiaContainer />
         )}
       </div>

@@ -206,6 +206,11 @@ export const callApi = async <T = unknown>(
           "Modo somente leitura: habilite a edição na faixa do topo para alterar dados desta empresa.",
         );
       }
+      if (errorData?.code === "MEMBER_VIEW_READ_ONLY") {
+        toast.info(
+          "Você está vendo o painel de um membro, só para leitura. Volte para a visão da empresa para alterar dados.",
+        );
+      }
 
       throw new ApiError(
         response.status,

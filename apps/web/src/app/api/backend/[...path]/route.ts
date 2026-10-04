@@ -117,6 +117,7 @@ function buildForwardHeaders(req: NextRequest, requestId: string): Headers {
   const pdfGenerator = req.headers.get("x-pdf-generator");
   const tenantId = req.headers.get("x-tenant-id");
   const impersonationWrite = req.headers.get("x-impersonation-write");
+  const viewAsMember = req.headers.get("x-view-as-member");
   const forwardedHost =
     req.headers.get("x-forwarded-host") || req.headers.get("host") || req.nextUrl.host;
   const forwardedProto =
@@ -129,6 +130,7 @@ function buildForwardHeaders(req: NextRequest, requestId: string): Headers {
   if (pdfGenerator) headers.set("x-pdf-generator", pdfGenerator);
   if (tenantId) headers.set("x-tenant-id", tenantId);
   if (impersonationWrite) headers.set("x-impersonation-write", impersonationWrite);
+  if (viewAsMember) headers.set("x-view-as-member", viewAsMember);
   if (forwardedHost) headers.set("x-forwarded-host", forwardedHost);
   if (forwardedProto) headers.set("x-forwarded-proto", forwardedProto);
   headers.set("x-request-id", requestId);

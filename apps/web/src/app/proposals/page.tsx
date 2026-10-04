@@ -19,6 +19,7 @@ import { isApprovedColumn } from "@/lib/proposal-approval";
 import { ProposalAttachmentsDialog } from "@/components/features/proposal/proposal-attachments-dialog";
 import { useTenant } from "@/providers/tenant-provider";
 import { useAuth } from "@/providers/auth-provider";
+import { useEffectiveViewer } from "@/hooks/use-effective-viewer";
 import {
   Plus,
   FileText,
@@ -151,6 +152,7 @@ export default function ProposalsPage() {
   const router = useRouter();
   const { tenant, isReadOnly } = useTenant();
   const { user } = useAuth();
+  const viewer = useEffectiveViewer();
   const { canCreate, canEdit, canDelete } = usePagePermission("proposals");
   // O CRM não está na dock — chega-se a ele por este botão, então é aqui que a
   // permissão de kanban tem que ser checada (o plano é gate separado).
@@ -310,8 +312,8 @@ export default function ProposalsPage() {
     ((updater: (items: Proposal[]) => Proposal[]) => void) | null
   >(null);
   const responsible = React.useMemo(
-    () => parseResponsibleFilter(responsibleFilter, user?.id),
-    [responsibleFilter, user?.id],
+    () => parseResponsibleFilter(responsibleFilter, viewer.uid ?? undefined),
+    [responsibleFilter, viewer.uid],
   );
   // Com o filtro de responsável a lista sai da paginação e vem por uma
   // consulta só (igualdade, sem índice novo), como a busca.

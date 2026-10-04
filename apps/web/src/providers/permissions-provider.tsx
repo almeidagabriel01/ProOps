@@ -12,6 +12,11 @@
 
 import * as React from "react";
 import { useAuth } from "@/providers/auth-provider";
+import { useViewingMember } from "@/providers/viewing-member-provider";
+import {
+  buildMemberViewPermissions,
+  normalizeRole,
+} from "@/lib/permissions/member-view";
 import { db } from "@/lib/firebase";
 import { collection, getDocs, doc, getDoc } from "firebase/firestore";
 
@@ -62,37 +67,6 @@ const PermissionsContext = React.createContext<PermissionsContextType>({
 });
 
 // ============================================
-// HELPER: Role Normalization
-// ============================================
-
-/**
- * Normalize role from various formats to MASTER/MEMBER
- * Handles backwards compatibility with old role system
- *
- * Mapping:
- * - 'MASTER' | 'admin' | 'superadmin' | 'wk' → 'MASTER'
- * - 'MEMBER' | 'user' | 'free' → 'MEMBER'
- *
- * O conjunto tem que bater com `isTenantAdminRole` do backend
- * (apps/functions/src/lib/auth-context.ts) e com `hasTenantAdminRole()` das
- * Firestore Rules. `WK` faltava aqui: um usuário desses tinha poder de master
- * na API e nas rules, e interface de membro na tela — a UI escondia dele
- * ações que o backend aceitaria.
- */
-const MASTER_LEVEL_ROLES = new Set(["MASTER", "ADMIN", "SUPERADMIN", "WK"]);
-
-function normalizeRole(role: string | undefined): "MASTER" | "MEMBER" {
-  if (!role) return "MEMBER"; // Default to MEMBER for safety
-
-  if (MASTER_LEVEL_ROLES.has(role.toUpperCase())) {
-    return "MASTER";
-  }
-
-  // Everything else is MEMBER
-  return "MEMBER";
-}
-
-// ============================================
 // PROVIDER
 // ============================================
 
@@ -102,14 +76,33 @@ export function PermissionsProvider({
   children: React.ReactNode;
 }) {
   const { user } = useAuth();
+  const { member: viewingMember, isLoading: isViewingMemberLoading } = useViewingMember();
   const [permissions, setPermissions] = React.useState<UserPermissions | null>(
     null,
   );
   const [isLoading, setIsLoading] = React.useState(true);
+  // Só a busca mais recente vale: entrar e sair da visão de membro dispara
+  // buscas que podem terminar fora de ordem.
+  const requestIdRef = React.useRef(0);
 
   const fetchPermissions = React.useCallback(async () => {
+    const requestId = ++requestIdRef.current;
     if (!user?.id) {
       setPermissions(null);
+      setIsLoading(false);
+      return;
+    }
+
+    if (isViewingMemberLoading) {
+      setIsLoading(true);
+      return;
+    }
+
+    if (viewingMember) {
+      setPermissions({
+        ...buildMemberViewPermissions(viewingMember),
+        companyId: user.tenantId || "",
+      });
       setIsLoading(false);
       return;
     }
@@ -203,6 +196,7 @@ export function PermissionsProvider({
         });
       }
 
+      if (requestId !== requestIdRef.current) return;
       setPermissions({
         role,
         masterId,
@@ -212,6 +206,7 @@ export function PermissionsProvider({
         pages,
       });
     } catch (error) {
+      if (requestId !== requestIdRef.current) return;
       console.error("Error fetching permissions:", error);
       // On error, if user exists, give MASTER role to admin users
       if (user?.role === "admin" || user?.role === "superadmin") {
@@ -226,9 +221,16 @@ export function PermissionsProvider({
         setPermissions(null);
       }
     } finally {
-      setIsLoading(false);
+      if (requestId === requestIdRef.current) setIsLoading(false);
     }
-  }, [user?.id, user?.role, user?.tenantId, user?.masterId]);
+  }, [
+    user?.id,
+    user?.role,
+    user?.tenantId,
+    user?.masterId,
+    viewingMember,
+    isViewingMemberLoading,
+  ]);
 
   // Fetch permissions when user changes
   React.useEffect(() => {

@@ -6,6 +6,7 @@ import { ErrorBoundary } from "@/components/shared/error-boundary";
 import { TenantProvider } from "@/providers/tenant-provider";
 import { AuthProvider } from "@/providers/auth-provider";
 import { PermissionsProvider } from "@/providers/permissions-provider";
+import { ViewingMemberProvider } from "@/providers/viewing-member-provider";
 import { PlanProvider } from "@/providers/plan-provider";
 import { ThemeProvider } from "@/providers/theme-provider";
 import { ProtectedRoute } from "@/components/auth/protected-route";
@@ -69,13 +70,15 @@ export function Providers({ children }: { children: React.ReactNode }) {
           ) : isAuthOnlyPage ? (
             <main className="min-h-screen flex flex-col">{children}</main>
           ) : (
-            <PermissionsProvider>
-              <TenantProvider>
-                <PlanProvider>
-                  <ProtectedRoute>{children}</ProtectedRoute>
-                </PlanProvider>
-              </TenantProvider>
-            </PermissionsProvider>
+            <ViewingMemberProvider>
+              <PermissionsProvider>
+                <TenantProvider>
+                  <PlanProvider>
+                    <ProtectedRoute>{children}</ProtectedRoute>
+                  </PlanProvider>
+                </TenantProvider>
+              </PermissionsProvider>
+            </ViewingMemberProvider>
           )}
         </AuthProvider>
       </ErrorBoundary>
