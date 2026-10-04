@@ -27,6 +27,7 @@ import {
   isStripeManagedBilling,
 } from "../../lib/admin-billing-guards";
 import { auditAdminAction } from "../../lib/admin-audit";
+import { isViewableMember } from "../middleware/impersonation";
 import {
   TENANT_PRESENCE_COLLECTION,
   pickLastSeen,
@@ -2200,6 +2201,22 @@ export const startImpersonation = async (req: Request, res: Response) => {
         .json({ message: "Empresa inválida ou inexistente." });
     }
 
+    const memberUid = String(req.body?.memberUid || "").trim();
+    if (memberUid) {
+      const memberSnap = await db.collection("users").doc(memberUid).get();
+      const memberDoc = memberSnap.exists
+        ? ((memberSnap.data() ?? {}) as Record<string, unknown>)
+        : null;
+      if (!isViewableMember(memberDoc, tenantId)) {
+        return res.status(400).json({ message: "Membro inválido para esta empresa." });
+      }
+      await auditAdminAction(req, "super_admin_member_view_started", {
+        tenantId,
+        targetId: memberUid,
+      });
+      return res.json({ success: true });
+    }
+
     const uid = req.user!.uid;
     const route = req.originalUrl || req.path;
 
@@ -2244,6 +2261,16 @@ export const stopImpersonation = async (req: Request, res: Response) => {
       return res.status(400).json({ message: "tenantId é obrigatório." });
     }
     const reason = String(req.body?.reason || "exit_button").trim().slice(0, 40);
+
+    const memberUid = String(req.body?.memberUid || "").trim();
+    if (memberUid) {
+      await auditAdminAction(req, "super_admin_member_view_stopped", {
+        tenantId,
+        targetId: memberUid,
+        reason,
+      });
+      return res.json({ success: true });
+    }
 
     await auditAdminAction(req, "super_admin_impersonation_stopped", {
       tenantId,
