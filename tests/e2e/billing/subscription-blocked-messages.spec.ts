@@ -141,3 +141,80 @@ test.describe("assinatura Stripe com pagamento recusado (claims de cobrança no 
     await expect(page).toHaveURL(/subscription-blocked/);
   });
 });
+
+/**
+ * Conta montada à mão: as claims não batem com o doc `users/{uid}`. Era o caso
+ * de uma conta de produção que, com o acesso encerrado pelo super admin, caía
+ * na landing sem mensagem nenhuma: o login a mandava para a tela de bloqueio
+ * (lendo o doc) e a tela, lendo só as claims, a devolvia para a raiz.
+ */
+test.describe("acesso encerrado em conta com claims divergentes do doc", () => {
+  const db = getTestDb();
+  let originalClaims: Record<string, unknown> = {};
+
+  test.beforeEach(async () => {
+    await seedBillingStateExtended(db, {
+      tenantId: TENANT,
+      subscriptionStatus: "canceled",
+      isManualSubscription: true,
+      currentPeriodEnd: brDay(-9),
+      userId: USER_ADMIN_BETA.uid,
+    });
+    originalClaims = (await admin.app().auth().getUser(USER_ADMIN_BETA.uid)).customClaims ?? {};
+  });
+
+  test.afterEach(async () => {
+    await admin.app().auth().setCustomUserClaims(USER_ADMIN_BETA.uid, originalClaims);
+    await restoreTenantState(db, TENANT, USER_ADMIN_BETA.uid);
+  });
+
+  const variants: Array<{ name: string; claims: (original: Record<string, unknown>) => Record<string, unknown> }> = [
+    {
+      name: "claim sem tenant nem papel",
+      claims: (original) => {
+        const { tenantId: _tenantId, role: _role, ...rest } = original;
+        return rest;
+      },
+    },
+    {
+      name: "claim free com doc de dono",
+      claims: (original) => ({ ...original, role: "free" }),
+    },
+  ];
+
+  for (const variant of variants) {
+    test(`${variant.name}: fica na tela de bloqueio, e o ERP leva de volta a ela`, async ({ page, loginPage }) => {
+      await admin.app().auth().setCustomUserClaims(USER_ADMIN_BETA.uid, variant.claims(originalClaims));
+
+      await loginPage.goto();
+      await loginPage.login(USER_ADMIN_BETA.email, USER_ADMIN_BETA.password);
+      await page.waitForURL(/subscription-blocked/, { timeout: 30000 });
+
+      const card = page.getByTestId("subscription-blocked-card");
+      await expect(card.getByText("Seu plano venceu", { exact: true })).toBeVisible({ timeout: 15000 });
+      await expect(card.getByRole("button", { name: "Assinar pelo cartão" })).toBeVisible();
+
+      await page.waitForTimeout(8000);
+      await expect(page).toHaveURL(/subscription-blocked/);
+
+      // Digitar um endereço do ERP não fura o bloqueio.
+      await page.goto("/dashboard");
+      await page.waitForURL(/subscription-blocked/, { timeout: 30000 });
+      await expect(page.getByTestId("subscription-blocked-card")).toBeVisible({ timeout: 15000 });
+    });
+  }
+
+  test("na landing, 'Entrar no ERP' continua e leva à tela de bloqueio", async ({ page, loginPage }) => {
+    await loginPage.goto();
+    await loginPage.login(USER_ADMIN_BETA.email, USER_ADMIN_BETA.password);
+    await page.waitForURL(/subscription-blocked/, { timeout: 30000 });
+
+    await page.goto("/");
+    // O menu da conta é o botão com o nome da empresa.
+    await page.getByRole("button", { name: /Beta Ltd/ }).first().click({ timeout: 30000 });
+    // Os itens do menu são div sem papel de menuitem.
+    await page.getByText("Entrar no ERP", { exact: true }).click();
+    await page.waitForURL(/subscription-blocked/, { timeout: 30000 });
+    await expect(page.getByTestId("subscription-blocked-card")).toBeVisible({ timeout: 15000 });
+  });
+});

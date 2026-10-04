@@ -5,6 +5,7 @@ import { getAdminAuth, getAdminFirestore } from "@/lib/firebase-admin";
 import { isSubscriptionBlocked } from "@/lib/auth/subscription-blocked-statuses";
 import { contractDayLabel } from "@/lib/billing/billing-banner";
 import type { BlockedScreenInput } from "@/lib/billing/blocked-screen";
+import { resolveBlockedSessionIdentity } from "@/lib/billing/blocked-session-identity";
 
 const TENANT_ADMIN_ROLES = new Set(["MASTER", "ADMIN", "WK"]);
 
@@ -43,18 +44,20 @@ export const loadBlockedSession = cache(async (): Promise<BlockedSession> => {
   try {
     // checkRevoked: false — sessão revogada é esperada aqui.
     const decoded = await getAdminAuth().verifySessionCookie(sessionCookie, false);
-    const role = text(decoded.role).toUpperCase();
+    const db = getAdminFirestore();
+    // O doc vence as claims: é ele que o login e o guard leem para mandar a
+    // pessoa até aqui (ver lib/billing/blocked-session-identity.ts).
+    const userData = (await db.collection("users").doc(decoded.uid).get()).data() ?? null;
+    const { role, tenantId, masterId, isSuperAdmin } = resolveBlockedSessionIdentity(decoded, userData);
 
-    if (decoded.isSuperAdmin === true || role === "SUPERADMIN") {
+    if (isSuperAdmin) {
       return { redirectTo: "/admin", screen: NO_SESSION };
     }
     // Conta free não tem assinatura para estar bloqueada.
     if (role === "FREE") return { redirectTo: "/", screen: NO_SESSION };
 
-    const tenantId = text(decoded.tenantId);
     if (!tenantId) return { redirectTo: "/", screen: NO_SESSION };
 
-    const db = getAdminFirestore();
     // Firestore e não as claims: elas podem estar velhas depois do webhook.
     const tenantData = (await db.collection("tenants").doc(tenantId).get()).data() as
       | Record<string, unknown>
@@ -67,13 +70,8 @@ export const loadBlockedSession = cache(async (): Promise<BlockedSession> => {
 
     const isTenantAdmin = TENANT_ADMIN_ROLES.has(role);
     let ownerName: string | null = null;
-    if (!isTenantAdmin) {
-      const masterId =
-        text(decoded.masterId) ||
-        text((await db.collection("users").doc(decoded.uid).get()).get("masterId"));
-      if (masterId) {
-        ownerName = text((await db.collection("users").doc(masterId).get()).get("name")) || null;
-      }
+    if (!isTenantAdmin && masterId) {
+      ownerName = text((await db.collection("users").doc(masterId).get()).get("name")) || null;
     }
 
     const hasStripe = Boolean(text(tenantData?.stripeSubscriptionId) || text(tenantData?.stripeCustomerId));
