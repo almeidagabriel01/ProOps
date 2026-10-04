@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Plus, Search, Building2 } from "lucide-react";
 import { TenantDialog } from "@/components/admin/tenant-dialog";
 import { TenantModulesDialog } from "@/components/admin/tenant-modules-dialog";
+import { TenantMembersDialog } from "@/components/admin/tenant-members-dialog";
 import {
   TenantActivityDrawer,
   type ActivityTenantTarget,
@@ -33,6 +34,7 @@ export default function AdminPage() {
     handleEndManualAccess,
     handlePurge,
     handleLoginAs,
+    handleViewAsMember,
     handleRecompute,
     isLoading,
     isSaving,
@@ -50,6 +52,7 @@ export default function AdminPage() {
   const [isCopying, setIsCopying] = React.useState(false);
   const [modulesTarget, setModulesTarget] = React.useState<TenantBillingInfo | null>(null);
   const [activityTarget, setActivityTarget] = React.useState<ActivityTenantTarget | null>(null);
+  const [membersTarget, setMembersTarget] = React.useState<TenantBillingInfo | null>(null);
 
   const handleOpenCopyModal = (tenant: TenantBillingInfo) => {
     setCopySourceTenant(tenant);
@@ -127,6 +130,7 @@ export default function AdminPage() {
             onCopy={handleOpenCopyModal}
             onManageModules={setModulesTarget}
             onViewActivity={(data) => setActivityTarget({ id: data.tenant.id, name: data.tenant.name })}
+            onViewMembers={setMembersTarget}
           />
         ))}
 
@@ -175,6 +179,24 @@ export default function AdminPage() {
       />
 
       <TenantActivityDrawer tenant={activityTarget} onClose={() => setActivityTarget(null)} />
+
+      <TenantMembersDialog
+        tenantId={membersTarget?.tenant.id ?? null}
+        tenantName={membersTarget?.tenant.name ?? ""}
+        onClose={() => setMembersTarget(null)}
+        onViewCompany={() => {
+          if (!membersTarget) return;
+          const target = membersTarget;
+          setMembersTarget(null);
+          handleLoginAs(target);
+        }}
+        onViewAsMember={(member) => {
+          if (!membersTarget) return;
+          const target = membersTarget;
+          setMembersTarget(null);
+          void handleViewAsMember(target, member);
+        }}
+      />
 
       <TenantModulesDialog
         tenantId={modulesTarget?.tenant.id ?? null}

@@ -24,16 +24,23 @@ interface ViewingMemberContextType {
   member: TenantMemberInfo | null;
   /** Há um membro na sessão e os dados dele ainda não chegaram. */
   isLoading: boolean;
-  setViewingMember: (member: TenantMemberInfo) => void;
+  /**
+   * As duas ações resolvem depois de a auditoria gravar: quem recarrega a
+   * página em seguida precisa esperar, senão a navegação cancela o registro.
+   */
+  setViewingMember: (member: TenantMemberInfo) => Promise<void>;
   /** Volta para a visão da empresa (ou só esquece o membro, com `silent`). */
-  clearViewingMember: (options?: { silent?: boolean; reason?: "exit_button" | "admin_route" | "switch" }) => void;
+  clearViewingMember: (options?: {
+    silent?: boolean;
+    reason?: "exit_button" | "admin_route" | "switch";
+  }) => Promise<void>;
 }
 
 const ViewingMemberContext = React.createContext<ViewingMemberContextType>({
   member: null,
   isLoading: false,
-  setViewingMember: () => {},
-  clearViewingMember: () => {},
+  setViewingMember: async () => {},
+  clearViewingMember: async () => {},
 });
 
 export function ViewingMemberProvider({ children }: { children: React.ReactNode }) {
@@ -86,33 +93,35 @@ export function ViewingMemberProvider({ children }: { children: React.ReactNode 
     };
   }, [hydrated, isSuperAdmin, pendingId, member]);
 
-  const setViewingMember = React.useCallback((next: TenantMemberInfo) => {
+  const setViewingMember = React.useCallback(async (next: TenantMemberInfo) => {
     const tenantId = readViewingTenantId();
     if (!tenantId) return;
     const previous = readViewingMemberId();
-    if (previous && previous !== next.id) {
-      void AdminService.stopImpersonation(tenantId, "switch", previous).catch(() => {});
-    }
     writeViewingMemberId(next.id);
     setMember(next);
     setPendingId(next.id);
-    void AdminService.startImpersonation(tenantId, next.id).catch(() => {});
+    await Promise.all([
+      previous && previous !== next.id
+        ? AdminService.stopImpersonation(tenantId, "switch", previous).catch(() => {})
+        : undefined,
+      AdminService.startImpersonation(tenantId, next.id).catch(() => {}),
+    ]);
   }, []);
 
   const clearViewingMember = React.useCallback<ViewingMemberContextType["clearViewingMember"]>(
-    (options) => {
+    async (options) => {
       const tenantId = readViewingTenantId();
       const previous = readViewingMemberId();
+      writeViewingMemberId(null);
+      setMember(null);
+      setPendingId(null);
       if (previous && tenantId && !options?.silent) {
-        void AdminService.stopImpersonation(
+        await AdminService.stopImpersonation(
           tenantId,
           options?.reason ?? "exit_button",
           previous,
         ).catch(() => {});
       }
-      writeViewingMemberId(null);
-      setMember(null);
-      setPendingId(null);
     },
     [],
   );

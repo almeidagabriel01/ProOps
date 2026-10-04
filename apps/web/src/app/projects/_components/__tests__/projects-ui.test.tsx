@@ -35,6 +35,7 @@ vi.mock("@/providers/tenant-provider", () => ({
   useTenant: () => ({ tenant: { id: "t1", name: "Casa Inteligente" }, isReadOnly: m.readOnly }),
 }));
 vi.mock("@/providers/auth-provider", () => ({ useAuth: () => ({ user: { id: "u1", role: m.role } }) }));
+vi.mock("@/providers/viewing-member-provider", () => ({ useViewingMember: () => ({ member: null }) }));
 vi.mock("@/providers/permissions-provider", () => ({ usePermissions: () => ({ isMaster: m.isMaster }) }));
 vi.mock("@/hooks/usePlanLimits", () => ({ usePlanLimits: () => m.plan }));
 vi.mock("@/hooks/usePagePermission", () => ({ usePagePermission: () => m.perms }));

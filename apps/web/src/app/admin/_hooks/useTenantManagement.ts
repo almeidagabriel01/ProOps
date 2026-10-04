@@ -10,7 +10,10 @@ import {
   AdminService,
   TenantBillingInfo,
   type TenantIndexItem,
+  type TenantMemberInfo,
 } from "@/services/admin-service";
+import { useViewingMember } from "@/providers/viewing-member-provider";
+import { resolveMemberViewHome } from "@/lib/permissions/member-view";
 import { deriveSubscriptionDisplayStatus } from "@/lib/subscription-status";
 import { canAccessTenantPanel } from "@/lib/tenant-panel-access";
 import { Tenant } from "@/types";
@@ -39,6 +42,7 @@ interface UseTenantManagementReturn {
   handleEndManualAccess: (id: string) => Promise<void>;
   handlePurge: (id: string, confirmName: string) => Promise<void>;
   handleLoginAs: (item: TenantBillingInfo) => void;
+  handleViewAsMember: (item: TenantBillingInfo, member: TenantMemberInfo) => Promise<void>;
   handleRecompute: (tenantId: string) => Promise<void>;
   isLoading: boolean;
   isSaving: boolean;
@@ -71,6 +75,7 @@ export function useTenantManagement(): UseTenantManagementReturn {
   const [isSearching, setIsSearching] = React.useState(false);
 
   const { setViewingTenant } = useTenant();
+  const { setViewingMember } = useViewingMember();
 
   // Indice leve de todas as empresas: a busca antes so filtrava os 25 da
   // pagina carregada, entao empresa da pagina 2 "nao existia".
@@ -447,6 +452,24 @@ export function useTenantManagement(): UseTenantManagementReturn {
     });
   };
 
+  // "Ver como membro": abre a empresa e, junto, o membro escolhido. Mesma
+  // guarda do Acessar Painel, porque é o mesmo painel.
+  const handleViewAsMember = async (item: TenantBillingInfo, member: TenantMemberInfo) => {
+    if (!canAccessTenantPanel(item)) {
+      toast.error(
+        `"${item.tenant.name}" está no plano gratuito e não possui acesso ao painel ERP.`,
+      );
+      return;
+    }
+    const home = resolveMemberViewHome(member);
+    setViewingTenant(item.tenant as Tenant, home);
+    await setViewingMember(member);
+    toast.info(`Vendo o painel de "${member.name || member.email}" em "${item.tenant.name}"...`);
+    React.startTransition(() => {
+      router.push(home);
+    });
+  };
+
   const filteredTenants =
     searchResults ??
     tenantsData.filter((item) =>
@@ -468,6 +491,7 @@ export function useTenantManagement(): UseTenantManagementReturn {
     handleSave,
     handleDeactivate,
     handleReactivate,
+    handleViewAsMember,
     handleEndManualAccess,
     handlePurge,
     handleLoginAs,

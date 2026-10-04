@@ -10,6 +10,7 @@ import { act, renderHook, waitFor } from "@testing-library/react";
  */
 
 const setViewingTenant = vi.fn();
+const setViewingMember = vi.fn(async () => {});
 const routerPush = vi.fn();
 const toastError = vi.fn();
 const toastInfo = vi.fn();
@@ -21,6 +22,9 @@ vi.mock("firebase/firestore", () => ({
 vi.mock("@/lib/firebase", () => ({ db: {} }));
 vi.mock("@/providers/tenant-provider", () => ({
   useTenant: () => ({ setViewingTenant }),
+}));
+vi.mock("@/providers/viewing-member-provider", () => ({
+  useViewingMember: () => ({ setViewingMember }),
 }));
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: routerPush }),
@@ -41,7 +45,7 @@ vi.mock("@/services/admin-service", () => ({
 }));
 
 import { useTenantManagement } from "../useTenantManagement";
-import type { TenantBillingInfo } from "@/services/admin-service";
+import type { TenantBillingInfo, TenantMemberInfo } from "@/services/admin-service";
 
 function billingInfo(overrides: {
   planId?: string;
@@ -69,6 +73,7 @@ function billingInfo(overrides: {
 
 beforeEach(() => {
   setViewingTenant.mockClear();
+  setViewingMember.mockClear();
   routerPush.mockClear();
   toastError.mockClear();
   toastInfo.mockClear();
@@ -166,5 +171,49 @@ describe("useTenantManagement — free-plan impersonation guard", () => {
       );
     });
     expect(setViewingTenant).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("useTenantManagement: ver como membro", () => {
+  const vendedor: TenantMemberInfo = {
+    id: "vendedor",
+    name: "Vendedor",
+    email: "v@x.com",
+    role: "MEMBER",
+    masterId: "u1",
+    isOwner: false,
+    createdAt: null,
+    permissions: {
+      proposals: { canView: true, canCreate: false, canEdit: false, canDelete: false },
+    },
+  };
+
+  it("empresa free nao abre nem pela visao de membro", async () => {
+    const { result } = await mounted();
+    await act(async () => {
+      await result.current.handleViewAsMember(
+        billingInfo({ planId: "free", planName: "Gratuito", subscriptionStatus: "free" }),
+        vendedor,
+      );
+    });
+    expect(setViewingTenant).not.toHaveBeenCalled();
+    expect(setViewingMember).not.toHaveBeenCalled();
+    expect(routerPush).not.toHaveBeenCalled();
+  });
+
+  it("abre a empresa com o membro e cai no inicio dele, nao no Dashboard", async () => {
+    const { result } = await mounted();
+    await act(async () => {
+      await result.current.handleViewAsMember(
+        billingInfo({ planId: "pro", planName: "Pro", subscriptionStatus: "active" }),
+        vendedor,
+      );
+    });
+    expect(setViewingTenant).toHaveBeenCalledWith(
+      expect.objectContaining({ id: "t1" }),
+      "/proposals",
+    );
+    expect(setViewingMember).toHaveBeenCalledWith(vendedor);
+    expect(routerPush).toHaveBeenCalledWith("/proposals");
   });
 });

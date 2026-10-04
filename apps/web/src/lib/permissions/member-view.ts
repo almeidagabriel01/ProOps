@@ -1,5 +1,7 @@
 import type { PagePermission, UserPermissions } from "@/providers/permissions-provider";
 import type { TenantMemberInfo } from "@/services/admin-service";
+import type { User } from "@/types";
+import { resolveUserHome } from "@/lib/auth/resolve-user-home";
 
 /**
  * Normalize role from various formats to MASTER/MEMBER
@@ -62,4 +64,22 @@ export function buildMemberViewPermissions(member: TenantMemberInfo): UserPermis
     companyName: "",
     pages,
   };
+}
+
+/**
+ * Onde o membro visto cai ao entrar: a mesma regra do login dele
+ * (`resolveUserHome`), para o superadmin abrir no que o membro abriria.
+ */
+export function resolveMemberViewHome(
+  member: Pick<TenantMemberInfo, "role" | "permissions">,
+): string {
+  if (normalizeRole(member.role) === "MASTER") return "/dashboard";
+  const home = resolveUserHome({
+    id: "",
+    name: "",
+    email: "",
+    role: "member",
+    permissions: member.permissions,
+  } as User);
+  return home.path === "/" ? "/profile" : home.path;
 }

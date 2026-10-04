@@ -74,7 +74,12 @@ interface TenantContextType {
   accountTenant: Tenant | null;
   refreshTenant: () => void;
   clearViewingTenant: () => void;
-  setViewingTenant: (tenant: Tenant) => void;
+  /**
+   * Abre a empresa no Acessar Painel. `targetPath` é para onde a navegação
+   * seguinte vai (o carregamento global termina ao chegar lá); o padrão é o
+   * Dashboard, e o "Ver como membro" passa o início do membro.
+   */
+  setViewingTenant: (tenant: Tenant, targetPath?: string) => void;
   isGlobalLoading: boolean;
   setGlobalLoading: (isLoading: boolean, reason?: string) => void;
   beginGlobalLoading: (reason?: string) => void;
@@ -228,7 +233,7 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
       if (viewingAsId) {
         // Saida implicita (entrou no /admin sem usar o botao): registra o fim
         // da sessao do mesmo jeito.
-        clearViewingMember({ reason: "admin_route" });
+        void clearViewingMember({ reason: "admin_route" });
         void AdminService.stopImpersonation(viewingAsId, "admin_route").catch(() => {});
       }
       viewingAsId = null;
@@ -671,7 +676,7 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
   const clearViewingTenant = React.useCallback(() => {
     const viewingId = readViewingTenantId();
     if (viewingId) {
-      clearViewingMember({ reason: "exit_button" });
+      void clearViewingMember({ reason: "exit_button" });
       void AdminService.stopImpersonation(viewingId, "exit_button").catch(() => {});
     }
     routeTransitionTargetsRef.current["return-admin"] = "/admin";
@@ -686,13 +691,13 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
     setImpersonationWriteState(readImpersonationWriteEnabled());
   }, []);
 
-  const setViewingTenant = (newTenant: Tenant) => {
+  const setViewingTenant = (newTenant: Tenant, targetPath = "/dashboard") => {
     bypassAdminClearRef.current = true;
-    routeTransitionTargetsRef.current["tenant-switch"] = "/dashboard";
+    routeTransitionTargetsRef.current["tenant-switch"] = targetPath;
     beginGlobalLoading("tenant-switch");
     // Toda empresa aberta comeca na visao da empresa; o "Ver como membro"
     // escolhe o membro logo depois.
-    clearViewingMember({ silent: true });
+    void clearViewingMember({ silent: true });
     writeViewingTenantId(newTenant.id);
     // Toda empresa aberta comeca em somente leitura.
     writeImpersonationWriteEnabled(false);

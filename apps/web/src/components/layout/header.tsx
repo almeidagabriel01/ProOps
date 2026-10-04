@@ -37,6 +37,8 @@ import { NotificationBell } from "@/components/notifications/notification-bell";
 import { useHeaderPresentation } from "@/hooks/useHeaderPresentation";
 import { getUserColor, getInitials } from "@/lib/avatar-utils";
 import { ImpersonationBar } from "@/components/layout/impersonation-bar";
+import { MemberViewSwitcher } from "@/components/layout/member-view-switcher";
+import { useViewingMember } from "@/providers/viewing-member-provider";
 import { useOptionalOnboarding } from "@/components/onboarding/onboarding-provider";
 import { HelpPanel } from "@/components/layout/help-panel";
 import { InstallAppDialog } from "@/components/layout/install-app-dialog";
@@ -109,6 +111,7 @@ export function Header({}: HeaderProps) {
     useHeaderPresentation();
   const router = useRouter();
   const { hasWhatsApp } = usePlanLimits();
+  const { member: viewingMember } = useViewingMember();
 
   const isHeaderBlocked =
     isAuthLoading || isPermLoading || isTenantLoading || isGlobalLoading;
@@ -137,6 +140,10 @@ export function Header({}: HeaderProps) {
             writeEnabled={impersonationWriteEnabled}
             onToggleWrite={setImpersonationWriteEnabled}
             onExit={handleBackToAdmin}
+            memberName={
+              viewingMember ? viewingMember.name || viewingMember.email || "Membro" : null
+            }
+            memberSwitcher={<MemberViewSwitcher />}
           />
         )}
       </div>

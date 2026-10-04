@@ -37,6 +37,7 @@ import {
   Ban,
   LayoutGrid,
   History,
+  Users,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { formatDateBR } from "@/utils/date-format";
@@ -59,6 +60,7 @@ interface TenantCardProps {
   onCopy?: (data: TenantBillingInfo) => void;
   onManageModules?: (data: TenantBillingInfo) => void;
   onViewActivity?: (data: TenantBillingInfo) => void;
+  onViewMembers?: (data: TenantBillingInfo) => void;
 }
 
 export function TenantCard({
@@ -71,6 +73,7 @@ export function TenantCard({
   onCopy,
   onManageModules,
   onViewActivity,
+  onViewMembers,
 }: TenantCardProps) {
   const { tenant, planName, subscriptionStatus, billingInterval, admin, isBillingStale } = item;
   const isFreePlan = item.planId === "free";
@@ -470,14 +473,29 @@ export function TenantCard({
                 : "Conta no plano gratuito não possui acesso ao painel ERP"
           }
         >
-          <Button
-            className="w-full cursor-pointer bg-white dark:bg-slate-950 border hover:bg-muted/50 text-foreground transition-colors shadow-sm"
-            variant="ghost"
-            onClick={() => onLoginAs(item)}
-            disabled={isDeleting || !canAccessPanel}
-          >
-            <LogIn className="w-4 h-4 mr-2 text-primary" /> Acessar Painel
-          </Button>
+          <span className="flex w-full gap-2">
+            <Button
+              className="flex-1 cursor-pointer bg-white dark:bg-slate-950 border hover:bg-muted/50 text-foreground transition-colors shadow-sm"
+              variant="ghost"
+              onClick={() => onLoginAs(item)}
+              disabled={isDeleting || !canAccessPanel}
+            >
+              <LogIn className="w-4 h-4 mr-2 text-primary" /> Acessar Painel
+            </Button>
+            {onViewMembers && (
+              <Button
+                className="shrink-0 bg-white dark:bg-slate-950 border hover:bg-muted/50 text-foreground transition-colors shadow-sm"
+                variant="ghost"
+                onClick={() => onViewMembers(item)}
+                disabled={isDeleting || !canAccessPanel}
+                aria-label={`Ver o painel de um membro de ${tenant.name}`}
+                title="Ver como um membro da equipe"
+              >
+                <Users className="w-4 h-4 md:mr-2 text-primary" />
+                <span className="hidden md:inline">Membros</span>
+              </Button>
+            )}
+          </span>
           {/* O title acima não aparece no toque: no celular o motivo vira texto. */}
           {!canAccessPanel && (
             <span className="mt-2 block text-center text-xs text-muted-foreground md:hidden">
