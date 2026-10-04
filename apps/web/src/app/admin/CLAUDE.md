@@ -99,7 +99,7 @@ da API.
   voltam como estavam quando o acesso volta. A empresa também não vira conta
   de demonstração: o papel continua pago, e o Demo é só do papel "free".
 - **Teste dado pelo painel que vira assinatura no cartão:** o writer único
-  () tira  do tenant e dos
+  (`syncTenantPlanBillingSnapshot`) tira `isManualSubscription` do tenant e dos
   usuários quando uma assinatura Stripe ATIVA ou em trial é vinculada. Sem isso
   o cron do plano manual cortaria quem paga e a sincronização diária pularia o
   Stripe. Evento de assinatura cancelada não mexe na marca.

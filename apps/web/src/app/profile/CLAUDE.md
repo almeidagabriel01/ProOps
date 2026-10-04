@@ -170,8 +170,8 @@ com o layout, que decide se redireciona) lê a sessão e o tenant, e
   recusa portal e checkout para quem não é dono ou admin.
 - **Dono/admin de plano manual** (inclusive o teste dado pelo painel): "Seu
   plano venceu em dd/mm/aaaa", com "Falar com a ProOps" (WhatsApp de suporte),
-  "Assinar pelo cartão" () e "Sair". Ao assinar,
-  a empresa deixa de ser manual (ver ).
+  "Assinar pelo cartão" (`/subscription-blocked/plans`) e "Sair". Ao assinar,
+  a empresa deixa de ser manual (ver `apps/web/src/app/admin/CLAUDE.md`).
 - **Dono/admin de Stripe**: "Renovar assinatura" (`/subscription-blocked/plans`),
   "Atualizar pagamento", "Falar com a ProOps" e "Sair".
 
