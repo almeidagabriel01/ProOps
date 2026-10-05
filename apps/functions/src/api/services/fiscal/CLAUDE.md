@@ -203,9 +203,13 @@
   obrigatorio na propria linha). `assembleManualNfe` e `assembleInvoices` passam pelo
   MESMO `buildNfe` (CFOP, ICMS, IPI, total, finalidade): a avulsa nao e uma segunda
   implementacao da regra. Lacuna que se corrige na propria nota tem `scope: "nota"`.
-- **A emissao pela proposta e REVISADA antes de sair.** O botao abre o formulario de
-  emissao, que recalcula por `POST .../preview/from-proposal/:id` (o GET segue para o
-  convite pos-aprovacao) e envia as edicoes em `nfe` no corpo do `from-proposal`:
+- **A emissao pela proposta e REVISADA antes de sair.** O botao "Emitir NF" (lista, menu
+  compacto e a linha "Nota fiscal" da janela "Proposta aprovada") abre a pagina
+  `/invoices/new?proposal=<id>`, que recalcula por `POST .../preview/from-proposal/:id` (o
+  GET segue para o convite pos-aprovacao) e envia as edicoes em `nfe` no corpo do
+  `from-proposal`. O POST da previa NAO para em `FISCAL_NAO_PRONTO` (`ignoreReadiness`):
+  e pela tela que sai a nota de teste que deixa o emitente pronto, e a previa avulsa
+  tambem nao trava. Edicoes aceitas:
   operacao, observacao, transporte, chaves referenciadas e, por linha, IPI e situacao do
   ICMS. Os VALORES da linha nao se editam ali: a nota de uma venda bate com a venda. A
   edicao de linha vai por indice + `productId`; se a proposta mudou entre abrir e enviar,
@@ -244,8 +248,9 @@
   Recusar nao deixa pendencia: o botao "Emitir NF" continua na lista.
   Ligado em `useProposalInvoicePrompt`, consumido pela lista de propostas e pelo arraste
   do kanban, e mostrado como a linha "Nota fiscal" da janela unica "Proposta aprovada"
-  (`ApprovalNextStepsHost` no front), junto da obra e do contrato. **Falta o formulario
-  da proposta**, que redireciona logo apos salvar.
+  (`ApprovalNextStepsHost` no front), junto da obra e do contrato. A linha leva a
+  revisao ("Revisar e emitir") e fecha a janela; obra e contrato seguem disponiveis pela
+  propria proposta. **Falta o formulario da proposta**, que redireciona logo apos salvar.
 - **`autoIssueRule` continua sem UI, de proposito.** O convite pos-aprovacao entrega a
   conveniencia sem que nada seja emitido sem confirmacao; expor `on_payment` /
   `on_proposal_approved` acrescentaria emissao sem humano no circuito. O codigo dos

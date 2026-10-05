@@ -137,6 +137,26 @@ describe("previewFromProposal", () => {
     expect(assembleInvoices).not.toHaveBeenCalled();
   });
 
+  it("a tela de emissão vê a nota antes da primeira autorização", async () => {
+    // É por ela que sai a nota de teste que deixa o emitente pronto: travar
+    // aqui impediria a empresa nova de emitir a primeira nota.
+    getFiscalSettings.mockResolvedValue({ status: "registered" });
+
+    const preview = await previewFromProposal("t1", "p1", { ignoreReadiness: true });
+
+    expect(preview.canIssue).toBe(true);
+    expect(assembleInvoices).toHaveBeenCalled();
+  });
+
+  it("repassa as edições da tela para a montagem", async () => {
+    const nfe = { observacoes: "Pedido 545" };
+    await previewFromProposal("t1", "p1", { naturezaOperacao: "venda_producao_propria", nfe });
+
+    expect(assembleInvoices).toHaveBeenCalledWith(
+      expect.objectContaining({ naturezaOperacao: "venda_producao_propria", nfe }),
+    );
+  });
+
   it("nega quando o fiscal nem foi configurado, sem tocar na proposta", async () => {
     getFiscalSettings.mockResolvedValue(null);
 

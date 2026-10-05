@@ -1153,6 +1153,7 @@ export const previewFromProposalHandler = async (
           ? parseNatureza(body.naturezaOperacao)
           : undefined,
         nfe: parseNfeEdits(body.nfe),
+        ignoreReadiness: req.method === "POST",
       }),
     );
   } catch (error) {

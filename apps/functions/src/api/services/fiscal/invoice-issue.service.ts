@@ -250,7 +250,16 @@ export interface IssuePreview {
 export async function previewFromProposal(
   tenantId: string,
   proposalId: string,
-  options: { naturezaOperacao?: NaturezaOperacao; nfe?: NfeEdits } = {},
+  options: {
+    naturezaOperacao?: NaturezaOperacao;
+    nfe?: NfeEdits;
+    /**
+     * A tela de emissão mostra a nota mesmo antes da primeira autorização: é
+     * por ela que sai a nota de teste que deixa o emitente pronto. Só o
+     * convite pós-aprovação para em `FISCAL_NAO_PRONTO`.
+     */
+    ignoreReadiness?: boolean;
+  } = {},
 ): Promise<IssuePreview> {
   const empty = { gaps: [], documentos: [], jaEmitidas: [] };
 
@@ -284,7 +293,7 @@ export async function previewFromProposal(
 
   // Só `ready` prova credenciamento na SEFAZ/prefeitura. Antes disso a emissão
   // sairia, mas voltaria rejeitada — e o convite teria sido uma armadilha.
-  if (settings.status !== "ready") {
+  if (settings.status !== "ready" && !options.ignoreReadiness) {
     return { canIssue: false, reason: "FISCAL_NAO_PRONTO", ...empty, jaEmitidas };
   }
 
@@ -353,9 +362,7 @@ export async function previewManualNfe(
   if (!settings) {
     return { canIssue: false, reason: "FISCAL_NAO_CONFIGURADO", ...empty };
   }
-  if (settings.status !== "ready") {
-    return { canIssue: false, reason: "FISCAL_NAO_PRONTO", ...empty };
-  }
+  // Sem a trava de `ready`: a nota avulsa também serve de nota de teste.
   const assembly = await assembleManualNfe({ tenantId, settings, ...request });
   return summarizePreview(tenantId, assembly, []);
 }
