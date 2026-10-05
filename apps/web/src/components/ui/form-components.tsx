@@ -144,10 +144,15 @@ export function FormSection({
 }: FormSectionProps) {
   const [isOpen, setIsOpen] = React.useState(defaultOpen);
 
+  // Só a seção que recolhe corta o conteúdo (é o que anima a altura). Cortar
+  // sempre escondia a lista dos seletores que abrem sem portal (ClientSelect,
+  // SearchableSelect) na borda do card: o seletor de contato da nota avulsa
+  // abria com a lista decepada logo abaixo do campo.
   return (
     <div
       className={cn(
-        "relative rounded-2xl border border-border/50 bg-card overflow-hidden",
+        "relative rounded-2xl border border-border/50 bg-card",
+        collapsible && "overflow-hidden",
         "shadow-sm hover:shadow-md transition-shadow duration-300",
         className
       )}
@@ -156,7 +161,9 @@ export function FormSection({
       {/* Header */}
       <div
         className={cn(
-          "px-6 py-5 border-b border-border/30 bg-linear-to-r from-muted/50 to-transparent",
+          // rounded-t: sem o overflow-hidden do card, o fundo do cabeçalho
+          // passaria por cima dos cantos arredondados.
+          "px-6 py-5 rounded-t-2xl border-b border-border/30 bg-linear-to-r from-muted/50 to-transparent",
           collapsible &&
           "cursor-pointer select-none hover:from-muted/70 transition-colors"
         )}
@@ -192,8 +199,8 @@ export function FormSection({
       {/* Content */}
       <div
         className={cn(
-          "overflow-hidden transition-all duration-300 ease-out",
-          collapsible && !isOpen ? "max-h-0" : "max-h-[2000px]"
+          collapsible && "overflow-hidden transition-all duration-300 ease-out",
+          collapsible && (isOpen ? "max-h-[2000px]" : "max-h-0")
         )}
       >
         <div className="p-6 space-y-5">{children}</div>
