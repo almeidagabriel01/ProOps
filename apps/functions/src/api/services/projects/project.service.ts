@@ -14,6 +14,7 @@ import {
   type ProjectSettings,
   type ProjectStage,
 } from "./project-model";
+import { buildProjectItemsFromProposal } from "./project-items";
 
 export const PROJECTS_COLLECTION = "projects";
 export const PROJECT_SETTINGS_COLLECTION = "project_settings";
@@ -84,6 +85,8 @@ export async function createProjectFromProposal(params: {
       title: String(proposal.title || "Projeto de instalação"),
       status: "active",
       stages: buildStagesFromTemplate(settings.stageTemplate),
+      // Os produtos da proposta, sem valor nenhum (ver project-items.ts).
+      items: buildProjectItemsFromProposal(proposal),
       assigneeId: null,
       assigneeName: null,
       startDate: null,
@@ -122,6 +125,7 @@ export async function createStandaloneProject(params: {
     title: params.title,
     status: "active",
     stages: buildStagesFromTemplate(settings.stageTemplate),
+    items: [],
     assigneeId: null,
     assigneeName: null,
     startDate: null,

@@ -132,6 +132,7 @@ export const automacaoResidencialDemo: DemoDataset = {
       { status: "pending", doneItems: 0, completedOffset: null },
     ],
     visit: { eventId: "demo_event_obra_configuracao", stageIndex: 2, dayOffset: 2, hours: 3, color: "#0891b2" },
+    itemStatuses: ["installed", "installed", "in_stock", "purchase_requested"],
   },
   leads: [
     { id: "demo_lead_carla", name: "Carla Mendes", phone: "11988880001", source: "instagram", stage: "novo", estimatedValue: 18000, nextAction: "Ligar para entender o projeto", nextActionOffset: 1 },

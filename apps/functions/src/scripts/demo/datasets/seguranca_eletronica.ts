@@ -128,6 +128,7 @@ export const segurancaEletronicaDemo: DemoDataset = {
       { status: "pending", doneItems: 0, completedOffset: null },
     ],
     visit: { eventId: "demo_seg_event_configuracao", stageIndex: 3, dayOffset: 2, hours: 3, color: "#dc2626" },
+    itemStatuses: ["installed", "installed", "in_stock", "purchase_requested"],
   },
   leads: [
     { id: "demo_seg_lead_clinica", name: "Clínica Sorriso", company: "Clínica Sorriso", phone: "11988882001", source: "indicacao", stage: "novo", estimatedValue: 9800, nextAction: "Agendar a vistoria técnica", nextActionOffset: 1 },

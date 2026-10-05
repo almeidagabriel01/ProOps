@@ -130,6 +130,7 @@ export const climatizacaoDemo: DemoDataset = {
       { status: "pending", doneItems: 0, completedOffset: null },
     ],
     visit: { eventId: "demo_clim_event_instalacao", stageIndex: 2, dayOffset: 2, hours: 4, color: "#1e40af" },
+    itemStatuses: ["installed", "installed", "installed", "installed", "in_stock", "purchase_requested", "pending", "pending"],
   },
   leads: [
     { id: "demo_clim_lead_patricia", name: "Patrícia Rocha", phone: "11988884001", source: "instagram", stage: "novo", estimatedValue: 5200, nextAction: "Agendar a visita técnica", nextActionOffset: 1 },

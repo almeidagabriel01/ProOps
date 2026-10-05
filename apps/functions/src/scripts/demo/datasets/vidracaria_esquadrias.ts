@@ -118,6 +118,7 @@ export const vidracariaEsquadriasDemo: DemoDataset = {
       { status: "pending", doneItems: 0, completedOffset: null },
     ],
     visit: { eventId: "demo_vid_event_instalacao", stageIndex: 2, dayOffset: 3, hours: 3, color: "#0e7490" },
+    itemStatuses: ["installed", "installed", "in_stock", "purchase_requested", "pending"],
   },
   leads: [
     { id: "demo_vid_lead_juliana", name: "Juliana Mota", phone: "11988882001", source: "instagram", stage: "novo", estimatedValue: 4800, nextAction: "Agendar a medição do box", nextActionOffset: 1 },

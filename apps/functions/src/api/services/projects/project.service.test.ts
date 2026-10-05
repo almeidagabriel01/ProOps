@@ -83,6 +83,50 @@ describe("createProjectFromProposal", () => {
     ]);
   });
 
+  it("copia os produtos da proposta como itens da obra, sem nenhum valor", async () => {
+    await createProjectFromProposal({
+      tenantId: "t1",
+      proposalId: "p1",
+      proposal: {
+        ...PROPOSAL,
+        totalValue: 5400,
+        downPaymentValue: 1000,
+        products: [
+          {
+            lineItemId: "l1",
+            productId: "prod1",
+            itemType: "product",
+            productName: "Persiana Rolô",
+            quantity: 4.32,
+            unitPrice: 288,
+            markup: 60,
+            total: 1244.16,
+            status: "active",
+            ambienteInstanceId: "sala-sala",
+            pricingDetails: { mode: "curtain_meter", width: 1.8, height: 2.4, panels: 1 },
+          },
+          { lineItemId: "l2", productId: "srv", itemType: "service", productName: "Instalação", total: 300 },
+        ],
+        sistemas: [{ sistemaId: "sala", sistemaName: "Sala", ambientes: [{ ambienteId: "sala", ambienteName: "Sala" }] }],
+      },
+      uid: "u1",
+    });
+    const items = sets[0].data.items as Array<Record<string, unknown>>;
+    expect(items).toEqual([
+      expect.objectContaining({
+        id: "l1",
+        name: "Persiana Rolô",
+        placeName: "Sala",
+        status: "pending",
+        measure: { mode: "curtain_meter", width: 1.8, height: 2.4, panels: 1 },
+      }),
+    ]);
+    const json = JSON.stringify(items);
+    for (const forbidden of ["unitPrice", "markup", "total", "288", "1244", "5400", "downPayment"]) {
+      expect(json).not.toContain(forbidden);
+    }
+  });
+
   it("aprovar de novo não cria outro", async () => {
     await createProjectFromProposal({ tenantId: "t1", proposalId: "p1", proposal: PROPOSAL, uid: "u1" });
     const again = await createProjectFromProposal({ tenantId: "t1", proposalId: "p1", proposal: PROPOSAL, uid: "u1" });

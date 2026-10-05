@@ -39,6 +39,12 @@ import {
   type StageSchedule,
 } from "../services/projects/project-model";
 import {
+  UpdateItemsStatusSchema,
+  applyItemsStatus,
+  buildProjectItemsFromProposal,
+  type ProjectItem,
+} from "../services/projects/project-items";
+import {
   PROJECTS_COLLECTION,
   createProjectFromProposal,
   createProjectShareLink,
@@ -422,6 +428,73 @@ export async function createDeliveryLink(req: Request, res: Response) {
     return res.json({ url: link.url });
   } catch (error) {
     return fail(res, error, "Erro ao gerar o link de entrega.", "project_delivery_link_failed");
+  }
+}
+
+/**
+ * POST /v1/projects/:id/items/import
+ *
+ * Traz os produtos da proposta para um projeto que nasceu antes da lista de
+ * itens existir. Lê a proposta pelo Admin SDK e grava só os campos sem valor
+ * (`buildProjectItemsFromProposal`): é o que deixa o técnico, que não vê
+ * propostas, ter a lista do que instalar. Só preenche lista vazia; nunca
+ * sobrescreve o andamento já marcado.
+ */
+export async function importProjectItems(req: Request, res: Response) {
+  try {
+    const { tenantId } = await requireProjectAccess(req, "canEdit");
+    const ref = db.collection(PROJECTS_COLLECTION).doc(req.params.id);
+    const count = await db.runTransaction(async (t) => {
+      const snap = await t.get(ref);
+      const data = snap.data();
+      if (!snap.exists || data?.tenantId !== tenantId) throw new HttpError(404, "Projeto não encontrado.");
+      if (Array.isArray(data.items) && data.items.length > 0) {
+        throw new HttpError(409, "Este projeto já tem a lista de itens.");
+      }
+      const proposalId = typeof data.proposalId === "string" ? data.proposalId : "";
+      if (!proposalId) throw new HttpError(400, "Este projeto não veio de uma proposta.");
+      const proposalSnap = await t.get(db.collection("proposals").doc(proposalId));
+      const proposal = proposalSnap.data();
+      if (!proposalSnap.exists || proposal?.tenantId !== tenantId) {
+        throw new HttpError(404, "A proposta deste projeto não foi encontrada.");
+      }
+      const items = buildProjectItemsFromProposal(proposal);
+      t.update(ref, { items, updatedAt: new Date().toISOString() });
+      return items.length;
+    });
+    return res.json({ count });
+  } catch (error) {
+    return fail(res, error, "Erro ao trazer os itens da proposta.", "project_items_import_failed");
+  }
+}
+
+/**
+ * PUT /v1/projects/:id/items/status
+ *
+ * Marca um ou vários itens (compra solicitada, em estoque, instalado). Status
+ * manual: não mexe em estoque nem no financeiro. Pede editar Projetos, que o
+ * técnico tem.
+ */
+export async function updateProjectItemsStatus(req: Request, res: Response) {
+  const parsed = UpdateItemsStatusSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ message: firstIssue(parsed.error) });
+  try {
+    const { tenantId, uid } = await requireProjectAccess(req, "canEdit");
+    const actor = { uid, name: await userName(uid), now: new Date().toISOString() };
+    const ref = db.collection(PROJECTS_COLLECTION).doc(req.params.id);
+    const changed = await db.runTransaction(async (t) => {
+      const snap = await t.get(ref);
+      const data = snap.data();
+      if (!snap.exists || data?.tenantId !== tenantId) throw new HttpError(404, "Projeto não encontrado.");
+      const items = Array.isArray(data.items) ? (data.items as ProjectItem[]) : [];
+      const applied = applyItemsStatus(items, parsed.data.itemIds, parsed.data.status, actor);
+      if (applied.missing.length > 0) throw new HttpError(404, "Item não encontrado.");
+      if (applied.changed > 0) t.update(ref, { items: applied.items, updatedAt: actor.now });
+      return applied.changed;
+    });
+    return res.json({ changed });
+  } catch (error) {
+    return fail(res, error, "Erro ao atualizar os itens.", "project_items_status_failed");
   }
 }
 

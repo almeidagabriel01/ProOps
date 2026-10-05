@@ -132,6 +132,7 @@ export const cortinasDemo: DemoDataset = {
       { status: "pending", doneItems: 0, completedOffset: null },
     ],
     visit: { eventId: "demo_cort_event_instalacao", stageIndex: 2, dayOffset: 3, hours: 2, color: "#b45309" },
+    itemStatuses: ["in_stock", "installed", "purchase_requested"],
   },
   leads: [
     { id: "demo_cort_lead_helena", name: "Helena Prado", phone: "11988881001", source: "instagram", stage: "novo", estimatedValue: 6500, nextAction: "Agendar a medição", nextActionOffset: 1 },

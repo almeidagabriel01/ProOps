@@ -16,6 +16,13 @@ import type {
  * lineItemIds e `transaction_categories/<tenantId>`.
  */
 
+/**
+ * Espelho de `ProjectItemStatus` (`api/services/projects/project-items.ts`),
+ * escrito aqui para este arquivo continuar só de tipos e sem import do
+ * backend. O motor atribui um ao outro, então divergir não compila.
+ */
+export type DemoProjectItemStatus = "pending" | "purchase_requested" | "in_stock" | "installed";
+
 export interface DemoLine {
   productId: string;
   /** Quantidade do produto por unidade. */
@@ -141,6 +148,12 @@ export interface DemoDataset {
     /** Uma entrada por etapa do roteiro do nicho. */
     stageProgress: DemoStageProgress[];
     visit: { eventId: string; stageIndex: number; dayOffset: number; hours: number; color: string };
+    /**
+     * A situação de cada item da obra (os produtos da proposta, na ordem em
+     * que a proposta os lista), para a lista mostrar instalado, em estoque,
+     * compra solicitada e pendente. Item além da lista fica pendente.
+     */
+    itemStatuses: DemoProjectItemStatus[];
   };
   leads: Array<{
     id: string;
