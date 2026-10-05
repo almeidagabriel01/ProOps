@@ -30,6 +30,7 @@ const SCOPE_LABEL: Record<FiscalGap["scope"], string> = {
   cliente: "Cadastro do cliente",
   produto: "Cadastro de produtos",
   servico: "Cadastro de serviços",
+  nota: "Nesta nota",
 };
 
 const SCOPE_HREF: Partial<Record<FiscalGap["scope"], string>> = {

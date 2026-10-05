@@ -56,6 +56,8 @@ const ROUTES = [
   "/transactions/new",
   "/contacts/new",
   "/products/new",
+  // Nota avulsa (remessa, devolução): campos por item e bloco de transporte.
+  "/invoices/new",
 ];
 
 test.describe("MOBILE-01 sem overflow horizontal", () => {

@@ -12,8 +12,7 @@ import { usePlanLimits } from "@/hooks/usePlanLimits";
 import { Proposal, ProposalStatus, ProposalAttachment } from "@/types/proposal";
 import { ProposalActionsDropdown } from "@/components/features/proposal/proposal-actions-dropdown";
 import { IssueInvoiceButton } from "@/components/features/fiscal/issue-invoice-button";
-import { FiscalGapsDialog } from "@/components/features/fiscal/fiscal-gaps-dialog";
-import { useIssueInvoice } from "@/hooks/use-issue-invoice";
+import { invoiceEditorPath } from "@/lib/fiscal/nfe-form";
 import { useProposalInvoicePrompt } from "@/hooks/use-proposal-invoice-prompt";
 import { isApprovedColumn } from "@/lib/proposal-approval";
 import { ProposalAttachmentsDialog } from "@/components/features/proposal/proposal-attachments-dialog";
@@ -290,14 +289,6 @@ export default function ProposalsPage() {
   const [hasAnyProposals, setHasAnyProposals] = React.useState<boolean | null>(
     null,
   );
-  // A emissão vive na página, não no item do menu: o conteúdo do dropdown
-  // desmonta ao fechar, e o checklist de lacunas iria junto.
-  const {
-    issue: issueInvoice,
-    issuingId: issuingInvoiceId,
-    gaps: fiscalGaps,
-    closeGaps: closeFiscalGaps,
-  } = useIssueInvoice();
   const invoicePrompt = useProposalInvoicePrompt();
   const { promptAfterApproval, startPreview, dismiss: dismissInvoicePrompt } = invoicePrompt;
   const [isAwaitingPendingSave, setIsAwaitingPendingSave] =
@@ -1305,10 +1296,8 @@ export default function ProposalsPage() {
                 onEdit={() => handleEdit(proposal.id)}
                 onDelete={() => setDeleteId(proposal.id)}
                 canIssueInvoice={isProposalApproved(proposal)}
-                isIssuingInvoice={issuingInvoiceId === proposal.id}
-                onIssueInvoice={() =>
-                  void issueInvoice("proposal", proposal.id)
-                }
+                isIssuingInvoice={false}
+                onIssueInvoice={() => router.push(invoiceEditorPath(proposal.id))}
               />
             </div>
           </div>
@@ -1322,8 +1311,6 @@ export default function ProposalsPage() {
       canCreate,
       isProposalApproved,
       isReadOnly,
-      issueInvoice,
-      issuingInvoiceId,
       updatingStatusId,
       downloadingId,
       editingId,
@@ -1631,7 +1618,6 @@ export default function ProposalsPage() {
           );
         })()}
 
-      <FiscalGapsDialog gaps={fiscalGaps} onClose={closeFiscalGaps} />
 
 
       <UpgradeModal

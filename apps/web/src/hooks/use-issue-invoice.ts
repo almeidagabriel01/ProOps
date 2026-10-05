@@ -16,6 +16,59 @@ import { FiscalService, type FiscalGap } from "@/services/fiscal-service";
 
 export type InvoiceSource = "proposal" | "transaction";
 
+/**
+ * Traduz a falha de uma emissão: devolve as lacunas (que viram checklist, não
+ * um toast que some em 4 segundos) ou avisa por toast e devolve `null`.
+ *
+ * Compartilhado com a página de emissão (`/invoices/new`), para os dois
+ * caminhos darem a mesma resposta ao mesmo erro.
+ */
+export function notifyIssueError(error: unknown): FiscalGap[] | null {
+  // O corpo da resposta vem em `ApiError.data`, não na raiz do erro —
+  // `error.code` seria sempre undefined.
+  const payload = (error instanceof ApiError ? error.data : null) as {
+    code?: string;
+    gaps?: FiscalGap[];
+    message?: string;
+    cota?: { used: number; limit: number };
+  } | null;
+
+  if (payload?.code === "FISCAL_INCOMPLETO" && payload.gaps?.length) {
+    return payload.gaps;
+  }
+
+  if (payload?.code === "FISCAL_NAO_CONFIGURADO") {
+    toast.error("Emissão de notas ainda não configurada", {
+      description:
+        "Configure os dados fiscais da sua empresa para começar a emitir.",
+    });
+    return null;
+  }
+
+  if (payload?.code === "FISCAL_COTA_MENSAL_ATINGIDA") {
+    toast.error("Limite de notas do mês atingido", {
+      description: payload.cota
+        ? `Você já emitiu ${payload.cota.used} de ${payload.cota.limit} notas neste mês. O limite renova no dia 1; para emitir sem limite, conheça o plano Enterprise.`
+        : "O limite renova no dia 1; para emitir sem limite, conheça o plano Enterprise.",
+    });
+    return null;
+  }
+
+  if (payload?.code === "LANCAMENTO_SEM_PROPOSTA") {
+    toast.error("Este lançamento não tem proposta vinculada", {
+      description:
+        "A nota é montada a partir dos itens da proposta. Emita pela proposta correspondente.",
+    });
+    return null;
+  }
+
+  toast.error(
+    payload?.message ||
+      (error instanceof Error ? error.message : "Não foi possível emitir a nota."),
+  );
+  return null;
+}
+
 export function useIssueInvoice(onIssued?: () => void) {
   const [issuingId, setIssuingId] = React.useState<string | null>(null);
   const [gaps, setGaps] = React.useState<FiscalGap[] | null>(null);
@@ -42,52 +95,8 @@ export function useIssueInvoice(onIssued?: () => void) {
         });
         onIssuedRef.current?.();
       } catch (error) {
-        // O corpo da resposta vem em `ApiError.data`, não na raiz do erro —
-        // `error.code` seria sempre undefined.
-        const payload = (error instanceof ApiError ? error.data : null) as {
-          code?: string;
-          gaps?: FiscalGap[];
-          message?: string;
-          cota?: { used: number; limit: number };
-        } | null;
-
-        // Lacunas viram checklist, não um toast de erro que some em 4 segundos.
-        if (payload?.code === "FISCAL_INCOMPLETO" && payload.gaps?.length) {
-          setGaps(payload.gaps);
-          return;
-        }
-
-        if (payload?.code === "FISCAL_NAO_CONFIGURADO") {
-          toast.error("Emissão de notas ainda não configurada", {
-            description:
-              "Configure os dados fiscais da sua empresa para começar a emitir.",
-          });
-          return;
-        }
-
-        if (payload?.code === "FISCAL_COTA_MENSAL_ATINGIDA") {
-          toast.error("Limite de notas do mês atingido", {
-            description: payload.cota
-              ? `Você já emitiu ${payload.cota.used} de ${payload.cota.limit} notas neste mês. O limite renova no dia 1; para emitir sem limite, conheça o plano Enterprise.`
-              : "O limite renova no dia 1; para emitir sem limite, conheça o plano Enterprise.",
-          });
-          return;
-        }
-
-        if (payload?.code === "LANCAMENTO_SEM_PROPOSTA") {
-          toast.error("Este lançamento não tem proposta vinculada", {
-            description:
-              "A nota é montada a partir dos itens da proposta. Emita pela proposta correspondente.",
-          });
-          return;
-        }
-
-        toast.error(
-          payload?.message ||
-            (error instanceof Error
-              ? error.message
-              : "Não foi possível emitir a nota."),
-        );
+        const gaps = notifyIssueError(error);
+        if (gaps) setGaps(gaps);
       } finally {
         setIssuingId(null);
       }

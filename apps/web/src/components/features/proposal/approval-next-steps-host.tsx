@@ -13,8 +13,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Loader } from "@/components/ui/loader";
-import { FiscalGapsDialog } from "@/components/features/fiscal/fiscal-gaps-dialog";
-import { useIssueInvoice } from "@/hooks/use-issue-invoice";
+import { invoiceEditorPath } from "@/lib/fiscal/nfe-form";
 import { toast } from "@/lib/toast";
 import { cn } from "@/lib/utils";
 import {
@@ -76,10 +75,8 @@ export function ApprovalNextStepsHost() {
   const router = useRouter();
   const entries = useApprovalEntries();
   const [now, setNow] = React.useState(() => Date.now());
-  const [invoiceDone, setInvoiceDone] = React.useState(false);
   const [creatingProject, setCreatingProject] = React.useState(false);
   const [createdProjectId, setCreatedProjectId] = React.useState<string | null>(null);
-  const { issue, issuingId, gaps, closeGaps } = useIssueInvoice(() => setInvoiceDone(true));
 
   // A obra criada sozinha (modo "sempre") sem mais nada a decidir: aviso curto.
   React.useEffect(() => {
@@ -111,12 +108,10 @@ export function ApprovalNextStepsHost() {
 
   // Cada proposta começa com as linhas por fazer.
   React.useEffect(() => {
-    setInvoiceDone(false);
     setCreatedProjectId(null);
   }, [entryId]);
 
-  const issuing = entry !== null && issuingId === entry.proposalId;
-  const busy = issuing || creatingProject;
+  const busy = creatingProject;
 
   const close = () => {
     if (entry && !busy) dismissApprovalSteps(entry.proposalId);
@@ -149,7 +144,7 @@ export function ApprovalNextStepsHost() {
 
   return (
     <>
-      <Dialog open={entry !== null && gaps === null} onOpenChange={(open) => !open && close()}>
+      <Dialog open={entry !== null} onOpenChange={(open) => !open && close()}>
         <DialogContent className="sm:max-w-lg">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
@@ -168,14 +163,13 @@ export function ApprovalNextStepsHost() {
                 icon={FileText}
                 title="Nota fiscal"
                 description={invoiceDescription}
-                done={invoiceDone ? "Enviada. A autorização chega em instantes, em Notas Fiscais." : null}
+                done={null}
               >
-                {!invoiceDone && (
-                  <Button size="sm" onClick={() => void issue("proposal", entry.proposalId)} disabled={busy}>
-                    {issuing && <Loader size="sm" variant="button" className="mr-2" />}
-                    Emitir
-                  </Button>
-                )}
+                {/* Abre a revisão da nota, em vez de emitir direto: é lá que
+                    se ajusta IPI, transporte e observação antes de enviar. */}
+                <Button size="sm" onClick={() => go(invoiceEditorPath(entry.proposalId))} disabled={busy}>
+                  Revisar e emitir
+                </Button>
               </StepRow>
             )}
             {entry?.project && (
@@ -223,10 +217,6 @@ export function ApprovalNextStepsHost() {
         </DialogContent>
       </Dialog>
 
-      {/* Rede de segurança: o preview já garante que não há lacunas, mas o
-          cadastro pode mudar entre a consulta e a emissão. Fechar a lista
-          volta para a janela, com as outras linhas. */}
-      <FiscalGapsDialog gaps={gaps} onClose={closeGaps} />
     </>
   );
 }

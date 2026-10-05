@@ -34,7 +34,8 @@ export interface FiscalIssuePreview {
   /** Franquia do mês. `limit: -1` = ilimitado. */
   cota?: { limit: number; used: number };
   gaps: FiscalGap[];
-  documentos: Array<{ type: "nfe" | "nfse"; valorTotal: number }>;
+  /** A NF-e traz o detalhe para a tela de emissão revisar. */
+  documentos: Array<{ type: "nfe" | "nfse"; valorTotal: number; nfe?: FiscalNfeView }>;
   /** Só autorizadas ou em processamento — as outras não são documento válido. */
   jaEmitidas: Array<{
     id: string;
@@ -43,6 +44,72 @@ export interface FiscalIssuePreview {
     numero?: string;
     serie?: string;
   }>;
+}
+
+/** IPI de uma linha, como a API devolve e recebe. */
+export interface FiscalIpi {
+  cst: string;
+  aliquota?: number;
+  baseCalculo?: number;
+  valor?: number;
+  codigoEnquadramento?: string;
+}
+
+export interface FiscalTransporte {
+  modalidadeFrete: 0 | 1 | 2 | 3 | 4 | 9;
+  transportadora?: {
+    nome: string;
+    documento?: string;
+    inscricaoEstadual?: string;
+    endereco?: string;
+    municipio?: string;
+    uf?: string;
+  };
+  volumes?: Array<{
+    quantidade?: number;
+    especie?: string;
+    marca?: string;
+    numeracao?: string;
+    pesoBruto?: number;
+    pesoLiquido?: number;
+  }>;
+}
+
+/** A NF-e como sairia: o que a tela de emissão mostra para revisar. */
+export interface FiscalNfeView {
+  naturezaOperacao: string;
+  finalidade: "normal" | "devolucao";
+  observacoes: string;
+  notasReferenciadas: string[];
+  transporte?: FiscalTransporte;
+  valorProdutos: number;
+  valorIpi: number;
+  valorTotal: number;
+  linhas: Array<{
+    productId?: string;
+    descricao: string;
+    ncm: string;
+    cfop: string;
+    unidade: string;
+    quantidade: number;
+    valorUnitario: number;
+    valorTotal: number;
+    situacaoTributaria: string;
+    ipi?: FiscalIpi;
+    ipiValor: number;
+  }>;
+}
+
+/** Operação da nota (natureza): decide CFOP, finalidade e ICMS. */
+export interface FiscalNatureza {
+  id: string;
+  descricao: string;
+  cfopDentroEstado: string;
+  cfopForaEstado: string;
+  tributada: boolean;
+  finalidade: "normal" | "devolucao";
+  /** Se a chave da nota de origem entra: obrigatória só na devolução. */
+  referencia: "obrigatoria" | "opcional" | "nao_se_aplica";
 }
 
 export interface FiscalAddress {
@@ -156,7 +223,7 @@ export interface CnpjLookup {
 }
 
 /** Onde o usuário tem que ir para resolver a pendência. */
-export type FiscalGapScope = "emitente" | "cliente" | "produto" | "servico";
+export type FiscalGapScope = "emitente" | "cliente" | "produto" | "servico" | "nota";
 
 export interface FiscalGap {
   scope: FiscalGapScope;
@@ -321,6 +388,29 @@ export const FiscalService = {
       "GET",
     ),
 
+  /**
+   * A prévia de novo, com o que a pessoa mudou no formulário de emissão
+   * (operação, IPI, transporte). Mesma resposta do GET.
+   */
+  previewFromProposalEdited: (proposalId: string, payload: Record<string, unknown>) =>
+    callApi<FiscalIssuePreview>(
+      `/v1/fiscal/invoices/preview/from-proposal/${proposalId}`,
+      "POST",
+      payload,
+    ),
+
+  /** Operações que a nota aceita (venda, remessa, devolução...). */
+  listNaturezas: () =>
+    callApi<{ naturezas: FiscalNatureza[] }>("/v1/fiscal/naturezas", "GET"),
+
+  /** Prévia da nota avulsa (remessa, devolução): o que sairia e o que falta. */
+  previewManual: (payload: Record<string, unknown>) =>
+    callApi<FiscalIssuePreview>("/v1/fiscal/invoices/preview/manual", "POST", payload),
+
+  /** Emite a nota avulsa. Faltando dado, o erro traz `gaps`. */
+  issueManual: (payload: Record<string, unknown>) =>
+    callApi<{ invoices: FiscalInvoice[] }>("/v1/fiscal/invoices/manual", "POST", payload),
+
   /** Responde 202: a autorização é assíncrona e chega depois. */
   issueInvoice: (payload: IssueInvoicePayload) =>
     callApi<FiscalInvoice>("/v1/fiscal/invoices", "POST", payload),
@@ -331,7 +421,7 @@ export const FiscalService = {
    * Uma proposta mista devolve **duas notas**: NF-e da mercadoria e NFS-e da
    * mão de obra. Faltando dado fiscal, nenhuma é enviada e o erro traz `gaps`.
    */
-  issueFromProposal: (proposalId: string, payload?: { naturezaOperacao?: string }) =>
+  issueFromProposal: (proposalId: string, payload?: Record<string, unknown>) =>
     callApi<{ invoices: FiscalInvoice[] }>(
       `/v1/fiscal/invoices/from-proposal/${proposalId}`,
       "POST",

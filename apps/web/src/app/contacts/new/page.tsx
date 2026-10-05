@@ -12,6 +12,7 @@ import {
   formatEnderecoFiscal,
   isDerivedFreeAddress,
 } from "@/lib/fiscal/format-address";
+import { fiscalDefaultsToPayload } from "@/lib/fiscal/client-fiscal-defaults";
 import {
   ClientFiscalFields,
   EMPTY_CLIENT_FISCAL,
@@ -236,6 +237,7 @@ export default function NewCustomerPage() {
           codigoIbge: formData.fiscal.codigoIbge.replace(/\D/g, ""),
         },
         inscricaoEstadual: formData.fiscal.inscricaoEstadual.trim(),
+        fiscalDefaults: fiscalDefaultsToPayload(formData.fiscal),
         // Indicador vazio nao vai: o backend o DERIVA do documento, e uma
         // string vazia seria recusada pelo enum do schema.
         ...(formData.fiscal.indicadorIe
