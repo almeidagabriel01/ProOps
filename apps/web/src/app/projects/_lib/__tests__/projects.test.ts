@@ -25,6 +25,7 @@ const project = (over: Partial<Project>): Project => ({
   title: "Obra",
   status: "active",
   stages: [],
+  items: [],
   assigneeId: null,
   assigneeName: null,
   startDate: null,

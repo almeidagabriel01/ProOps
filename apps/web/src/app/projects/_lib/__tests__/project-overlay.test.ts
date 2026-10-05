@@ -35,6 +35,7 @@ const project: Project = {
       completedAt: null,
     },
   ],
+  items: [],
   assigneeId: null,
   assigneeName: null,
   startDate: null,

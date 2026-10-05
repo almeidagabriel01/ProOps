@@ -340,7 +340,7 @@ Funcao HTTP separada (nao faz parte do monolito `api`):
 | `transaction_categories/{tenantId}` | Financeiro | Categorias de lancamento da empresa, cada uma num grupo do DRE (`items`). Admin SDK only: a tela le e grava pela API (`finance-reports.controller.ts`), com a permissao de Lancamentos |
 | `accountant_links/{tenantId}` | Financeiro | Link do contador (`token`, `viewCount`, `lastViewedAt`). Admin SDK only: o token abre o financeiro e as notas da empresa sem login (`accountant.service.ts`) |
 | `tasks/{id}` | Tarefas | "A fazer" com responsavel, ligado ou nao a contato, proposta ou lead (`tasks.controller.ts`, pageId `tasks`, todos os planos). Da PESSOA: as rules leem `audienceUids` (quem criou, responsavel e citados); dono e admins leem todas. Escrita so via Cloud Functions |
-| `projects/{id}` | Projetos | Obra depois da venda (etapas, checklist, fotos, entrega). Id `proposal_{proposalId}` quando nasce da proposta. Tenant le; escrita so via Cloud Functions |
+| `projects/{id}` | Projetos | Obra depois da venda (etapas, checklist, fotos, entrega e os itens da proposta, sem valor). Id `proposal_{proposalId}` quando nasce da proposta. Tenant le; escrita so via Cloud Functions |
 | `project_settings/{tenantId}` | Projetos | Criacao automatica na aprovacao e roteiro de etapas. Admin SDK only |
 | `shared_projects/{id}` | Projetos | Link publico da entrega (token). Admin SDK only |
 | `customer_equipment/{id}` | Assistencia tecnica | Aparelhos instalados em cada cliente (garantia, ultimo atendimento). Tenant le; escrita so via Cloud Functions (`field-service.controller.ts`) |

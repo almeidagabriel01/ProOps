@@ -16,18 +16,26 @@ const m = vi.hoisted(() => ({
   toggle: vi.fn(),
   update: vi.fn(),
   updateStage: vi.fn(),
+  updateItems: vi.fn(),
+  importItems: vi.fn(),
   toastError: vi.fn(),
+  readOnly: false,
+  perms: {} as Record<string, { canView: boolean; canCreate: boolean; canEdit: boolean; canDelete: boolean }>,
 }));
+
+const ALL = { canView: true, canCreate: true, canEdit: true, canDelete: true };
 
 vi.mock("next/navigation", () => ({ useParams: () => ({ id: "p1" }), useRouter: () => ({ push: vi.fn() }) }));
 vi.mock("next/link", () => ({
   default: ({ href, children }: { href: string; children: React.ReactNode }) => <a href={href}>{children}</a>,
 }));
-vi.mock("@/providers/tenant-provider", () => ({ useTenant: () => ({ tenant: { id: "t1", name: "Casa" }, isReadOnly: false }) }));
+vi.mock("@/providers/tenant-provider", () => ({
+  useTenant: () => ({ tenant: { id: "t1", name: "Casa" }, isReadOnly: m.readOnly }),
+}));
 vi.mock("@/providers/auth-provider", () => ({ useAuth: () => ({ user: { id: "u1", role: "master" } }) }));
 vi.mock("@/hooks/usePlanLimits", () => ({ usePlanLimits: () => ({ hasProjects: true, isLoading: false }) }));
 vi.mock("@/hooks/usePagePermission", () => ({
-  usePagePermission: () => ({ canView: true, canCreate: true, canEdit: true, canDelete: true }),
+  usePagePermission: (pageId: string) => m.perms[pageId] ?? ALL,
 }));
 vi.mock("@/lib/toast", () => ({ toast: Object.assign(vi.fn(), { error: m.toastError, success: vi.fn(), info: vi.fn() }) }));
 vi.mock("@/services/projects-service", () => ({
@@ -40,6 +48,8 @@ vi.mock("@/services/projects-service", () => ({
     toggleChecklistItem: (...a: unknown[]) => m.toggle(...a),
     update: (...a: unknown[]) => m.update(...a),
     updateStage: (...a: unknown[]) => m.updateStage(...a),
+    updateItemsStatus: (...a: unknown[]) => m.updateItems(...a),
+    importItems: (...a: unknown[]) => m.importItems(...a),
   },
 }));
 
@@ -68,6 +78,7 @@ const PROJECT = {
       completedAt: null,
     },
   ],
+  items: [] as unknown[],
   assigneeId: null,
   assigneeName: null,
   startDate: null,
@@ -76,6 +87,27 @@ const PROJECT = {
   delivery: { status: "none", acceptance: null },
   createdAt: null,
   updatedAt: null,
+};
+
+const ITEM = {
+  manufacturer: null,
+  groupName: "Iluminação",
+  measure: null,
+  statusAt: null,
+  statusBy: null,
+  statusByName: null,
+};
+
+/** Obra vinda de proposta, com os itens copiados dela (sem valor nenhum). */
+const WITH_ITEMS = {
+  ...PROJECT,
+  proposalId: "prop1",
+  proposalCode: "0001226SP",
+  items: [
+    { ...ITEM, id: "a", productId: "x", name: "Módulo dimmer", quantity: 2, placeName: "Sala", status: "installed" },
+    { ...ITEM, id: "b", productId: "y", name: "Sensor de presença", quantity: 1, placeName: "Sala", status: "in_stock" },
+    { ...ITEM, id: "c", productId: "z", name: "Central de automação", quantity: 1, placeName: "Hall", status: "pending" },
+  ],
 };
 
 /** Uma promessa que o teste resolve ou rejeita quando quiser. */
@@ -89,15 +121,17 @@ function deferred() {
   return { promise, resolve, reject };
 }
 
-async function renderLoaded() {
+async function renderLoaded(project: unknown = PROJECT) {
   render(<ProjectDetailPage />);
-  await act(async () => m.emit?.(PROJECT));
+  await act(async () => m.emit?.(project));
   await screen.findByText("Casa da Maria");
 }
 
 beforeEach(() => {
   vi.clearAllMocks();
   m.emit = null;
+  m.readOnly = false;
+  m.perms = {};
 });
 
 describe("tela da obra", () => {
@@ -155,5 +189,104 @@ describe("tela da obra", () => {
     expect(screen.getByRole("button", { name: /Salvando/ })).toBeDisabled();
     await act(async () => pending.resolve({}));
     expect(screen.queryByRole("button", { name: /Salvando/ })).toBeNull();
+  });
+});
+
+/** O técnico: só Projetos (ver e editar), sem propostas. */
+const TECHNICIAN = {
+  projects: { canView: true, canCreate: false, canEdit: true, canDelete: false },
+  proposals: { canView: false, canCreate: false, canEdit: false, canDelete: false },
+};
+
+describe("itens da obra", () => {
+  it("mostra instalados x pendentes, agrupados por local, sem nenhum valor", async () => {
+    await renderLoaded(WITH_ITEMS);
+    const section = screen.getByRole("region", { name: "Itens da obra" });
+    expect(section).toHaveTextContent("1 de 3 instalados, 2 pendentes");
+    expect(section).toHaveTextContent("Sala");
+    expect(section).toHaveTextContent("Hall");
+    expect(section).toHaveTextContent("Módulo dimmer");
+    expect(section.textContent).not.toMatch(/R\$|preço|total/i);
+  });
+
+  it("o técnico vê os itens e marca instalado, mas não vê o link da proposta", async () => {
+    m.perms = TECHNICIAN;
+    m.updateItems.mockReturnValue(deferred().promise);
+    await renderLoaded(WITH_ITEMS);
+
+    expect(screen.queryByRole("link", { name: /Ver proposta/ })).toBeNull();
+    const select = screen.getByLabelText("Situação de Central de automação");
+    await userEvent.selectOptions(select, "installed");
+    expect(select).toHaveValue("installed");
+    expect(m.updateItems).toHaveBeenCalledWith("p1", ["c"], "installed");
+    expect(screen.getByRole("region", { name: "Itens da obra" })).toHaveTextContent("2 de 3 instalados");
+  });
+
+  it("quem vê propostas tem o link para ela", async () => {
+    await renderLoaded(WITH_ITEMS);
+    expect(screen.getByRole("link", { name: "Ver proposta 0001226SP" })).toHaveAttribute(
+      "href",
+      "/proposals/prop1/view",
+    );
+  });
+
+  it("servidor recusou: a situação volta e avisa", async () => {
+    const pending = deferred();
+    m.updateItems.mockReturnValue(pending.promise);
+    await renderLoaded(WITH_ITEMS);
+    const select = screen.getByLabelText("Situação de Central de automação");
+    await userEvent.selectOptions(select, "purchase_requested");
+    await act(async () => pending.reject(new Error("Sem permissão para esta ação em Projetos.")));
+    expect(select).toHaveValue("pending");
+    expect(m.toastError).toHaveBeenCalledWith("Sem permissão para esta ação em Projetos.");
+  });
+
+  it("marca vários de uma vez pela seleção", async () => {
+    m.updateItems.mockResolvedValue({ changed: 2 });
+    await renderLoaded(WITH_ITEMS);
+    await userEvent.click(screen.getByRole("checkbox", { name: "Selecionar os itens de Sala" }));
+    await userEvent.click(screen.getByRole("button", { name: "Em estoque" }));
+    expect(m.updateItems).toHaveBeenCalledWith("p1", ["a", "b"], "in_stock");
+  });
+
+  it("filtra só os pendentes", async () => {
+    await renderLoaded(WITH_ITEMS);
+    await userEvent.click(screen.getByRole("button", { name: /Pendentes/ }));
+    const section = screen.getByRole("region", { name: "Itens da obra" });
+    expect(section).not.toHaveTextContent("Módulo dimmer");
+    expect(section).toHaveTextContent("Central de automação");
+  });
+
+  it("sem editar Projetos: só a situação, sem seleção nem troca", async () => {
+    m.perms = { projects: { canView: true, canCreate: false, canEdit: false, canDelete: false } };
+    await renderLoaded(WITH_ITEMS);
+    expect(screen.queryByLabelText("Situação de Central de automação")).toBeNull();
+    expect(screen.queryByRole("checkbox", { name: /Selecionar/ })).toBeNull();
+    expect(screen.getByRole("region", { name: "Itens da obra" })).toHaveTextContent("Em estoque");
+  });
+
+  it("na demonstração: só leitura, mesmo com a permissão", async () => {
+    m.readOnly = true;
+    await renderLoaded(WITH_ITEMS);
+    expect(screen.queryByLabelText("Situação de Central de automação")).toBeNull();
+    expect(screen.getByRole("region", { name: "Itens da obra" })).toHaveTextContent("1 de 3 instalados");
+  });
+
+  it("obra sem a lista: quem edita traz os itens da proposta", async () => {
+    m.importItems.mockResolvedValue({ count: 3 });
+    await renderLoaded({ ...WITH_ITEMS, items: [] });
+    await userEvent.click(screen.getByRole("button", { name: "Trazer itens da proposta" }));
+    expect(m.importItems).toHaveBeenCalledWith("p1");
+  });
+
+  it("na demonstração a obra sem lista não oferece trazer", async () => {
+    m.readOnly = true;
+    await renderLoaded({ ...WITH_ITEMS, items: [] });
+    expect(screen.queryByRole("button", { name: "Trazer itens da proposta" })).toBeNull();
+  });
+
+  it("projeto avulso, sem proposta e sem itens: a seção não aparece", async () => {
+    await renderLoaded(PROJECT);
+    expect(screen.queryByRole("region", { name: "Itens da obra" })).toBeNull();
   });
 });

@@ -17,6 +17,8 @@ import type { ScheduleLike } from "@/lib/projects/stage-schedule";
 import type {
   Project,
   ProjectChecklistItem,
+  ProjectItem,
+  ProjectItemStatus,
   ProjectPhoto,
   ProjectSettings,
   ProjectStage,
@@ -48,6 +50,7 @@ export function toProject(id: string, data: DocumentData): Project {
     title: String(data.title ?? "Projeto"),
     status: (data.status as ProjectStatus) ?? "active",
     stages: Array.isArray(data.stages) ? (data.stages as ProjectStage[]) : [],
+    items: Array.isArray(data.items) ? (data.items as ProjectItem[]) : [],
     assigneeId: str(data.assigneeId),
     assigneeName: str(data.assigneeName),
     startDate: str(data.startDate),
@@ -144,6 +147,13 @@ export const ProjectsService = {
 
   deletePhoto: (id: string, stageId: string, photoId: string) =>
     callApi(`/v1/projects/${id}/stages/${stageId}/photos/${photoId}`, "DELETE"),
+
+  /** Traz os produtos da proposta para a obra que ainda não tem a lista. */
+  importItems: (id: string) => callApi<{ count: number }>(`/v1/projects/${id}/items/import`, "POST"),
+
+  /** Marca um ou vários itens da obra (compra, estoque, instalado). */
+  updateItemsStatus: (id: string, itemIds: string[], status: ProjectItemStatus) =>
+    callApi<{ changed: number }>(`/v1/projects/${id}/items/status`, "PUT", { itemIds, status }),
 
   deliveryLink: (id: string) =>
     callApi<{ url: string }>(`/v1/projects/${id}/delivery-link`, "POST"),

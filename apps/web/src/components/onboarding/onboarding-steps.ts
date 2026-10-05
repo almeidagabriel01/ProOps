@@ -180,6 +180,7 @@ export const MENU_STEP_TEMPLATES: Record<string, OnboardingStepTemplate> = {
       { text: "Abra o projeto criado na aprovação e escolha o técnico responsável." },
       { text: "Marque a visita de cada etapa: ela entra na Agenda com o endereço da obra, e o técnico é avisado." },
       { text: "Marque o checklist de cada etapa e anexe as fotos da obra." },
+      { text: "Acompanhe os itens da proposta: compra solicitada, em estoque e instalado." },
       { text: "Com tudo pronto, envie o link para o cliente aceitar a entrega." },
     ],
     actionLabel: "Abrir Projetos",

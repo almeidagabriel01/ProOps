@@ -25,6 +25,7 @@ import { Loader } from "@/components/ui/loader";
 import { ProjectsSkeleton } from "../_components/projects-skeleton";
 import { StageCard } from "../_components/stage-card";
 import { DeliveryCard } from "../_components/delivery-card";
+import { ProjectItemsCard } from "../_components/project-items-card";
 import { PROJECT_STATUS_LABELS, computeProgress } from "../_lib/projects";
 
 // Só com o módulo de assistência: carrega quando a janela abre.
@@ -53,6 +54,8 @@ export default function ProjectDetailPage() {
   const { hasProjects, hasFieldService, isLoading: isPlanLoading } = usePlanLimits();
   const { canEdit: canEditPerm, canDelete: canDeletePerm } = usePagePermission("projects");
   const { canCreate: canCreateEquipment } = usePagePermission("equipment");
+  // O técnico costuma ter só Projetos: sem ver propostas, o link levaria a um 403.
+  const { canView: canViewProposals } = usePagePermission("proposals");
   const [equipmentOpen, setEquipmentOpen] = React.useState(false);
 
   const [serverProject, setProject] = React.useState<Project | null>(null);
@@ -248,7 +251,7 @@ export default function ProjectDetailPage() {
                   {project.address}
                 </span>
               )}
-              {project.proposalId && (
+              {project.proposalId && canViewProposals && (
                 <Link href={`/proposals/${project.proposalId}/view`} className="underline-offset-4 hover:underline">
                   Ver proposta{project.proposalCode ? ` ${project.proposalCode}` : ""}
                 </Link>
@@ -345,6 +348,12 @@ export default function ProjectDetailPage() {
 
       <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
         <div className="space-y-4">
+          <ProjectItemsCard
+            projectId={project.id}
+            proposalId={project.proposalId}
+            items={project.items}
+            canEdit={canEdit}
+          />
           {project.stages.map((stage, index) => (
             <StageCard
               key={stage.id}
