@@ -68,6 +68,7 @@ function mapSnapshotProducts(
         systemInstanceId: p.systemInstanceId,
         isExtra: p.isExtra,
         isMonthly: p.isMonthly === true,
+        sortOrder: p.sortOrder ?? null,
         status: p.status,
       };
     }
@@ -90,6 +91,7 @@ function mapSnapshotProducts(
       systemInstanceId: p.systemInstanceId,
       isExtra: p.isExtra,
       isMonthly: p.isMonthly === true,
+      sortOrder: p.sortOrder ?? null,
       status: p.status,
     };
   });

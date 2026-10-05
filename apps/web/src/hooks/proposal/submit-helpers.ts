@@ -122,6 +122,12 @@ export function sanitizeProducts(products: ProposalProduct[]) {
         normalizedProduct.systemInstanceId || normalizedProduct.ambienteInstanceId,
       isExtra: normalizedProduct.isExtra,
       ...(normalizedProduct.isMonthly ? { isMonthly: true } : {}),
+      // Só grava a posição quando alguém reordenou: sem ela o hash do PDF das
+      // propostas antigas continua o mesmo.
+      ...(typeof normalizedProduct.sortOrder === "number" &&
+      Number.isFinite(normalizedProduct.sortOrder)
+        ? { sortOrder: normalizedProduct.sortOrder }
+        : {}),
       status: normalizedProduct.status,
     };
   });

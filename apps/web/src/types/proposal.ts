@@ -35,6 +35,11 @@ export interface ProposalProduct {
   systemInstanceId?: string;
   isExtra?: boolean;
   isMonthly?: boolean;
+  /**
+   * Posição escolhida por quem vende, arrastando a linha dentro do
+   * ambiente/grupo. Sem ela vale a ordem padrão (produtos, serviços, nome).
+   */
+  sortOrder?: number;
   status?: "active" | "inactive";
   _isInactive?: boolean; // Metadata flag for PDF visual hiding
   _isGhost?: boolean;

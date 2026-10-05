@@ -210,6 +210,7 @@ export function useProposalFormSystemDirty(
             existingPropProduct.pricingDetails || baseProduct.pricingDetails,
           total: existingPropProduct.total,
           status: existingPropProduct.status || baseProduct.status,
+          sortOrder: existingPropProduct.sortOrder,
         };
       });
 

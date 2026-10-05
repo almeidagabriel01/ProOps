@@ -114,6 +114,8 @@ export interface UseProposalFormReturn {
     itemType?: "product" | "service",
     lineItemId?: string,
   ) => void;
+  /** Posição de cada linha (por `lineItemId`) depois de arrastar. */
+  reorderProducts: (orderedLineItemIds: string[]) => void;
   updateProductPrice: (
     productId: string,
     newPrice: number,

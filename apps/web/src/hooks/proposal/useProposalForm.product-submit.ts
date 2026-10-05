@@ -1,4 +1,5 @@
 import * as React from "react";
+import { applyLineOrder } from "@/lib/proposal/line-order";
 import {
   Proposal,
   ProposalProduct,
@@ -226,6 +227,14 @@ export function useProposalFormProductSubmit(
         const sellingPrice = p.unitPrice * (1 + markup / 100);
         return { ...p, markup, total: p.quantity * sellingPrice };
       }),
+    }));
+  };
+
+  // Arrastar uma linha grava a posição de todas as do ambiente.
+  const reorderProducts = (orderedLineItemIds: string[]) => {
+    setFormData((prev) => ({
+      ...prev,
+      products: applyLineOrder(prev.products || [], orderedLineItemIds),
     }));
   };
 
@@ -674,6 +683,7 @@ export function useProposalFormProductSubmit(
     toggleProduct,
     updateProductQuantity,
     updateProductMarkup,
+    reorderProducts,
     updateProductPricingDetails,
     removeProduct,
     handleToggleProductStatus,

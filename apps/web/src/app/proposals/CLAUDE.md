@@ -331,6 +331,16 @@ custo intacto. Por isso `recalculateProposalProduct` usa o markup DA LINHA ao
 mudar quantidade ou medida (antes voltava ao do catálogo e desfazia a edição);
 só "Restaurar valor padrão" pede o do catálogo (`markupFrom: "catalog"`).
 
+**Ordem das linhas** (`lib/proposal/line-order.ts`): quem vende arrasta a linha
+pela alça (`SortableLineList`, `@dnd-kit`) dentro do ambiente ou grupo, nos dois
+fluxos (sistemas e ambientes). A posição vai em `sortOrder`, lida PRIMEIRO por
+`compareConfiguredDisplayItem` e `...WithExtras` (`lib/sort-text.ts`), os mesmos
+comparadores do formulário, do resumo, da visualização e do PDF. Linha sem
+posição segue a ordem padrão (produtos, serviços, nome) e vem depois das que
+têm. O campo só é gravado quando existe (front e
+`proposal-products-sanitize.ts`), para o hash do PDF das propostas antigas não
+mudar. Os modelos de sistema/ambiente continuam em ordem alfabética.
+
 ---
 
 ## Wizard Multi-Etapas (`SimpleProposalForm`)
