@@ -14,7 +14,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { CurrencyInput } from "@/components/ui/currency-input";
-import { DecimalInput } from "@/components/ui/decimal-input";
 import { Loader } from "@/components/ui/loader";
 import { useCurrentNicheConfig } from "@/hooks/useCurrentNicheConfig";
 import { useTenant } from "@/providers/tenant-provider";
@@ -30,6 +29,7 @@ import { normalizeProductPricingModel } from "@/lib/product-pricing";
 import { linearPriceUnit } from "@/lib/pricing/dimension-mode-labels";
 import { formatCurrency } from "@/utils/format";
 import { normalize } from "@/utils/text";
+import { compareCatalogDisplayItem } from "@/lib/sort-text";
 import { cn } from "@/lib/utils";
 
 type ItemKind = "product" | "service";
@@ -49,8 +49,6 @@ interface PriceTableEditorDialogProps {
   readOnly: boolean;
   onSave: (input: PriceTableInput) => Promise<void>;
 }
-
-const SEARCH_RESULTS = 8;
 
 function itemsFromTable(table: PriceTable | null): EditorItem[] {
   if (!table) return [];
@@ -144,17 +142,22 @@ export function PriceTableEditorDialog({
     return "un";
   };
 
+  // O catálogo inteiro fica à vista, como nos outros seletores do ERP; a busca
+  // só filtra.
   const searchResults = React.useMemo(() => {
     const term = normalize(search.trim());
-    if (!term || !catalogLoaded) return [];
+    if (!catalogLoaded) return [];
     const taken = new Set(items.map((item) => `${item.kind}:${item.id}`));
     const candidates = [
       ...(products ?? []).map((p) => ({ kind: "product" as const, id: p.id, name: p.name, product: p })),
       ...(services ?? []).map((s) => ({ kind: "service" as const, id: s.id, name: s.name, product: null })),
     ];
     return candidates
-      .filter((c) => !taken.has(`${c.kind}:${c.id}`) && normalize(c.name).includes(term))
-      .slice(0, SEARCH_RESULTS);
+      .filter((c) => !taken.has(`${c.kind}:${c.id}`) && (!term || normalize(c.name).includes(term)))
+      .sort((a, b) => compareCatalogDisplayItem(
+        { itemType: a.kind, name: a.name, id: a.id },
+        { itemType: b.kind, name: b.name, id: b.id },
+      ));
   }, [search, catalogLoaded, products, services, items]);
 
   const addItem = (kind: ItemKind, id: string) => {
@@ -231,13 +234,16 @@ export function PriceTableEditorDialog({
               />
             </div>
 
-            <div className="grid gap-2">
+            {/* content-start: a dica embaixo do percentual alonga a linha do
+                grid, e sem isto a coluna da esquerda espalhava a sobra entre o
+                rótulo e os botões, desalinhando-os do campo. */}
+            <div className="grid content-start gap-2">
               <Label>Ajuste sobre o preço de venda</Label>
               <div className="flex gap-2">
                 <Button
                   type="button"
                   variant={direction === "discount" ? "default" : "outline"}
-                  className="flex-1 gap-1.5"
+                  className="h-12 flex-1 gap-1.5 rounded-xl"
                   onClick={() => setDirection("discount")}
                   disabled={readOnly}
                   aria-pressed={direction === "discount"}
@@ -248,7 +254,7 @@ export function PriceTableEditorDialog({
                 <Button
                   type="button"
                   variant={direction === "increase" ? "default" : "outline"}
-                  className="flex-1 gap-1.5"
+                  className="h-12 flex-1 gap-1.5 rounded-xl"
                   onClick={() => setDirection("increase")}
                   disabled={readOnly}
                   aria-pressed={direction === "increase"}
@@ -259,14 +265,23 @@ export function PriceTableEditorDialog({
               </div>
             </div>
 
-            <div className="grid gap-2">
-              <Label htmlFor="price-table-percent">Percentual (%)</Label>
-              <DecimalInput
+            <div className="grid content-start gap-2">
+              <Label htmlFor="price-table-percent">Percentual</Label>
+              <Input
                 id="price-table-percent"
-                value={percent}
-                onChange={setPercent}
+                type="number"
+                inputMode="decimal"
+                min={0}
+                step="0.01"
+                placeholder="0"
+                value={percent === 0 ? "" : percent}
+                onChange={(e) => {
+                  const next = Number(e.target.value);
+                  setPercent(Number.isFinite(next) && next > 0 ? next : 0);
+                }}
                 disabled={readOnly}
                 aria-describedby="price-table-percent-hint"
+                suffix={<span className="text-sm">%</span>}
               />
               <p id="price-table-percent-hint" className="text-xs text-muted-foreground">
                 Zero deixa o catálogo como está e vale só os preços próprios.
@@ -287,7 +302,7 @@ export function PriceTableEditorDialog({
             {!readOnly && (
               <div className="relative">
                 <Input
-                  placeholder={`Buscar ${productLabel} ou serviço para dar preço próprio...`}
+                  placeholder={`Filtrar ${productLabel} ou serviço...`}
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                   icon={
@@ -299,8 +314,19 @@ export function PriceTableEditorDialog({
                   }
                   aria-label="Buscar item do catálogo"
                 />
+                {catalogLoaded && searchResults.length === 0 && (
+                  <p className="mt-2 rounded-lg border border-dashed px-3 py-3 text-center text-sm text-muted-foreground">
+                    {search.trim()
+                      ? "Nenhum item do catálogo com esse nome."
+                      : "Todos os itens do catálogo já têm preço próprio."}
+                  </p>
+                )}
                 {searchResults.length > 0 && (
-                  <ul className="mt-2 divide-y rounded-lg border bg-card" role="listbox">
+                  <ul
+                    className="mt-2 max-h-64 divide-y overflow-y-auto rounded-lg border bg-card"
+                    role="listbox"
+                    aria-label="Catálogo"
+                  >
                     {searchResults.map((result) => {
                       const allowed = result.product ? acceptsSpecificPrice(result.product) : true;
                       const catalogPrice = result.product
