@@ -39,7 +39,17 @@ export const marcenariaDemo: DemoDataset = {
   clients: [
     { id: "demo_marc_client_luisa", name: "Luísa Fernandes", email: "luisa.demo@exemplo.com", phone: "11999993001" },
     { id: "demo_marc_client_bruno", name: "Bruno Tavares", email: "bruno.demo@exemplo.com", phone: "11999993002" },
-    { id: "demo_marc_client_marcos", name: "Marcos Azevedo", email: "marcos.demo@exemplo.com", phone: "11999993003" },
+    { id: "demo_marc_client_marcos", name: "Marcos Azevedo", email: "marcos.demo@exemplo.com", phone: "11999993003", priceTableId: "demo_marc_price_table_parceiros" },
+  ],
+  // Tabela de exemplo: o ajuste sobre o catálogo e um preço próprio. O cliente
+  // acima aponta para ela, e a aba de Produtos e o cadastro têm o que mostrar.
+  priceTables: [
+    {
+      id: "demo_marc_price_table_parceiros",
+      name: "Arquitetos parceiros",
+      adjustmentPercent: -10,
+      productPrices: { [P.ferragens]: 370 },
+    },
   ],
   ambientes: [
     {

@@ -11,6 +11,7 @@ exports[`seed de demonstração automacao_residencial grava o mesmo conjunto em 
     "leads": 3,
     "notifications": 4,
     "options": 11,
+    "priceTables": 1,
     "products": 4,
     "projects": 1,
     "proposals": 3,
@@ -334,6 +335,7 @@ Técnico: Equipe Demo",
         "email": "contato.demo@jardins.com",
         "name": "Condomínio Jardins",
         "phone": "1133330003",
+        "priceTableId": "demo_price_table_condominios",
         "searchTokens": [
           "c",
           "co",
@@ -718,6 +720,29 @@ Técnico: Equipe Demo",
       },
       "op": "set",
       "path": "options/demo_opt_product_manufacturers_9",
+    },
+    {
+      "data": {
+        "adjustmentPercent": -8,
+        "createdAt": {
+          "__ts": 1767268800000,
+        },
+        "createdBy": null,
+        "name": "Condomínios",
+        "productPrices": {
+          "demo_prod_central": 3000,
+        },
+        "servicePrices": {
+          "demo_svc_install": 780,
+        },
+        "tenantId": "demo",
+        "updatedAt": {
+          "__ts": 1767268800000,
+        },
+        "updatedBy": null,
+      },
+      "op": "set",
+      "path": "price_tables/demo_price_table_condominios",
     },
     {
       "data": {
@@ -2657,6 +2682,7 @@ exports[`seed de demonstração automacao_residencial grava o mesmo conjunto em 
     "leads": 3,
     "notifications": 4,
     "options": 11,
+    "priceTables": 1,
     "products": 4,
     "projects": 1,
     "proposals": 3,
@@ -2980,6 +3006,7 @@ Técnico: Equipe Demo",
         "email": "contato.demo@jardins.com",
         "name": "Condomínio Jardins",
         "phone": "1133330003",
+        "priceTableId": "demo_price_table_condominios",
         "searchTokens": [
           "c",
           "co",
@@ -3364,6 +3391,29 @@ Técnico: Equipe Demo",
       },
       "op": "set",
       "path": "options/demo_opt_product_manufacturers_9",
+    },
+    {
+      "data": {
+        "adjustmentPercent": -8,
+        "createdAt": {
+          "__ts": 1767268800000,
+        },
+        "createdBy": null,
+        "name": "Condomínios",
+        "productPrices": {
+          "demo_prod_central": 3000,
+        },
+        "servicePrices": {
+          "demo_svc_install": 780,
+        },
+        "tenantId": "demo",
+        "updatedAt": {
+          "__ts": 1767268800000,
+        },
+        "updatedBy": null,
+      },
+      "op": "set",
+      "path": "price_tables/demo_price_table_condominios",
     },
     {
       "data": {
@@ -5303,6 +5353,7 @@ exports[`seed de demonstração cortinas grava o mesmo conjunto em 2026-03-31T23
     "leads": 3,
     "notifications": 3,
     "options": 10,
+    "priceTables": 1,
     "products": 4,
     "projects": 1,
     "proposals": 3,
@@ -5633,6 +5684,7 @@ Técnico: Equipe Demo",
         "email": "contato.demo@casaviva.com",
         "name": "Studio Casa Viva",
         "phone": "1133331003",
+        "priceTableId": "demo_cort_price_table_parceiros",
         "searchTokens": [
           "s",
           "st",
@@ -5991,6 +6043,27 @@ Técnico: Equipe Demo",
       },
       "op": "set",
       "path": "options/demo_cort_opt_product_manufacturers_9",
+    },
+    {
+      "data": {
+        "adjustmentPercent": -10,
+        "createdAt": {
+          "__ts": 1767268800000,
+        },
+        "createdBy": null,
+        "name": "Arquitetos e decoradores",
+        "productPrices": {
+          "demo_cort_prod_rolo": 260,
+        },
+        "servicePrices": {},
+        "tenantId": "demo-cortinas",
+        "updatedAt": {
+          "__ts": 1767268800000,
+        },
+        "updatedBy": null,
+      },
+      "op": "set",
+      "path": "price_tables/demo_cort_price_table_parceiros",
     },
     {
       "data": {
@@ -7607,6 +7680,7 @@ exports[`seed de demonstração cortinas grava o mesmo conjunto em 2026-07-15T14
     "leads": 3,
     "notifications": 3,
     "options": 10,
+    "priceTables": 1,
     "products": 4,
     "projects": 1,
     "proposals": 3,
@@ -7937,6 +8011,7 @@ Técnico: Equipe Demo",
         "email": "contato.demo@casaviva.com",
         "name": "Studio Casa Viva",
         "phone": "1133331003",
+        "priceTableId": "demo_cort_price_table_parceiros",
         "searchTokens": [
           "s",
           "st",
@@ -8295,6 +8370,27 @@ Técnico: Equipe Demo",
       },
       "op": "set",
       "path": "options/demo_cort_opt_product_manufacturers_9",
+    },
+    {
+      "data": {
+        "adjustmentPercent": -10,
+        "createdAt": {
+          "__ts": 1767268800000,
+        },
+        "createdBy": null,
+        "name": "Arquitetos e decoradores",
+        "productPrices": {
+          "demo_cort_prod_rolo": 260,
+        },
+        "servicePrices": {},
+        "tenantId": "demo-cortinas",
+        "updatedAt": {
+          "__ts": 1767268800000,
+        },
+        "updatedBy": null,
+      },
+      "op": "set",
+      "path": "price_tables/demo_cort_price_table_parceiros",
     },
     {
       "data": {
@@ -9911,6 +10007,7 @@ exports[`seed de demonstração seguranca_eletronica grava o mesmo conjunto em 2
     "leads": 3,
     "notifications": 3,
     "options": 9,
+    "priceTables": 1,
     "products": 5,
     "projects": 1,
     "proposals": 3,
@@ -10105,6 +10202,7 @@ Técnico: Equipe Demo",
         "email": "sindico.demo@vilaverde.com",
         "name": "Condomínio Vila Verde",
         "phone": "1133332001",
+        "priceTableId": "demo_seg_price_table_condominios",
         "searchTokens": [
           "c",
           "co",
@@ -10590,6 +10688,27 @@ Técnico: Equipe Demo",
       },
       "op": "set",
       "path": "options/demo_seg_opt_product_manufacturers_8",
+    },
+    {
+      "data": {
+        "adjustmentPercent": -8,
+        "createdAt": {
+          "__ts": 1767268800000,
+        },
+        "createdBy": null,
+        "name": "Condomínios e empresas",
+        "productPrices": {
+          "demo_seg_prod_camera": 380,
+        },
+        "servicePrices": {},
+        "tenantId": "demo-seguranca",
+        "updatedAt": {
+          "__ts": 1767268800000,
+        },
+        "updatedBy": null,
+      },
+      "op": "set",
+      "path": "price_tables/demo_seg_price_table_condominios",
     },
     {
       "data": {
@@ -12378,6 +12497,7 @@ exports[`seed de demonstração seguranca_eletronica grava o mesmo conjunto em 2
     "leads": 3,
     "notifications": 3,
     "options": 9,
+    "priceTables": 1,
     "products": 5,
     "projects": 1,
     "proposals": 3,
@@ -12572,6 +12692,7 @@ Técnico: Equipe Demo",
         "email": "sindico.demo@vilaverde.com",
         "name": "Condomínio Vila Verde",
         "phone": "1133332001",
+        "priceTableId": "demo_seg_price_table_condominios",
         "searchTokens": [
           "c",
           "co",
@@ -13057,6 +13178,27 @@ Técnico: Equipe Demo",
       },
       "op": "set",
       "path": "options/demo_seg_opt_product_manufacturers_8",
+    },
+    {
+      "data": {
+        "adjustmentPercent": -8,
+        "createdAt": {
+          "__ts": 1767268800000,
+        },
+        "createdBy": null,
+        "name": "Condomínios e empresas",
+        "productPrices": {
+          "demo_seg_prod_camera": 380,
+        },
+        "servicePrices": {},
+        "tenantId": "demo-seguranca",
+        "updatedAt": {
+          "__ts": 1767268800000,
+        },
+        "updatedBy": null,
+      },
+      "op": "set",
+      "path": "price_tables/demo_seg_price_table_condominios",
     },
     {
       "data": {

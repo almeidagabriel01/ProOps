@@ -259,7 +259,35 @@ export function buildDemoDocs(ds: DemoDataset, opts: BuildDemoOptions): DemoWrit
     });
   });
 
+  const priceTableIds = new Set(ds.priceTables.map((t) => t.id));
+  ds.priceTables.forEach((t, i) => {
+    for (const productId of Object.keys(t.productPrices)) {
+      if (product(productId).pricingModel?.mode === "curtain_height") {
+        throw new Error(`Demo ${ds.niche}: ${productId} é por faixa de altura e não aceita preço próprio.`);
+      }
+    }
+    for (const serviceId of Object.keys(t.servicePrices ?? {})) {
+      if (!ds.services.some((s) => s.id === serviceId)) {
+        throw new Error(`Demo ${ds.niche}: serviço ${serviceId} não existe no dataset.`);
+      }
+    }
+    set(`price_tables/${t.id}`, {
+      ...tenantTag,
+      name: t.name,
+      adjustmentPercent: t.adjustmentPercent,
+      productPrices: t.productPrices,
+      servicePrices: t.servicePrices ?? {},
+      createdAt: ts(i),
+      updatedAt: ts(i),
+      createdBy: null,
+      updatedBy: null,
+    });
+  });
+
   ds.clients.forEach((c, i) => {
+    if (c.priceTableId && !priceTableIds.has(c.priceTableId)) {
+      throw new Error(`Demo ${ds.niche}: tabela de preço ${c.priceTableId} não existe no dataset.`);
+    }
     set(`clients/${c.id}`, {
       ...tenantTag,
       name: c.name,
@@ -269,6 +297,7 @@ export function buildDemoDocs(ds: DemoDataset, opts: BuildDemoOptions): DemoWrit
       source: "demo",
       sourceId: null,
       searchTokens: buildSearchTokens(c.name, c.email, c.phone),
+      ...(c.priceTableId ? { priceTableId: c.priceTableId } : {}),
       createdAt: ts(i),
       updatedAt: ts(i),
     });
@@ -1004,6 +1033,7 @@ export function demoResultCounts(ds: DemoDataset): SeedDemoResult {
     products: ds.products.length,
     services: ds.services.length,
     clients: ds.clients.length,
+    priceTables: ds.priceTables.length,
     ambientes: ds.ambientes.length,
     ...(ds.sistemas ? { sistemas: ds.sistemas.length } : {}),
     options: categoryCount + manufacturerCount,

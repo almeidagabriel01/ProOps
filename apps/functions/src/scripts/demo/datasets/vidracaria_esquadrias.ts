@@ -38,7 +38,17 @@ export const vidracariaEsquadriasDemo: DemoDataset = {
   clients: [
     { id: "demo_vid_client_paula", name: "Paula Andrade", email: "paula.demo@exemplo.com", phone: "11999992001" },
     { id: "demo_vid_client_eduardo", name: "Eduardo Ribeiro", email: "eduardo.demo@exemplo.com", phone: "11999992002" },
-    { id: "demo_vid_client_clinica", name: "Clínica Sorriso", email: "contato.demo@clinicasorriso.com", phone: "1133332003" },
+    { id: "demo_vid_client_clinica", name: "Clínica Sorriso", email: "contato.demo@clinicasorriso.com", phone: "1133332003", priceTableId: "demo_vid_price_table_empresas" },
+  ],
+  // Tabela de exemplo: o ajuste sobre o catálogo e um preço próprio. O cliente
+  // acima aponta para ela, e a aba de Produtos e o cadastro têm o que mostrar.
+  priceTables: [
+    {
+      id: "demo_vid_price_table_empresas",
+      name: "Construtoras e clínicas",
+      adjustmentPercent: -7,
+      productPrices: { [P.temperado]: 310 },
+    },
   ],
   ambientes: [
     {

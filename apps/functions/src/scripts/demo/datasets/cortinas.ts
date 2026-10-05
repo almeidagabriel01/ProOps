@@ -53,7 +53,17 @@ export const cortinasDemo: DemoDataset = {
   clients: [
     { id: "demo_cort_client_marina", name: "Marina Costa", email: "marina.demo@exemplo.com", phone: "11999991001" },
     { id: "demo_cort_client_rafael", name: "Rafael Nogueira", email: "rafael.demo@exemplo.com", phone: "11999991002" },
-    { id: "demo_cort_client_studio", name: "Studio Casa Viva", email: "contato.demo@casaviva.com", phone: "1133331003" },
+    { id: "demo_cort_client_studio", name: "Studio Casa Viva", email: "contato.demo@casaviva.com", phone: "1133331003", priceTableId: "demo_cort_price_table_parceiros" },
+  ],
+  // Tabela de exemplo: o ajuste sobre o catálogo e um preço próprio. O cliente
+  // acima aponta para ela, e a aba de Produtos e o cadastro têm o que mostrar.
+  priceTables: [
+    {
+      id: "demo_cort_price_table_parceiros",
+      name: "Arquitetos e decoradores",
+      adjustmentPercent: -10,
+      productPrices: { [P.rolo]: 260 },
+    },
   ],
   ambientes: [
     {

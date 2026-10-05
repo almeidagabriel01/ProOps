@@ -44,9 +44,19 @@ export const segurancaEletronicaDemo: DemoDataset = {
     { id: "demo_seg_svc_manutencao", name: "Manutenção Mensal", description: "Visita preventiva mensal e atendimento prioritário.", price: 290, category: "Manutenção" },
   ],
   clients: [
-    { id: "demo_seg_client_condominio", name: "Condomínio Vila Verde", email: "sindico.demo@vilaverde.com", phone: "1133332001" },
+    { id: "demo_seg_client_condominio", name: "Condomínio Vila Verde", email: "sindico.demo@vilaverde.com", phone: "1133332001", priceTableId: "demo_seg_price_table_condominios" },
     { id: "demo_seg_client_lucas", name: "Lucas Andrade", email: "lucas.demo@exemplo.com", phone: "11999992002" },
     { id: "demo_seg_client_loja", name: "Loja Bela Moda", email: "contato.demo@belamoda.com", phone: "1133332003" },
+  ],
+  // Tabela de exemplo: o ajuste sobre o catálogo e um preço próprio. O cliente
+  // acima aponta para ela, e a aba de Produtos e o cadastro têm o que mostrar.
+  priceTables: [
+    {
+      id: "demo_seg_price_table_condominios",
+      name: "Condomínios e empresas",
+      adjustmentPercent: -8,
+      productPrices: { [P.camera]: 380 },
+    },
   ],
   ambientes: [
     { id: A.perimetro, name: "Perímetro", description: "Muros, portões e área externa.", icon: "🧱", order: 1, lines: [{ productId: P.camera, quantity: 4 }] },

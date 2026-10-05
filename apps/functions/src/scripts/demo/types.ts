@@ -58,6 +58,21 @@ export interface DemoClient {
   name: string;
   email: string;
   phone: string;
+  /** Tabela de preço do cliente (uma de `priceTables`). Ausente: tabela padrão. */
+  priceTableId?: string;
+}
+
+/**
+ * Tabela de preço de exemplo (`price_tables`): o ajuste sobre o catálogo e um
+ * preço próprio, para a aba de Produtos e o cadastro do cliente terem o que
+ * mostrar. Preço próprio só em produto que não é por faixa de altura.
+ */
+export interface DemoPriceTable {
+  id: string;
+  name: string;
+  adjustmentPercent: number;
+  productPrices: Record<string, number>;
+  servicePrices?: Record<string, number>;
 }
 
 export interface DemoAmbiente {
@@ -123,6 +138,8 @@ export interface DemoDataset {
   products: DemoProduct[];
   services: DemoService[];
   clients: DemoClient[];
+  /** Ao menos uma tabela, e um cliente apontando para ela. */
+  priceTables: DemoPriceTable[];
   ambientes: DemoAmbiente[];
   /** Só no fluxo por sistema. */
   sistemas?: DemoSistema[];
@@ -300,6 +317,7 @@ export interface SeedDemoResult {
   products: number;
   services: number;
   clients: number;
+  priceTables: number;
   ambientes: number;
   sistemas?: number;
   options: number;
