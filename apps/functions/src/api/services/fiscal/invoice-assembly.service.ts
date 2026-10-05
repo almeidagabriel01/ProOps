@@ -21,22 +21,40 @@ import {
   DEFAULT_NATUREZA,
   deriveCfop,
   derivePisCofinsCst,
-  deriveSituacaoTributaria,
+  deriveSituacaoTributariaOperacao,
   deriveUnidadeComercial,
   describeNatureza,
+  naturezaFinalidade,
+  naturezaReferencia,
   normalizeOrigem,
   type NaturezaOperacao,
 } from "./natureza-operacao";
+import { parseIpi, resolveIpi, totalIpi } from "./nfe-extras";
 import type { FiscalSettingsDocument } from "./fiscal-settings.service";
 import type {
   FiscalDocumentType,
   FiscalIeIndicator,
   FiscalInvoiceInput,
+  FiscalIpi,
   FiscalProductItem,
   FiscalRecipient,
   FiscalServiceItem,
   FiscalTaxRegime,
+  FiscalTransporte,
 } from "./fiscal-types";
+
+/**
+ * Padrão fiscal guardado no contato (`clients.fiscalDefaults`).
+ *
+ * Nasceu de um cliente industrial que exige o IPI informado, e repetido na
+ * observação, em toda nota que recebe. Guardar no contato resolve uma vez: a
+ * nota para ele já nasce com os dois, e continua editável na emissão.
+ * Vale só para a NF-e: IPI não existe na nota de serviço.
+ */
+export interface ClientFiscalDefaults {
+  observacoes?: string;
+  ipi?: FiscalIpi;
+}
 
 interface ClientDocument {
   id: string;
@@ -58,6 +76,7 @@ interface ClientDocument {
     uf?: string;
     cep?: string;
   };
+  fiscalDefaults?: ClientFiscalDefaults;
 }
 
 export interface CatalogItemDocument {
@@ -160,12 +179,24 @@ export function buildProductItem(
   catalog: CatalogItemDocument | undefined,
   regime: FiscalTaxRegime,
   cfop: string,
+  options: {
+    natureza?: NaturezaOperacao;
+    /** Situação do ICMS escolhida na própria nota. */
+    situacaoTributaria?: string;
+    ipi?: FiscalIpi;
+  } = {},
 ): FiscalProductItem {
   const quantidade = Number(item.quantity) || 1;
   const valorTotal = resolveLineTotal(item);
-  const { kind, codigo } = deriveSituacaoTributaria(regime, catalog?.situacaoTributaria);
+  const { kind, codigo } = deriveSituacaoTributariaOperacao(
+    regime,
+    options.natureza ?? DEFAULT_NATUREZA,
+    catalog?.situacaoTributaria,
+    options.situacaoTributaria,
+  );
 
   return {
+    ...(options.ipi ? { ipi: options.ipi } : {}),
     codigo: item.productId,
     descricao: text(item.productName) || text(item.name) || "Item",
     cstPisCofins: derivePisCofinsCst(regime),
@@ -238,6 +269,11 @@ async function loadClient(tenantId: string, clientId: string): Promise<ClientDoc
  */
 async function loadCatalog(
   items: ProposalItem[],
+  /**
+   * Na nota avulsa o id vem do corpo da requisição, não de uma proposta da
+   * empresa: sem esta conferência, um id de outra empresa traria o NCM dela.
+   */
+  tenantId?: string,
 ): Promise<Map<string, CatalogItemDocument>> {
   const ids = [...new Set(items.map((item) => item.productId).filter(Boolean))];
   const catalogs = new Map<string, CatalogItemDocument>();
@@ -247,7 +283,9 @@ async function loadCatalog(
       for (const collection of ["products", "services"]) {
         const snap = await db.collection(collection).doc(id).get();
         if (snap.exists) {
-          catalogs.set(id, snap.data() as CatalogItemDocument);
+          const data = snap.data() as CatalogItemDocument & { tenantId?: string };
+          if (tenantId && data.tenantId !== tenantId) return;
+          catalogs.set(id, data);
           return;
         }
       }
@@ -271,6 +309,198 @@ export interface AssemblyResult {
 }
 
 /**
+ * Edição de uma linha de mercadoria da nota que nasce da proposta.
+ *
+ * Os valores da linha são os da venda e não mudam aqui: a nota de uma venda
+ * tem que bater com a venda. O que a pessoa ajusta é o que a proposta não
+ * sabe: o IPI e a situação do ICMS.
+ */
+export interface NfeLineEdit {
+  /** Posição entre as linhas de MERCADORIA ativas da proposta. */
+  index: number;
+  /** Confere que a linha é a mesma que a tela mostrou. */
+  productId: string;
+  /** `null` tira o IPI que viria do padrão do contato. */
+  ipi?: FiscalIpi | null;
+  situacaoTributaria?: string;
+}
+
+/** O que o formulário de emissão muda na NF-e. Tudo opcional. */
+export interface NfeEdits {
+  /** Texto FINAL das informações complementares (substitui o padrão). */
+  observacoes?: string;
+  notasReferenciadas?: string[];
+  transporte?: FiscalTransporte;
+  linhas?: NfeLineEdit[];
+}
+
+/** Uma linha da nota avulsa: do catálogo (`productId`) ou digitada. */
+export interface ManualNfeLine {
+  productId?: string;
+  descricao: string;
+  /** Vence o NCM do catálogo; obrigatório na linha digitada. */
+  ncm?: string;
+  cest?: string;
+  origem?: number;
+  /** `UN`, `KG`, `M`... Padrão: o do catálogo, ou `UN`. */
+  unidade?: string;
+  quantidade: number;
+  valorUnitario: number;
+  ipi?: FiscalIpi | null;
+  situacaoTributaria?: string;
+}
+
+/**
+ * Junta a observação padrão do contato com a que veio do documento de origem.
+ *
+ * O texto do formulário (`NfeEdits.observacoes`) não passa por aqui: ele já é
+ * o texto final, mostrado com o padrão preenchido.
+ */
+function mergeObservacoes(...parts: Array<string | undefined>): string | undefined {
+  const joined = parts.map((part) => text(part)).filter(Boolean).join(" | ");
+  return joined || undefined;
+}
+
+/** O padrão fiscal do contato, já validado. Dado ruim no cadastro é ignorado. */
+function clientDefaults(client: ClientDocument): { observacoes?: string; ipi?: FiscalIpi } {
+  const raw = client.fiscalDefaults;
+  if (!raw) return {};
+  let ipi: FiscalIpi | undefined;
+  try {
+    ipi = parseIpi(raw.ipi);
+  } catch {
+    ipi = undefined;
+  }
+  return { observacoes: text(raw.observacoes) || undefined, ipi };
+}
+
+/**
+ * Lacunas da NOTA, não do cadastro: a devolução sem a chave da nota devolvida
+ * é recusada pela SEFAZ, então o formulário a cobra antes de enviar.
+ */
+function noteGaps(natureza: NaturezaOperacao, notasReferenciadas: string[]): FiscalGap[] {
+  if (naturezaReferencia(natureza) === "obrigatoria" && notasReferenciadas.length === 0) {
+    return [
+      {
+        scope: "nota",
+        field: "notasReferenciadas",
+        message:
+          "Informe a chave de acesso da nota que está sendo devolvida. A SEFAZ recusa a devolução sem ela.",
+      },
+    ];
+  }
+  return [];
+}
+
+/**
+ * Monta a NF-e a partir de linhas já resolvidas.
+ *
+ * Ponto único das duas origens (proposta e nota avulsa): CFOP pela operação e
+ * pelas UFs, situação do ICMS pela operação, total com IPI, finalidade e
+ * referência. Assim a nota avulsa não vira uma segunda implementação da regra.
+ */
+function buildNfe(params: {
+  settings: FiscalSettingsDocument;
+  recipient: FiscalRecipient;
+  natureza: NaturezaOperacao;
+  products: FiscalProductItem[];
+  observacoes?: string;
+  notasReferenciadas: string[];
+  transporte?: FiscalTransporte;
+  dataEmissao: string;
+}): AssembledInvoice {
+  const valorProdutos = params.products.reduce((sum, item) => sum + item.valorTotal, 0);
+  const valorTotal = Math.round((valorProdutos + totalIpi(params.products)) * 100) / 100;
+  return {
+    type: "nfe",
+    valorTotal,
+    input: {
+      type: "nfe",
+      ref: "",
+      issuer: params.settings as never,
+      recipient: params.recipient,
+      products: params.products,
+      naturezaOperacao: describeNatureza(params.natureza),
+      observacoes: params.observacoes,
+      dataEmissao: params.dataEmissao,
+      valorTotal,
+      finalidade: naturezaFinalidade(params.natureza),
+      ...(params.notasReferenciadas.length > 0
+        ? { notasReferenciadas: params.notasReferenciadas }
+        : {}),
+      ...(params.transporte ? { transporte: params.transporte } : {}),
+    },
+  };
+}
+
+function cfopFor(settings: FiscalSettingsDocument, natureza: NaturezaOperacao, recipient: FiscalRecipient): string {
+  // CFOP depende da UF de destino, então falta de endereço vira lacuna
+  // legível em vez de exceção — o readiness já cobre o campo.
+  try {
+    return deriveCfop(natureza, settings.endereco.uf, recipient.endereco?.uf ?? "");
+  } catch {
+    return "";
+  }
+}
+
+/** Linha da NF-e como a tela de emissão mostra (sem dado do emitente). */
+export interface NfeLineView {
+  productId?: string;
+  descricao: string;
+  ncm: string;
+  cfop: string;
+  unidade: string;
+  quantidade: number;
+  valorUnitario: number;
+  valorTotal: number;
+  situacaoTributaria: string;
+  ipi?: FiscalIpi;
+  ipiValor: number;
+}
+
+/** O que a tela precisa para revisar a NF-e antes de enviar. */
+export interface NfeView {
+  naturezaOperacao: string;
+  finalidade: "normal" | "devolucao";
+  observacoes: string;
+  notasReferenciadas: string[];
+  transporte?: FiscalTransporte;
+  valorProdutos: number;
+  valorIpi: number;
+  valorTotal: number;
+  linhas: NfeLineView[];
+}
+
+export function describeNfe(input: FiscalInvoiceInput): NfeView {
+  const products = input.products ?? [];
+  const linhas = products.map((item) => ({
+    productId: item.codigo || undefined,
+    descricao: item.descricao,
+    ncm: item.ncm,
+    cfop: item.cfop,
+    unidade: item.unidadeComercial,
+    quantidade: item.quantidade,
+    valorUnitario: Math.round(item.valorUnitario * 100) / 100,
+    valorTotal: Math.round(item.valorTotal * 100) / 100,
+    situacaoTributaria: item.csosn ?? item.cstIcms ?? "",
+    ...(item.ipi ? { ipi: item.ipi } : {}),
+    ipiValor: item.ipi ? resolveIpi(item.ipi, item.valorTotal).valor ?? 0 : 0,
+  }));
+  const valorProdutos = Math.round(products.reduce((sum, item) => sum + item.valorTotal, 0) * 100) / 100;
+  return {
+    naturezaOperacao: input.naturezaOperacao ?? "",
+    finalidade: input.finalidade ?? "normal",
+    observacoes: input.observacoes ?? "",
+    notasReferenciadas: input.notasReferenciadas ?? [],
+    ...(input.transporte ? { transporte: input.transporte } : {}),
+    valorProdutos,
+    valorIpi: totalIpi(products),
+    valorTotal: input.valorTotal,
+    linhas,
+  };
+}
+
+/**
  * Monta os documentos fiscais de um conjunto de itens.
  *
  * Separa por `itemType` e devolve **uma nota por tipo habilitado**. As lacunas
@@ -283,7 +513,10 @@ export async function assembleInvoices(params: {
   clientId: string;
   items: ProposalItem[];
   naturezaOperacao?: NaturezaOperacao;
+  /** Texto do documento de origem; soma-se à observação padrão do contato. */
   observacoes?: string;
+  /** Edições do formulário de emissão, só na NF-e. */
+  nfe?: NfeEdits;
   transactionId?: string;
   proposalId?: string;
 }): Promise<AssemblyResult> {
@@ -306,20 +539,30 @@ export async function assembleInvoices(params: {
   const gaps: FiscalGap[] = [];
 
   if (products.length > 0 && settings.habilitaNfe) {
-    // CFOP depende da UF de destino, então falta de endereço vira lacuna
-    // legível em vez de exceção — o readiness já cobre o campo.
-    let cfop = "";
-    try {
-      cfop = deriveCfop(natureza, settings.endereco.uf, recipient.endereco?.uf ?? "");
-    } catch {
-      cfop = "";
+    const cfop = cfopFor(settings, natureza, recipient);
+    const defaults = clientDefaults(client);
+    const edits = params.nfe ?? {};
+
+    const editsByIndex = new Map((edits.linhas ?? []).map((edit) => [edit.index, edit]));
+    for (const edit of editsByIndex.values()) {
+      // A proposta mudou entre a tela abrir e o envio: aplicar a edição na
+      // linha errada poria o IPI de um produto em outro.
+      if (products[edit.index]?.productId !== edit.productId) {
+        throw new Error("NOTA_DESATUALIZADA");
+      }
     }
 
-    const productItems = products.map((item) =>
-      buildProductItem(item, catalogs.get(item.productId), settings.regimeTributario, cfop),
-    );
-    const valorTotal = productItems.reduce((sum, item) => sum + item.valorTotal, 0);
+    const productItems = products.map((item, index) => {
+      const edit = editsByIndex.get(index);
+      const ipi = edit && edit.ipi !== undefined ? edit.ipi ?? undefined : defaults.ipi;
+      return buildProductItem(item, catalogs.get(item.productId), settings.regimeTributario, cfop, {
+        natureza,
+        situacaoTributaria: edit?.situacaoTributaria,
+        ipi,
+      });
+    });
 
+    const notasReferenciadas = edits.notasReferenciadas ?? [];
     const readiness = checkIssueReadiness({
       type: "nfe",
       issuer: settings,
@@ -330,23 +573,23 @@ export async function assembleInvoices(params: {
         ncm: item.ncm,
       })),
     });
-    gaps.push(...readiness.gaps);
+    gaps.push(...readiness.gaps, ...noteGaps(natureza, notasReferenciadas));
 
-    invoices.push({
-      type: "nfe",
-      valorTotal,
-      input: {
-        type: "nfe",
-        ref: "",
-        issuer: settings as never,
+    invoices.push(
+      buildNfe({
+        settings,
         recipient,
+        natureza,
         products: productItems,
-        naturezaOperacao: describeNatureza(natureza),
-        observacoes: params.observacoes,
+        observacoes:
+          edits.observacoes !== undefined
+            ? text(edits.observacoes) || undefined
+            : mergeObservacoes(defaults.observacoes, params.observacoes),
+        notasReferenciadas,
+        transporte: edits.transporte,
         dataEmissao,
-        valorTotal,
-      },
-    });
+      }),
+    );
   }
 
   if (services.length > 0 && settings.habilitaNfse) {
@@ -406,6 +649,126 @@ export async function assembleInvoices(params: {
   return {
     invoices,
     gaps: dedupedGaps,
+    client: { id: client.id, nome: recipient.nome },
+  };
+}
+
+/**
+ * Monta a NF-e AVULSA: sem proposta, com as linhas digitadas na hora.
+ *
+ * É o caminho das notas sem venda (remessa para conserto, devolução de compra,
+ * retorno, demonstração). Quem emite essas notas digita na hora o que está
+ * mandando, sem puxar o XML da entrada, então a linha aceita tanto um produto
+ * do catálogo (de onde vêm NCM, unidade e origem) quanto um item só digitado.
+ *
+ * Mesmas regras da venda, pelo mesmo `buildNfe`: CFOP pela operação e pelas
+ * UFs, ICMS pela operação, IPI e observação padrão do contato.
+ */
+export async function assembleManualNfe(params: {
+  tenantId: string;
+  settings: FiscalSettingsDocument;
+  clientId: string;
+  naturezaOperacao: NaturezaOperacao;
+  linhas: ManualNfeLine[];
+  nfe?: Omit<NfeEdits, "linhas">;
+}): Promise<AssemblyResult> {
+  const { settings } = params;
+  const client = await loadClient(params.tenantId, params.clientId);
+  const recipient = buildRecipient(client);
+  const natureza = params.naturezaOperacao;
+  const defaults = clientDefaults(client);
+  const edits = params.nfe ?? {};
+  const cfop = cfopFor(settings, natureza, recipient);
+
+  const catalogIds = params.linhas
+    .map((linha) => linha.productId)
+    .filter((id): id is string => Boolean(id));
+  const catalogs = await loadCatalog(catalogIds.map((productId) => ({ productId })), params.tenantId);
+
+  const gaps: FiscalGap[] = [];
+  const products: FiscalProductItem[] = params.linhas.map((linha, index) => {
+    const catalog = linha.productId ? catalogs.get(linha.productId) : undefined;
+    const descricao = text(linha.descricao) || `Item ${index + 1}`;
+    const quantidade = Number(linha.quantidade) || 0;
+    const valorUnitario = Number(linha.valorUnitario) || 0;
+    const ncm = (text(linha.ncm) || text(catalog?.ncm)).replace(/\D/g, "");
+    const { kind, codigo } = deriveSituacaoTributariaOperacao(
+      settings.regimeTributario,
+      natureza,
+      catalog?.situacaoTributaria,
+      linha.situacaoTributaria,
+    );
+
+    if (ncm.length !== 8) {
+      gaps.push({
+        scope: "nota",
+        field: `linhas.${index}.ncm`,
+        entityName: descricao,
+        message: `Informe o NCM de "${descricao}" (8 dígitos). Ele costuma vir na nota de compra.`,
+      });
+    }
+    if (quantidade <= 0 || valorUnitario <= 0) {
+      gaps.push({
+        scope: "nota",
+        field: `linhas.${index}.valor`,
+        entityName: descricao,
+        message: `Informe a quantidade e o valor unitário de "${descricao}". A SEFAZ não aceita item zerado.`,
+      });
+    }
+
+    const ipi = linha.ipi !== undefined ? linha.ipi ?? undefined : defaults.ipi;
+    const unidade =
+      text(linha.unidade).toUpperCase().slice(0, 6) ||
+      deriveUnidadeComercial(catalog?.inventoryUnit, catalog?.pricingModel?.mode);
+
+    return {
+      codigo: linha.productId || `AVULSO-${index + 1}`,
+      descricao,
+      cstPisCofins: derivePisCofinsCst(settings.regimeTributario),
+      ncm,
+      cest: (text(linha.cest) || text(catalog?.cest)).replace(/\D/g, "") || undefined,
+      cfop,
+      origem: normalizeOrigem(linha.origem ?? catalog?.origem),
+      unidadeComercial: unidade,
+      quantidade,
+      valorUnitario,
+      valorTotal: Math.round(quantidade * valorUnitario * 100) / 100,
+      ...(kind === "csosn" ? { csosn: codigo } : { cstIcms: codigo }),
+      ...(ipi ? { ipi } : {}),
+    };
+  });
+
+  const notasReferenciadas = edits.notasReferenciadas ?? [];
+  // NCM e item zerado já foram cobrados linha a linha, no escopo da nota;
+  // aqui entram só emitente e cliente (lista de produtos vazia não gera
+  // lacuna de NCM, só a de "ao menos um item" quando não há linha nenhuma).
+  const readiness = checkIssueReadiness({
+    type: "nfe",
+    issuer: settings,
+    recipient: { ...recipient, id: client.id, nome: recipient.nome },
+    products: products.map((item) => ({ name: item.descricao, ncm: "00000000" })),
+  });
+  gaps.unshift(...readiness.gaps.filter((gap) => gap.field !== "items"));
+  if (products.length === 0) {
+    gaps.push({ scope: "nota", field: "linhas", message: "Acrescente ao menos um item à nota." });
+  }
+  gaps.push(...noteGaps(natureza, notasReferenciadas));
+
+  const invoice = buildNfe({
+    settings,
+    recipient,
+    natureza,
+    products,
+    observacoes:
+      edits.observacoes !== undefined ? text(edits.observacoes) || undefined : defaults.observacoes,
+    notasReferenciadas,
+    transporte: edits.transporte,
+    dataEmissao: toBrasiliaIso(),
+  });
+
+  return {
+    invoices: settings.habilitaNfe && products.length > 0 ? [invoice] : [],
+    gaps,
     client: { id: client.id, nome: recipient.nome },
   };
 }

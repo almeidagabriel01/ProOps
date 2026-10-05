@@ -20,13 +20,33 @@ import type { FiscalTaxRegime } from "./fiscal-types";
 /**
  * Operation kinds the niche actually performs.
  * Each maps to a pair of CFOPs — one for inside the state, one for outside.
+ *
+ * Venda é o caso de quase toda nota, e nasce da proposta. As outras são as
+ * notas sem venda que o instalador emite no dia a dia: mandar um amplificador
+ * para o conserto, devolver uma compra ao fornecedor, levar um equipamento
+ * para demonstração. Elas nascem da nota avulsa, digitada na hora.
  */
 export type NaturezaOperacao =
   | "venda_mercadoria_terceiros"
   | "venda_producao_propria"
   | "devolucao_compra"
   | "remessa_conserto"
-  | "remessa_demonstracao";
+  | "retorno_conserto"
+  | "remessa_demonstracao"
+  | "retorno_demonstracao"
+  | "outras_saidas";
+
+/**
+ * Se a nota de origem entra no documento (`refNFe`).
+ *
+ * `obrigatoria` só na devolução: a SEFAZ recusa a devolução sem a chave da
+ * nota devolvida. Nos retornos ela é recomendada (amarra a saída à entrada
+ * que a originou) e alguns estados a cobram, então o campo aparece, mas sem
+ * travar quem não tem a chave à mão.
+ */
+export type ReferenciaNota = "obrigatoria" | "opcional" | "nao_se_aplica";
+
+export type FinalidadeNota = "normal" | "devolucao";
 
 interface NaturezaDefinition {
   /** Same UF as the issuer. */
@@ -36,6 +56,18 @@ interface NaturezaDefinition {
   /** Abroad — 7xxx. Absent when the operation cannot be an export. */
   exterior?: string;
   descricao: string;
+  /**
+   * Se a operação é tributada pelo ICMS da forma comum (a venda).
+   *
+   * Remessa e retorno não são venda: a mercadoria sai e volta sem mudar de
+   * dono, e a nota existe para acobertar o transporte. Com `false` a situação
+   * do ICMS deixa de vir do produto (que descreve a VENDA dele) e passa a vir
+   * da operação. Ver `deriveSituacaoTributariaOperacao`.
+   */
+  tributada: boolean;
+  /** `finNFe`: a devolução tem finalidade própria (4). */
+  finalidade: FinalidadeNota;
+  referencia: ReferenciaNota;
 }
 
 const NATUREZAS: Record<NaturezaOperacao, NaturezaDefinition> = {
@@ -44,29 +76,72 @@ const NATUREZAS: Record<NaturezaOperacao, NaturezaDefinition> = {
     foraEstado: "6102",
     exterior: "7102",
     descricao: "Venda de mercadoria adquirida de terceiros",
+    tributada: true,
+    finalidade: "normal",
+    referencia: "nao_se_aplica",
   },
   venda_producao_propria: {
     dentroEstado: "5101",
     foraEstado: "6101",
     exterior: "7101",
     descricao: "Venda de produção do estabelecimento",
+    tributada: true,
+    finalidade: "normal",
+    referencia: "nao_se_aplica",
   },
   devolucao_compra: {
     dentroEstado: "5202",
     foraEstado: "6202",
     descricao: "Devolução de compra para comercialização",
+    tributada: false,
+    finalidade: "devolucao",
+    referencia: "obrigatoria",
   },
   remessa_conserto: {
     dentroEstado: "5915",
     foraEstado: "6915",
     descricao: "Remessa para conserto ou reparo",
+    tributada: false,
+    finalidade: "normal",
+    referencia: "nao_se_aplica",
+  },
+  retorno_conserto: {
+    dentroEstado: "5916",
+    foraEstado: "6916",
+    descricao: "Retorno de mercadoria recebida para conserto ou reparo",
+    tributada: false,
+    finalidade: "normal",
+    referencia: "opcional",
   },
   remessa_demonstracao: {
     dentroEstado: "5912",
     foraEstado: "6912",
     descricao: "Remessa para demonstração",
+    tributada: false,
+    finalidade: "normal",
+    referencia: "nao_se_aplica",
+  },
+  retorno_demonstracao: {
+    dentroEstado: "5913",
+    foraEstado: "6913",
+    descricao: "Retorno de mercadoria recebida para demonstração",
+    tributada: false,
+    finalidade: "normal",
+    referencia: "opcional",
+  },
+  outras_saidas: {
+    dentroEstado: "5949",
+    foraEstado: "6949",
+    descricao: "Outra saída de mercadoria não especificada",
+    tributada: false,
+    finalidade: "normal",
+    referencia: "opcional",
   },
 };
+
+export function isNaturezaOperacao(value: unknown): value is NaturezaOperacao {
+  return typeof value === "string" && Object.prototype.hasOwnProperty.call(NATUREZAS, value);
+}
 
 /**
  * The default for an installer who buys equipment and resells it — which is
@@ -81,11 +156,35 @@ export function describeNatureza(natureza: NaturezaOperacao): string {
   return NATUREZAS[natureza].descricao;
 }
 
-export function listNaturezas(): Array<{ id: NaturezaOperacao; descricao: string }> {
+export interface NaturezaResumo {
+  id: NaturezaOperacao;
+  descricao: string;
+  /** CFOP dentro e fora do estado, para a tela mostrar o que vai sair. */
+  cfopDentroEstado: string;
+  cfopForaEstado: string;
+  tributada: boolean;
+  finalidade: FinalidadeNota;
+  referencia: ReferenciaNota;
+}
+
+export function listNaturezas(): NaturezaResumo[] {
   return (Object.keys(NATUREZAS) as NaturezaOperacao[]).map((id) => ({
     id,
     descricao: NATUREZAS[id].descricao,
+    cfopDentroEstado: NATUREZAS[id].dentroEstado,
+    cfopForaEstado: NATUREZAS[id].foraEstado,
+    tributada: NATUREZAS[id].tributada,
+    finalidade: NATUREZAS[id].finalidade,
+    referencia: NATUREZAS[id].referencia,
   }));
+}
+
+export function naturezaFinalidade(natureza: NaturezaOperacao): FinalidadeNota {
+  return NATUREZAS[natureza].finalidade;
+}
+
+export function naturezaReferencia(natureza: NaturezaOperacao): ReferenciaNota {
+  return NATUREZAS[natureza].referencia;
 }
 
 /**
@@ -179,6 +278,33 @@ export function deriveSituacaoTributaria(
     // 00  — tributada integralmente.
     codigo: isSimples ? "102" : "00",
   };
+}
+
+/**
+ * Situação do ICMS de uma linha, considerando a OPERAÇÃO.
+ *
+ * Na venda vale a regra de sempre: o código do produto (substituição
+ * tributária, benefício) vence o padrão do regime. Fora da venda o código do
+ * produto não descreve esta nota, e mandá-lo faria uma remessa para conserto
+ * sair tributada como venda. Ali o padrão é "outras": **900** no Simples, que
+ * é o que a remessa para conserto da AWA usa (NF 50936, autorizada pela SEFAZ
+ * de SC), e **90** no Regime Normal, o equivalente sem destaque. A pessoa
+ * ainda troca linha a linha na nota (`noteOverride`), porque a suspensão do
+ * conserto e o ICMS da devolução variam por estado e por compra.
+ */
+export function deriveSituacaoTributariaOperacao(
+  regime: FiscalTaxRegime,
+  natureza: NaturezaOperacao,
+  catalogOverride?: string,
+  noteOverride?: string,
+): SituacaoTributaria {
+  const nota = String(noteOverride || "").trim();
+  if (nota) return deriveSituacaoTributaria(regime, nota);
+  if (NATUREZAS[natureza]?.tributada !== false) {
+    return deriveSituacaoTributaria(regime, catalogOverride);
+  }
+  const isSimples = regime === 1 || regime === 2 || regime === 4;
+  return isSimples ? { kind: "csosn", codigo: "900" } : { kind: "cst", codigo: "90" };
 }
 
 /** Commercial units the SEFAZ accepts, mapped from what the catalogue stores. */

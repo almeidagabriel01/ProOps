@@ -175,6 +175,71 @@ export interface FiscalProductItem {
   aliquotaIcms?: number;
   /** CST de PIS/COFINS — derivado do regime, obrigatório na NF-e 4.00. */
   cstPisCofins: string;
+  /** Ausente = a linha sai sem grupo de IPI, que é o caso de quase toda nota. */
+  ipi?: FiscalIpi;
+}
+
+/**
+ * IPI de uma linha da NF-e.
+ *
+ * Quase nenhum instalador destaca IPI, então nada aqui é derivado: só sai na
+ * nota quando alguém pediu, na própria nota ou no padrão fiscal do contato.
+ * O caso real que trouxe o campo: um cliente industrial exige o IPI informado
+ * (com o CST que ele usa para recuperar o imposto) nas notas que recebe.
+ *
+ * O grupo do XML (`IPITrib` ou `IPINT`) é decidido pelo CST no provedor.
+ */
+export interface FiscalIpi {
+  /** CST do IPI na saída: 50 tributada, 51 alíquota zero, 52 isenta, 53 não tributada, 54 imune, 55 suspensão, 99 outras. */
+  cst: string;
+  /** Percentual. Só nos CST tributados (50 e 99). */
+  aliquota?: number;
+  /** Padrão: o valor da linha. */
+  baseCalculo?: number;
+  /** Padrão: base × alíquota. */
+  valor?: number;
+  /** `cEnq`, obrigatório no grupo. 999 = sem enquadramento específico. */
+  codigoEnquadramento?: string;
+}
+
+/** CST do IPI que levam base, alíquota e valor (grupo `IPITrib`). */
+export const IPI_CST_TRIBUTADOS = new Set(["00", "49", "50", "99"]);
+
+/** CST do IPI de saída aceitos na tela e na API. */
+export const IPI_CST_SAIDA = ["50", "51", "52", "53", "54", "55", "99"] as const;
+
+/**
+ * `modFrete`: quem contrata o frete.
+ * 0 remetente (CIF), 1 destinatário (FOB), 2 terceiros, 3 transporte próprio
+ * do remetente, 4 transporte próprio do destinatário, 9 sem frete.
+ */
+export type FiscalModalidadeFrete = 0 | 1 | 2 | 3 | 4 | 9;
+
+export interface FiscalTransportadora {
+  nome: string;
+  /** CPF (11) ou CNPJ (14), só dígitos. */
+  documento?: string;
+  inscricaoEstadual?: string;
+  endereco?: string;
+  municipio?: string;
+  uf?: string;
+}
+
+export interface FiscalVolume {
+  quantidade?: number;
+  especie?: string;
+  marca?: string;
+  numeracao?: string;
+  /** Quilos. */
+  pesoBruto?: number;
+  pesoLiquido?: number;
+}
+
+/** O bloco "Transportador/volumes transportados" do DANFE. */
+export interface FiscalTransporte {
+  modalidadeFrete: FiscalModalidadeFrete;
+  transportadora?: FiscalTransportadora;
+  volumes?: FiscalVolume[];
 }
 
 /** A service line. ISS is municipal, so the rate travels with the item. */
@@ -205,7 +270,14 @@ export interface FiscalInvoiceInput {
   naturezaOperacao?: string;
   observacoes?: string;
   dataEmissao: string;
+  /** Na NF-e, inclui o IPI: o total da nota é produtos + IPI. */
   valorTotal: number;
+  /** NF-e. Ausente = normal. */
+  finalidade?: "normal" | "devolucao";
+  /** NF-e: chaves de 44 dígitos das notas referenciadas (devolução, retorno). */
+  notasReferenciadas?: string[];
+  /** NF-e. Ausente = sem frete. */
+  transporte?: FiscalTransporte;
 }
 
 /** Normalized result, identical in shape whichever provider produced it. */

@@ -19,6 +19,8 @@ import {
   downloadCorrectionDocumentHandler,
   replayNotificationHandler,
   listNaturezasHandler,
+  previewManualNfeHandler,
+  issueManualNfeHandler,
   disconnectFiscalHandler,
   getInvoiceQuotaHandler,
 } from "../controllers/fiscal.controller";
@@ -75,6 +77,16 @@ router.get(
   validateFirebaseIdToken,
   previewFromProposalHandler,
 );
+// A tela de emissão recalcula a nota com o que a pessoa mudou (IPI, operação).
+router.post(
+  "/fiscal/invoices/preview/from-proposal/:id",
+  validateFirebaseIdToken,
+  previewFromProposalHandler,
+);
+// Nota avulsa (remessa, devolução, retorno), sem proposta. Acima das rotas
+// com `:id`, pelo mesmo motivo da prévia.
+router.post("/fiscal/invoices/preview/manual", validateFirebaseIdToken, previewManualNfeHandler);
+router.post("/fiscal/invoices/manual", validateFirebaseIdToken, issueManualNfeHandler);
 // Consulta sob demanda: o cron so olha 15 min depois, e quem esta na tela nao
 // deveria precisar abrir o painel do provedor para saber o estado da propria nota.
 router.post(

@@ -14,8 +14,13 @@
 
 import type { FiscalIeIndicator, FiscalNfsePadrao, FiscalTaxRegime } from "./fiscal-types";
 
-/** Where the user has to go to fix the problem. */
-export type FiscalGapScope = "emitente" | "cliente" | "produto" | "servico";
+/**
+ * Where the user has to go to fix the problem.
+ *
+ * `nota` é o que se corrige na própria nota, no formulário de emissão: a chave
+ * da nota devolvida, o NCM de uma linha digitada na nota avulsa.
+ */
+export type FiscalGapScope = "emitente" | "cliente" | "produto" | "servico" | "nota";
 
 export interface FiscalGap {
   scope: FiscalGapScope;

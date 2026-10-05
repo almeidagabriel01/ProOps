@@ -12,6 +12,7 @@
 
 import {
   compactEnderecoFiscal,
+  compactFiscalDefaults,
   ClientFiscalFieldsSchema,
 } from "./clients.controller";
 
@@ -80,5 +81,42 @@ describe("ClientFiscalFieldsSchema", () => {
     // A NFS-e se contenta com nome e documento; obrigar endereço aqui
     // bloquearia o caso principal do primeiro cliente.
     expect(ClientFiscalFieldsSchema.safeParse({}).success).toBe(true);
+  });
+});
+
+describe("padrão fiscal do contato (fiscalDefaults)", () => {
+  it("aceita observação e IPI de saída", () => {
+    const parsed = ClientFiscalFieldsSchema.safeParse({
+      fiscalDefaults: { observacoes: "IPI conforme pedido", ipi: { cst: "50", aliquota: 5 } },
+    });
+    expect(parsed.success).toBe(true);
+  });
+
+  it("recusa CST de IPI de entrada e alíquota acima de 100", () => {
+    expect(
+      ClientFiscalFieldsSchema.safeParse({ fiscalDefaults: { ipi: { cst: "00" } } }).success,
+    ).toBe(false);
+    expect(
+      ClientFiscalFieldsSchema.safeParse({ fiscalDefaults: { ipi: { cst: "50", aliquota: 101 } } })
+        .success,
+    ).toBe(false);
+  });
+
+  it("aceita null para apagar", () => {
+    expect(ClientFiscalFieldsSchema.safeParse({ fiscalDefaults: null }).success).toBe(true);
+  });
+
+  it("guarda só o que tem conteúdo", () => {
+    expect(
+      compactFiscalDefaults({ observacoes: "  ", ipi: { cst: "53", codigoEnquadramento: "" } }),
+    ).toEqual({ ipi: { cst: "53" } });
+    expect(compactFiscalDefaults({ observacoes: "Pedido do cliente", ipi: null })).toEqual({
+      observacoes: "Pedido do cliente",
+    });
+  });
+
+  it("vazio vira undefined, que o controller traduz em apagar o campo", () => {
+    expect(compactFiscalDefaults({ observacoes: "" })).toBeUndefined();
+    expect(compactFiscalDefaults(null)).toBeUndefined();
   });
 });

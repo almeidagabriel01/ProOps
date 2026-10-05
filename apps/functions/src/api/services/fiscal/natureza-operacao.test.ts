@@ -2,6 +2,10 @@ import {
   DEFAULT_NATUREZA,
   ORIGEM_NACIONAL,
   deriveCfop,
+  deriveSituacaoTributariaOperacao,
+  isNaturezaOperacao,
+  naturezaFinalidade,
+  naturezaReferencia,
   deriveSituacaoTributaria,
   deriveUnidadeComercial,
   describeNatureza,
@@ -140,5 +144,78 @@ describe("normalizeOrigem", () => {
   it("preserva códigos válidos de 0 a 8", () => {
     expect(normalizeOrigem(1)).toBe(1);
     expect(normalizeOrigem("8")).toBe(8);
+  });
+});
+
+describe("operações sem venda", () => {
+  it("retornos e outras saídas têm CFOP próprio dentro e fora do estado", () => {
+    expect(deriveCfop("retorno_conserto", "SC", "SC")).toBe("5916");
+    expect(deriveCfop("retorno_conserto", "SC", "PR")).toBe("6916");
+    expect(deriveCfop("retorno_demonstracao", "SC", "SC")).toBe("5913");
+    expect(deriveCfop("outras_saidas", "SC", "RS")).toBe("6949");
+  });
+
+  it("só a devolução exige a nota referenciada e muda a finalidade", () => {
+    expect(naturezaFinalidade("devolucao_compra")).toBe("devolucao");
+    expect(naturezaReferencia("devolucao_compra")).toBe("obrigatoria");
+    expect(naturezaFinalidade("remessa_conserto")).toBe("normal");
+    expect(naturezaReferencia("remessa_conserto")).toBe("nao_se_aplica");
+    expect(naturezaReferencia("retorno_conserto")).toBe("opcional");
+  });
+
+  it("a lista leva CFOP e metadados para a tela", () => {
+    const remessa = listNaturezas().find((item) => item.id === "remessa_conserto");
+    expect(remessa).toMatchObject({
+      cfopDentroEstado: "5915",
+      cfopForaEstado: "6915",
+      tributada: false,
+      finalidade: "normal",
+    });
+  });
+
+  it("reconhece só as operações cadastradas", () => {
+    expect(isNaturezaOperacao("remessa_conserto")).toBe(true);
+    expect(isNaturezaOperacao("venda")).toBe(false);
+    expect(isNaturezaOperacao(undefined)).toBe(false);
+  });
+});
+
+describe("deriveSituacaoTributariaOperacao", () => {
+  it("na venda o código do produto vence o padrão do regime", () => {
+    expect(deriveSituacaoTributariaOperacao(1, "venda_mercadoria_terceiros", "500")).toEqual({
+      kind: "csosn",
+      codigo: "500",
+    });
+    expect(deriveSituacaoTributariaOperacao(1, "venda_mercadoria_terceiros")).toEqual({
+      kind: "csosn",
+      codigo: "102",
+    });
+  });
+
+  it("fora da venda o Simples sai em 900, ignorando o código de venda do produto", () => {
+    // NF 50936 da AWA: remessa para conserto em CSOSN 900. Com o 102 do
+    // regime a remessa sairia tributada como venda.
+    expect(deriveSituacaoTributariaOperacao(1, "remessa_conserto", "500")).toEqual({
+      kind: "csosn",
+      codigo: "900",
+    });
+    expect(deriveSituacaoTributariaOperacao(4, "devolucao_compra")).toEqual({
+      kind: "csosn",
+      codigo: "900",
+    });
+  });
+
+  it("fora da venda o Regime Normal sai em 90", () => {
+    expect(deriveSituacaoTributariaOperacao(3, "remessa_conserto")).toEqual({
+      kind: "cst",
+      codigo: "90",
+    });
+  });
+
+  it("o código escolhido na nota vence tudo", () => {
+    expect(deriveSituacaoTributariaOperacao(1, "remessa_conserto", "500", "400")).toEqual({
+      kind: "csosn",
+      codigo: "400",
+    });
   });
 });

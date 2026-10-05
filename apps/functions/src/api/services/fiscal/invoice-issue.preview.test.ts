@@ -19,7 +19,10 @@ jest.mock("../../../lib/logger", () => ({
   logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() },
 }));
 jest.mock("./fiscal-settings.service", () => ({ getFiscalSettings }));
-jest.mock("./invoice-assembly.service", () => ({ assembleInvoices }));
+jest.mock("./invoice-assembly.service", () => ({
+  assembleInvoices,
+  describeNfe: () => undefined,
+}));
 jest.mock("./invoice.service", () => ({
   listInvoicesByProposal,
   createInvoice: jest.fn(),

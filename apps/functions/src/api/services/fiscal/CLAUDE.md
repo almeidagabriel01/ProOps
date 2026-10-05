@@ -150,7 +150,8 @@
 - **CFOP, CST/CSOSN e unidade comercial NAO ficam no produto** — sao derivados na emissao
   (`natureza-operacao.ts`). CFOP e propriedade da *operacao*: a mesma cortina e 5102 dentro
   do estado e 6102 fora. Guardar no produto forcaria correcao manual em toda venda
-  interestadual. CST/CSOSN sai do regime do emitente; a unidade sai do `inventoryUnit`.
+  interestadual. CST/CSOSN sai do regime do emitente e da operacao (ver abaixo); a unidade
+  sai do `inventoryUnit`.
 - **O gatilho usa o token da EMPRESA daquele ambiente, na base daquele ambiente** — mesma
   regra da emissao. **O token e o que define o ambiente do gatilho no provedor**: registrar
   com o token da conta cria um hook de PRODUCAO (o painel mostra "Utilizar Token: Token
@@ -188,11 +189,46 @@
 - **O cron `processInvoiceRetries` (15 min) nao e redundancia, e o unico backstop.** O Focus
   retenta a notificacao em 1min, 30min, 1h, 3h e 24h e depois **nunca mais dispara**. Uma queda
   de entrega nessa janela deixaria a nota presa em `processing` para sempre.
-- **A nota nasce de um documento de negocio**, nunca de formulario em branco:
+- **A nota de VENDA nasce de um documento de negocio**:
   `POST /v1/fiscal/invoices/from-proposal/:id` e `from-transaction/:id`. Uma proposta
   **mista gera DUAS notas** — NF-e da mercadoria e NFS-e da mao de obra —, separadas por
   `ProposalProduct.itemType`. Faltando qualquer dado fiscal, **nenhuma** e enviada: meia
   venda mista faturada e pior que nenhuma.
+- **A nota SEM venda e avulsa** (`POST /v1/fiscal/invoices/manual`, previa em
+  `POST .../preview/manual`): remessa para conserto, devolucao de compra, retorno,
+  demonstracao, outras saidas. So NF-e. Nasceu do pedido da AWA (05/10/2026), que emitia
+  essas notas em outro sistema digitando na hora, sem puxar o XML da entrada. A linha
+  aceita produto do catalogo (`productId`, de onde vem NCM, unidade e origem, conferindo o
+  `tenantId` do produto: o id vem do corpo) ou item so digitado (codigo `AVULSO-n`, NCM
+  obrigatorio na propria linha). `assembleManualNfe` e `assembleInvoices` passam pelo
+  MESMO `buildNfe` (CFOP, ICMS, IPI, total, finalidade): a avulsa nao e uma segunda
+  implementacao da regra. Lacuna que se corrige na propria nota tem `scope: "nota"`.
+- **A emissao pela proposta e REVISADA antes de sair.** O botao abre o formulario de
+  emissao, que recalcula por `POST .../preview/from-proposal/:id` (o GET segue para o
+  convite pos-aprovacao) e envia as edicoes em `nfe` no corpo do `from-proposal`:
+  operacao, observacao, transporte, chaves referenciadas e, por linha, IPI e situacao do
+  ICMS. Os VALORES da linha nao se editam ali: a nota de uma venda bate com a venda. A
+  edicao de linha vai por indice + `productId`; se a proposta mudou entre abrir e enviar,
+  `NOTA_DESATUALIZADA` (409) em vez de por o IPI de um produto em outro.
+- **A operacao decide CFOP, finalidade, referencia e ICMS** (`natureza-operacao.ts`).
+  Fora da venda (`tributada: false`) a situacao do ICMS NAO vem do produto (que descreve a
+  venda dele): sai **900** no Simples, o que a remessa real da AWA usa (NF 50936), e
+  **90** no Regime Normal. A pessoa troca por linha na nota, porque suspensao do conserto
+  e ICMS da devolucao variam por estado. Natureza desconhecida no corpo e 400, nunca a
+  padrao: cair na venda em silencio poria uma remessa na rua tributada.
+- **Devolucao exige a chave da nota devolvida** (`finalidade_emissao` 4 +
+  `notas_referenciadas`); sem ela a SEFAZ recusa, entao vira lacuna antes do envio. Nos
+  retornos e em "outras saidas" a chave e opcional. Chave com tamanho errado e 400.
+- **IPI so sai quando alguem pediu** (`nfe-extras.ts`): nada e derivado do catalogo. CST
+  de SAIDA apenas (50 a 55, 99); base padrao = valor da linha, valor = base x aliquota
+  (valor digitado vence), `cEnq` padrao 999; CST nao tributado vai sem base e valor. O IPI
+  **entra no total da nota** (`valorTotal` = produtos + IPI) e vai em `valor_ipi`.
+- **Padrao fiscal do contato** (`clients.fiscalDefaults`: observacao e IPI), so NF-e. A
+  nota para ele ja nasce com os dois, inclusive no convite e na emissao automatica; na
+  tela continuam editaveis (`ipi: null` na linha tira). A observacao do documento de
+  origem (descricao do lancamento) SOMA-SE a do contato; a da tela substitui as duas.
+- **Transporte**: sem `transporte`, "sem frete" (9) como sempre. Com ele vao modalidade,
+  transportadora (CNPJ ou CPF pelo tamanho) e volumes com peso.
 - **Botoes e gatilhos automaticos chamam as MESMAS funcoes** (`invoice-issue.service.ts`),
   entao nao existe caminho automatico que pule uma validacao do manual.
 - **`GET /v1/fiscal/invoices/preview/from-proposal/:id` responde sem emitir.** Reaproveita
