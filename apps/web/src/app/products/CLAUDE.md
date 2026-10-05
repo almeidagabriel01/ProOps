@@ -288,12 +288,17 @@ passo no tutorial.
   Custo zero: `markup: null` e `markupApplies: false` (use `sellingPrice` como
   preço unitário com markup 0). Desconto maior que a margem dá markup negativo
   (`belowCost`). Serviço (só tem preço): `resolveServiceTablePrice`.
-- **Na proposta (ligação pendente):** o formulário lê o `priceTableId` do
-  cliente escolhido, busca a tabela com `useClientPriceTable(priceTableId)`
-  (devolve `null` sem o módulo no plano, e o cliente volta ao catálogo) e chama
-  as duas funções acima ao montar cada linha. Hoje `calculateProposalProductPricing`
-  zera markup negativo (`Math.max(0, ...)`): ao ligar, isso precisa aceitar o
-  markup da tabela.
+- **Na proposta:** o formulário (`useProposalForm.core.ts`) lê o
+  `priceTableId` do cliente escolhido, busca a tabela com
+  `useClientPriceTable` (devolve `null` sem o módulo no plano, e o cliente
+  volta ao catálogo) e troca o CATÁLOGO do formulário por
+  `applyPriceTableToCatalog(produtos, tabela)`. Com isso toda linha nova
+  (sistema, extra, "Restaurar valor padrão") nasce no preço da tabela sem cada
+  caminho conhecê-la; linha que já estava mantém o preço com que entrou, e o
+  carregamento de proposta existente usa o catálogo original. O passo dos
+  itens avisa qual tabela vale (`ClientPriceTableNotice`). Abaixo do custo a
+  linha fica no custo (markup 0): markup negativo é zerado no recálculo e no
+  backend. Guard: `lib/pricing/__tests__/price-table-catalog.test.ts`.
 - Excluir tabela em uso é recusado pelo backend (409, com quantos clientes a
   usam); a aba mostra a mensagem num toast.
 - **Demo:** a conta free lê a tabela de exemplo do nicho dela (a API resolve o

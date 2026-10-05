@@ -12,6 +12,7 @@ import { MasterDataAction } from "./useMasterDataTransaction";
 import { ClientType } from "@/services/client-service";
 import { ProposalWorkflow } from "@/lib/niches/config";
 import { ProposalProductPricingDetails } from "@/lib/product-pricing";
+import type { PriceTable } from "@/lib/pricing/price-table";
 
 export interface UseProposalFormProps {
   proposalId?: string;
@@ -22,6 +23,8 @@ export interface UseProposalFormReturn {
   isSaving: boolean;
   isDirty: boolean;
   products: Array<Product | Service>;
+  /** Tabela de preço do cliente escolhido; `null` é o catálogo. */
+  clientPriceTable: PriceTable | null;
   template: ProposalTemplate | null;
   selectedClientId: string | undefined;
   isNewClient: boolean;

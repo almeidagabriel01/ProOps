@@ -209,3 +209,40 @@ export function describePriceTableAdjustment(adjustmentPercent: number): string 
   const amount = percentFormatter.format(Math.abs(adjustmentPercent));
   return adjustmentPercent < 0 ? `${amount}% de desconto` : `${amount}% de acréscimo`;
 }
+
+interface CatalogEntry extends PricedCatalogProduct {
+  itemType?: "product" | "service";
+}
+
+/**
+ * O catálogo como o cliente da proposta o vê: cada item com o preço da tabela
+ * dele. O formulário de proposta usa este catálogo no lugar do original, então
+ * tudo que nasce dele (linha do sistema, extra, "Restaurar valor padrão")
+ * já sai no preço da tabela, sem cada caminho precisar conhecê-la. Linha que já
+ * existe não muda: o preço dela foi gravado quando entrou.
+ *
+ * Abaixo do custo a linha fica no custo (markup 0): o markup negativo é zerado
+ * em todo recálculo da proposta e no backend.
+ */
+export function applyPriceTableToCatalog<T extends CatalogEntry>(
+  items: readonly T[],
+  table: PriceTableRules | null | undefined,
+): T[] {
+  if (!table) return items as T[];
+  return items.map((item) => {
+    if ((item.itemType || "product") === "service") {
+      const priced = resolveServiceTablePrice(item, table);
+      return priced.source === "catalog" ? item : { ...item, price: String(priced.sellingPrice) };
+    }
+    const priced = resolveProductTablePrice(item, table);
+    if (priced.source === "catalog") return item;
+    if (priced.heightTiers) {
+      const pricingModel = normalizeProductPricingModel(item.pricingModel);
+      return { ...item, pricingModel: { ...pricingModel, tiers: priced.heightTiers } };
+    }
+    if (priced.markup === null) {
+      return { ...item, price: String(priced.sellingPrice), markup: "0" };
+    }
+    return { ...item, markup: String(Math.max(0, priced.markup)) };
+  });
+}
