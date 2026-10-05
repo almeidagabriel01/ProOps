@@ -25,8 +25,15 @@ O controller de propostas e o mais complexo do sistema. Ele gerencia o ciclo de 
 | `POST` | `/proposals` | `createProposal` | Token Firebase + claims |
 | `PUT` | `/proposals/:id` | `updateProposal` | Token Firebase + claims |
 | `DELETE` | `/proposals/:id` | `deleteProposal` | Token Firebase + claims |
-| `GET` | `/proposals/:id/pdf` | `downloadProposalPdf` (outro controller) | Token + rate limit |
-| `POST` | `/proposals/:id/share-link` | `createShareLink` (outro controller) | Token |
+| `GET` | `/proposals/:id/pdf` | `downloadProposalPdf` (outro controller) | Token + rate limit + "Ver" em Propostas |
+| `POST` | `/proposals/:id/share-link` | `createShareLink` (outro controller) | Token + "Ver" em Propostas |
+| `GET` | `/proposals/usage?kind=client\|product\|service&id=` | `getProposalUsage` (`proposal-usage.controller.ts`) | Token + "Ver" na pagina do item ou em Propostas; devolve so `{ used }` |
+
+O PDF e o link levam os valores da proposta, entao o membro precisa de "Ver" em Propostas, a
+mesma permissao que as rules cobram na leitura direta de `proposals` (que aceitam tambem o CRM,
+`kanban`). O `usage` existe porque a checagem "esta em alguma proposta?" antes de excluir contato,
+produto ou servico era uma consulta direta no Firestore, e o membro que cuida do catalogo nao le
+proposta. Guards: `proposal-member-access.test.ts` e `proposal-usage.controller.test.ts`.
 
 ---
 

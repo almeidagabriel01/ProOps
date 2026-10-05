@@ -204,7 +204,7 @@ Mutações passam pelo backend via `callApi`:
 - **Editar:** `ProductService.updateProduct(id, data)` → `PUT /api/backend/v1/products/:id`
 - **Excluir:** via hook `useProductActions` → `deleteProduct()` → `DELETE /api/backend/v1/products/:id`
 
-Antes de excluir, o `page.tsx` verifica `ProposalService.isProductUsedInProposal()`. Se o produto estiver vinculado a uma proposta, o delete é bloqueado no frontend.
+Antes de excluir, o `page.tsx` verifica `ProposalService.isProductUsedInProposal()`, que pergunta à API (`GET /v1/proposals/usage`): as rules só deixam ler proposta a quem vê Propostas ou o CRM, e o membro do catálogo não precisa disso. Se o produto estiver vinculado a uma proposta, o delete é bloqueado no frontend.
 
 ### Upload de imagens
 

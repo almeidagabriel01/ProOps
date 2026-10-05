@@ -343,7 +343,7 @@ export const handleWebhook = async (req: Request, res: Response) => {
 
         if (interactiveId) {
           if (interactiveId === "menu_proposals") {
-            await handleListProposals(from, tenantId, user.id);
+            await handleListProposals(from, tenantId, user.id, effectiveRole);
             actionProcessed = true;
           } else if (interactiveId === "menu_financial") {
             if (!canAccessFinancial(effectiveRole)) {
@@ -399,7 +399,7 @@ export const handleWebhook = async (req: Request, res: Response) => {
             actionProcessed = true;
           } else if (interactiveId.startsWith("proposal_pdf_")) {
             const proposalId = interactiveId.replace("proposal_pdf_", "");
-            await handleSendPdf(from, tenantId, proposalId, user.id);
+            await handleSendPdf(from, tenantId, proposalId, user.id, effectiveRole);
             actionProcessed = true;
           } else if (interactiveId.startsWith("transaction_link_")) {
             const transactionId = interactiveId.replace(
@@ -418,7 +418,7 @@ export const handleWebhook = async (req: Request, res: Response) => {
           const inputId = text.trim().substring(1).trim();
           // Validate: Firestore doc IDs must be non-empty, max 128 chars, and safe charset
           if (inputId && /^[a-zA-Z0-9_-]{1,128}$/.test(inputId)) {
-            await handleSendPdf(from, tenantId, inputId, user.id);
+            await handleSendPdf(from, tenantId, inputId, user.id, effectiveRole);
             actionProcessed = true;
           } else if (inputId) {
             await sendWhatsAppMessage(
@@ -450,7 +450,7 @@ export const handleWebhook = async (req: Request, res: Response) => {
             );
 
             if (selected) {
-              await handleSendPdf(from, tenantId, selected.id, user.id);
+              await handleSendPdf(from, tenantId, selected.id, user.id, effectiveRole);
             } else {
               await sendWhatsAppMessage(
                 from,
@@ -465,7 +465,7 @@ export const handleWebhook = async (req: Request, res: Response) => {
             normalizedText.includes(t),
           )
         ) {
-          await handleListProposals(from, tenantId, user.id);
+          await handleListProposals(from, tenantId, user.id, effectiveRole);
           actionProcessed = true;
         } else if (
           normalizedText === "2" ||

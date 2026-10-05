@@ -665,6 +665,62 @@ export async function listProjectAssignees(req: Request, res: Response) {
   }
 }
 
+/**
+ * O que a tela da obra precisa da proposta para registrar os aparelhos
+ * instalados: as linhas de produto (nome, fabricante, quantidade e ambiente)
+ * e os nomes dos ambientes. Sem preço nenhum.
+ *
+ * Pela API porque as rules só deixam ler a proposta a quem vê Propostas ou o
+ * CRM, e quem registra os equipamentos da obra costuma ser o técnico.
+ */
+function equipmentSourceFromProposal(proposal: Record<string, unknown>) {
+  const asRecords = (value: unknown): Record<string, unknown>[] =>
+    Array.isArray(value) ? value.filter((v): v is Record<string, unknown> => !!v && typeof v === "object") : [];
+  const text = (value: unknown) => (typeof value === "string" ? value : undefined);
+
+  const products = asRecords(proposal.products).map((line) => ({
+    itemType: text(line.itemType),
+    status: text(line.status),
+    _isInactive: line._isInactive === true ? true : undefined,
+    quantity: typeof line.quantity === "number" ? line.quantity : Number(line.quantity) || undefined,
+    productName: text(line.productName),
+    name: text(line.name),
+    manufacturer: text(line.manufacturer),
+    ambienteInstanceId: text(line.ambienteInstanceId),
+  }));
+  const sistemas = asRecords(proposal.sistemas).map((sistema) => ({
+    sistemaId: text(sistema.sistemaId),
+    ambientes: asRecords(sistema.ambientes).map((ambiente) => ({
+      ambienteId: text(ambiente.ambienteId),
+      ambienteName: text(ambiente.ambienteName),
+    })),
+  }));
+  return { products, sistemas };
+}
+
+/** GET /v1/projects/:id/proposal-equipment */
+export async function getProjectProposalEquipment(req: Request, res: Response) {
+  try {
+    const { tenantId } = await requireProjectAccess(req, "canView");
+    if (!(await hasPagePermission(req.user, "equipment", "canCreate"))) {
+      throw new HttpError(403, "Sem permissão para registrar equipamentos.");
+    }
+    const project = await loadProjectOfTenant(String(req.params.id), tenantId);
+    if (!project) throw new HttpError(404, "Projeto não encontrado.");
+
+    const proposalId = typeof project.data.proposalId === "string" ? project.data.proposalId : "";
+    if (!proposalId) return res.json({ products: [], sistemas: [] });
+
+    const proposal = await db.collection("proposals").doc(proposalId).get();
+    if (!proposal.exists || proposal.data()?.tenantId !== tenantId) {
+      return res.json({ products: [], sistemas: [] });
+    }
+    return res.json(equipmentSourceFromProposal(proposal.data() ?? {}));
+  } catch (error) {
+    return fail(res, error, "Erro ao carregar os itens da proposta.", "project_proposal_equipment_failed");
+  }
+}
+
 /** GET /v1/projects/settings */
 export async function getProjectSettings(req: Request, res: Response) {
   try {

@@ -8,6 +8,7 @@ import {
   deleteStagePhoto,
   scheduleStage,
   unscheduleStage,
+  getProjectProposalEquipment,
   getProjectSettings,
   importProjectItems,
   listProjectAssignees,
@@ -36,6 +37,7 @@ router.post("/projects", createProject);
 router.put("/projects/:id", updateProject);
 router.delete("/projects/:id", deleteProject);
 router.post("/projects/:id/delivery-link", createDeliveryLink);
+router.get("/projects/:id/proposal-equipment", getProjectProposalEquipment);
 
 // Itens da obra (os produtos da proposta, sem valor). PUT e não PATCH: o CORS
 // da API e o `callApi` do front só conhecem GET, POST, PUT e DELETE.

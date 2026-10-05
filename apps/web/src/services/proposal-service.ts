@@ -19,7 +19,7 @@ import {
   QueryDocumentSnapshot,
   DocumentData,
 } from "firebase/firestore";
-import { Proposal, ProposalProduct } from "@/types/proposal";
+import { Proposal } from "@/types/proposal";
 import { PaginatedResult } from "./client-service";
 import { isEnvironmentProposalSystemInstance } from "@/lib/proposal-environment-utils";
 import { firstSearchToken, normalizeSearchWords } from "@/lib/search-term";
@@ -199,6 +199,22 @@ export type UpdateProposalResult = {
   /** Id do contrato em rascunho criado com as linhas de mensalidade. */
   contractCreated?: string | null;
 };
+
+async function checkProposalUsage(
+  kind: "client" | "product" | "service",
+  id: string,
+): Promise<boolean> {
+  try {
+    const params = new URLSearchParams({ kind, id });
+    const result = await callApi<{ used: boolean }>(
+      `/v1/proposals/usage?${params.toString()}`,
+    );
+    return result.used === true;
+  } catch (error) {
+    console.error("Error checking proposal usage:", error);
+    return true;
+  }
+}
 
 export const ProposalService = {
   // Saving synchronization
@@ -639,32 +655,23 @@ export const ProposalService = {
     }
   },
 
+  /**
+   * Os dois "está em alguma proposta?" passam pela API: as rules só deixam
+   * ler proposta a quem vê Propostas ou o CRM, e quem exclui um contato ou um
+   * item do catálogo não precisa disso. A resposta é só o booleano.
+   * Se não der para confirmar, bloqueia a exclusão (o padrão de antes).
+   */
   isClientUsedInProposal: async (
     clientId: string,
     tenantId: string,
   ): Promise<boolean> => {
-    // Validate both parameters are provided
     if (!clientId || !tenantId) {
       console.warn(
         "isClientUsedInProposal called without clientId or tenantId",
       );
       return false;
     }
-
-    try {
-      const q = query(
-        collection(db, COLLECTION_NAME),
-        where("tenantId", "==", tenantId),
-        where("clientId", "==", clientId),
-        limit(1),
-      );
-      const snap = await getDocs(q);
-      return !snap.empty;
-    } catch (error) {
-      console.error("Error checking client usage:", error);
-      // Block deletion to be safe if we can't verify
-      return true;
-    }
+    return checkProposalUsage("client", clientId);
   },
 
   isProductUsedInProposal: async (
@@ -672,70 +679,12 @@ export const ProposalService = {
     tenantId?: string,
     itemType: "product" | "service" = "product",
   ): Promise<boolean> => {
-    // Basic validation
     if (!productId || !tenantId) {
       console.warn(
         "isProductUsedInProposal called without productId or tenantId",
       );
       return false;
     }
-
-    try {
-      // Caminho indexado: `productRefs` (gravado pelo backend) com limit(1).
-      // Só vale quando TODA proposta do tenant já tem o campo; antes do
-      // backfill-proposal-product-refs, cai no método antigo abaixo, para nunca
-      // liberar a exclusão de um item em uso.
-      const tenantProposals = query(
-        collection(db, COLLECTION_NAME),
-        where("tenantId", "==", tenantId),
-      );
-      const [totalSnap, indexedSnap] = await Promise.all([
-        getCountFromServer(tenantProposals),
-        getCountFromServer(
-          query(
-            collection(db, COLLECTION_NAME),
-            where("tenantId", "==", tenantId),
-            where("productRefsIndexed", "==", true),
-          ),
-        ),
-      ]);
-      if (indexedSnap.data().count === totalSnap.data().count) {
-        const used = await getDocs(
-          query(
-            collection(db, COLLECTION_NAME),
-            where("tenantId", "==", tenantId),
-            where("productRefs", "array-contains", `${itemType}:${productId}`),
-            limit(1),
-          ),
-        );
-        return !used.empty;
-      }
-
-      const querySnapshot = await getDocs(tenantProposals);
-
-      // Client-side filtering because Firestore can't query inside array of objects easily
-      // without specific structure or third-party search (like Algolia)
-      for (const doc of querySnapshot.docs) {
-        const data = doc.data();
-        const products = data.products || [];
-        // Check if any product in the array matches exactly the productId
-        if (
-          Array.isArray(products) &&
-          products.some(
-            (p: ProposalProduct) =>
-              p.productId === productId && (p.itemType || "product") === itemType,
-          )
-        ) {
-          return true;
-        }
-      }
-
-      return false;
-    } catch (error) {
-      console.error("Error checking product usage:", error);
-      // In case of error, better NOT to block deletion unless we are sure, or block to be safe?
-      // Blocking to be safe is better to prevent data integrity issues.
-      return true;
-    }
+    return checkProposalUsage(itemType, productId);
   },
 };

@@ -115,13 +115,18 @@ Apenas roles `admin`, `master`, `wk` e `superadmin` podem acessar dados financei
 
 | Acao | Roles permitidos |
 |------|-----------------|
-| Ver propostas | Todos |
+| Ver propostas | dono, admins e membro com "Ver" em Propostas |
 | Resumo financeiro do dia | admin, master, wk, superadmin |
 | Saldo atual | admin, master, wk, superadmin |
 | Ultimos lancamentos | admin, master, wk, superadmin |
 | Contas da semana | admin, master, wk, superadmin |
-| PDF de proposta | Todos |
+| PDF de proposta | dono, admins e membro com "Ver" em Propostas |
 | Link de lancamento | Todos |
+
+Propostas seguem a permissao de pagina do ERP (`hasPagePermission(..., "proposals", "canView")`,
+em `ensureProposalAccess` de `whatsapp.flows.ts`): a lista leva o valor de cada proposta e o PDF abre
+a proposta inteira, e antes qualquer numero vinculado da empresa, inclusive o tecnico de campo, os
+recebia. Guard: `services/whatsapp/__tests__/whatsapp-proposals-permission.test.ts`.
 
 Tentativas nao autorizadas sao logadas via `logAction(..., "unauthorized_access_attempt", ...)`.
 

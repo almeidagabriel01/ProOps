@@ -113,7 +113,7 @@ export type Client = {
 
 ### Regra de exclusão
 
-Antes de excluir um cliente, o sistema verifica se ele está vinculado a alguma proposta usando `ProposalService.isClientUsedInProposal()`. Se sim, a exclusão é bloqueada com uma mensagem de erro.
+Antes de excluir um cliente, o sistema verifica se ele está vinculado a alguma proposta usando `ProposalService.isClientUsedInProposal()`, que pergunta à API (`GET /v1/proposals/usage`, só o booleano): as rules só deixam ler proposta a quem vê Propostas ou o CRM. Se sim, a exclusão é bloqueada com uma mensagem de erro.
 
 ```typescript
 // Em use-contacts-ctrl.ts — handleDelete()

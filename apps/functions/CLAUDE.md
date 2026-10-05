@@ -687,7 +687,11 @@ nichos: chamado de alarme, manutenção de ar-condicionado, suporte de automaç�
 - **Aviso ao técnico** (`service_order_assigned`, direto): quando a OS passa
   para ele ou a data muda; quem fez a mudança não é avisado.
 - **Equipamentos da obra** (`POST /v1/equipment/batch`, até 50): a tela da obra
-  manda os aparelhos escolhidos da proposta, ligados ao `projectId`.
+  manda os aparelhos escolhidos da proposta, ligados ao `projectId`. As linhas
+  da proposta chegam por `GET /v1/projects/:id/proposal-equipment` (Projetos
+  ver + Equipamentos criar), só nome, fabricante, quantidade e ambiente, sem
+  preço: quem registra costuma ser o técnico, e as rules não deixam o membro
+  sem Propostas ou CRM ler a proposta.
 - **Lançar no financeiro** (`POST /v1/service-orders/:id/transaction`): a OS
   concluída vira receita à vista ou parcelada, com ou sem entrada, montada por
   `buildLaunchPlan` do MESMO jeito que a tela de Novo lançamento (restante

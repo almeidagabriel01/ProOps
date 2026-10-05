@@ -1,5 +1,6 @@
 import { Request, Response } from "express";
 import { getOrGenerateProposalPdf } from "../services/proposal-pdf.service";
+import { hasPagePermission } from "../../lib/auth-helpers";
 import {
   buildPdfContentDisposition,
   buildPdfFilename,
@@ -17,6 +18,13 @@ export async function downloadProposalPdf(req: Request, res: Response) {
     const authTenantId = String(req.user?.tenantId || "").trim();
     if (!isSuperAdmin && !authTenantId) {
       return res.status(401).json({ message: "Unauthorized" });
+    }
+    // O PDF carrega os valores da proposta: o membro precisa de "Ver" em
+    // Propostas, a mesma permissão que as rules cobram na leitura direta.
+    if (!(await hasPagePermission(req.user, "proposals", "canView"))) {
+      return res
+        .status(403)
+        .json({ message: "Sem permissão para ver propostas." });
     }
 
     const result = await getOrGenerateProposalPdf(

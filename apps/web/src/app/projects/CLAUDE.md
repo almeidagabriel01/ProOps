@@ -150,7 +150,7 @@ e contam no armazenamento do plano.
 | `_lib/projects.ts` | Rótulos, progresso (espelha o backend), filtros, atraso |
 | `components/features/projects/proposal-project-button.tsx` | Atalho na proposta |
 | `app/share/project/[token]/` | Página pública da entrega |
-| `components/features/field-service/project-equipment-dialog.tsx` | "Registrar equipamentos": os produtos da proposta viram equipamentos do cliente (só com `fieldService`) |
+| `components/features/field-service/project-equipment-dialog.tsx` | "Registrar equipamentos": os produtos da proposta viram equipamentos do cliente (só com `fieldService`). Lê as linhas por `GET /v1/projects/:id/proposal-equipment` (Projetos ver + Equipamentos criar, sem preço), e não pelo SDK: quem registra costuma ser o técnico, que não deve ler a proposta |
 | Backend | `api/services/projects/` (a visita em `project-schedule.ts`, puro, e `project-schedule-store.ts`; os itens em `project-items.ts`, puro), `api/controllers/projects.controller.ts`, `shared-projects.controller.ts`, `api/routes/projects.routes.ts` |
 
 ## Pendente de propósito

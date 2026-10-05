@@ -29,6 +29,7 @@ import {
   updateProposalNumbering,
 } from "../controllers/proposal-numbering.controller";
 import { downloadProposalPdf } from "../controllers/proposal-pdf.controller";
+import { getProposalUsage } from "../controllers/proposal-usage.controller";
 import {
   discardClientAcceptance,
   resolveClientChangeRequest,
@@ -82,6 +83,8 @@ router.delete("/clients/:id/notes/:noteId", deleteClientNote);
 // `PUT /proposals/numbering` cairia no update de proposta com id "numbering".
 router.get("/proposals/numbering", getProposalNumbering);
 router.put("/proposals/numbering", updateProposalNumbering);
+// "Este contato/produto/serviço está em alguma proposta?", antes de excluir.
+router.get("/proposals/usage", getProposalUsage);
 router.post("/proposals", createProposal);
 router.put("/proposals/:id", updateProposal);
 // Aceite do cliente pelo link: a empresa descarta para ajustar. Confirmar é

@@ -152,6 +152,7 @@ import {
   createDeliveryLink,
   createProject,
   deleteProject,
+  getProjectProposalEquipment,
   importProjectItems,
   listProjectAssignees,
   scheduleStage,
@@ -696,5 +697,93 @@ describe("itens da obra", () => {
       expect(other.statusCode).toBe(404);
       expect(projectUpdates).toHaveLength(0);
     });
+  });
+});
+
+describe("itens da proposta para os equipamentos da obra", () => {
+  // As rules só deixam ler a proposta a quem vê Propostas ou o CRM. Quem
+  // registra os aparelhos da obra costuma ser o técnico, então a tela pega da
+  // API só o que precisa: nome, fabricante, quantidade e ambiente, sem preço.
+  beforeEach(() => {
+    projects.comProposta = { tenantId: "t1", title: "Casa", proposalId: "prop1", stages: [] };
+    docs.proposals.prop1 = {
+      tenantId: "t1",
+      title: "Casa",
+      totalValue: 18500,
+      products: [
+        {
+          productId: "ar1",
+          productName: "Split 12k",
+          manufacturer: "LG",
+          quantity: 2,
+          unitPrice: 3200,
+          total: 6400,
+          itemType: "product",
+          ambienteInstanceId: "sis1-amb1",
+        },
+        { productId: "inst", productName: "Instalação", itemType: "service", unitPrice: 900 },
+      ],
+      sistemas: [{ sistemaId: "sis1", ambientes: [{ ambienteId: "amb1", ambienteName: "Sala", total: 6400 }] }],
+    };
+  });
+
+  it("devolve as linhas sem nenhum valor", async () => {
+    const res = fakeRes();
+    await getProjectProposalEquipment(fakeReq({ id: "comProposta" }), res);
+    expect(res.statusCode).toBe(200);
+    expect(res.body).toEqual({
+      products: [
+        {
+          itemType: "product",
+          quantity: 2,
+          productName: "Split 12k",
+          manufacturer: "LG",
+          ambienteInstanceId: "sis1-amb1",
+        },
+        { itemType: "service", productName: "Instalação" },
+      ].map((line) => expect.objectContaining(line)),
+      sistemas: [{ sistemaId: "sis1", ambientes: [{ ambienteId: "amb1", ambienteName: "Sala" }] }],
+    });
+    const json = JSON.stringify(res.body);
+    expect(json).not.toMatch(/unitPrice|total|3200|6400|18500|900/);
+  });
+
+  it("confere Projetos (ver) e Equipamentos (criar)", async () => {
+    await getProjectProposalEquipment(fakeReq({ id: "comProposta" }), fakeRes());
+    expect(hasPagePermission).toHaveBeenCalledWith(expect.anything(), "projects", "canView");
+    expect(hasPagePermission).toHaveBeenCalledWith(expect.anything(), "equipment", "canCreate");
+  });
+
+  it("sem a permissão de equipamentos: 403", async () => {
+    hasPagePermission.mockImplementation(async (_c: unknown, pageId: string) => pageId !== "equipment");
+    const res = fakeRes();
+    await getProjectProposalEquipment(fakeReq({ id: "comProposta" }), res);
+    expect(res.statusCode).toBe(403);
+  });
+
+  it("sem a permissão de projetos: 403", async () => {
+    hasPagePermission.mockImplementation(async (_c: unknown, pageId: string) => pageId !== "projects");
+    const res = fakeRes();
+    await getProjectProposalEquipment(fakeReq({ id: "comProposta" }), res);
+    expect(res.statusCode).toBe(403);
+  });
+
+  it("projeto de outra empresa: 404", async () => {
+    const res = fakeRes();
+    await getProjectProposalEquipment(fakeReq({ id: "outro" }), res);
+    expect(res.statusCode).toBe(404);
+  });
+
+  it("proposta de outra empresa não vaza: lista vazia", async () => {
+    projects.comProposta.proposalId = "propFora";
+    const res = fakeRes();
+    await getProjectProposalEquipment(fakeReq({ id: "comProposta" }), res);
+    expect(res.body).toEqual({ products: [], sistemas: [] });
+  });
+
+  it("obra sem proposta: lista vazia", async () => {
+    const res = fakeRes();
+    await getProjectProposalEquipment(fakeReq({ id: "p1" }), res);
+    expect(res.body).toEqual({ products: [], sistemas: [] });
   });
 });

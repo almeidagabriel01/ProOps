@@ -14,6 +14,7 @@ import {
 import { db } from "@/lib/firebase";
 import { callApi, callPublicApi } from "@/lib/api-client";
 import type { ScheduleLike } from "@/lib/projects/stage-schedule";
+import type { Proposal } from "@/types/proposal";
 import type {
   Project,
   ProjectChecklistItem,
@@ -114,6 +115,14 @@ export const ProjectsService = {
   ) => callApi(`/v1/projects/${id}`, "PUT", input),
 
   remove: (id: string) => callApi(`/v1/projects/${id}`, "DELETE"),
+
+  /**
+   * As linhas de produto e os ambientes da proposta da obra, sem preço, para
+   * registrar os aparelhos instalados. Pela API porque quem registra costuma
+   * ser o técnico, que não lê proposta pelo SDK.
+   */
+  getProposalEquipmentSource: (id: string) =>
+    callApi<Pick<Proposal, "products" | "sistemas">>(`/v1/projects/${id}/proposal-equipment`),
 
   updateStage: (id: string, stageId: string, input: { name?: string; status?: StageStatus }) =>
     callApi<{ stage: ProjectStage }>(`/v1/projects/${id}/stages/${stageId}`, "PUT", input),
