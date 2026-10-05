@@ -318,6 +318,19 @@ totalValue = subtotal - discount_amount + extraExpense
 
 `closedValue` (quando definido e não-null) representa o valor negociado final e sobrescreve o `totalValue` para fins de aprovação.
 
+**Lucro** (`lib/proposal/profit.ts`, o mesmo nas três telas do formulário): o
+custo é só dos produtos (`unitPrice × quantity`); serviço é mão de obra e entra
+inteiro no lucro. No pagamento e no resumo final, lucro = total cobrado (com
+desconto ou valor combinado) − `extraExpense` (custo repassado) − custo dos
+produtos. A mensalidade fica fora. Até 2026-10 o lucro era só o markup dos
+produtos e ignorava o desconto.
+
+**Valor digitado na linha** (fluxo de sistemas): o valor do produto é um campo.
+Quem vende digita o preço final e `markupForLineTotal` deriva o markup, com o
+custo intacto. Por isso `recalculateProposalProduct` usa o markup DA LINHA ao
+mudar quantidade ou medida (antes voltava ao do catálogo e desfazia a edição);
+só "Restaurar valor padrão" pede o do catálogo (`markupFrom: "catalog"`).
+
 ---
 
 ## Wizard Multi-Etapas (`SimpleProposalForm`)

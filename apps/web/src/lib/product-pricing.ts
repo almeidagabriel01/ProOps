@@ -102,6 +102,40 @@ export function parsePricingNumber(value: unknown): number {
   return 0;
 }
 
+/**
+ * Valor digitado à mão num campo de preço: "1.600,00", "1600,5", "1600.50",
+ * "R$ 1.600". "1.600" sem vírgula é milhar, como se escreve aqui. NaN quando
+ * não há número.
+ */
+export function parseTypedMoney(input: string): number {
+  const clean = input.replace(/[^\d.,]/g, "");
+  if (!clean) return Number.NaN;
+  if (clean.includes(",")) {
+    return Number.parseFloat(clean.replace(/\./g, "").replace(",", "."));
+  }
+  if (/^\d{1,3}(\.\d{3})+$/.test(clean)) {
+    return Number.parseFloat(clean.replace(/\./g, ""));
+  }
+  return Number.parseFloat(clean);
+}
+
+/**
+ * Markup que faz a linha valer `targetTotal` sem mexer no custo, para quem
+ * vende digitar o preço final (arredondar para 1.600) em vez de ajustar o
+ * markup até bater. `null` sem custo ou quantidade para derivar. Abaixo do
+ * custo devolve 0: markup negativo é zerado em todo recálculo.
+ */
+export function markupForLineTotal(
+  unitCost: number,
+  quantity: number,
+  targetTotal: number,
+): number | null {
+  if (!(unitCost > 0) || !(quantity > 0)) return null;
+  if (!Number.isFinite(targetTotal) || targetTotal < 0) return null;
+  const markup = (targetTotal / quantity / unitCost - 1) * 100;
+  return roundPricingValue(Math.max(0, markup), 8);
+}
+
 export function roundPricingValue(value: number, decimals: number = 2): number {
   const factor = 10 ** decimals;
   return Math.round((Number.isFinite(value) ? value : 0) * factor) / factor;

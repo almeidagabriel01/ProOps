@@ -179,9 +179,15 @@ export function buildProposalProductFromTemplate(
   });
 }
 
+interface RecalculateProposalProductOptions {
+  /** De onde vem o markup quando há item de catálogo. Padrão: o da linha. */
+  markupFrom?: "line" | "catalog";
+}
+
 export function recalculateProposalProduct(
   product: ProposalProduct,
   catalogItem?: CatalogItem,
+  options: RecalculateProposalProductOptions = {},
 ): ProposalProduct {
   const itemType = product.itemType || "product";
 
@@ -237,9 +243,20 @@ export function recalculateProposalProduct(
     };
   }
 
+  // O markup da linha é de quem vende: editado à mão ou derivado do preço
+  // digitado. Mudar a quantidade ou a medida não pode devolvê-lo ao do
+  // catálogo; só "Restaurar valor padrão" pede o do catálogo.
+  const lineMarkup =
+    options.markupFrom !== "catalog" &&
+    typeof product.markup === "number" &&
+    Number.isFinite(product.markup)
+      ? String(product.markup)
+      : null;
   const calculated = calculateProposalProductPricing({
     price: catalogItem.price,
-    markup: "markup" in catalogItem ? catalogItem.markup : String(product.markup || 0),
+    markup:
+      lineMarkup ??
+      ("markup" in catalogItem ? catalogItem.markup : String(product.markup || 0)),
     pricingModel: "pricingModel" in catalogItem ? catalogItem.pricingModel : undefined,
     quantity: product.quantity,
     unitPrice: product.unitPrice,
@@ -386,5 +403,6 @@ export function resetProposalProductPriceToDefault(
       priceManuallyEdited: false,
     },
     catalogItem,
+    { markupFrom: "catalog" },
   );
 }

@@ -30,6 +30,7 @@ import {
 } from "lucide-react";
 import { MasterDataAction } from "@/hooks/proposal/useMasterDataTransaction";
 import { getPrimaryAmbiente } from "@/lib/sistema-migration-utils";
+import { markupForLineTotal, parseTypedMoney } from "@/lib/product-pricing";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -928,7 +929,12 @@ function ProductRow({
     (product.unitPrice || 0).toString(),
   );
   const [isEditingPrice, setIsEditingPrice] = React.useState(false);
+  const [saleInput, setSaleInput] = React.useState("");
+  const [isEditingSale, setIsEditingSale] = React.useState(false);
   const { group } = useNicheVocabulary();
+  // Sem custo não há markup a derivar: o valor fica só para leitura.
+  const canTypeSalePrice =
+    isActive && !isService && (product.unitPrice || 0) > 0 && product.quantity > 0;
 
   React.useEffect(() => {
     setMarkup(product.markup || 0);
@@ -960,6 +966,27 @@ function ProductRow({
     if (e.key === "Enter") {
       e.currentTarget.blur();
     }
+  };
+
+  // Quem vende digita o valor final da linha e o markup é recalculado, com o
+  // custo intacto (o lucro continua certo).
+  const handleSaleBlur = () => {
+    setIsEditingSale(false);
+    const typed = parseTypedMoney(saleInput);
+    if (!Number.isFinite(typed)) return;
+    if (Math.abs(typed - (product.total || 0)) < 0.005) return;
+    const nextMarkup = markupForLineTotal(
+      product.unitPrice || 0,
+      product.quantity,
+      typed,
+    );
+    if (nextMarkup === null) return;
+    onUpdateMarkup(
+      product.productId,
+      nextMarkup,
+      product.systemInstanceId,
+      product.itemType || "product",
+    );
   };
 
   const handleStatusToggle = async (e: React.MouseEvent) => {
@@ -1196,6 +1223,29 @@ function ProductRow({
               onBlur={handlePriceBlur}
               onKeyDown={handlePriceKeyDown}
               className="w-20 h-7 text-base md:text-sm text-right border rounded-md pl-6 pr-1 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all bg-background hover:border-gray-400"
+            />
+          </div>
+        ) : canTypeSalePrice ? (
+          <div className="relative flex items-center group">
+            <span className="absolute left-2 text-xs text-muted-foreground">
+              R$
+            </span>
+            <input
+              type="text"
+              inputMode="decimal"
+              aria-label={`Valor de ${product.productName}`}
+              title="Digite o valor final: o markup é recalculado"
+              value={
+                isEditingSale ? saleInput : (product.total || 0).toFixed(2)
+              }
+              onFocus={() => {
+                setIsEditingSale(true);
+                setSaleInput((product.total || 0).toFixed(2).replace(".", ","));
+              }}
+              onChange={(e) => setSaleInput(e.target.value)}
+              onBlur={handleSaleBlur}
+              onKeyDown={handlePriceKeyDown}
+              className="w-24 h-7 text-base md:text-sm font-semibold text-right tabular-nums border rounded-md pl-6 pr-1 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all bg-background hover:border-gray-400"
             />
           </div>
         ) : (
