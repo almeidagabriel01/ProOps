@@ -1,5 +1,5 @@
 import { ProposalProduct } from "@/services/proposal-service";
-import { countsInProposalTotal } from "@/lib/proposal/monthly-lines";
+import { proposalLinesProfit, proposalSaleValue } from "@/lib/proposal/profit";
 
 interface ProposalFinancialSummarySmallProps {
   selectedProducts: ProposalProduct[];
@@ -10,23 +10,10 @@ export function ProposalFinancialSummarySmall({
   selectedProducts,
   className,
 }: ProposalFinancialSummarySmallProps) {
-  // A mensalidade vira contrato: fora do valor e do lucro da venda.
-  const saleProducts = selectedProducts.filter(countsInProposalTotal);
-
-  // Calculate total selling value (with markup)
-  const totalValue = saleProducts.reduce((sum, p) => {
-    return sum + p.total;
-  }, 0);
-
-  // Calculate total profit (markup only)
-  const totalProfit = saleProducts.reduce((sum, p) => {
-    if ((p.itemType || "product") === "service") {
-      return sum;
-    }
-    const basePrice = p.unitPrice * p.quantity;
-    const profit = basePrice * ((p.markup || 0) / 100);
-    return sum + profit;
-  }, 0);
+  // A mensalidade vira contrato: fora do valor e do lucro da venda. O serviço
+  // entra inteiro no lucro; o desconto só existe no passo de pagamento.
+  const totalValue = proposalSaleValue(selectedProducts);
+  const totalProfit = proposalLinesProfit(selectedProducts);
 
   return (
     <div

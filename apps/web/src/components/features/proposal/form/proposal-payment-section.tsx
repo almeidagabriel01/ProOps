@@ -26,6 +26,7 @@ import {
   PROPOSAL_PAYMENT_METHOD_OPTIONS,
 } from "@/lib/proposal-payment";
 import { countsInProposalTotal, monthlyTotal } from "@/lib/proposal/monthly-lines";
+import { proposalProfit } from "@/lib/proposal/profit";
 
 interface ProposalPaymentSectionProps {
   formData: Partial<Proposal>;
@@ -131,16 +132,13 @@ export function ProposalPaymentSection({
   const saleProducts = selectedProducts.filter(countsInProposalTotal);
   const monthly = monthlyTotal(selectedProducts);
   const productsValue = saleProducts.reduce((sum, p) => sum + p.total, 0);
-  const totalProfit = saleProducts.reduce((sum, p) => {
-    if ((p.itemType || "product") === "service") {
-      return sum;
-    }
-    const basePrice = p.unitPrice * p.quantity;
-    const profit = basePrice * ((p.markup || 0) / 100);
-    return sum + profit;
-  }, 0);
   const extraExpense = formData.extraExpense || 0;
   const finalTotal = calculateTotal();
+  const totalProfit = proposalProfit({
+    lines: selectedProducts,
+    finalTotal,
+    extraExpense,
+  });
   const downPaymentType = formData.downPaymentType || "value";
   const downPaymentPercentage = formData.downPaymentPercentage || 0;
   const effectiveDownPaymentValue =
