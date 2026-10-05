@@ -221,7 +221,8 @@ para elementos da página, então não quebra quando um layout muda.
   sem saída).
 - Só abre sozinho para conta nova (as sementes gravam o estado no cadastro).
   Qualquer pessoa reabre por "Tutorial da plataforma", no menu do perfil, que
-  retoma o tour em andamento ou recomeça do zero.
+  retoma o tour em andamento ou recomeça do zero, sempre na tela em que a
+  pessoa está (sem passo próprio, o card oferece a próxima tela do tour).
 - O card fica no canto inferior direito, acima da Lia, e no desktop pode ser
   arrastado pela faixa do título (setas também; Home, duplo clique ou "voltar
   ao canto" desfazem). A posição é conveniência por navegador, em

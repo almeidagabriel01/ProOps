@@ -80,9 +80,11 @@ test.describe("Onboarding: conta nova paga", () => {
     await expect(card).toBeHidden();
     await expect.poll(async () => (await savedOnboarding()).status).toBe("skipped");
 
+    // Reabrir pelo menu mantém a pessoa na tela em que ela está.
     await openUserMenuItem(page, "Tutorial da plataforma");
-    await page.waitForURL(/\/dashboard$/);
     await expect(card).toBeVisible();
+    await expect(card.getByRole("heading", { name: "Propostas" })).toBeVisible();
+    await expect(page).toHaveURL(/\/proposals\/new$/);
     await expect(welcome).toBeHidden();
     await expect.poll(async () => (await savedOnboarding()).status).toBe("active");
   });

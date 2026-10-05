@@ -304,7 +304,7 @@ describe("reabrir pelo menu", () => {
     ["skipped", { ...ACTIVE_SEEN, status: "skipped" as const, completedStepIds: ["dashboard"] }],
     ["completed", { ...ACTIVE_SEEN, status: "completed" as const }],
     ["sem campo (conta antiga)", undefined],
-  ])("a partir de %s recomeça do zero sem boas-vindas", async (_label, state) => {
+  ])("a partir de %s recomeça do zero sem boas-vindas e fica na tela", async (_label, state) => {
     onboardingState = state;
     pathname = "/contacts";
     renderShell();
@@ -315,8 +315,50 @@ describe("reabrir pelo menu", () => {
     expect(saved.status).toBe("active");
     expect(saved.completedStepIds).toEqual([]);
     expect(saved.welcomeSeenAt).toBeTruthy();
-    expect(push).toHaveBeenCalledWith("/dashboard");
+    expect(saved.currentStepId).toBe("contacts");
+    expect(push).not.toHaveBeenCalled();
     await waitFor(() => expect(screen.getByTestId("onboarding-card")).toBeInTheDocument());
+    expect(screen.getByText("Você está nesta tela agora.")).toBeInTheDocument();
+  });
+
+  it("numa rota aninhada fica na tela e descreve o passo dela", async () => {
+    onboardingState = { ...ACTIVE_SEEN, status: "skipped" };
+    pathname = "/proposals/new";
+    renderShell();
+    await act(async () => {
+      fireEvent.click(screen.getByText("menu-tutorial"));
+    });
+    expect(updateOnboarding.mock.calls[0][0].currentStepId).toBe("proposals");
+    expect(push).not.toHaveBeenCalled();
+    await waitFor(() =>
+      expect(screen.getByRole("heading", { name: "Propostas" })).toBeInTheDocument(),
+    );
+  });
+
+  it("numa tela sem passo fica nela e oferece a primeira tela do tour", async () => {
+    onboardingState = { ...ACTIVE_SEEN, status: "completed" };
+    pathname = "/profile";
+    renderShell();
+    await act(async () => {
+      fireEvent.click(screen.getByText("menu-tutorial"));
+    });
+    expect(updateOnboarding.mock.calls[0][0].currentStepId).toBe("dashboard");
+    expect(push).not.toHaveBeenCalled();
+    await waitFor(() =>
+      expect(screen.getByText("Próxima tela do tour.")).toBeInTheDocument(),
+    );
+  });
+
+  it("conta demo também fica na tela", async () => {
+    isDemo = true;
+    onboardingState = { ...ACTIVE_SEEN, status: "skipped" };
+    pathname = "/contacts";
+    renderShell();
+    await act(async () => {
+      fireEvent.click(screen.getByText("menu-tutorial"));
+    });
+    expect(updateOnboarding.mock.calls[0][0].currentStepId).toBe("contacts");
+    expect(push).not.toHaveBeenCalled();
   });
 
   it("com o tour em andamento só reabre o card, sem perder o progresso", async () => {
