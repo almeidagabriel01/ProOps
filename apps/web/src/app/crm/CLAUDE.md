@@ -14,7 +14,7 @@ Três modos de uso:
 ## Estrutura de rotas
 
 ```
-/crm                        → Página principal com Tabs (propostas | leads | lançamentos)
+/crm                        → Página principal com Tabs (leads | propostas | lançamentos), abrindo em propostas
 /crm?tab=transactions       → Abre diretamente na aba de lançamentos
 /crm?tab=leads              → Abre na aba de leads
 /crm?tab=leads&lead=<id>    → Abre a ficha do lead (link do lembrete no sino)

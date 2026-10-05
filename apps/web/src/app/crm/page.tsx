@@ -131,20 +131,21 @@ export default function KanbanPage() {
           onValueChange={handleTabChange}
           className="w-full space-y-6 flex-1 flex flex-col"
         >
+          {/* Na ordem da jornada: o lead vem antes da proposta. */}
           <TabsList className="w-fit bg-muted/50 p-1 rounded-xl h-auto">
-            <TabsTrigger
-              value="proposals"
-              className="gap-2 rounded-lg px-4 py-2.5 data-[state=active]:bg-background data-[state=active]:shadow-sm"
-            >
-              <LayoutDashboard className="w-4 h-4" />
-              Propostas
-            </TabsTrigger>
             <TabsTrigger
               value="leads"
               className="gap-2 rounded-lg px-4 py-2.5 data-[state=active]:bg-background data-[state=active]:shadow-sm"
             >
               <Target className="w-4 h-4" />
               Leads
+            </TabsTrigger>
+            <TabsTrigger
+              value="proposals"
+              className="gap-2 rounded-lg px-4 py-2.5 data-[state=active]:bg-background data-[state=active]:shadow-sm"
+            >
+              <LayoutDashboard className="w-4 h-4" />
+              Propostas
             </TabsTrigger>
             <TabsTrigger
               value="transactions"
