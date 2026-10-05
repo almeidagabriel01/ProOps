@@ -98,7 +98,7 @@ export function ContactsToolbar({
       <ResponsibleFilterSelect
         value={responsibleFilter}
         onChange={setResponsibleFilter}
-        mineLabel="Meus clientes"
+        mineLabel={typeFilter === "arquiteto" ? "Meus arquitetos" : "Meus clientes"}
         includePartners
         className="w-full sm:w-56"
       />

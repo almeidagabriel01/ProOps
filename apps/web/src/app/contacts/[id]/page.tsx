@@ -323,7 +323,7 @@ export default function EditCustomerPage() {
         types: formData.types,
         commissionPercentage: formData.commissionPercentage,
         linkedMemberId: isCommissionPartner(formData) ? formData.linkedMemberId : null,
-        // Deixou de ser cliente: ninguém mais cuida dele.
+        // Deixou de ser cliente ou arquiteto: ninguém mais cuida dele.
         responsibleMemberId: showsContactResponsibles(formData.types)
           ? formData.responsibleMemberId
           : null,

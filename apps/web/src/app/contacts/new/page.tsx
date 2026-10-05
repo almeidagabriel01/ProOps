@@ -211,7 +211,7 @@ export default function NewCustomerPage() {
         commissionPercentage: formData.commissionPercentage,
         // Só parceiro (vendedor ou arquiteto) fica ligado a um membro.
         linkedMemberId: isCommissionPartner(formData) ? formData.linkedMemberId : null,
-        // Quem cuida do cliente só vale para cliente.
+        // Quem cuida do contato só vale para cliente e arquiteto.
         ...(showsContactResponsibles(formData.types)
           ? {
               responsibleMemberId: formData.responsibleMemberId,

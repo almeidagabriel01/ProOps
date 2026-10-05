@@ -162,8 +162,11 @@ Endereço pelo mesmo motivo (`addressSibling` de `ProposalClientSection`).
 
 **Quem cuida do cliente** (`responsibleMemberId` e `partnerContactIds`, bloco
 `_components/contact-responsibles-section.tsx`, o mesmo no cadastro e na
-edição): só para contato do tipo cliente, em todos os planos. A proposta herda
-os dois ao escolher o cliente. A lista ganha a coluna "Responsável" (o nome
+edição): para contato do tipo cliente e, desde 2026-10, arquiteto, em todos os
+planos. No arquiteto ele é o vendedor que cuida do relacionamento (pedido de
+cliente: cada vendedor filtra "os seus arquitetos" na aba Arquitetos), e os
+parceiros externos oferecidos são só vendedores. Vendedor e fornecedor não têm
+o bloco. A proposta herda os dois ao escolher o cliente. A lista ganha a coluna "Responsável" (o nome
 vem gravado no contato) e o filtro "Responsável" (`resp` no endereço: `eu`,
 `m:<uid>` ou `p:<contato>`, modelo em `lib/contacts/responsible-filter.ts`),
 que entra no modo filtrado e consulta por igualdade sem índice novo. A equipe
