@@ -15,7 +15,12 @@ import { logger } from "../../../lib/logger";
 import { getFiscalSettings } from "./fiscal-settings.service";
 import {
   assembleInvoices,
+  assembleManualNfe,
+  describeNfe,
   type AssemblyResult,
+  type ManualNfeLine,
+  type NfeEdits,
+  type NfeView,
   type ProposalItem,
 } from "./invoice-assembly.service";
 import {
@@ -74,6 +79,8 @@ export async function issueFromProposal(
     naturezaOperacao?: NaturezaOperacao;
     observacoes?: string;
     transactionId?: string;
+    /** Edições do formulário de emissão (IPI, transporte, observação). */
+    nfe?: NfeEdits;
   } = {},
 ): Promise<IssueFromSourceResult> {
   const settings = await getFiscalSettings(tenantId);
@@ -101,6 +108,7 @@ export async function issueFromProposal(
     items: proposal.products ?? [],
     naturezaOperacao: options.naturezaOperacao,
     observacoes: options.observacoes,
+    nfe: options.nfe,
     proposalId,
   });
 
@@ -216,8 +224,11 @@ export interface IssuePreview {
   /** Franquia do mes. `limit: -1` = ilimitado (Enterprise). */
   cota?: InvoiceQuota;
   gaps: FiscalGap[];
-  /** Uma entrada por documento que seria emitido — duas numa venda mista. */
-  documentos: Array<{ type: FiscalDocumentType; valorTotal: number }>;
+  /**
+   * Uma entrada por documento que seria emitido — duas numa venda mista.
+   * A NF-e traz o detalhe (`nfe`) para a tela de emissão revisar.
+   */
+  documentos: Array<{ type: FiscalDocumentType; valorTotal: number; nfe?: NfeView }>;
   /**
    * Notas autorizadas ou em processamento já vindas desta proposta.
    *
@@ -239,6 +250,16 @@ export interface IssuePreview {
 export async function previewFromProposal(
   tenantId: string,
   proposalId: string,
+  options: {
+    naturezaOperacao?: NaturezaOperacao;
+    nfe?: NfeEdits;
+    /**
+     * A tela de emissão mostra a nota mesmo antes da primeira autorização: é
+     * por ela que sai a nota de teste que deixa o emitente pronto. Só o
+     * convite pós-aprovação para em `FISCAL_NAO_PRONTO`.
+     */
+    ignoreReadiness?: boolean;
+  } = {},
 ): Promise<IssuePreview> {
   const empty = { gaps: [], documentos: [], jaEmitidas: [] };
 
@@ -272,7 +293,7 @@ export async function previewFromProposal(
 
   // Só `ready` prova credenciamento na SEFAZ/prefeitura. Antes disso a emissão
   // sairia, mas voltaria rejeitada — e o convite teria sido uma armadilha.
-  if (settings.status !== "ready") {
+  if (settings.status !== "ready" && !options.ignoreReadiness) {
     return { canIssue: false, reason: "FISCAL_NAO_PRONTO", ...empty, jaEmitidas };
   }
 
@@ -281,9 +302,23 @@ export async function previewFromProposal(
     settings,
     clientId: proposal.clientId,
     items: proposal.products ?? [],
+    naturezaOperacao: options.naturezaOperacao,
+    nfe: options.nfe,
     proposalId,
   });
 
+  return summarizePreview(tenantId, assembly, jaEmitidas);
+}
+
+/**
+ * A resposta da prévia a partir do que foi montado. Compartilhada entre a
+ * proposta e a nota avulsa, para as duas dizerem "pode emitir" pela mesma regra.
+ */
+async function summarizePreview(
+  tenantId: string,
+  assembly: AssemblyResult,
+  jaEmitidas: ExistingInvoiceSummary[],
+): Promise<IssuePreview> {
   // Convidar a emitir uma nota que o 402 vai recusar seria o mesmo erro do
   // convite sobre emitente nao credenciado.
   const cota = await getInvoiceQuota(tenantId);
@@ -304,9 +339,49 @@ export async function previewFromProposal(
     documentos: assembly.invoices.map((inv) => ({
       type: inv.type,
       valorTotal: inv.valorTotal,
+      ...(inv.type === "nfe" ? { nfe: describeNfe(inv.input) } : {}),
     })),
     jaEmitidas,
   };
+}
+
+export interface ManualNfeRequest {
+  clientId: string;
+  naturezaOperacao: NaturezaOperacao;
+  linhas: ManualNfeLine[];
+  nfe?: Omit<NfeEdits, "linhas">;
+}
+
+/** Prévia da nota avulsa: o que sairia e o que falta, sem emitir. */
+export async function previewManualNfe(
+  tenantId: string,
+  request: ManualNfeRequest,
+): Promise<IssuePreview> {
+  const empty = { gaps: [], documentos: [], jaEmitidas: [] };
+  const settings = await getFiscalSettings(tenantId);
+  if (!settings) {
+    return { canIssue: false, reason: "FISCAL_NAO_CONFIGURADO", ...empty };
+  }
+  // Sem a trava de `ready`: a nota avulsa também serve de nota de teste.
+  const assembly = await assembleManualNfe({ tenantId, settings, ...request });
+  return summarizePreview(tenantId, assembly, []);
+}
+
+/**
+ * Emite a nota avulsa. Mesmo `dispatch` da proposta: tudo ou nada, cota
+ * conferida antes, uma nota criada só quando não falta dado.
+ */
+export async function issueManualNfe(
+  tenantId: string,
+  request: ManualNfeRequest,
+  options: { createdBy?: string } = {},
+): Promise<IssueFromSourceResult> {
+  const settings = await getFiscalSettings(tenantId);
+  if (!settings) {
+    throw new Error("FISCAL_NAO_CONFIGURADO");
+  }
+  const assembly = await assembleManualNfe({ tenantId, settings, ...request });
+  return dispatch(assembly, { tenantId, settings, createdBy: options.createdBy });
 }
 
 /**

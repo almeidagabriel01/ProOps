@@ -135,6 +135,17 @@ ações no rodapé é `sticky` dentro do `<main>`, e não `fixed`: quem rola é 
 `<main>`, e a barra de abas do celular fica logo abaixo dele. Regras do backend
 em `apps/functions/CLAUDE.md`, seção Assistência técnica.
 
+A **emissão da NF-e** tem página própria, `/invoices/new`: sem parâmetro é a
+nota avulsa (remessa para conserto, devolução de compra, retorno), aberta pelo
+"Nova nota" de `/invoices`; com `?proposal=<id>` é a revisão da nota da venda,
+aberta pelo "Emitir NF" da proposta e pelo "Revisar e emitir" da janela
+"Proposta aprovada" (`invoiceEditorPath`, em `lib/fiscal/nfe-form.ts`). A tela
+não calcula nada da nota: a cada mudança ela pede a prévia ao backend e mostra
+CFOP, ICMS, IPI, total e lacunas de lá. Campo que a pessoa não tocou (IPI da
+linha, observação) não vai no corpo, para o padrão fiscal do contato valer.
+Mesmo `pageId` (`invoices`, criar) e mesma capacidade (`fiscal`) da lista. Regras
+no `apps/functions/src/api/services/fiscal/CLAUDE.md`.
+
 O **portal do cliente** também tem duas pontas: o botão "Portal do cliente"
 na ficha do contato (`/contacts/[id]`, ao lado das abas) e a página pública em
 `/share/portal/[token]`. Detalhes em `share/CLAUDE.md`.

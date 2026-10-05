@@ -19,7 +19,10 @@ jest.mock("../../../lib/logger", () => ({
   logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() },
 }));
 jest.mock("./fiscal-settings.service", () => ({ getFiscalSettings }));
-jest.mock("./invoice-assembly.service", () => ({ assembleInvoices }));
+jest.mock("./invoice-assembly.service", () => ({
+  assembleInvoices,
+  describeNfe: () => undefined,
+}));
 jest.mock("./invoice.service", () => ({
   listInvoicesByProposal,
   createInvoice: jest.fn(),
@@ -132,6 +135,26 @@ describe("previewFromProposal", () => {
     expect(preview.canIssue).toBe(false);
     expect(preview.reason).toBe("FISCAL_NAO_PRONTO");
     expect(assembleInvoices).not.toHaveBeenCalled();
+  });
+
+  it("a tela de emissão vê a nota antes da primeira autorização", async () => {
+    // É por ela que sai a nota de teste que deixa o emitente pronto: travar
+    // aqui impediria a empresa nova de emitir a primeira nota.
+    getFiscalSettings.mockResolvedValue({ status: "registered" });
+
+    const preview = await previewFromProposal("t1", "p1", { ignoreReadiness: true });
+
+    expect(preview.canIssue).toBe(true);
+    expect(assembleInvoices).toHaveBeenCalled();
+  });
+
+  it("repassa as edições da tela para a montagem", async () => {
+    const nfe = { observacoes: "Pedido 545" };
+    await previewFromProposal("t1", "p1", { naturezaOperacao: "venda_producao_propria", nfe });
+
+    expect(assembleInvoices).toHaveBeenCalledWith(
+      expect.objectContaining({ naturezaOperacao: "venda_producao_propria", nfe }),
+    );
   });
 
   it("nega quando o fiscal nem foi configurado, sem tocar na proposta", async () => {

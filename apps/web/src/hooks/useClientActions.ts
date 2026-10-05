@@ -8,7 +8,7 @@
 import { useState } from "react";
 import { toast } from '@/lib/toast';
 import { callApi } from "@/lib/api-client";
-import type { ClientType } from "@/services/client-service";
+import type { Client, ClientType } from "@/services/client-service";
 import { describeContactTypes } from "@/lib/contacts/commission-partner";
 
 // ============================================
@@ -50,6 +50,8 @@ export interface CreateClientData {
   inscricaoEstadual?: string;
   /** Ausente = derivado do documento pelo backend (CPF nunca e "isento"). */
   indicadorIe?: "contribuinte" | "isento" | "nao_contribuinte";
+  /** Padrão da NF-e para o contato (observação e IPI). `null` = sem padrão. */
+  fiscalDefaults?: Client["fiscalDefaults"] | null;
   source?: "manual" | "proposal" | "financial"; // default manual
   targetTenantId?: string; // For super admin to create for a specific tenant
 }

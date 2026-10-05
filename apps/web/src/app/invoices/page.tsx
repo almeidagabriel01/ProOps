@@ -12,6 +12,7 @@ import {
   FileInput,
   FileOutput,
   FileText,
+  Plus,
   RefreshCw,
   Settings,
   XCircle,
@@ -39,6 +40,7 @@ import { useSort } from "@/hooks/use-sort";
 import { Loader } from "@/components/ui/loader";
 import { InvoicesTableSkeleton } from "./_components/invoices-skeleton";
 import { EmptyState } from "@/components/shared/empty-state";
+import { invoiceEditorPath } from "@/lib/fiscal/nfe-form";
 
 const STATUS_META: Record<
   FiscalInvoiceStatus,
@@ -109,7 +111,7 @@ function StatusBadge({ status }: { status: FiscalInvoiceStatus }) {
 export default function InvoicesPage() {
   // Cancelar uma nota autorizada e o "excluir" deste modulo: a nota nao sai do
   // acervo (guarda legal de 5 anos), mas deixa de valer.
-  const { canDelete: canCancel } = usePagePermission("invoices");
+  const { canDelete: canCancel, canCreate } = usePagePermission("invoices");
   const {
     hasFiscal,
     hasFiscalReceiving,
@@ -502,6 +504,16 @@ export default function InvoicesPage() {
               Configuração fiscal
             </Link>
           </Button>
+          {/* A nota sem venda: remessa para conserto, devolução, retorno. A
+              de venda continua saindo da proposta. */}
+          {canCreate && (
+            <Button asChild>
+              <Link href={invoiceEditorPath()}>
+                <Plus className="mr-2 h-4 w-4" />
+                Nova nota
+              </Link>
+            </Button>
+          )}
         </div>
       </header>
 
@@ -514,7 +526,7 @@ export default function InvoicesPage() {
           <EmptyState
             icon={FileText}
             title="Nenhuma nota emitida ainda"
-            description="As notas aparecem aqui assim que forem emitidas a partir de um lançamento ou de uma proposta aprovada."
+            description="As notas aparecem aqui assim que forem emitidas a partir de uma proposta aprovada, ou pela Nova nota, para remessas e devoluções."
           />
         ) : (
           <DataTable

@@ -11,6 +11,11 @@ import {
   isDerivedFreeAddress,
 } from "@/lib/fiscal/format-address";
 import {
+  describeFiscalDefaults,
+  fiscalDefaultsFromClient,
+  fiscalDefaultsToPayload,
+} from "@/lib/fiscal/client-fiscal-defaults";
+import {
   ClientFiscalFields,
   EMPTY_CLIENT_FISCAL,
   type ClientFiscalValues,
@@ -215,6 +220,7 @@ export default function EditCustomerPage() {
               codigoIbge: data.enderecoFiscal?.codigoIbge ?? "",
               inscricaoEstadual: data.inscricaoEstadual ?? "",
               indicadorIe: data.indicadorIe ?? "",
+              ...fiscalDefaultsFromClient(data),
             },
           };
           setFormData(initialFormData);
@@ -355,6 +361,7 @@ export default function EditCustomerPage() {
           codigoIbge: formData.fiscal.codigoIbge.replace(/\D/g, ""),
         },
         inscricaoEstadual: formData.fiscal.inscricaoEstadual.trim(),
+        fiscalDefaults: fiscalDefaultsToPayload(formData.fiscal),
         ...(formData.fiscal.indicadorIe
           ? { indicadorIe: formData.fiscal.indicadorIe as Client["indicadorIe"] }
           : {}),
@@ -515,6 +522,10 @@ export default function EditCustomerPage() {
                   value={formData.fiscal.inscricaoEstadual}
                 />
               </FormGroup>
+              <FormStatic
+                label="Padrão para as notas"
+                value={describeFiscalDefaults(formData.fiscal)}
+              />
             </div>
             <StepNavigation />
           </FormStepCard>

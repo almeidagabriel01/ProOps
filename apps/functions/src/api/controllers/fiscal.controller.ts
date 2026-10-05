@@ -69,9 +69,18 @@ import {
 } from "../services/fiscal/invoice-quota.service";
 import {
   issueFromProposal,
+  issueManualNfe,
   previewFromProposal,
+  previewManualNfe,
   issueFromTransaction,
+  type ManualNfeRequest,
 } from "../services/fiscal/invoice-issue.service";
+import {
+  NFE_REQUEST_ERRORS,
+  parseManualLines,
+  parseNatureza,
+  parseNfeEdits,
+} from "../services/fiscal/nfe-request";
 import { registerFiscalWebhooks } from "../services/fiscal/fiscal-webhook-registration.service";
 import {
   CANCELLATION_JUSTIFICATION_MAX_LENGTH,
@@ -127,6 +136,10 @@ const FISCAL_ERROR_MESSAGES: Record<string, string> = {
     "O contrato deste lançamento não tem cliente.",
   FISCAL_COTA_MENSAL_ATINGIDA:
     "Voce atingiu o limite de notas fiscais do mes no seu plano. O limite renova no dia 1; para emitir sem limite, fale com a gente sobre o plano Enterprise.",
+  NOTA_DESATUALIZADA:
+    "A proposta mudou desde que a nota foi aberta. Feche e abra de novo para revisar os itens atuais.",
+  CLIENTE_NAO_ENCONTRADO: "O destinatário escolhido não existe mais.",
+  ...NFE_REQUEST_ERRORS,
 };
 
 export function mapFiscalErrorMessage(error: Error): string {
@@ -156,6 +169,9 @@ function mapFiscalErrorStatus(error: Error): number {
   // 402, como os demais limites de plano: nao e erro do cliente nem nosso.
   if (error.message === "FISCAL_COTA_MENSAL_ATINGIDA") return 402;
   if (error.message === "FISCAL_SETTINGS_NOT_FOUND") return 404;
+  if (error.message === "CLIENTE_NAO_ENCONTRADO") return 404;
+  if (error.message === "NOTA_DESATUALIZADA") return 409;
+  if (error.message in NFE_REQUEST_ERRORS) return 400;
   if (error.message.startsWith("CONTRATO_")) return 422;
   if (error.message === "FISCAL_CERTIFICADO_AUSENTE") return 422;
   if (error.message === "FISCAL_SETTINGS_SAVE_FAILED") return 500;
@@ -893,9 +909,9 @@ async function issueFromSource(
     const body = (req.body ?? {}) as Record<string, unknown>;
     const options = {
       createdBy: req.user?.uid,
-      naturezaOperacao: (text(body.naturezaOperacao) || undefined) as
-        | NaturezaOperacao
-        | undefined,
+      naturezaOperacao: text(body.naturezaOperacao)
+        ? parseNatureza(body.naturezaOperacao)
+        : undefined,
     };
 
     const result =
@@ -903,6 +919,7 @@ async function issueFromSource(
         ? await issueFromProposal(ctx.tenantId, id, {
             ...options,
             observacoes: text(body.observacoes) || undefined,
+            nfe: parseNfeEdits(body.nfe),
           })
         : await issueFromTransaction(ctx.tenantId, id, options);
 
@@ -1127,13 +1144,97 @@ export const previewFromProposalHandler = async (
       return;
     }
 
-    res.status(200).json(await previewFromProposal(ctx.tenantId, id));
+    // O GET (convite pós-aprovação) não tem corpo; o POST é a tela de emissão
+    // recalculando a nota com o que a pessoa mudou.
+    const body = (req.method === "POST" ? req.body ?? {} : {}) as Record<string, unknown>;
+    res.status(200).json(
+      await previewFromProposal(ctx.tenantId, id, {
+        naturezaOperacao: text(body.naturezaOperacao)
+          ? parseNatureza(body.naturezaOperacao)
+          : undefined,
+        nfe: parseNfeEdits(body.nfe),
+        ignoreReadiness: req.method === "POST",
+      }),
+    );
   } catch (error) {
     const err = error as Error;
     logger.error("Falha ao verificar emissão da proposta", { error: err.message });
     res
       .status(mapFiscalErrorStatus(err))
       .json(fiscalErrorBody(err));
+  }
+};
+
+/** Corpo da nota avulsa. @throws códigos de `NFE_REQUEST_ERRORS`. */
+function parseManualRequest(body: Record<string, unknown>): ManualNfeRequest {
+  const clientId = text(body.clientId);
+  if (!clientId) throw new Error("NOTA_AVULSA_SEM_CLIENTE");
+  // As linhas da nota avulsa vêm em `linhas`, não como edições de linha.
+  const { linhas: _ignoradas, ...nfe } = parseNfeEdits(body.nfe) ?? {};
+  return {
+    clientId,
+    naturezaOperacao: parseNatureza(body.naturezaOperacao),
+    linhas: parseManualLines(body.linhas),
+    nfe,
+  };
+}
+
+/**
+ * POST /v1/fiscal/invoices/preview/manual
+ *
+ * Prévia da nota avulsa: CFOP, ICMS, IPI e total como sairiam, e o que falta.
+ * A tela chama a cada mudança, então a regra da nota fica só no backend.
+ */
+export const previewManualNfeHandler = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const ctx = await requireInvoiceAccess(req, res, "canCreate");
+    if (!ctx) return;
+    const request = parseManualRequest((req.body ?? {}) as Record<string, unknown>);
+    res.status(200).json(await previewManualNfe(ctx.tenantId, request));
+  } catch (error) {
+    const err = error as Error;
+    logger.warn("Falha na prévia da nota avulsa", { error: err.message });
+    res.status(mapFiscalErrorStatus(err)).json(fiscalErrorBody(err));
+  }
+};
+
+/**
+ * POST /v1/fiscal/invoices/manual
+ *
+ * A nota sem venda: remessa para conserto, devolução de compra, retorno. Até
+ * aqui a nota só nascia de uma proposta, e quem mandava um equipamento para o
+ * conserto emitia em outro sistema. Mesmo despacho da proposta: tudo ou nada,
+ * com as lacunas como checklist.
+ */
+export const issueManualNfeHandler = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const ctx = await requireInvoiceAccess(req, res, "canCreate");
+    if (!ctx) return;
+    const request = parseManualRequest((req.body ?? {}) as Record<string, unknown>);
+
+    const settings = await getFiscalSettings(ctx.tenantId);
+    if (settings && !settings.habilitaNfe) {
+      res.status(422).json({
+        message: "Emissão de NF-e não está habilitada na sua configuração fiscal.",
+        code: "TIPO_NAO_HABILITADO",
+      });
+      return;
+    }
+
+    const result = await issueManualNfe(ctx.tenantId, request, { createdBy: req.user?.uid });
+    if (result.gaps.length > 0) {
+      res.status(422).json({
+        message: "Faltam dados fiscais para emitir esta nota.",
+        code: "FISCAL_INCOMPLETO",
+        gaps: result.gaps,
+      });
+      return;
+    }
+    res.status(202).json({ invoices: result.invoices });
+  } catch (error) {
+    const err = error as Error;
+    logger.error("Falha ao emitir a nota avulsa", { error: err.message });
+    res.status(mapFiscalErrorStatus(err)).json(fiscalErrorBody(err));
   }
 };
 

@@ -310,35 +310,43 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
     }
   }, [baseState, isSaving, matchedStep, save]);
 
-  const restart = React.useCallback(async () => {
-    if (isSaving || steps.length === 0) return;
-    const now = new Date().toISOString();
-    const first = steps[0];
-    const ok = await save({
-      ...baseState(),
-      version: ONBOARDING_VERSION,
-      status: "active",
-      completedStepIds: [],
-      currentStepId: first.id,
-      startedAt: now,
-      updatedAt: now,
-      completedAt: undefined,
-      skippedAt: undefined,
-      // Quem pede para refazer já sabe o que é o tutorial: sem boas-vindas.
-      welcomeSeenAt: state?.welcomeSeenAt ?? now,
-    });
-    if (!ok) return;
-    setMinimized(false);
-    router.push(first.route);
-  }, [baseState, isSaving, router, save, setMinimized, state?.welcomeSeenAt, steps]);
+  // `stayOnPage`: quem reabre pelo menu do perfil continua na tela em que
+  // está; o card descreve essa tela, ou oferece a próxima se ela não tiver
+  // passo. Antes ele sempre jogava a pessoa para o Dashboard.
+  const startOver = React.useCallback(
+    async (stayOnPage: boolean) => {
+      if (isSaving || steps.length === 0) return;
+      const now = new Date().toISOString();
+      const first = steps[0];
+      const ok = await save({
+        ...baseState(),
+        version: ONBOARDING_VERSION,
+        status: "active",
+        completedStepIds: [],
+        currentStepId: (stayOnPage ? matchedStep : null)?.id ?? first.id,
+        startedAt: now,
+        updatedAt: now,
+        completedAt: undefined,
+        skippedAt: undefined,
+        // Quem pede para refazer já sabe o que é o tutorial: sem boas-vindas.
+        welcomeSeenAt: state?.welcomeSeenAt ?? now,
+      });
+      if (!ok) return;
+      setMinimized(false);
+      if (!stayOnPage) router.push(first.route);
+    },
+    [baseState, isSaving, matchedStep, router, save, setMinimized, state?.welcomeSeenAt, steps],
+  );
+
+  const restart = React.useCallback(() => startOver(false), [startOver]);
 
   const openTutorial = React.useCallback(async () => {
     if (isActive) {
       setMinimized(false);
       return;
     }
-    await restart();
-  }, [isActive, restart, setMinimized]);
+    await startOver(true);
+  }, [isActive, startOver, setMinimized]);
 
   const closeWelcome = React.useCallback(
     async (startTour: boolean) => {

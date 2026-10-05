@@ -62,6 +62,14 @@ export type Client = {
   indicadorIe?: "contribuinte" | "isento" | "nao_contribuinte";
   consumidorFinal?: boolean;
   /**
+   * Padrão da NF-e para este contato: a observação e o IPI que já vêm
+   * preenchidos ao emitir para ele (editáveis na emissão).
+   */
+  fiscalDefaults?: {
+    observacoes?: string;
+    ipi?: { cst: string; aliquota?: number; codigoEnquadramento?: string };
+  } | null;
+  /**
    * Percentual de comissao padrao deste parceiro, usado para pre-preencher a
    * proposta. Em branco e `null`, nunca 0: zero e um percentual valido, e
    * deixar passar faria a proposta nascer com uma comissao que ninguem escolheu.

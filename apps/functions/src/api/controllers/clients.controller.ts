@@ -12,6 +12,7 @@ import {
   auditSuperAdminCrossTenantWrite,
 } from "../../lib/tenant-resolution";
 import { z } from "zod";
+import { IPI_CST_SAIDA } from "../services/fiscal/fiscal-types";
 import { sanitizeText, sanitizeRichText } from "../../utils/sanitize";
 import { buildClientSearchTokens } from "../../lib/search-tokens";
 import { cpf, cnpj } from "cpf-cnpj-validator";
@@ -61,7 +62,46 @@ export const ClientFiscalFields = {
    */
   indicadorIe: z.enum(["contribuinte", "isento", "nao_contribuinte"]).optional(),
   consumidorFinal: z.boolean().optional(),
+  /**
+   * Padrão da NF-e para este contato: observação e IPI que já vêm preenchidos
+   * ao emitir para ele. `null` apaga. Ver `ClientFiscalDefaults`.
+   */
+  fiscalDefaults: z
+    .object({
+      observacoes: z.string().max(1000).trim().optional().or(z.literal("")),
+      ipi: z
+        .object({
+          cst: z.enum(IPI_CST_SAIDA),
+          aliquota: z.number().min(0).max(100).optional(),
+          codigoEnquadramento: z.string().regex(/^\d{1,3}$/).optional().or(z.literal("")),
+        })
+        .nullable()
+        .optional(),
+    })
+    .nullable()
+    .optional(),
 };
+
+/**
+ * Padrão fiscal do contato sem campo vazio. `undefined` = nada a guardar, e
+ * o chamador apaga o campo.
+ */
+export function compactFiscalDefaults(
+  value: { observacoes?: string; ipi?: { cst: string; aliquota?: number; codigoEnquadramento?: string } | null } | null | undefined,
+): Record<string, unknown> | undefined {
+  if (!value) return undefined;
+  const out: Record<string, unknown> = {};
+  const observacoes = String(value.observacoes ?? "").trim();
+  if (observacoes) out.observacoes = observacoes;
+  if (value.ipi?.cst) {
+    out.ipi = {
+      cst: value.ipi.cst,
+      ...(typeof value.ipi.aliquota === "number" ? { aliquota: value.ipi.aliquota } : {}),
+      ...(value.ipi.codigoEnquadramento ? { codigoEnquadramento: value.ipi.codigoEnquadramento } : {}),
+    };
+  }
+  return Object.keys(out).length > 0 ? out : undefined;
+}
 
 const CreateClientSchema = z.object({
   name: z.string().min(2, "Nome deve ter pelo menos 2 caracteres.").max(200).trim(),
@@ -360,6 +400,8 @@ export const createClient = async (req: Request, res: Response) => {
       if (input.consumidorFinal !== undefined) {
         clientData.consumidorFinal = input.consumidorFinal;
       }
+      const fiscalDefaults = compactFiscalDefaults(input.fiscalDefaults);
+      if (fiscalDefaults) clientData.fiscalDefaults = fiscalDefaults;
 
       transaction.set(newClientRef, clientData);
 
@@ -564,6 +606,10 @@ export const updateClient = async (req: Request, res: Response) => {
     }
     if (updateData.consumidorFinal !== undefined) {
       safeUpdate.consumidorFinal = updateData.consumidorFinal;
+    }
+    if (updateData.fiscalDefaults !== undefined) {
+      safeUpdate.fiscalDefaults =
+        compactFiscalDefaults(updateData.fiscalDefaults) ?? FieldValue.delete();
     }
 
     // Keep indexed search tokens in sync when name/email/phone change

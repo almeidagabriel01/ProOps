@@ -82,6 +82,7 @@ describe("rotas apontam para caminhos que existem de fato", () => {
     ["/transactions", "transactions"],
     ["/calendar", "calendar"],
     ["/invoices", "invoices"],
+    ["/invoices/new", "invoices"],
   ];
 
   it.each(ROUTES)("%s resolve pageId %s exigindo view", (path, pageId) => {

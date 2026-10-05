@@ -57,6 +57,12 @@ components/
   janela alta da Nova OS em duas alturas de tela) e
   `ui/__tests__/select-wheel-in-dialog.test.tsx` (a roda não chega ao
   `document`).
+- **`FormSection` só corta o conteúdo quando é recolhível** (`collapsible`),
+  que é o caso que anima a altura. Até 2026-10-05 ele cortava sempre, e a
+  lista do `ClientSelect`/`SearchableSelect` (que abrem sem portal) saía
+  decepada na borda do card. Seletor sem portal dentro de seção recolhível
+  continua sujeito ao corte: ponha-o numa seção fixa. Guard:
+  `ui/__tests__/form-section-overflow.test.tsx`.
 - **Cadastro longo é página em etapas, não janela.** Janela que rola por dentro
   é o último recurso: o contrato de manutenção começou como janela e virou
   `/contracts/new` e `/contracts/[id]/edit` com `StepWizard`, no padrão do
@@ -215,7 +221,8 @@ para elementos da página, então não quebra quando um layout muda.
   sem saída).
 - Só abre sozinho para conta nova (as sementes gravam o estado no cadastro).
   Qualquer pessoa reabre por "Tutorial da plataforma", no menu do perfil, que
-  retoma o tour em andamento ou recomeça do zero.
+  retoma o tour em andamento ou recomeça do zero, sempre na tela em que a
+  pessoa está (sem passo próprio, o card oferece a próxima tela do tour).
 - O card fica no canto inferior direito, acima da Lia, e no desktop pode ser
   arrastado pela faixa do título (setas também; Home, duplo clique ou "voltar
   ao canto" desfazem). A posição é conveniência por navegador, em

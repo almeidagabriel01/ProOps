@@ -11,6 +11,7 @@
 
 import { brasiliaDatePart } from "./fiscal-datetime";
 import { sanitizeFiscalText } from "./fiscal-text";
+import { resolveIpi, totalIpi } from "./nfe-extras";
 import type {
   FiscalAddress,
   FiscalIeIndicator,
@@ -272,7 +273,57 @@ function buildProductLine(item: FiscalProductItem, index: number): Record<string
     line.icms_aliquota = round(item.aliquotaIcms, 4);
   }
 
+  // O grupo do XML (IPITrib ou IPINT) sai do CST no provedor; base, alíquota e
+  // valor só existem no tributado.
+  if (item.ipi) {
+    const ipi = resolveIpi(item.ipi, item.valorTotal);
+    line.ipi_situacao_tributaria = ipi.cst;
+    line.ipi_codigo_enquadramento_legal = ipi.codigoEnquadramento;
+    if (ipi.baseCalculo !== undefined) {
+      line.ipi_base_calculo = round(ipi.baseCalculo, 2);
+      line.ipi_aliquota = round(ipi.aliquota ?? 0, 4);
+      line.ipi_valor = round(ipi.valor ?? 0, 2);
+    }
+  }
+
   return line;
+}
+
+/** O bloco de transporte do DANFE. Sem `transporte`, "sem frete" como sempre. */
+function applyTransporte(payload: Record<string, unknown>, input: FiscalInvoiceInput): void {
+  const transporte = input.transporte;
+  payload.modalidade_frete = transporte?.modalidadeFrete ?? 9;
+  if (!transporte) return;
+
+  const carrier = transporte.transportadora;
+  if (carrier && trimmed(carrier.nome)) {
+    payload.nome_transportador = trimmed(carrier.nome);
+    const doc = digits(carrier.documento);
+    if (doc.length === 14) payload.cnpj_transportador = doc;
+    if (doc.length === 11) payload.cpf_transportador = doc;
+    const ie = trimmed(carrier.inscricaoEstadual);
+    if (ie) payload.inscricao_estadual_transportador = ie;
+    const endereco = trimmed(carrier.endereco);
+    if (endereco) payload.endereco_transportador = endereco;
+    const municipio = trimmed(carrier.municipio);
+    if (municipio) payload.municipio_transportador = municipio;
+    const uf = trimmed(carrier.uf).toUpperCase();
+    if (uf) payload.uf_transportador = uf;
+  }
+
+  const volumes = (transporte.volumes ?? [])
+    .map((volume) => {
+      const out: Record<string, unknown> = {};
+      if (volume.quantidade) out.quantidade = Math.round(volume.quantidade);
+      if (trimmed(volume.especie)) out.especie = trimmed(volume.especie);
+      if (trimmed(volume.marca)) out.marca = trimmed(volume.marca);
+      if (trimmed(volume.numeracao)) out.numeracao = trimmed(volume.numeracao);
+      if (volume.pesoBruto) out.peso_bruto = round(volume.pesoBruto, 3);
+      if (volume.pesoLiquido) out.peso_liquido = round(volume.pesoLiquido, 3);
+      return out;
+    })
+    .filter((volume) => Object.keys(volume).length > 0);
+  if (volumes.length > 0) payload.volumes = volumes;
 }
 
 /**
@@ -298,7 +349,8 @@ export function buildNfePayload(
     natureza_operacao: trimmed(input.naturezaOperacao) || DEFAULT_NATUREZA_OPERACAO,
     data_emissao: input.dataEmissao,
     tipo_documento: 1, // saída
-    finalidade_emissao: 1, // normal
+    // 1 normal, 4 devolução. A devolução exige a chave da nota devolvida.
+    finalidade_emissao: input.finalidade === "devolucao" ? 4 : 1,
     consumidor_final: recipient.consumidorFinal ? 1 : 0,
     presenca_comprador: recipient.consumidorFinal ? 1 : 0,
     cnpj_emitente: digits(issuer.cnpj),
@@ -322,9 +374,20 @@ export function buildNfePayload(
       products.reduce((sum, item) => sum + (Number(item.valorTotal) || 0), 0),
       2,
     ),
-    modalidade_frete: 9, // sem frete
     items: products.map(buildProductLine),
   };
+
+  applyTransporte(payload, input);
+
+  // O total da nota é produtos + IPI; o chamador já soma (`valorTotal`), e o
+  // total do grupo vai explícito para a SEFAZ conferir com as linhas.
+  const ipi = totalIpi(products);
+  if (products.some((item) => item.ipi)) payload.valor_ipi = ipi;
+
+  const chaves = (input.notasReferenciadas ?? []).map(digits).filter((chave) => chave.length === 44);
+  if (chaves.length > 0) {
+    payload.notas_referenciadas = chaves.map((chave) => ({ chave_nfe: chave }));
+  }
 
   // An 11-digit document is a CPF, 14 a CNPJ — they go in different fields.
   if (recipientDoc.length === 11) {

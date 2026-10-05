@@ -68,7 +68,7 @@ describe("uma janela só para os próximos passos", () => {
     await approve({ result: { projectSuggested: true, contractCreated: "ct1" } });
     expect(screen.getAllByRole("dialog")).toHaveLength(1);
     expect(screen.getByText("Proposta aprovada")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Emitir" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Revisar e emitir" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Criar obra" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Abrir o contrato" })).toBeInTheDocument();
   });
@@ -90,7 +90,7 @@ describe("uma janela só para os próximos passos", () => {
       resolvePreview(PODE_EMITIR);
       await decided;
     });
-    expect(screen.getByRole("button", { name: "Emitir" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Revisar e emitir" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Criar obra" })).toBeInTheDocument();
   });
 
@@ -130,13 +130,15 @@ describe("uma janela só para os próximos passos", () => {
 });
 
 describe("nota fiscal", () => {
-  it("emitir marca a linha como enviada e a janela continua com os outros passos", async () => {
+  it("revisar e emitir abre a revisão da nota, sem emitir pela janela", async () => {
+    // A nota sai da página de revisão, onde se ajusta IPI, transporte e
+    // observação. Emitir direto daqui era o caminho sem edição nenhuma.
     render(<ApprovalNextStepsHost />);
     await approve({ result: { projectSuggested: true } });
-    await userEvent.click(screen.getByRole("button", { name: "Emitir" }));
-    expect(m.issueFromProposal).toHaveBeenCalledWith("p1");
-    expect(await screen.findByText(/Enviada\./)).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Criar obra" })).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Revisar e emitir" }));
+    expect(m.push).toHaveBeenCalledWith("/invoices/new?proposal=p1");
+    expect(m.issueFromProposal).not.toHaveBeenCalled();
+    expect(screen.queryByRole("dialog")).toBeNull();
   });
 
   it.each([
@@ -145,7 +147,7 @@ describe("nota fiscal", () => {
   ])("não oferece quando %s", async (_label, preview) => {
     render(<ApprovalNextStepsHost />);
     await approve({ result: { projectSuggested: true }, preview });
-    expect(screen.queryByRole("button", { name: "Emitir" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Revisar e emitir" })).toBeNull();
     expect(screen.getByRole("button", { name: "Criar obra" })).toBeInTheDocument();
   });
 

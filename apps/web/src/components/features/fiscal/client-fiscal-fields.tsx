@@ -9,7 +9,13 @@ import {
 } from "@/components/ui/form-components";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
 import { maskCep, onlyDigits } from "@/lib/fiscal/cep";
+import {
+  EMPTY_FISCAL_DEFAULTS,
+  type FiscalDefaultsValues,
+} from "@/lib/fiscal/client-fiscal-defaults";
+import { IPI_CST_OPCOES, IPI_CST_TRIBUTADOS } from "@/lib/fiscal/nfe-form";
 
 /**
  * Endereço fiscal e indicador de IE do destinatário.
@@ -24,7 +30,7 @@ import { maskCep, onlyDigits } from "@/lib/fiscal/cep";
  * NFS-e se contenta com nome e documento.
  */
 
-export interface ClientFiscalValues {
+export interface ClientFiscalValues extends FiscalDefaultsValues {
   cep: string;
   logradouro: string;
   numero: string;
@@ -48,6 +54,7 @@ export const EMPTY_CLIENT_FISCAL: ClientFiscalValues = {
   codigoIbge: "",
   inscricaoEstadual: "",
   indicadorIe: "",
+  ...EMPTY_FISCAL_DEFAULTS,
 };
 
 interface ViaCepResponse {
@@ -286,6 +293,70 @@ export function ClientFiscalFields({
           </p>
         </FormItem>
       </FormGroup>
+
+      {/* Padrão das notas: o cliente industrial que exige o IPI informado em
+          toda nota resolve aqui uma vez. Na emissão continua editável. */}
+      <div className="space-y-4 rounded-xl border border-dashed p-4">
+        <div>
+          <p className="text-sm font-medium">Padrão para as notas deste contato</p>
+          <p className="text-xs text-muted-foreground">
+            Opcional. A nota de produto para ele já sai com o IPI e a observação daqui, e você
+            ainda pode mudar na hora de emitir.
+          </p>
+        </div>
+        <FormGroup cols={3}>
+          <FormItem label="IPI (CST)" htmlFor="cliente-ipi-cst">
+            <Select
+              id="cliente-ipi-cst"
+              value={values.ipiCst}
+              disabled={disabled}
+              disableSort
+              onChange={(e) => setField("ipiCst", e.target.value)}
+            >
+              <option value="">Sem IPI</option>
+              {IPI_CST_OPCOES.map((opcao) => (
+                <option key={opcao.value} value={opcao.value}>
+                  {opcao.label}
+                </option>
+              ))}
+            </Select>
+          </FormItem>
+          {IPI_CST_TRIBUTADOS.has(values.ipiCst) && (
+            <FormItem label="Alíquota do IPI (%)" htmlFor="cliente-ipi-aliquota">
+              <Input
+                id="cliente-ipi-aliquota"
+                inputMode="decimal"
+                value={values.ipiAliquota}
+                disabled={disabled}
+                onChange={(e) => setField("ipiAliquota", e.target.value)}
+              />
+            </FormItem>
+          )}
+          {values.ipiCst && (
+            <FormItem label="Enquadramento do IPI" htmlFor="cliente-ipi-enq">
+              <Input
+                id="cliente-ipi-enq"
+                inputMode="numeric"
+                maxLength={3}
+                placeholder="999"
+                value={values.ipiEnquadramento}
+                disabled={disabled}
+                onChange={(e) => setField("ipiEnquadramento", onlyDigits(e.target.value))}
+              />
+            </FormItem>
+          )}
+        </FormGroup>
+        <FormItem label="Observação padrão da nota" htmlFor="cliente-obs-nota">
+          <Textarea
+            id="cliente-obs-nota"
+            className="min-h-[80px]"
+            maxLength={1000}
+            value={values.observacoesNota}
+            disabled={disabled}
+            onChange={(e) => setField("observacoesNota", e.target.value)}
+          />
+        </FormItem>
+      </div>
     </div>
   );
 
