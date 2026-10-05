@@ -89,6 +89,7 @@ export type Client = {
   linkedMemberId?: string | null;        // Parceiro (vendedor ou arquiteto) que é da equipe: o membro ligado
   responsibleMemberId?: string | null;   // Quem da equipe cuida do cliente (nome em responsibleMemberName)
   partnerContactIds?: string[];          // Parceiros externos (vendedor/arquiteto) que cuidam dele
+  priceTableId?: string | null;          // Tabela de preço do cliente; ausente/null = tabela padrão (catálogo)
   source: ClientSource;     // Origem do cadastro
   sourceId?: string;        // ID da proposta ou lançamento que criou o cliente
   createdAt: string;        // ISO 8601
@@ -173,6 +174,18 @@ que entra no modo filtrado e consulta por igualdade sem índice novo. A equipe
 vem de `GET /v1/team/people` (`useContactResponsibles`); a conta de
 demonstração não chama a API. Não confundir com o `linkedMemberId` acima, que
 é o lado do parceiro.
+
+**Tabela de preço** (`priceTableId`, campo
+`_components/contact-price-table-field.tsx`, o mesmo no cadastro, na edição e
+no somente leitura): só para contato do tipo cliente e com `hasPriceTables`
+(Pro e Enterprise). "Tabela padrão (catálogo)" é o vazio (`null`). As opções vêm
+de `GET /v1/price-tables/options` (`usePriceTableOptions`), aberto a qualquer
+pessoa da empresa: quem cadastra cliente não precisa ver Produtos. Deixar de ser
+cliente salva `null` (`priceTableIdForSave`), e o backend apaga o campo do mesmo
+jeito. A edição só manda o campo quando ele muda, para um plano sem o módulo
+não regravar a tabela que o cliente já tinha (o backend recusaria escolher uma,
+402). A proposta lê o campo pelo `useClientPriceTable` (ver
+`app/products/CLAUDE.md`, Tabelas de preço).
 
 `isCommissionPartner` e a lista dos papéis ficam em
 `src/lib/contacts/commission-partner.ts`, **fora** do `client-service`: aquele

@@ -43,6 +43,7 @@ const DEMO_BLOCKED_MUTATION_PREFIXES = [
   "/v1/equipment",
   "/v1/service-contracts",
   "/v1/technical-responsibles",
+  "/v1/price-tables",
 ];
 
 /**

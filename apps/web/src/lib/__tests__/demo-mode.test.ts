@@ -39,8 +39,14 @@ describe("isDemoBlockedMutation", () => {
         expect(isDemoBlockedMutation(method, "/v1/clients/x")).toBe(true);
         expect(isDemoBlockedMutation(method, "/v1/aux/sistemas")).toBe(true);
         expect(isDemoBlockedMutation(method, "/v1/transactions")).toBe(true);
+        expect(isDemoBlockedMutation(method, "/v1/price-tables")).toBe(true);
+        expect(isDemoBlockedMutation(method, "/v1/price-tables/t1")).toBe(true);
       },
     );
+
+    test("lê as tabelas de preço da demonstração", () => {
+      expect(isDemoBlockedMutation("GET", "/v1/price-tables/options")).toBe(false);
+    });
 
     test.each([
       "/v1/stripe/checkout",

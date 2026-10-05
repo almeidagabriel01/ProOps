@@ -45,6 +45,10 @@ import {
   ContactResponsiblesSection,
   showsContactResponsibles,
 } from "../_components/contact-responsibles-section";
+import {
+  ContactPriceTableField,
+  priceTableIdForSave,
+} from "../_components/contact-price-table-field";
 
 
 const sourceLabels: Record<string, { label: string; color: string }> = {
@@ -106,6 +110,7 @@ interface EditCustomerFormData {
   linkedMemberId: string | null;
   responsibleMemberId: string | null;
   partnerContactIds: string[];
+  priceTableId: string | null;
   fiscal: ClientFiscalValues;
 }
 
@@ -122,6 +127,7 @@ const buildCustomerFormSnapshot = (formData: EditCustomerFormData): string =>
     linkedMemberId: formData.linkedMemberId,
     responsibleMemberId: formData.responsibleMemberId,
     partnerContactIds: formData.partnerContactIds,
+    priceTableId: formData.priceTableId,
     // Sem isto, editar só um campo fiscal não marcaria o formulário como sujo
     // e o botão de salvar continuaria desabilitado.
     fiscal: formData.fiscal,
@@ -172,6 +178,7 @@ export default function EditCustomerPage() {
     linkedMemberId: null,
     responsibleMemberId: null,
     partnerContactIds: [],
+    priceTableId: null,
     fiscal: EMPTY_CLIENT_FISCAL,
   });
   const [initialSnapshot, setInitialSnapshot] = React.useState<string | null>(
@@ -196,6 +203,7 @@ export default function EditCustomerPage() {
             linkedMemberId: data.linkedMemberId ?? null,
             responsibleMemberId: data.responsibleMemberId ?? null,
             partnerContactIds: data.partnerContactIds ?? [],
+            priceTableId: data.priceTableId ?? null,
             fiscal: {
               cep: data.enderecoFiscal?.cep ?? "",
               logradouro: data.enderecoFiscal?.logradouro ?? "",
@@ -242,7 +250,7 @@ export default function EditCustomerPage() {
       clearFieldError(
         name as Exclude<
           keyof typeof formData,
-          "types" | "fiscal" | "commissionPercentage" | "linkedMemberId" | "responsibleMemberId" | "partnerContactIds"
+          "types" | "fiscal" | "commissionPercentage" | "linkedMemberId" | "responsibleMemberId" | "partnerContactIds" | "priceTableId"
         >,
       );
     }
@@ -265,7 +273,7 @@ export default function EditCustomerPage() {
       validateField(
         name as Exclude<
           keyof typeof formData,
-          "types" | "fiscal" | "commissionPercentage" | "linkedMemberId" | "responsibleMemberId" | "partnerContactIds"
+          "types" | "fiscal" | "commissionPercentage" | "linkedMemberId" | "responsibleMemberId" | "partnerContactIds" | "priceTableId"
         >,
         value,
         formData,
@@ -330,6 +338,12 @@ export default function EditCustomerPage() {
         partnerContactIds: showsContactResponsibles(formData.types)
           ? formData.partnerContactIds
           : [],
+        // Só manda quando muda: um plano sem o módulo não regrava a tabela
+        // que o cliente já tinha (o backend recusaria escolher uma).
+        ...(formData.priceTableId !== (client?.priceTableId ?? null) ||
+        !formData.types.includes("cliente")
+          ? { priceTableId: priceTableIdForSave(formData.types, formData.priceTableId) }
+          : {}),
         enderecoFiscal: {
           cep: formData.fiscal.cep.replace(/\D/g, ""),
           logradouro: formData.fiscal.logradouro.trim(),
@@ -460,6 +474,12 @@ export default function EditCustomerPage() {
                 }}
                 onChange={() => undefined}
                 contactId={clientId}
+                readOnly
+              />
+              <ContactPriceTableField
+                types={formData.types}
+                value={formData.priceTableId}
+                onChange={() => undefined}
                 readOnly
               />
             </div>
@@ -688,6 +708,12 @@ export default function EditCustomerPage() {
               }}
               onChange={(responsibles) => setFormData((prev) => ({ ...prev, ...responsibles }))}
               contactId={clientId}
+            />
+
+            <ContactPriceTableField
+              types={formData.types}
+              value={formData.priceTableId}
+              onChange={(priceTableId) => setFormData((prev) => ({ ...prev, priceTableId }))}
             />
           </div>
           <StepNavigation onBeforeNext={validateStep1} />

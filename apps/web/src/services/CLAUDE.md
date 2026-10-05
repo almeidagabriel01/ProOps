@@ -26,6 +26,7 @@ services/
 ├── payment-service.ts        # Pagamentos públicos (Asaas)
 ├── pdf/                      # Geração e download de PDFs
 ├── plan-service.ts           # Planos e subscriptions
+├── price-table-service.ts    # Tabelas de preço por cliente (/v1/price-tables)
 ├── product-service.ts        # Produtos do catálogo
 ├── proposal-service.ts       # Propostas comerciais
 ├── proposal-template-service.ts
