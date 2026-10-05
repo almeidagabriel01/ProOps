@@ -16,6 +16,7 @@ export const TENANT_PURGE_BY_FIELD = [
   "clients",
   "products",
   "services",
+  "price_tables",
   "transactions",
   "transaction_groups",
   "transaction_group_sync",
