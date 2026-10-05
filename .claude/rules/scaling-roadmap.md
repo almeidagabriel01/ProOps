@@ -141,6 +141,10 @@ obrigatória** antes de produção: `reportWhatsappOverage`, `checkPriceChanges`
 > nos dois projetos. Pendente: só o deploy. (TTL de `occurrences` foi
 > investigada e descartada — seria no-op, o campo é string; ver
 > `apps/functions/CLAUDE.md`.)
+>
+> **Em 2026-10-04 os dois projetos mudaram de dono** (ver nota ao fim de 3.2).
+> O budget de R$ 200 ficou na conta de faturamento antiga; o que vale hoje é o
+> "ERP Produção", de R$ 80, com gatilhos 50/90/100%, na conta nova.
 
 Não dá para fazer por código: exigem login interativo e permissão de billing.
 
@@ -192,8 +196,8 @@ Se a URL/token faltarem, o `factory.ts` cai para memória e emite
 O item mais barato de todos e o que evita o susto: sem ele, um bug de
 amplificação de leitura é descoberto **na fatura**, 30 dias depois.
 
-A conta `softcodedv@gmail.com` enxerga os dois projetos e a billing account
-`0116E9-8D3771-9B2264`, mas a API de budgets exige `gcloud auth
+A conta `gestao.proops@gmail.com` é a dona dos dois projetos e da billing
+account "ProOps" (`01ED4C-C3849B-0169D7`), mas a API de budgets exige `gcloud auth
 application-default login` (interativo) e habilitar `billingbudgets.googleapis.com`.
 Pelo console é mais rápido:
 
@@ -212,8 +216,16 @@ Pelo console é mais rápido:
      --collection-group=ai_traces --enable-ttl --project=erp-softcode-prod
    ```
 
-> Atenção à conta: a conta gcloud ativa nesta máquina é de outra empresa. Use
-> `--account=softcodedv@gmail.com` ou troque com `gcloud config set account`.
+> **Atenção à conta.** Desde 2026-10-04 os dois projetos pertencem só a
+> `gestao.proops@gmail.com`; a `softcodedv@gmail.com` saiu do IAM e a billing
+> account antiga (`0116E9-8D3771-9B2264`) não paga mais nada da ProOps. Na
+> máquina de desenvolvimento a softcode continua logada por causa de outros
+> projetos, então o padrão global do gcloud e do Firebase CLI é ela. O ProOps
+> usa a gestao assim: o Firebase CLI guarda a conta por pasta
+> (`firebase login:use gestao.proops@gmail.com` rodado na raiz do repo), e o
+> gcloud usa a configuração `proops`, ligada nas sessões do Claude Code por
+> `CLOUDSDK_ACTIVE_CONFIG_NAME=proops` em `.claude/settings.local.json`. Num
+> terminal comum, passe `--configuration=proops`.
 
 ---
 

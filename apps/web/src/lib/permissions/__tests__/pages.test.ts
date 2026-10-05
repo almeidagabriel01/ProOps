@@ -129,6 +129,15 @@ describe("preset de técnico", () => {
     expect(perms.calendar?.canView).toBe(true);
   });
 
+  it("acompanha as obras: vê e edita Projetos, sem criar nem excluir", () => {
+    expect(perms.projects).toEqual({
+      canView: true,
+      canCreate: false,
+      canEdit: true,
+      canDelete: false,
+    });
+  });
+
   it("vê só as OS atribuídas a ele: sem service_orders_all", () => {
     expect(perms.service_orders_all).toEqual({ canView: false });
   });

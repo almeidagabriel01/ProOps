@@ -152,11 +152,14 @@ import {
   createDeliveryLink,
   createProject,
   deleteProject,
+  getProjectProposalEquipment,
+  importProjectItems,
   listProjectAssignees,
   scheduleStage,
   toggleChecklistItem,
   unscheduleStage,
   updateProject,
+  updateProjectItemsStatus,
   updateProjectSettings,
   updateStage,
   uploadStagePhoto,
@@ -561,5 +564,226 @@ describe("agendar a etapa", () => {
     const eventId = docSets[0].id;
     await deleteProject(fakeReq({ id: "p1" }), fakeRes());
     expect(docDeletes).toContainEqual({ collection: "calendar_events", id: eventId });
+  });
+});
+
+describe("itens da obra", () => {
+  const items = () => [
+    { id: "a", productId: "x", name: "Módulo", manufacturer: null, quantity: 2, groupName: "Luz", placeName: "Sala", measure: null, status: "pending", statusAt: null, statusBy: null, statusByName: null },
+    { id: "b", productId: "y", name: "Sensor", manufacturer: null, quantity: 1, groupName: "Luz", placeName: "Sala", measure: null, status: "pending", statusAt: null, statusBy: null, statusByName: null },
+  ];
+
+  beforeEach(() => {
+    projects.p1.items = items();
+    projects.outro.items = items();
+  });
+
+  describe("PUT /projects/:id/items/status", () => {
+    it("com editar Projetos: 200, marca vários com quem e quando", async () => {
+      const res = fakeRes();
+      await updateProjectItemsStatus(fakeReq({ id: "p1" }, { itemIds: ["a", "b"], status: "in_stock" }), res);
+      expect(res.statusCode).toBe(200);
+      expect(res.body).toEqual({ changed: 2 });
+      expect(hasPagePermission).toHaveBeenCalledWith(expect.anything(), "projects", "canEdit");
+      const saved = projects.p1.items as Array<Record<string, unknown>>;
+      expect(saved.map((i) => i.status)).toEqual(["in_stock", "in_stock"]);
+      expect(saved[0]).toMatchObject({ statusBy: "u1", statusByName: "Ana" });
+      expect(typeof saved[0].statusAt).toBe("string");
+    });
+
+    it("membro sem editar Projetos: 403 e nada muda", async () => {
+      hasPagePermission.mockImplementation(async (_u: unknown, page: string, action: string) =>
+        page === "projects" && action === "canView",
+      );
+      const res = fakeRes();
+      await updateProjectItemsStatus(fakeReq({ id: "p1" }, { itemIds: ["a"], status: "installed" }), res);
+      expect(res.statusCode).toBe(403);
+      expect(projectUpdates).toHaveLength(0);
+      expect((projects.p1.items as Array<{ status: string }>)[0].status).toBe("pending");
+    });
+
+    it("projeto de outra empresa: 404 e nada muda", async () => {
+      const res = fakeRes();
+      await updateProjectItemsStatus(fakeReq({ id: "outro" }, { itemIds: ["a"], status: "installed" }), res);
+      expect(res.statusCode).toBe(404);
+      expect(projectUpdates).toHaveLength(0);
+      expect((projects.outro.items as Array<{ status: string }>)[0].status).toBe("pending");
+    });
+
+    it("situação inválida ou lista vazia: 400 sem gravar", async () => {
+      for (const body of [
+        { itemIds: ["a"], status: "delivered" },
+        { itemIds: [], status: "installed" },
+        { itemIds: ["a"] },
+        { itemIds: ["a"], status: "installed", unitPrice: 10 },
+      ]) {
+        const res = fakeRes();
+        await updateProjectItemsStatus(fakeReq({ id: "p1" }, body), res);
+        expect(res.statusCode).toBe(400);
+      }
+      expect(projectUpdates).toHaveLength(0);
+    });
+
+    it("item que não existe: 404 sem gravar", async () => {
+      const res = fakeRes();
+      await updateProjectItemsStatus(fakeReq({ id: "p1" }, { itemIds: ["a", "zzz"], status: "installed" }), res);
+      expect(res.statusCode).toBe(404);
+      expect(projectUpdates).toHaveLength(0);
+    });
+
+    it("nada mudou: 200 sem gravar", async () => {
+      const res = fakeRes();
+      await updateProjectItemsStatus(fakeReq({ id: "p1" }, { itemIds: ["a"], status: "pending" }), res);
+      expect(res.body).toEqual({ changed: 0 });
+      expect(projectUpdates).toHaveLength(0);
+    });
+  });
+
+  describe("POST /projects/:id/items/import", () => {
+    beforeEach(() => {
+      projects.p1.items = [];
+      projects.p1.proposalId = "prop1";
+      docs.proposals.prop1 = {
+        tenantId: "t1",
+        totalValue: 7000,
+        products: [
+          { lineItemId: "l1", productId: "x", itemType: "product", productName: "Câmera", quantity: 3, unitPrice: 450, markup: 30, total: 1755 },
+          { lineItemId: "l2", productId: "s", itemType: "service", productName: "Instalação", quantity: 1, total: 500 },
+        ],
+        sistemas: [],
+      };
+    });
+
+    it("traz só os produtos, sem valor nenhum", async () => {
+      const res = fakeRes();
+      await importProjectItems(fakeReq({ id: "p1" }), res);
+      expect(res.statusCode).toBe(200);
+      expect(res.body).toEqual({ count: 1 });
+      const saved = projects.p1.items as Array<Record<string, unknown>>;
+      expect(saved).toEqual([expect.objectContaining({ id: "l1", name: "Câmera", quantity: 3, status: "pending" })]);
+      const json = JSON.stringify(saved);
+      for (const forbidden of ["unitPrice", "markup", "total", "450", "1755", "7000"]) {
+        expect(json).not.toContain(forbidden);
+      }
+    });
+
+    it("lista já preenchida: 409, o andamento não é apagado", async () => {
+      projects.p1.items = items();
+      const res = fakeRes();
+      await importProjectItems(fakeReq({ id: "p1" }), res);
+      expect(res.statusCode).toBe(409);
+      expect(projectUpdates).toHaveLength(0);
+    });
+
+    it("sem editar Projetos: 403; projeto avulso: 400; proposta de outra empresa: 404", async () => {
+      hasPagePermission.mockResolvedValueOnce(false);
+      const denied = fakeRes();
+      await importProjectItems(fakeReq({ id: "p1" }), denied);
+      expect(denied.statusCode).toBe(403);
+
+      projects.p1.proposalId = null;
+      const standalone = fakeRes();
+      await importProjectItems(fakeReq({ id: "p1" }), standalone);
+      expect(standalone.statusCode).toBe(400);
+
+      projects.p1.proposalId = "propFora";
+      const foreign = fakeRes();
+      await importProjectItems(fakeReq({ id: "p1" }), foreign);
+      expect(foreign.statusCode).toBe(404);
+
+      const other = fakeRes();
+      projects.outro.items = [];
+      await importProjectItems(fakeReq({ id: "outro" }), other);
+      expect(other.statusCode).toBe(404);
+      expect(projectUpdates).toHaveLength(0);
+    });
+  });
+});
+
+describe("itens da proposta para os equipamentos da obra", () => {
+  // As rules só deixam ler a proposta a quem vê Propostas ou o CRM. Quem
+  // registra os aparelhos da obra costuma ser o técnico, então a tela pega da
+  // API só o que precisa: nome, fabricante, quantidade e ambiente, sem preço.
+  beforeEach(() => {
+    projects.comProposta = { tenantId: "t1", title: "Casa", proposalId: "prop1", stages: [] };
+    docs.proposals.prop1 = {
+      tenantId: "t1",
+      title: "Casa",
+      totalValue: 18500,
+      products: [
+        {
+          productId: "ar1",
+          productName: "Split 12k",
+          manufacturer: "LG",
+          quantity: 2,
+          unitPrice: 3200,
+          total: 6400,
+          itemType: "product",
+          ambienteInstanceId: "sis1-amb1",
+        },
+        { productId: "inst", productName: "Instalação", itemType: "service", unitPrice: 900 },
+      ],
+      sistemas: [{ sistemaId: "sis1", ambientes: [{ ambienteId: "amb1", ambienteName: "Sala", total: 6400 }] }],
+    };
+  });
+
+  it("devolve as linhas sem nenhum valor", async () => {
+    const res = fakeRes();
+    await getProjectProposalEquipment(fakeReq({ id: "comProposta" }), res);
+    expect(res.statusCode).toBe(200);
+    expect(res.body).toEqual({
+      products: [
+        {
+          itemType: "product",
+          quantity: 2,
+          productName: "Split 12k",
+          manufacturer: "LG",
+          ambienteInstanceId: "sis1-amb1",
+        },
+        { itemType: "service", productName: "Instalação" },
+      ].map((line) => expect.objectContaining(line)),
+      sistemas: [{ sistemaId: "sis1", ambientes: [{ ambienteId: "amb1", ambienteName: "Sala" }] }],
+    });
+    const json = JSON.stringify(res.body);
+    expect(json).not.toMatch(/unitPrice|total|3200|6400|18500|900/);
+  });
+
+  it("confere Projetos (ver) e Equipamentos (criar)", async () => {
+    await getProjectProposalEquipment(fakeReq({ id: "comProposta" }), fakeRes());
+    expect(hasPagePermission).toHaveBeenCalledWith(expect.anything(), "projects", "canView");
+    expect(hasPagePermission).toHaveBeenCalledWith(expect.anything(), "equipment", "canCreate");
+  });
+
+  it("sem a permissão de equipamentos: 403", async () => {
+    hasPagePermission.mockImplementation(async (_c: unknown, pageId: string) => pageId !== "equipment");
+    const res = fakeRes();
+    await getProjectProposalEquipment(fakeReq({ id: "comProposta" }), res);
+    expect(res.statusCode).toBe(403);
+  });
+
+  it("sem a permissão de projetos: 403", async () => {
+    hasPagePermission.mockImplementation(async (_c: unknown, pageId: string) => pageId !== "projects");
+    const res = fakeRes();
+    await getProjectProposalEquipment(fakeReq({ id: "comProposta" }), res);
+    expect(res.statusCode).toBe(403);
+  });
+
+  it("projeto de outra empresa: 404", async () => {
+    const res = fakeRes();
+    await getProjectProposalEquipment(fakeReq({ id: "outro" }), res);
+    expect(res.statusCode).toBe(404);
+  });
+
+  it("proposta de outra empresa não vaza: lista vazia", async () => {
+    projects.comProposta.proposalId = "propFora";
+    const res = fakeRes();
+    await getProjectProposalEquipment(fakeReq({ id: "comProposta" }), res);
+    expect(res.body).toEqual({ products: [], sistemas: [] });
+  });
+
+  it("obra sem proposta: lista vazia", async () => {
+    const res = fakeRes();
+    await getProjectProposalEquipment(fakeReq({ id: "p1" }), res);
+    expect(res.body).toEqual({ products: [], sistemas: [] });
   });
 });

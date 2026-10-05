@@ -128,6 +128,11 @@ export function sanitizeProposalProductsInput(rawValue: unknown): Record<string,
       // Mensalidade: fora do total da venda, vira contrato na aprovação. Só
       // gravado quando ligado, para a linha comum sair igual a antes.
       ...(source.isMonthly === true ? { isMonthly: true } : {}),
+      // Posição escolhida ao arrastar a linha. Só gravada quando existe, para o
+      // hash do PDF das propostas antigas não mudar.
+      ...(typeof source.sortOrder === "number" && Number.isFinite(source.sortOrder)
+        ? { sortOrder: Math.min(MAX_PRODUCTS_PER_PROPOSAL, Math.max(0, Math.trunc(source.sortOrder))) }
+        : {}),
       status,
       pricingDetails:
         itemType === "service"

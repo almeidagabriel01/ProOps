@@ -89,6 +89,7 @@ export type Client = {
   linkedMemberId?: string | null;        // Parceiro (vendedor ou arquiteto) que é da equipe: o membro ligado
   responsibleMemberId?: string | null;   // Quem da equipe cuida do cliente (nome em responsibleMemberName)
   partnerContactIds?: string[];          // Parceiros externos (vendedor/arquiteto) que cuidam dele
+  priceTableId?: string | null;          // Tabela de preço do cliente; ausente/null = tabela padrão (catálogo)
   source: ClientSource;     // Origem do cadastro
   sourceId?: string;        // ID da proposta ou lançamento que criou o cliente
   createdAt: string;        // ISO 8601
@@ -113,7 +114,7 @@ export type Client = {
 
 ### Regra de exclusão
 
-Antes de excluir um cliente, o sistema verifica se ele está vinculado a alguma proposta usando `ProposalService.isClientUsedInProposal()`. Se sim, a exclusão é bloqueada com uma mensagem de erro.
+Antes de excluir um cliente, o sistema verifica se ele está vinculado a alguma proposta usando `ProposalService.isClientUsedInProposal()`, que pergunta à API (`GET /v1/proposals/usage`, só o booleano): as rules só deixam ler proposta a quem vê Propostas ou o CRM. Se sim, a exclusão é bloqueada com uma mensagem de erro.
 
 ```typescript
 // Em use-contacts-ctrl.ts — handleDelete()
@@ -162,14 +163,29 @@ Endereço pelo mesmo motivo (`addressSibling` de `ProposalClientSection`).
 
 **Quem cuida do cliente** (`responsibleMemberId` e `partnerContactIds`, bloco
 `_components/contact-responsibles-section.tsx`, o mesmo no cadastro e na
-edição): só para contato do tipo cliente, em todos os planos. A proposta herda
-os dois ao escolher o cliente. A lista ganha a coluna "Responsável" (o nome
+edição): para contato do tipo cliente e, desde 2026-10, arquiteto, em todos os
+planos. No arquiteto ele é o vendedor que cuida do relacionamento (pedido de
+cliente: cada vendedor filtra "os seus arquitetos" na aba Arquitetos), e os
+parceiros externos oferecidos são só vendedores. Vendedor e fornecedor não têm
+o bloco. A proposta herda os dois ao escolher o cliente. A lista ganha a coluna "Responsável" (o nome
 vem gravado no contato) e o filtro "Responsável" (`resp` no endereço: `eu`,
 `m:<uid>` ou `p:<contato>`, modelo em `lib/contacts/responsible-filter.ts`),
 que entra no modo filtrado e consulta por igualdade sem índice novo. A equipe
 vem de `GET /v1/team/people` (`useContactResponsibles`); a conta de
 demonstração não chama a API. Não confundir com o `linkedMemberId` acima, que
 é o lado do parceiro.
+
+**Tabela de preço** (`priceTableId`, campo
+`_components/contact-price-table-field.tsx`, o mesmo no cadastro, na edição e
+no somente leitura): só para contato do tipo cliente e com `hasPriceTables`
+(Pro e Enterprise). "Tabela padrão (catálogo)" é o vazio (`null`). As opções vêm
+de `GET /v1/price-tables/options` (`usePriceTableOptions`), aberto a qualquer
+pessoa da empresa: quem cadastra cliente não precisa ver Produtos. Deixar de ser
+cliente salva `null` (`priceTableIdForSave`), e o backend apaga o campo do mesmo
+jeito. A edição só manda o campo quando ele muda, para um plano sem o módulo
+não regravar a tabela que o cliente já tinha (o backend recusaria escolher uma,
+402). A proposta lê o campo pelo `useClientPriceTable` (ver
+`app/products/CLAUDE.md`, Tabelas de preço).
 
 `isCommissionPartner` e a lista dos papéis ficam em
 `src/lib/contacts/commission-partner.ts`, **fora** do `client-service`: aquele

@@ -12,6 +12,7 @@ hooks/
 ├── use-count-up.ts        # Animação de contagem numérica
 ├── use-horizontal-scroll-affordance.ts # Fileira de abas que rola: centra a ativa e diz de que lado há mais (esmaecido .scroll-fade-x)
 ├── use-prefers-reduced-motion.ts
+├── use-price-tables.ts    # Tabelas de preço: lista/CRUD, opções do contato e a tabela de um cliente (proposta)
 ├── use-record-search.ts   # Busca de propostas e contatos para o Ctrl+K (índice searchTokens)
 ├── use-sort.ts            # Ordenação de listas
 ├── use-tenant-activity.ts # Atividade das empresas no painel do super admin, paginada por cursor

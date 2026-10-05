@@ -98,7 +98,7 @@ const CONTEUDO: Record<FuncionalidadeSlug, Omit<Funcionalidade, "slug">> = {
     icone: Package,
     grupo: "vender",
     principal: "produtos",
-    recursos: ["produtos", "servicos", "preco-por-medida", "solucoes", "ambientes"],
+    recursos: ["produtos", "servicos", "preco-por-medida", "tabelas-de-preco", "solucoes", "ambientes"],
     pagina: {
       titulo: "O preço certo sai do",
       destaque: "catálogo",

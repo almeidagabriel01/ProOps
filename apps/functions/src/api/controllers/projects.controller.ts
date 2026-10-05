@@ -39,6 +39,12 @@ import {
   type StageSchedule,
 } from "../services/projects/project-model";
 import {
+  UpdateItemsStatusSchema,
+  applyItemsStatus,
+  buildProjectItemsFromProposal,
+  type ProjectItem,
+} from "../services/projects/project-items";
+import {
   PROJECTS_COLLECTION,
   createProjectFromProposal,
   createProjectShareLink,
@@ -425,6 +431,73 @@ export async function createDeliveryLink(req: Request, res: Response) {
   }
 }
 
+/**
+ * POST /v1/projects/:id/items/import
+ *
+ * Traz os produtos da proposta para um projeto que nasceu antes da lista de
+ * itens existir. Lê a proposta pelo Admin SDK e grava só os campos sem valor
+ * (`buildProjectItemsFromProposal`): é o que deixa o técnico, que não vê
+ * propostas, ter a lista do que instalar. Só preenche lista vazia; nunca
+ * sobrescreve o andamento já marcado.
+ */
+export async function importProjectItems(req: Request, res: Response) {
+  try {
+    const { tenantId } = await requireProjectAccess(req, "canEdit");
+    const ref = db.collection(PROJECTS_COLLECTION).doc(req.params.id);
+    const count = await db.runTransaction(async (t) => {
+      const snap = await t.get(ref);
+      const data = snap.data();
+      if (!snap.exists || data?.tenantId !== tenantId) throw new HttpError(404, "Projeto não encontrado.");
+      if (Array.isArray(data.items) && data.items.length > 0) {
+        throw new HttpError(409, "Este projeto já tem a lista de itens.");
+      }
+      const proposalId = typeof data.proposalId === "string" ? data.proposalId : "";
+      if (!proposalId) throw new HttpError(400, "Este projeto não veio de uma proposta.");
+      const proposalSnap = await t.get(db.collection("proposals").doc(proposalId));
+      const proposal = proposalSnap.data();
+      if (!proposalSnap.exists || proposal?.tenantId !== tenantId) {
+        throw new HttpError(404, "A proposta deste projeto não foi encontrada.");
+      }
+      const items = buildProjectItemsFromProposal(proposal);
+      t.update(ref, { items, updatedAt: new Date().toISOString() });
+      return items.length;
+    });
+    return res.json({ count });
+  } catch (error) {
+    return fail(res, error, "Erro ao trazer os itens da proposta.", "project_items_import_failed");
+  }
+}
+
+/**
+ * PUT /v1/projects/:id/items/status
+ *
+ * Marca um ou vários itens (compra solicitada, em estoque, instalado). Status
+ * manual: não mexe em estoque nem no financeiro. Pede editar Projetos, que o
+ * técnico tem.
+ */
+export async function updateProjectItemsStatus(req: Request, res: Response) {
+  const parsed = UpdateItemsStatusSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ message: firstIssue(parsed.error) });
+  try {
+    const { tenantId, uid } = await requireProjectAccess(req, "canEdit");
+    const actor = { uid, name: await userName(uid), now: new Date().toISOString() };
+    const ref = db.collection(PROJECTS_COLLECTION).doc(req.params.id);
+    const changed = await db.runTransaction(async (t) => {
+      const snap = await t.get(ref);
+      const data = snap.data();
+      if (!snap.exists || data?.tenantId !== tenantId) throw new HttpError(404, "Projeto não encontrado.");
+      const items = Array.isArray(data.items) ? (data.items as ProjectItem[]) : [];
+      const applied = applyItemsStatus(items, parsed.data.itemIds, parsed.data.status, actor);
+      if (applied.missing.length > 0) throw new HttpError(404, "Item não encontrado.");
+      if (applied.changed > 0) t.update(ref, { items: applied.items, updatedAt: actor.now });
+      return applied.changed;
+    });
+    return res.json({ changed });
+  } catch (error) {
+    return fail(res, error, "Erro ao atualizar os itens.", "project_items_status_failed");
+  }
+}
+
 const CALENDAR_EVENTS_COLLECTION = "calendar_events";
 /** Mesma cor para toda visita de obra, entre as seis da Agenda. */
 const SCHEDULE_EVENT_COLOR = "#0891b2";
@@ -589,6 +662,62 @@ export async function listProjectAssignees(req: Request, res: Response) {
     return res.json({ assignees });
   } catch (error) {
     return fail(res, error, "Erro ao carregar a equipe.", "project_assignees_failed");
+  }
+}
+
+/**
+ * O que a tela da obra precisa da proposta para registrar os aparelhos
+ * instalados: as linhas de produto (nome, fabricante, quantidade e ambiente)
+ * e os nomes dos ambientes. Sem preço nenhum.
+ *
+ * Pela API porque as rules só deixam ler a proposta a quem vê Propostas ou o
+ * CRM, e quem registra os equipamentos da obra costuma ser o técnico.
+ */
+function equipmentSourceFromProposal(proposal: Record<string, unknown>) {
+  const asRecords = (value: unknown): Record<string, unknown>[] =>
+    Array.isArray(value) ? value.filter((v): v is Record<string, unknown> => !!v && typeof v === "object") : [];
+  const text = (value: unknown) => (typeof value === "string" ? value : undefined);
+
+  const products = asRecords(proposal.products).map((line) => ({
+    itemType: text(line.itemType),
+    status: text(line.status),
+    _isInactive: line._isInactive === true ? true : undefined,
+    quantity: typeof line.quantity === "number" ? line.quantity : Number(line.quantity) || undefined,
+    productName: text(line.productName),
+    name: text(line.name),
+    manufacturer: text(line.manufacturer),
+    ambienteInstanceId: text(line.ambienteInstanceId),
+  }));
+  const sistemas = asRecords(proposal.sistemas).map((sistema) => ({
+    sistemaId: text(sistema.sistemaId),
+    ambientes: asRecords(sistema.ambientes).map((ambiente) => ({
+      ambienteId: text(ambiente.ambienteId),
+      ambienteName: text(ambiente.ambienteName),
+    })),
+  }));
+  return { products, sistemas };
+}
+
+/** GET /v1/projects/:id/proposal-equipment */
+export async function getProjectProposalEquipment(req: Request, res: Response) {
+  try {
+    const { tenantId } = await requireProjectAccess(req, "canView");
+    if (!(await hasPagePermission(req.user, "equipment", "canCreate"))) {
+      throw new HttpError(403, "Sem permissão para registrar equipamentos.");
+    }
+    const project = await loadProjectOfTenant(String(req.params.id), tenantId);
+    if (!project) throw new HttpError(404, "Projeto não encontrado.");
+
+    const proposalId = typeof project.data.proposalId === "string" ? project.data.proposalId : "";
+    if (!proposalId) return res.json({ products: [], sistemas: [] });
+
+    const proposal = await db.collection("proposals").doc(proposalId).get();
+    if (!proposal.exists || proposal.data()?.tenantId !== tenantId) {
+      return res.json({ products: [], sistemas: [] });
+    }
+    return res.json(equipmentSourceFromProposal(proposal.data() ?? {}));
+  } catch (error) {
+    return fail(res, error, "Erro ao carregar os itens da proposta.", "project_proposal_equipment_failed");
   }
 }
 

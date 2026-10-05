@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { Minus, Package, Plus, Search, Wrench } from "lucide-react";
+import { Check, Minus, Package, Plus, Search, Wrench } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -20,7 +20,13 @@ import { useTenant } from "@/providers/tenant-provider";
 import { useCurrentNicheConfig } from "@/hooks/useCurrentNicheConfig";
 import { ProductService, type Product } from "@/services/product-service";
 import { ServiceService, type Service } from "@/services/service-service";
-import { calculateSellingPrice, getProductBasePrice, getProductMarkup } from "@/lib/product-pricing";
+import {
+  calculateSellingPrice,
+  getProductBasePrice,
+  getProductMarkup,
+  normalizeProductPricingModel,
+  type ProductPricingMode,
+} from "@/lib/product-pricing";
 import { filterCatalogItems } from "@/lib/catalog-search";
 import { compareCatalogDisplayItem } from "@/lib/sort-text";
 import { inventoryDefinitionFor, productInventoryUnit } from "@/lib/niches/config";
@@ -40,12 +46,25 @@ export interface CatalogEntry {
   /** Só produto com estoque controlado. */
   stock: number | null;
   unit: InventoryUnit | null;
+  /** Só produto: como o preço é cobrado (unidade, m², faixa de altura...). */
+  pricingMode: ProductPricingMode | null;
 }
 
 interface CatalogPickerDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onConfirm: (items: Omit<ServiceOrderItem, "id">[]) => void;
+  title?: string;
+  description?: string;
+  /**
+   * `quantity` (padrão, OS e contrato): o cartão escolhido ganha mais e menos.
+   * `select`: só marca e desmarca, quantidade 1 (ex.: preço próprio da tabela).
+   */
+  pickMode?: "quantity" | "select";
+  /** Itens que não aparecem (`produto:id` / `servico:id` como `kind:id`). */
+  excludeKeys?: ReadonlySet<string>;
+  /** Motivo de um item não poder ser escolhido; o cartão aparece desabilitado. */
+  disabledReason?: (entry: CatalogEntry) => string | null;
 }
 
 type Filter = "all" | "product" | "service";
@@ -60,7 +79,16 @@ function servicePrice(service: Service): number {
  * proposta: busca, filtro e cartões com foto e preço. Tocar num cartão
  * escolhe o item; os botões de mais e menos acertam a quantidade.
  */
-export function CatalogPickerDialog({ open, onOpenChange, onConfirm }: CatalogPickerDialogProps) {
+export function CatalogPickerDialog({
+  open,
+  onOpenChange,
+  onConfirm,
+  title = "Adicionar do catálogo",
+  description = "Escolha as peças e os serviços do atendimento.",
+  pickMode = "quantity",
+  excludeKeys,
+  disabledReason,
+}: CatalogPickerDialogProps) {
   const { tenant } = useTenant();
   const niche = useCurrentNicheConfig();
   const [catalog, setCatalog] = React.useState<CatalogEntry[] | null>(null);
@@ -88,6 +116,7 @@ export function CatalogPickerDialog({ open, onOpenChange, onConfirm }: CatalogPi
           price: calculateSellingPrice(getProductBasePrice(p), getProductMarkup(p)),
           stock: typeof p.inventoryValue === "number" ? p.inventoryValue : null,
           unit: productInventoryUnit(p),
+          pricingMode: normalizeProductPricingModel(p.pricingModel).mode,
         }));
         const serviceEntries: CatalogEntry[] = services.map((s: Service) => ({
           kind: "service",
@@ -98,6 +127,7 @@ export function CatalogPickerDialog({ open, onOpenChange, onConfirm }: CatalogPi
           price: servicePrice(s),
           stock: null,
           unit: null,
+          pricingMode: null,
         }));
         setCatalog(
           [...productEntries, ...serviceEntries].sort((a, b) =>
@@ -116,7 +146,9 @@ export function CatalogPickerDialog({ open, onOpenChange, onConfirm }: CatalogPi
 
   const keyOf = (entry: CatalogEntry) => `${entry.kind}:${entry.id}`;
   const visible = filterCatalogItems(
-    (catalog ?? []).filter((e) => filter === "all" || e.kind === filter),
+    (catalog ?? []).filter(
+      (e) => (filter === "all" || e.kind === filter) && !excludeKeys?.has(keyOf(e)),
+    ),
     search,
   );
   const pickedCount = Object.values(picked).filter((q) => q > 0).length;
@@ -149,8 +181,8 @@ export function CatalogPickerDialog({ open, onOpenChange, onConfirm }: CatalogPi
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="flex max-h-[90vh] flex-col sm:max-w-4xl" onInteractOutside={keepOpenOnOutsideClick}>
         <DialogHeader>
-          <DialogTitle>Adicionar do catálogo</DialogTitle>
-          <DialogDescription>Escolha as peças e os serviços do atendimento.</DialogDescription>
+          <DialogTitle>{title}</DialogTitle>
+          <DialogDescription>{description}</DialogDescription>
         </DialogHeader>
 
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
@@ -191,23 +223,36 @@ export function CatalogPickerDialog({ open, onOpenChange, onConfirm }: CatalogPi
                   ? inventoryDefinitionFor(niche.productCatalog.inventory, entry.unit).unitSuffix
                   : "";
                 const selected = quantity > 0;
+                const blocked = disabledReason?.(entry) ?? null;
+                // No modo `select` o toque marca e desmarca; no de quantidade
+                // ele só escolhe, e o menos zera.
+                const press = () => {
+                  if (blocked) return;
+                  if (pickMode === "select") change(entry, selected ? -1 : 1);
+                  else if (!selected) change(entry, 1);
+                };
                 return (
                   <div
                     key={keyOf(entry)}
                     role="button"
-                    tabIndex={0}
+                    tabIndex={blocked ? -1 : 0}
                     aria-pressed={selected}
+                    aria-disabled={blocked ? true : undefined}
                     aria-label={`${entry.name}, ${formatCurrency(entry.price)}`}
-                    onClick={() => !selected && change(entry, 1)}
+                    onClick={press}
                     onKeyDown={(e) => {
-                      if ((e.key === "Enter" || e.key === " ") && !selected) {
+                      if (e.key === "Enter" || e.key === " ") {
                         e.preventDefault();
-                        change(entry, 1);
+                        press();
                       }
                     }}
                     className={cn(
-                      "flex cursor-pointer gap-3 rounded-lg border-2 p-3 transition-all",
-                      selected ? "border-primary bg-primary/5 ring-2 ring-primary/20" : "border-border hover:border-primary/50",
+                      "relative flex gap-3 rounded-lg border-2 p-3 transition-all",
+                      blocked
+                        ? "cursor-not-allowed border-border opacity-60"
+                        : selected
+                          ? "cursor-pointer border-primary bg-primary/5 ring-2 ring-primary/20"
+                          : "cursor-pointer border-border hover:border-primary/50",
                     )}
                   >
                     <div className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-md border bg-card">
@@ -236,13 +281,19 @@ export function CatalogPickerDialog({ open, onOpenChange, onConfirm }: CatalogPi
                         </Badge>
                       </div>
                       <p className="text-sm font-semibold text-primary">{formatCurrency(entry.price)}</p>
+                      {blocked && <p className="text-xs text-muted-foreground">{blocked}</p>}
                       {entry.stock !== null && (
                         <p className={cn("text-xs", entry.stock <= 0 ? "text-amber-600 dark:text-amber-400" : "text-muted-foreground")}>
                           Em estoque: {entry.stock.toLocaleString("pt-BR")}
                           {stockSuffix ? ` ${stockSuffix}` : ""}
                         </p>
                       )}
-                      {selected && (
+                      {selected && pickMode === "select" && (
+                        <span className="absolute right-2 bottom-2 flex h-5 w-5 items-center justify-center rounded-full bg-primary text-primary-foreground">
+                          <Check className="h-3 w-3" />
+                        </span>
+                      )}
+                      {selected && pickMode === "quantity" && (
                         <div className="flex items-center gap-2 pt-1" onClick={(e) => e.stopPropagation()}>
                           <Button
                             type="button"

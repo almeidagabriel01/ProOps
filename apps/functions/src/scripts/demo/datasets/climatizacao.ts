@@ -42,7 +42,17 @@ export const climatizacaoDemo: DemoDataset = {
   clients: [
     { id: "demo_clim_client_fernanda", name: "Fernanda Lopes", email: "fernanda.demo@exemplo.com", phone: "11999994001" },
     { id: "demo_clim_client_gustavo", name: "Gustavo Pires", email: "gustavo.demo@exemplo.com", phone: "11999994002" },
-    { id: "demo_clim_client_escritorio", name: "Escritório Contábil Andrade", email: "contato.demo@andradecontabil.com", phone: "1133334003" },
+    { id: "demo_clim_client_escritorio", name: "Escritório Contábil Andrade", email: "contato.demo@andradecontabil.com", phone: "1133334003", priceTableId: "demo_clim_price_table_empresas" },
+  ],
+  // Tabela de exemplo: o ajuste sobre o catálogo e um preço próprio. O cliente
+  // acima aponta para ela, e a aba de Produtos e o cadastro têm o que mostrar.
+  priceTables: [
+    {
+      id: "demo_clim_price_table_empresas",
+      name: "Contratos empresariais",
+      adjustmentPercent: -6,
+      productPrices: { [P.cassete]: 9300 },
+    },
   ],
   ambientes: [
     {
@@ -130,6 +140,7 @@ export const climatizacaoDemo: DemoDataset = {
       { status: "pending", doneItems: 0, completedOffset: null },
     ],
     visit: { eventId: "demo_clim_event_instalacao", stageIndex: 2, dayOffset: 2, hours: 4, color: "#1e40af" },
+    itemStatuses: ["installed", "installed", "installed", "installed", "in_stock", "purchase_requested", "pending", "pending"],
   },
   leads: [
     { id: "demo_clim_lead_patricia", name: "Patrícia Rocha", phone: "11988884001", source: "instagram", stage: "novo", estimatedValue: 5200, nextAction: "Agendar a visita técnica", nextActionOffset: 1 },

@@ -340,7 +340,7 @@ Funcao HTTP separada (nao faz parte do monolito `api`):
 | `transaction_categories/{tenantId}` | Financeiro | Categorias de lancamento da empresa, cada uma num grupo do DRE (`items`). Admin SDK only: a tela le e grava pela API (`finance-reports.controller.ts`), com a permissao de Lancamentos |
 | `accountant_links/{tenantId}` | Financeiro | Link do contador (`token`, `viewCount`, `lastViewedAt`). Admin SDK only: o token abre o financeiro e as notas da empresa sem login (`accountant.service.ts`) |
 | `tasks/{id}` | Tarefas | "A fazer" com responsavel, ligado ou nao a contato, proposta ou lead (`tasks.controller.ts`, pageId `tasks`, todos os planos). Da PESSOA: as rules leem `audienceUids` (quem criou, responsavel e citados); dono e admins leem todas. Escrita so via Cloud Functions |
-| `projects/{id}` | Projetos | Obra depois da venda (etapas, checklist, fotos, entrega). Id `proposal_{proposalId}` quando nasce da proposta. Tenant le; escrita so via Cloud Functions |
+| `projects/{id}` | Projetos | Obra depois da venda (etapas, checklist, fotos, entrega e os itens da proposta, sem valor). Id `proposal_{proposalId}` quando nasce da proposta. Tenant le; escrita so via Cloud Functions |
 | `project_settings/{tenantId}` | Projetos | Criacao automatica na aprovacao e roteiro de etapas. Admin SDK only |
 | `shared_projects/{id}` | Projetos | Link publico da entrega (token). Admin SDK only |
 | `customer_equipment/{id}` | Assistencia tecnica | Aparelhos instalados em cada cliente (garantia, ultimo atendimento). Tenant le; escrita so via Cloud Functions (`field-service.controller.ts`) |
@@ -352,6 +352,7 @@ Funcao HTTP separada (nao faz parte do monolito `api`):
 | `shared_pmoc/{token}` | Assistencia tecnica | Link publico do PMOC de um contrato (o id e o token; o contrato guarda `pmocShareToken`). Admin SDK only |
 | `technical_responsibles/{id}` | Assistencia tecnica | Responsavel tecnico do PMOC (conselho, registro, ART e o PDF dela). Tenant le; escrita so via Cloud Functions, pelo dono e pelos admins |
 | `stock_movements/{id}` | Estoque | Historico de estoque, gravado na mesma transacao que ajusta `inventoryValue`. Id `so_{ordem}_{revisao}_{produto}`. Tenant le; escrita so via Cloud Functions |
+| `price_tables/{id}` | Tabelas de preco | Tabela especifica (`name`, `adjustmentPercent`, `productPrices`, `servicePrices`), escolhida no contato (`clients.priceTableId`); a padrao e o catalogo, sem documento. Tenant le; escrita so via Cloud Functions (`price-tables.controller.ts`, capacidade `priceTables`, permissao de Produtos) |
 | `proposal_counters/{tenantId}` | Propostas | Configuracao e contador da numeracao (o codigo `0018926SP`). Admin SDK only |
 | `proposals/{proposalId}` | Propostas | Propostas (com `pdf.storagePath` e `pdfGenerationLock`) |
 | `transactions/{transactionId}` | Financeiro | Lancamentos financeiros |

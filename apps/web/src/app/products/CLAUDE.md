@@ -9,7 +9,8 @@ Catálogo de produtos do tenant. Permite cadastrar, editar, excluir e visualizar
 ## Estrutura de Rotas
 
 ```
-/products                  → lista paginada + cards de estoque
+/products                  → lista paginada + cards de estoque (aba Catálogo)
+/products?aba=tabelas-de-preco → abre na aba Tabelas de preço
 /products/new              → wizard de criação (5 etapas)
 /products/[id]             → edição ou visualização read-only (depende de permissão canEdit)
 ```
@@ -204,7 +205,7 @@ Mutações passam pelo backend via `callApi`:
 - **Editar:** `ProductService.updateProduct(id, data)` → `PUT /api/backend/v1/products/:id`
 - **Excluir:** via hook `useProductActions` → `deleteProduct()` → `DELETE /api/backend/v1/products/:id`
 
-Antes de excluir, o `page.tsx` verifica `ProposalService.isProductUsedInProposal()`. Se o produto estiver vinculado a uma proposta, o delete é bloqueado no frontend.
+Antes de excluir, o `page.tsx` verifica `ProposalService.isProductUsedInProposal()`, que pergunta à API (`GET /v1/proposals/usage`): as rules só deixam ler proposta a quem vê Propostas ou o CRM, e o membro do catálogo não precisa disso. Se o produto estiver vinculado a uma proposta, o delete é bloqueado no frontend.
 
 ### Upload de imagens
 
@@ -252,6 +253,65 @@ operação no backend (`natureza-operacao.ts`), porque a mesma cortina é 5102
 dentro do estado e 6102 fora.
 
 Em modo edição (`productId` definido), `allowClickAhead={true}` no `StepWizard` — o usuário pode pular entre etapas livremente.
+
+---
+
+## Tabelas de preço (aba de `/products`)
+
+"Tabela padrão e uma específica para um cliente". A **padrão é o próprio
+catálogo** (sem documento); cada tabela específica é um doc de `price_tables`,
+escolhido no cadastro do cliente (`Client.priceTableId`) e aplicado nas
+propostas dele. Pro e Enterprise (`hasPriceTables`); no Starter a aba mostra a
+coroa e abre o `UpgradeRequired`. Não tem rota nem pageId próprios: é uma aba
+do `SegmentedControl` do cabeçalho, e segue `usePagePermission("products")`
+(ver lista; criar, editar e excluir para as ações). Por não ter rota, não tem
+passo no tutorial.
+
+| Camada | Arquivo |
+|---|---|
+| Aba (lista, excluir) | `_components/price-tables-tab.tsx` |
+| Criar, editar e ver | `_components/price-table-editor-dialog.tsx`. O preço próprio se escolhe no `CatalogPickerDialog` do Novo Contrato (`components/features/field-service/`), em `pickMode="select"`, sem os itens já na tabela e com a faixa de altura desabilitada |
+| Hooks | `src/hooks/use-price-tables.ts` (`usePriceTables`, `usePriceTableOptions`, `useClientPriceTable`) |
+| Service | `src/services/price-table-service.ts` (`/v1/price-tables`) |
+| Conta pura | `src/lib/pricing/price-table.ts` |
+
+- **Duas formas na mesma tabela:** `adjustmentPercent` (negativo = desconto)
+  sobre o PREÇO DE VENDA de todo item, e preço próprio por produto ou serviço
+  (`productPrices`/`servicePrices`, na unidade de medida do item), que vence o
+  percentual. Produto por faixa de altura (`curtain_height`) não aceita preço
+  próprio: a busca do editor o mostra desabilitado e o backend recusa.
+- **A conta mora em `lib/pricing/price-table.ts`**, pura:
+  `resolveProductTablePrice(product, table)` devolve
+  `{ sellingPrice, markup, markupApplies, belowCost, source, heightTiers? }`.
+  O custo do produto não muda; o markup é recalculado para que
+  `calculateSellingPrice(custo, markup)` dê o preço da tabela no centavo.
+  Custo zero: `markup: null` e `markupApplies: false` (use `sellingPrice` como
+  preço unitário com markup 0). Desconto maior que a margem dá markup negativo
+  (`belowCost`). Serviço (só tem preço): `resolveServiceTablePrice`.
+- **Na proposta:** o formulário (`useProposalForm.core.ts`) lê o
+  `priceTableId` do cliente escolhido, busca a tabela com
+  `useClientPriceTable` (devolve `null` sem o módulo no plano, e o cliente
+  volta ao catálogo) e troca o CATÁLOGO do formulário por
+  `applyPriceTableToCatalog(produtos, tabela)`. Com isso toda linha nova
+  (sistema, extra, "Restaurar valor padrão") nasce no preço da tabela sem cada
+  caminho conhecê-la; linha que já estava mantém o preço com que entrou, e o
+  carregamento de proposta existente usa o catálogo original. O passo dos
+  itens avisa qual tabela vale (`ClientPriceTableNotice`). Abaixo do custo a
+  linha fica no custo (markup 0): markup negativo é zerado no recálculo e no
+  backend. Guard: `lib/pricing/__tests__/price-table-catalog.test.ts`.
+- Excluir tabela em uso é recusado pelo backend (409, com quantos clientes a
+  usam); a aba mostra a mensagem num toast.
+- **Demo:** a conta free lê a tabela de exemplo do nicho dela (a API resolve o
+  tenant de demonstração) e não grava (`/v1/price-tables` em
+  `DEMO_BLOCKED_MUTATION_PREFIXES`). O `PlanProvider` destrava `hasPriceTables`
+  para a conta free, como os demais módulos navegáveis.
+- Mesmo texto nos seis nichos; o nome do item vem de
+  `nicheConfig.productCatalog.singularLabel` e a unidade linear de
+  `linearPriceUnit(nicheConfig.pricing, mode)`.
+
+Guards: `lib/pricing/__tests__/price-table.test.ts`,
+`app/contacts/_components/__tests__/contact-price-table-field.test.tsx`,
+`lib/__tests__/demo-mode.test.ts` e a paridade de plano.
 
 ---
 

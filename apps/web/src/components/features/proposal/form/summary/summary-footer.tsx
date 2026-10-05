@@ -1,5 +1,6 @@
 import { ProposalProduct } from "@/services/proposal-service";
-import { countsInProposalTotal, monthlyTotal } from "@/lib/proposal/monthly-lines";
+import { monthlyTotal } from "@/lib/proposal/monthly-lines";
+import { proposalProductsCost, proposalProfit } from "@/lib/proposal/profit";
 
 interface SummaryFooterProps {
   selectedProducts: ProposalProduct[];
@@ -21,21 +22,16 @@ export function SummaryFooter({
   closedValue,
 }: SummaryFooterProps) {
   // Custo e lucro são da venda: a mensalidade fica fora, como do total.
-  const saleProducts = selectedProducts.filter(countsInProposalTotal);
   const monthly = monthlyTotal(selectedProducts);
 
-  // Calculate profit from markup
-  const totalProfit = saleProducts.reduce((sum, p) => {
-    const basePrice = (p.unitPrice || 0) * p.quantity;
-    const profit = basePrice * ((p.markup || 0) / 100);
-    return sum + profit;
-  }, 0);
-
-  // Calculate total cost (without markup) — exclude services (pure revenue, no cost basis)
-  const totalCost = saleProducts.reduce((sum, p) => {
-    if (p.itemType === "service") return sum;
-    return sum + (p.unitPrice || 0) * p.quantity;
-  }, 0);
+  // Lucro do fechamento: serviço entra inteiro, desconto e valor combinado
+  // reduzem, custo extra é repassado ao cliente.
+  const totalProfit = proposalProfit({
+    lines: selectedProducts,
+    finalTotal: Number(closedValue) > 0 ? Number(closedValue) : totalValue,
+    extraExpense,
+  });
+  const totalCost = proposalProductsCost(selectedProducts);
 
   return (
     <tfoot className="bg-muted/50">
@@ -59,7 +55,7 @@ export function SummaryFooter({
             colSpan={2}
             className="p-2 sm:p-3 text-right text-green-600 dark:text-green-400 whitespace-nowrap max-sm:whitespace-normal text-sm"
           >
-            Lucro (Markup):
+            Lucro:
           </td>
           <td className="p-2 sm:p-3 text-right font-medium text-green-600 dark:text-green-400 whitespace-nowrap text-xs sm:text-sm">
             R$ {totalProfit.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}

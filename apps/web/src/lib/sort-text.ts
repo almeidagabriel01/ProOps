@@ -58,14 +58,40 @@ export function compareCatalogDisplayItem<
   return PT_BR_COLLATOR.compare(String(a.id || ""), String(b.id || ""));
 }
 
+function finiteOrder(value: unknown): number | null {
+  return typeof value === "number" && Number.isFinite(value) ? value : null;
+}
+
+/**
+ * A ordem que quem vende escolheu ao arrastar (`sortOrder`) vence a padrão.
+ * Linha com posição vem antes da linha sem posição (o extra acrescentado
+ * depois de reordenar entra no fim); entre duas sem posição, 0, e decide a
+ * ordem padrão.
+ */
+function compareManualOrder(
+  a: { sortOrder?: number },
+  b: { sortOrder?: number },
+): number {
+  const orderA = finiteOrder(a.sortOrder);
+  const orderB = finiteOrder(b.sortOrder);
+  if (orderA !== null && orderB !== null) return orderA - orderB;
+  if (orderA !== null) return -1;
+  if (orderB !== null) return 1;
+  return 0;
+}
+
 export function compareConfiguredDisplayItem<
   T extends {
     itemType?: "product" | "service";
     productName?: string;
     productId?: string;
     lineItemId?: string;
+    sortOrder?: number;
   },
 >(a: T, b: T): number {
+  const byManualOrder = compareManualOrder(a, b);
+  if (byManualOrder !== 0) return byManualOrder;
+
   const byType = compareDisplayItemType(a.itemType, b.itemType);
   if (byType !== 0) return byType;
 
@@ -91,8 +117,12 @@ export function compareConfiguredDisplayItemWithExtras<
     productName?: string;
     productId?: string;
     lineItemId?: string;
+    sortOrder?: number;
   },
 >(a: T, b: T): number {
+  const byManualOrder = compareManualOrder(a, b);
+  if (byManualOrder !== 0) return byManualOrder;
+
   const byType = compareDisplayItemType(a.itemType, b.itemType);
   if (byType !== 0) return byType;
 

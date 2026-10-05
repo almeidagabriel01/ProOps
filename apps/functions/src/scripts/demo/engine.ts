@@ -17,6 +17,11 @@ import {
   formatPeriod,
   periodOf,
 } from "../../api/services/field-service/contract-model";
+import {
+  buildProjectItemsFromProposal,
+  type ProjectItem,
+  type ProjectItemStatus,
+} from "../../api/services/projects/project-items";
 import { buildPmocItems, pmocItemsForVisit, pmocOrderChecklist, type PmocItem } from "../../shared/pmoc";
 import type {
   DemoContract,
@@ -254,7 +259,35 @@ export function buildDemoDocs(ds: DemoDataset, opts: BuildDemoOptions): DemoWrit
     });
   });
 
+  const priceTableIds = new Set(ds.priceTables.map((t) => t.id));
+  ds.priceTables.forEach((t, i) => {
+    for (const productId of Object.keys(t.productPrices)) {
+      if (product(productId).pricingModel?.mode === "curtain_height") {
+        throw new Error(`Demo ${ds.niche}: ${productId} é por faixa de altura e não aceita preço próprio.`);
+      }
+    }
+    for (const serviceId of Object.keys(t.servicePrices ?? {})) {
+      if (!ds.services.some((s) => s.id === serviceId)) {
+        throw new Error(`Demo ${ds.niche}: serviço ${serviceId} não existe no dataset.`);
+      }
+    }
+    set(`price_tables/${t.id}`, {
+      ...tenantTag,
+      name: t.name,
+      adjustmentPercent: t.adjustmentPercent,
+      productPrices: t.productPrices,
+      servicePrices: t.servicePrices ?? {},
+      createdAt: ts(i),
+      updatedAt: ts(i),
+      createdBy: null,
+      updatedBy: null,
+    });
+  });
+
   ds.clients.forEach((c, i) => {
+    if (c.priceTableId && !priceTableIds.has(c.priceTableId)) {
+      throw new Error(`Demo ${ds.niche}: tabela de preço ${c.priceTableId} não existe no dataset.`);
+    }
     set(`clients/${c.id}`, {
       ...tenantTag,
       name: c.name,
@@ -264,6 +297,7 @@ export function buildDemoDocs(ds: DemoDataset, opts: BuildDemoOptions): DemoWrit
       source: "demo",
       sourceId: null,
       searchTokens: buildSearchTokens(c.name, c.email, c.phone),
+      ...(c.priceTableId ? { priceTableId: c.priceTableId } : {}),
       createdAt: ts(i),
       updatedAt: ts(i),
     });
@@ -329,6 +363,8 @@ export function buildDemoDocs(ds: DemoDataset, opts: BuildDemoOptions): DemoWrit
   const ambienteById = new Map(ds.ambientes.map((a) => [a.id, a]));
   const sistemaById = new Map((ds.sistemas ?? []).map((s) => [s.id, s]));
 
+  // Linhas e grupos gravados de cada proposta: a obra copia os itens da dela.
+  const proposalContent = new Map<string, { products: unknown[]; sistemas: unknown[] }>();
   ds.proposals.items.forEach((prop) => {
     const lineItems: Array<Record<string, unknown>> = [];
     const pushLine = (line: DemoLine, instanceId: string, index: number) => {
@@ -408,6 +444,7 @@ export function buildDemoDocs(ds: DemoDataset, opts: BuildDemoOptions): DemoWrit
     const totalValue = Math.round(rawTotal * 100) / 100;
     const c = client(prop.clientId);
 
+    proposalContent.set(prop.id, { products: lineItems, sistemas });
     set(`proposals/${prop.id}`, {
       ...tenantTag,
       title: prop.title,
@@ -548,6 +585,23 @@ export function buildDemoDocs(ds: DemoDataset, opts: BuildDemoOptions): DemoWrit
     return index === project.visit.stageIndex ? { ...base, schedule: visit } : base;
   });
 
+  // Os itens da obra saem da proposta pela MESMA função do backend, sem valor
+  // nenhum; a situação de cada um vem do dataset.
+  const content = proposalContent.get(project.proposalId)!;
+  let itemSeq = 0;
+  const baseItems = buildProjectItemsFromProposal(content, () => `${ds.idPrefix}_item_${++itemSeq}`);
+  if (project.itemStatuses.length > baseItems.length) {
+    throw new Error(
+      `Demo ${ds.niche}: o andamento tem ${project.itemStatuses.length} itens e a proposta da obra tem ${baseItems.length}.`,
+    );
+  }
+  const items: ProjectItem[] = baseItems.map((item, index) => {
+    const status: ProjectItemStatus = project.itemStatuses[index] ?? "pending";
+    return status === "pending"
+      ? item
+      : { ...item, status, statusAt: isoAt(-1 - (index % 3)), statusBy: null, statusByName: "Equipe Demo" };
+  });
+
   set(`projects/${projectId}`, {
     ...tenantTag,
     proposalId: project.proposalId,
@@ -561,6 +615,7 @@ export function buildDemoDocs(ds: DemoDataset, opts: BuildDemoOptions): DemoWrit
     title: projectProposal.title,
     status: "active",
     stages,
+    items,
     assigneeId: null,
     assigneeName: "Equipe Demo",
     startDate: ymd(project.startOffset),
@@ -978,6 +1033,7 @@ export function demoResultCounts(ds: DemoDataset): SeedDemoResult {
     products: ds.products.length,
     services: ds.services.length,
     clients: ds.clients.length,
+    priceTables: ds.priceTables.length,
     ambientes: ds.ambientes.length,
     ...(ds.sistemas ? { sistemas: ds.sistemas.length } : {}),
     options: categoryCount + manufacturerCount,

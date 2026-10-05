@@ -39,7 +39,17 @@ export const marcenariaDemo: DemoDataset = {
   clients: [
     { id: "demo_marc_client_luisa", name: "Luísa Fernandes", email: "luisa.demo@exemplo.com", phone: "11999993001" },
     { id: "demo_marc_client_bruno", name: "Bruno Tavares", email: "bruno.demo@exemplo.com", phone: "11999993002" },
-    { id: "demo_marc_client_marcos", name: "Marcos Azevedo", email: "marcos.demo@exemplo.com", phone: "11999993003" },
+    { id: "demo_marc_client_marcos", name: "Marcos Azevedo", email: "marcos.demo@exemplo.com", phone: "11999993003", priceTableId: "demo_marc_price_table_parceiros" },
+  ],
+  // Tabela de exemplo: o ajuste sobre o catálogo e um preço próprio. O cliente
+  // acima aponta para ela, e a aba de Produtos e o cadastro têm o que mostrar.
+  priceTables: [
+    {
+      id: "demo_marc_price_table_parceiros",
+      name: "Arquitetos parceiros",
+      adjustmentPercent: -10,
+      productPrices: { [P.ferragens]: 370 },
+    },
   ],
   ambientes: [
     {
@@ -125,6 +135,7 @@ export const marcenariaDemo: DemoDataset = {
       { status: "pending", doneItems: 0, completedOffset: null },
     ],
     visit: { eventId: "demo_marc_event_montagem", stageIndex: 3, dayOffset: 5, hours: 6, color: "#a16207" },
+    itemStatuses: ["installed", "in_stock", "in_stock", "purchase_requested", "pending", "pending"],
   },
   leads: [
     { id: "demo_marc_lead_carla", name: "Carla Mendes", phone: "11988883001", source: "instagram", stage: "novo", estimatedValue: 18000, nextAction: "Agendar a medição da cozinha", nextActionOffset: 1 },

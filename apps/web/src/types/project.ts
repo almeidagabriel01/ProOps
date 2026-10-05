@@ -61,6 +61,37 @@ export interface ProjectDelivery {
   acceptance: { name: string; document?: string; acceptedAt: string } | null;
 }
 
+/** Situação de um item da obra, marcada à mão (não mexe em estoque nem no financeiro). */
+export type ProjectItemStatus = "pending" | "purchase_requested" | "in_stock" | "installed";
+
+/** Medida da linha por medida (persiana, vidro, móvel): os campos de `pricingDetails`, sem valor. */
+export type ProjectItemMeasure =
+  | { mode: "curtain_meter"; width: number; height: number; panels: number }
+  | { mode: "curtain_width"; width: number; panels: number }
+  | { mode: "curtain_height"; width: number; maxHeight: number; panels: number };
+
+/**
+ * Um produto da proposta copiado para a obra. Sem preço, total nem forma de
+ * pagamento: o técnico lê o projeto. Gravado só pelo backend
+ * (`api/services/projects/project-items.ts`).
+ */
+export interface ProjectItem {
+  id: string;
+  productId: string;
+  name: string;
+  manufacturer: string | null;
+  quantity: number;
+  /** O grupo da proposta (solução, sistema). */
+  groupName: string | null;
+  /** O local da obra. */
+  placeName: string | null;
+  measure: ProjectItemMeasure | null;
+  status: ProjectItemStatus;
+  statusAt: string | null;
+  statusBy: string | null;
+  statusByName: string | null;
+}
+
 export interface Project {
   id: string;
   tenantId: string;
@@ -75,6 +106,8 @@ export interface Project {
   title: string;
   status: ProjectStatus;
   stages: ProjectStage[];
+  /** Vazio nos projetos avulsos e nos criados antes da lista existir. */
+  items: ProjectItem[];
   assigneeId: string | null;
   assigneeName: string | null;
   startDate: string | null;

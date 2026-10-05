@@ -43,7 +43,18 @@ export const automacaoResidencialDemo: DemoDataset = {
   clients: [
     { id: "demo_client_ana", name: "Ana Ribeiro", email: "ana.demo@exemplo.com", phone: "11999990001" },
     { id: "demo_client_bruno", name: "Bruno Carvalho", email: "bruno.demo@exemplo.com", phone: "11999990002" },
-    { id: "demo_client_condo", name: "Condomínio Jardins", email: "contato.demo@jardins.com", phone: "1133330003" },
+    { id: "demo_client_condo", name: "Condomínio Jardins", email: "contato.demo@jardins.com", phone: "1133330003", priceTableId: "demo_price_table_condominios" },
+  ],
+  // Tabela de exemplo: o ajuste sobre o catálogo e um preço próprio. O cliente
+  // acima aponta para ela, e a aba de Produtos e o cadastro têm o que mostrar.
+  priceTables: [
+    {
+      id: "demo_price_table_condominios",
+      name: "Condomínios",
+      adjustmentPercent: -8,
+      productPrices: { [P.central]: 3000 },
+      servicePrices: { demo_svc_install: 780 },
+    },
   ],
   ambientes: [
     { id: A.sala, name: "Sala de Estar", description: "Automação de iluminação, som e clima da sala principal.", icon: "🛋️", order: 1, lines: [{ productId: P.central, quantity: 1 }, { productId: P.speaker, quantity: 2 }] },
@@ -132,6 +143,7 @@ export const automacaoResidencialDemo: DemoDataset = {
       { status: "pending", doneItems: 0, completedOffset: null },
     ],
     visit: { eventId: "demo_event_obra_configuracao", stageIndex: 2, dayOffset: 2, hours: 3, color: "#0891b2" },
+    itemStatuses: ["installed", "installed", "in_stock", "purchase_requested"],
   },
   leads: [
     { id: "demo_lead_carla", name: "Carla Mendes", phone: "11988880001", source: "instagram", stage: "novo", estimatedValue: 18000, nextAction: "Ligar para entender o projeto", nextActionOffset: 1 },

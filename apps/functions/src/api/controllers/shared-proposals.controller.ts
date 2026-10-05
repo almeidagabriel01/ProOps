@@ -1,6 +1,6 @@
 import { Request, Response } from "express";
 import { SharedProposalService } from "../services/shared-proposal.service";
-import { resolveUserAndTenant } from "../../lib/auth-helpers";
+import { hasPagePermission, resolveUserAndTenant } from "../../lib/auth-helpers";
 import { db } from "../../init";
 import { FieldPath } from "firebase-admin/firestore";
 import { resolveClientIp } from "../../lib/client-ip";
@@ -297,6 +297,12 @@ export const createShareLink = async (req: Request, res: Response) => {
       userId,
       req.user,
     );
+
+    // O link abre a proposta inteira, com os valores, para quem o tiver: o
+    // membro precisa poder vê-la, como no PDF.
+    if (!(await hasPagePermission(req.user, "proposals", "canView"))) {
+      return res.status(403).json({ message: "Sem permissão para ver propostas." });
+    }
 
     // Buscar proposta
     const proposalRef = db.collection("proposals").doc(proposalId);

@@ -53,6 +53,8 @@ it.each([
   ["PUT", "/projects/p1", "updateProject"],
   ["DELETE", "/projects/p1", "deleteProject"],
   ["POST", "/projects/p1/delivery-link", "createDeliveryLink"],
+  ["POST", "/projects/p1/items/import", "importProjectItems"],
+  ["PUT", "/projects/p1/items/status", "updateProjectItemsStatus"],
   ["PUT", "/projects/p1/stages/s1", "updateStage"],
   ["POST", "/projects/p1/stages/s1/checklist", "addChecklistItem"],
   ["PUT", "/projects/p1/stages/s1/checklist/i1", "toggleChecklistItem"],

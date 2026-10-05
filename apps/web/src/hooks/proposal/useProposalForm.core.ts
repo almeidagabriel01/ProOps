@@ -19,7 +19,9 @@ import { prepareCreatePayload } from "./submit-helpers";
 import { toast } from "@/lib/toast";
 import { useMasterDataTransaction } from "./useMasterDataTransaction";
 import { useWalletsData } from "@/app/wallets/_hooks/useWalletsData";
-import { ClientType } from "@/services/client-service";
+import { ClientService, ClientType } from "@/services/client-service";
+import { useClientPriceTable } from "@/hooks/use-price-tables";
+import { applyPriceTableToCatalog } from "@/lib/pricing/price-table";
 import {
   createInitialProposalFormData,
   buildFullFormSnapshot,
@@ -84,6 +86,32 @@ export function useProposalFormCore({
     string | undefined
   >(undefined);
   const [isNewClient, setIsNewClient] = React.useState(true);
+
+  // Tabela de preço do cliente escolhido: o catálogo do formulário passa a
+  // ter o preço dela, então toda linha nova já nasce com ele.
+  const [clientPriceTableId, setClientPriceTableId] = React.useState<string | null>(null);
+  React.useEffect(() => {
+    if (!selectedClientId || isNewClient) {
+      setClientPriceTableId(null);
+      return;
+    }
+    let cancelled = false;
+    ClientService.getClientById(selectedClientId)
+      .then((client) => {
+        if (!cancelled) setClientPriceTableId(client?.priceTableId ?? null);
+      })
+      .catch(() => {
+        if (!cancelled) setClientPriceTableId(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedClientId, isNewClient]);
+  const { table: clientPriceTable } = useClientPriceTable(clientPriceTableId);
+  const pricedProducts = React.useMemo(
+    () => applyPriceTableToCatalog(products, clientPriceTable),
+    [products, clientPriceTable],
+  );
 
   const [formData, setFormData] = React.useState<Partial<Proposal>>(
     createInitialProposalFormData(),
@@ -382,6 +410,7 @@ export function useProposalFormCore({
     toggleProduct,
     updateProductQuantity,
     updateProductMarkup,
+    reorderProducts,
     updateProductPricingDetails,
     updateProductPrice,
     resetProductPrice,
@@ -397,7 +426,7 @@ export function useProposalFormCore({
     formData,
     setFormData,
     selectedSistemas,
-    products,
+    products: pricedProducts,
     proposalId,
     canCreateProposal,
     getProposalCount,
@@ -425,7 +454,7 @@ export function useProposalFormCore({
     selectedSistemas,
     setSelectedSistemas,
     setFormData,
-    products,
+    products: pricedProducts,
     mergedSistemas,
     proposalId,
     initialFormDataRef,
@@ -446,7 +475,8 @@ export function useProposalFormCore({
     isLoading,
     isSaving,
     isDirty,
-    products,
+    products: pricedProducts,
+    clientPriceTable,
     template,
     selectedClientId,
     isNewClient,
@@ -495,6 +525,7 @@ export function useProposalFormCore({
     updateSistema,
     addProductToSystem,
     updateProductMarkup,
+    reorderProducts,
     updateProductPricingDetails,
     updateProductPrice,
     resetProductPrice,

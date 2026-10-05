@@ -58,7 +58,7 @@ export const ROLE_PRESETS = [
     id: "technician",
     name: "Técnico",
     icon: "🔧",
-    description: "Atende as ordens de serviço atribuídas a ele, pelo celular",
+    description: "Atende as ordens de serviço e as obras atribuídas a ele, pelo celular",
     color: "bg-teal-500/10 text-teal-500 border-teal-500/20",
   },
 ];

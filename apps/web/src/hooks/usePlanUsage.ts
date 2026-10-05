@@ -61,7 +61,9 @@ export function usePlanUsage(): UsePlanUsageReturn {
       try {
         const [proposalCount, clientCount, productCount, userCount, storageMB] =
           await Promise.all([
-            getProposalCount(),
+            // As rules só deixam contar propostas a quem pode vê-las; o membro
+            // sem essa permissão vê 0 em vez de perder o card inteiro.
+            getProposalCount().catch(() => 0),
             getClientCount(),
             getProductCount(),
             getUserCount(),

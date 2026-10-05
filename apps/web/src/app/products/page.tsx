@@ -12,6 +12,8 @@ import {
   Package,
   Wallet,
   TrendingUp,
+  Crown,
+  Tags,
 } from "lucide-react";
 import { runUndoableAction } from "@/lib/undoable-action";
 import { toast } from "@/lib/toast";
@@ -66,6 +68,14 @@ import {
   type ProductInventoryBalanceSummary,
 } from "@/lib/product-inventory-summary";
 import { Loader } from "@/components/ui/loader";
+import { SegmentedControl } from "@/components/ui/segmented-control";
+import { usePlanLimits } from "@/hooks/usePlanLimits";
+import { PriceTablesTab } from "./_components/price-tables-tab";
+
+type ProductsView = "catalog" | "price-tables";
+
+/** `?aba=tabelas-de-preco` abre direto na aba (o cadastro do cliente leva para lá). */
+const PRICE_TABLES_TAB_PARAM = "tabelas-de-preco";
 
 function buildDimensionBalanceTooltipContent(
   summary: ProductInventoryBalanceSummary,
@@ -94,6 +104,13 @@ export default function ProductsPage() {
   const { canCreate, canDelete, canEdit } = usePagePermission("products");
   const nicheConfig = useCurrentNicheConfig();
   const inventoryConfig = nicheConfig.productCatalog.inventory;
+  const { hasPriceTables } = usePlanLimits();
+  const [view, setView] = useState<ProductsView>("catalog");
+  useEffect(() => {
+    // Lido no cliente, sem useSearchParams: a página não precisa de Suspense por uma aba.
+    const tab = new URLSearchParams(window.location.search).get("aba");
+    if (tab === PRICE_TABLES_TAB_PARAM) setView("price-tables");
+  }, []);
   const [allProducts, setAllProducts] = useState<Product[] | null>(null);
   const [isLoadingAll, setIsLoadingAll] = useState(false);
   const [hasAnyProducts, setHasAnyProducts] = useState<boolean | null>(null);
@@ -559,17 +576,41 @@ export default function ProductsPage() {
                 </p>
                 <PageViewSwitcher className="mt-3" />
               </div>
-              {canCreate && (
-                <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
-                  <ImportButton onClick={() => setImportOpen(true)} />
-                  <Link href="/products/new" className="block w-full sm:w-auto">
-                    <Button size="lg" className="gap-2 w-full sm:w-auto">
-                      <Plus className="w-5 h-5" />
-                      {nicheConfig.productCatalog.newTitle}
-                    </Button>
-                  </Link>
-                </div>
-              )}
+              <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
+                <SegmentedControl
+                  id="Catálogo ou tabelas de preço"
+                  value={view}
+                  onChange={(next) => setView(next as ProductsView)}
+                  options={[
+                    {
+                      value: "catalog",
+                      label: "Catálogo",
+                      icon: <Package className="h-3.5 w-3.5" />,
+                    },
+                    {
+                      value: "price-tables",
+                      label: "Tabelas de preço",
+                      // Sem o módulo no plano a aba abre o upsell; a coroa avisa antes do clique.
+                      icon: hasPriceTables ? (
+                        <Tags className="h-3.5 w-3.5" />
+                      ) : (
+                        <Crown className="h-3.5 w-3.5 text-amber-500" />
+                      ),
+                    },
+                  ]}
+                />
+                {canCreate && view === "catalog" && (
+                  <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
+                    <ImportButton onClick={() => setImportOpen(true)} />
+                    <Link href="/products/new" className="block w-full sm:w-auto">
+                      <Button size="lg" className="gap-2 w-full sm:w-auto">
+                        <Plus className="w-5 h-5" />
+                        {nicheConfig.productCatalog.newTitle}
+                      </Button>
+                    </Link>
+                  </div>
+                )}
+              </div>
               <ImportDialog
                 kind="products"
                 open={importOpen}
@@ -581,6 +622,11 @@ export default function ProductsPage() {
               />
             </div>
 
+            {view === "price-tables" && <PriceTablesTab />}
+
+            {/* O catálogo continua montado na outra aba: a carga da tabela e
+                o skeleton da página dependem dele. */}
+            <div className="flex flex-col gap-6" hidden={view !== "catalog"}>
             {showsDimensionBalance ? (
               <div className="grid gap-4 md:grid-cols-2">
                 <Card className="relative overflow-hidden transition-all duration-300 hover:shadow-lg hover:-translate-y-1 border-l-4 border-l-amber-500 bg-linear-to-br from-background to-amber-50/30 dark:to-amber-950/10 hover:border-amber-500/50">
@@ -812,6 +858,7 @@ export default function ProductsPage() {
                 onInitialLoadComplete={() => setIsTableLoading(false)}
               />
             )}
+            </div>
           </div>
           {renderDialogs()}
         </>

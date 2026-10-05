@@ -74,6 +74,11 @@ export type Client = {
   responsibleMemberName?: string | null;
   /** Parceiros externos (contatos vendedor ou arquiteto) que cuidam dele. */
   partnerContactIds?: string[];
+  /**
+   * Tabela de preço do cliente (`price_tables/{id}`). Ausente ou `null` =
+   * tabela padrão, o próprio catálogo. Só contato do tipo cliente tem.
+   */
+  priceTableId?: string | null;
 };
 
 export interface PaginatedResult<T> {

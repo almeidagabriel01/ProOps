@@ -15,7 +15,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Loader } from "@/components/ui/loader";
 import { toast } from "@/lib/toast";
-import { ProposalService } from "@/services/proposal-service";
+import { ProjectsService } from "@/services/projects-service";
 import { FieldService } from "@/services/field-service-service";
 import {
   addMonthsToDay,
@@ -49,10 +49,10 @@ export function ProjectEquipmentDialog({ open, onOpenChange, project }: ProjectE
       setDrafts([]);
       return;
     }
-    ProposalService.getProposalById(project.proposalId)
-      .then((proposal) => setDrafts(proposal ? equipmentDraftsFromProposal(proposal) : []))
+    ProjectsService.getProposalEquipmentSource(project.id)
+      .then((source) => setDrafts(equipmentDraftsFromProposal(source)))
       .catch(() => setDrafts([]));
-  }, [open, project.proposalId]);
+  }, [open, project.id, project.proposalId]);
 
   const update = (key: string, patch: Partial<EquipmentDraft>) =>
     setDrafts((list) => (list ?? []).map((d) => (d.key === key ? { ...d, ...patch } : d)));

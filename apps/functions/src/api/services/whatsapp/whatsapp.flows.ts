@@ -15,12 +15,35 @@ import {
 } from "./whatsapp.api";
 import { SharedProposalService } from "../shared-proposal.service";
 import { SharedTransactionService } from "../shared-transactions.service";
+import { hasPagePermission } from "../../../lib/auth-helpers";
+
+/**
+ * A lista leva o valor de cada proposta e o PDF abre a proposta inteira: o
+ * membro precisa de "Ver" em Propostas, como no ERP. Dono e administradores
+ * passam direto (`hasPagePermission`).
+ */
+async function ensureProposalAccess(to: string, userId: string, role: string) {
+  if (await hasPagePermission({ uid: userId, role }, "proposals", "canView")) {
+    return true;
+  }
+  await sendWhatsAppMessage(
+    to,
+    "Você não tem permissão para ver propostas pelo WhatsApp.",
+  );
+  await logAction(to, userId, "unauthorized_access_attempt", {
+    target: "proposals",
+  });
+  await updateSession(to, { lastAction: "idle", proposalsShown: [] });
+  return false;
+}
 
 export async function handleListProposals(
   to: string,
   tenantId: string,
   userId: string,
+  role: string,
 ) {
+  if (!(await ensureProposalAccess(to, userId, role))) return;
   await logAction(to, userId, "list_proposals");
 
   try {
@@ -86,7 +109,9 @@ export async function handleSendPdf(
   tenantId: string,
   proposalIdOrFragment: string,
   userId: string,
+  role: string,
 ) {
+  if (!(await ensureProposalAccess(to, userId, role))) return;
   await logAction(to, userId, "send_pdf_attempt", {
     proposalId: proposalIdOrFragment,
   });

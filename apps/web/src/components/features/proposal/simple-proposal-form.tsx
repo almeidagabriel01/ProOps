@@ -47,6 +47,7 @@ import {
   PdfDisplayOptionsSection,
 } from "./form";
 import { ProposalStockProvider } from "./form/proposal-stock";
+import { ClientPriceTableNotice } from "./form/client-price-table-notice";
 import { ProposalLoadingState } from "@/components/features/proposal/proposal-loading-state";
 import { isDocumentoValido } from "@/lib/format-document";
 import { ClientService } from "@/services/client-service";
@@ -208,6 +209,8 @@ export function SimpleProposalForm({
     toggleProduct,
     updateProductQuantity,
     updateProductMarkup,
+    reorderProducts,
+    clientPriceTable,
     updateProductPricingDetails,
     updateProductPrice,
     resetProductPrice,
@@ -1237,6 +1240,7 @@ export function SimpleProposalForm({
         <FormStepCard contentDisabled={isDemo}>
           <ProposalStockProvider products={products} selectedProducts={selectedProducts}>
           <div className="space-y-6">
+            {clientPriceTable && <ClientPriceTableNotice table={clientPriceTable} />}
             {isAutomacaoNiche ? (
               <>
                 <div className="flex items-center gap-3 mb-6">
@@ -1267,6 +1271,7 @@ export function SimpleProposalForm({
                   onRemoveSystem={removeSistema}
                   onUpdateProductQuantity={updateProductQuantity}
                   onUpdateProductMarkup={updateProductMarkup}
+                  onReorderProducts={reorderProducts}
                   onUpdateProductPrice={updateProductPrice}
                   onAddExtraProductToSystem={addProductToSystem}
                   onAddNewSystem={handleAddNewSystem}
@@ -1311,6 +1316,7 @@ export function SimpleProposalForm({
                   onManageAmbientes={() => setIsAmbienteManagerOpen(true)}
                   onUpdateProductQuantity={updateProductQuantity}
                   onUpdateProductMarkup={updateProductMarkup}
+                  onReorderProducts={reorderProducts}
                   onUpdateProductPricingDetails={updateProductPricingDetails}
                   onUpdateProductPrice={updateProductPrice}
                   onResetProductPrice={resetProductPrice}

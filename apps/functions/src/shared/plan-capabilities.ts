@@ -61,6 +61,11 @@ export type PlanTierId = "free" | "starter" | "pro" | "enterprise";
  * celular pelo tecnico e assinada pelo cliente na tela. Pro e Enterprise;
  * Starter compra pelo add-on `field_service`.
  *
+ * `priceTables` sao as tabelas de preco: alem do catalogo (a tabela padrao),
+ * tabelas especificas com um ajuste percentual sobre tudo e, opcionalmente,
+ * preco proprio por produto ou servico, escolhidas no cadastro do cliente e
+ * aplicadas nas propostas dele. Pro e Enterprise; nao e add-on.
+ *
  * `fiscalReceiving` e a recepcao de notas de ENTRADA. Fica fora do add-on
  * fiscal de proposito: cada nota recebida consome uma unidade paga do Focus
  * sem clique de ninguem, entao nao cabe na franquia mensal do add-on.
@@ -81,6 +86,7 @@ export type PlanCapabilityKey =
   | "bookingLink"
   | "clientPortal"
   | "fieldService"
+  | "priceTables"
   | "fiscalReceiving";
 
 export type PlanCapabilities = Record<PlanCapabilityKey, boolean>;
@@ -124,6 +130,7 @@ export const PLAN_CAPABILITY_KEYS: readonly PlanCapabilityKey[] = [
   "bookingLink",
   "clientPortal",
   "fieldService",
+  "priceTables",
   "fiscalReceiving",
 ] as const;
 
@@ -143,6 +150,7 @@ const NO_CAPABILITIES: PlanCapabilities = {
   bookingLink: false,
   clientPortal: false,
   fieldService: false,
+  priceTables: false,
   fiscalReceiving: false,
 };
 
@@ -202,6 +210,7 @@ export const PLAN_CATALOG: Record<PlanTierId, PlanCatalogEntry> = {
       bookingLink: true,
       clientPortal: true,
       fieldService: true,
+      priceTables: true,
     },
     limits: {
       maxProposalsPerMonth: -1,
@@ -236,6 +245,7 @@ export const PLAN_CATALOG: Record<PlanTierId, PlanCatalogEntry> = {
       bookingLink: true,
       clientPortal: true,
       fieldService: true,
+      priceTables: true,
       fiscalReceiving: true,
     },
     limits: {
@@ -318,6 +328,7 @@ export const CAPABILITY_LABELS: Record<PlanCapabilityKey, string> = {
   bookingLink: "Link de agendamento",
   clientPortal: "Portal do cliente",
   fieldService: "Ordens de serviço, equipamentos e contratos",
+  priceTables: "Tabelas de preço",
   fiscalReceiving: "Notas de entrada",
 };
 
@@ -377,6 +388,7 @@ export interface PublicPlanFeatures {
   hasBookingLink: boolean;
   hasClientPortal: boolean;
   hasFieldService: boolean;
+  hasPriceTables: boolean;
   hasFiscalReceiving: boolean;
   hasWhatsApp: boolean;
   canCustomizeTheme: boolean;
@@ -408,6 +420,7 @@ export function buildPublicPlanFeatures(tier: PlanTierId): PublicPlanFeatures {
     hasBookingLink: entry.capabilities.bookingLink,
     hasClientPortal: entry.capabilities.clientPortal,
     hasFieldService: entry.capabilities.fieldService,
+    hasPriceTables: entry.capabilities.priceTables,
     hasFiscalReceiving: entry.capabilities.fiscalReceiving,
     hasWhatsApp: entry.capabilities.whatsapp,
     canCustomizeTheme: entry.capabilities.customTheme,

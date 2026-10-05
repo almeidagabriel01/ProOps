@@ -20,6 +20,7 @@ import userEvent from "@testing-library/user-event";
 
 const push = vi.fn();
 const createClient = vi.fn().mockResolvedValue({ success: true, clientId: "c1" });
+const plan = { hasPriceTables: false };
 
 // "É da equipe?" busca a equipe na API de metas; aqui não importa.
 vi.mock("@/services/sales-goals-service", () => ({
@@ -42,6 +43,15 @@ vi.mock("@/hooks/usePlanLimits", () => ({
     canCreateClient: vi.fn().mockResolvedValue(true),
     getClientCount: vi.fn().mockResolvedValue(0),
     features: { maxClients: 10 },
+    hasPriceTables: plan.hasPriceTables,
+  }),
+}));
+
+// A tabela de preço do cliente lê as opções na API; aqui, duas fixas.
+vi.mock("@/hooks/use-price-tables", () => ({
+  usePriceTableOptions: (enabled: boolean) => ({
+    options: enabled ? [{ id: "vip", name: "VIP", adjustmentPercent: -10 }] : [],
+    isLoading: false,
   }),
 }));
 
@@ -81,6 +91,7 @@ describe("/contacts/new", () => {
   beforeEach(() => {
     push.mockClear();
     createClient.mockClear();
+    plan.hasPriceTables = false;
   });
 
   it("tem a mesma trilha da edição: Informações, Dados Fiscais e Finalizar", () => {
@@ -227,5 +238,27 @@ describe("/contacts/new", () => {
     await user.type(screen.getByLabelText("Logradouro"), "Rua das Flores");
 
     expect(livre.value).toBe("Rua tal, portão azul");
+  });
+
+  it("sem o módulo de tabelas de preço o cliente fica na tabela padrão", async () => {
+    render(<NewCustomerPage />);
+    expect(screen.queryByLabelText("Tabela de preço")).toBeNull();
+    const user = await preencherObrigatoriosEAvancar();
+    await avancar(user);
+    await user.click(screen.getByRole("button", { name: /cadastrar cliente/i }));
+    expect(createClient.mock.calls[0][0]).toMatchObject({ priceTableId: null });
+  });
+
+  it("com o módulo, a tabela escolhida no passo 1 vai no cadastro", async () => {
+    plan.hasPriceTables = true;
+    render(<NewCustomerPage />);
+    const user = userEvent.setup();
+    await user.selectOptions(screen.getByLabelText("Tabela de preço"), "vip");
+    await user.type(screen.getByLabelText(/Nome Completo/), "Cliente Teste");
+    await user.type(screen.getByLabelText(/Telefone/), "11999999999");
+    await avancar(user);
+    await avancar(user);
+    await user.click(screen.getByRole("button", { name: /cadastrar cliente/i }));
+    expect(createClient.mock.calls[0][0]).toMatchObject({ priceTableId: "vip" });
   });
 });

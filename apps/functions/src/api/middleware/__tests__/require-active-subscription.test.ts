@@ -103,6 +103,23 @@ describe("free-tier demo mode gate", () => {
     },
   );
 
+  test.each(["/v1/price-tables", "/v1/price-tables/options", "/v1/price-tables/t1"])(
+    "free user GET %s (tabelas de preço da demonstração) → allowed",
+    async (path) => {
+      const { next } = await run(path, "GET", freeUser);
+      expect(next).toHaveBeenCalled();
+    },
+  );
+
+  test.each(["POST", "PUT", "DELETE"])(
+    "free user %s em /v1/price-tables → 402 FREE_TIER_FORBIDDEN",
+    async (method) => {
+      const { res, next } = await run("/v1/price-tables", method, freeUser);
+      expect(next).not.toHaveBeenCalled();
+      expect(res.status).toHaveBeenCalledWith(402);
+    },
+  );
+
   test("free user GET on a NON-demo route → 402", async () => {
     const { res, next } = await run("/v1/team", "GET", freeUser);
     expect(next).not.toHaveBeenCalled();

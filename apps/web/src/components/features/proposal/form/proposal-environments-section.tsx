@@ -40,6 +40,8 @@ import {
   compareDisplayText,
 } from "@/lib/sort-text";
 import { getPrimaryAmbiente } from "@/lib/sistema-migration-utils";
+import { reorderVisibleLines } from "@/lib/proposal/line-order";
+import { SortableLineList } from "./sortable-line-list";
 import { getEnvironmentSelectionInstanceId } from "@/lib/proposal-environment-utils";
 import { getNicheConfig } from "@/lib/niches/config";
 import { useNicheVocabulary } from "@/hooks/useNicheVocabulary";
@@ -115,6 +117,8 @@ interface ProposalEnvironmentsSectionProps {
     itemType?: "product" | "service",
     lineItemId?: string,
   ) => void;
+  /** Posição de cada linha depois de arrastar; sem ela a lista não arrasta. */
+  onReorderProducts?: (orderedLineItemIds: string[]) => void;
   onUpdateProductPricingDetails: (
     productId: string,
     pricingDetails: ProposalProductPricingDetails,
@@ -166,6 +170,7 @@ export function ProposalEnvironmentsSection({
   onManageAmbientes,
   onUpdateProductQuantity,
   onUpdateProductMarkup,
+  onReorderProducts,
   onUpdateProductPricingDetails,
   onUpdateProductPrice,
   onResetProductPrice,
@@ -309,6 +314,7 @@ export function ProposalEnvironmentsSection({
                   }
                   onUpdateQuantity={onUpdateProductQuantity}
                   onUpdateMarkup={onUpdateProductMarkup}
+                  onReorderProducts={onReorderProducts}
                   onUpdatePricingDetails={onUpdateProductPricingDetails}
                   onUpdatePrice={onUpdateProductPrice}
                   onResetPrice={onResetProductPrice}
@@ -404,6 +410,7 @@ interface EnvironmentCardProps {
     itemType?: "product" | "service",
     lineItemId?: string,
   ) => void;
+  onReorderProducts?: (orderedLineItemIds: string[]) => void;
   onUpdatePricingDetails: (
     productId: string,
     pricingDetails: ProposalProductPricingDetails,
@@ -462,6 +469,7 @@ function EnvironmentCard({
   onToggleHideZeroQty,
   onUpdateQuantity,
   onUpdateMarkup,
+  onReorderProducts,
   onUpdatePricingDetails,
   onUpdatePrice,
   onResetPrice,
@@ -475,6 +483,24 @@ function EnvironmentCard({
     ? ambienteProducts.filter((product) => Number(product.quantity || 0) !== 0)
     : ambienteProducts;
   const hiddenProductsCount = ambienteProducts.length - visibleProducts.length;
+  const sortedVisibleProducts = [...visibleProducts].sort(
+    compareConfiguredDisplayItem,
+  );
+
+  const handleMoveLine = (activeId: string, overId: string) => {
+    const hiddenIds = ambienteProducts
+      .filter((product) => !visibleProducts.includes(product))
+      .sort(compareConfiguredDisplayItem)
+      .map((product) => product.lineItemId)
+      .filter((id): id is string => !!id);
+    const next = reorderVisibleLines(
+      sortedVisibleProducts.map((product) => product.lineItemId || ""),
+      hiddenIds,
+      activeId,
+      overId,
+    );
+    if (next) onReorderProducts?.(next);
+  };
 
   return (
     <div
@@ -598,9 +624,12 @@ function EnvironmentCard({
 
           <div className="p-3 space-y-2">
             {visibleProducts.length > 0 ? (
-              [...visibleProducts]
-                .sort(compareConfiguredDisplayItem)
-                .map((product, idx) => (
+              <SortableLineList
+                items={sortedVisibleProducts}
+                getId={(product) => product.lineItemId}
+                disabled={!onReorderProducts}
+                onMove={handleMoveLine}
+                renderItem={(product, idx) => (
                   <EnvironmentProductRow
                     key={
                       product.lineItemId ||
@@ -624,7 +653,8 @@ function EnvironmentCard({
                     onRemoveProduct={onRemoveProduct}
                     onToggleStatus={onToggleStatus}
                   />
-                ))
+                )}
+              />
             ) : (
               <p className="text-sm text-muted-foreground text-center py-2">
                 {ambienteProducts.length > 0 && hideZeroQty

@@ -30,6 +30,8 @@ export interface CreateClientData {
   responsibleMemberId?: string | null;
   /** Parceiros externos (contatos vendedor ou arquiteto) que cuidam dele. */
   partnerContactIds?: string[];
+  /** Tabela de preço do cliente; `null` = tabela padrão (o catálogo). */
+  priceTableId?: string | null;
   /**
    * Endereco fiscal do destinatario, exigido so pela NF-e. Separado do
    * `address` livre porque a SEFAZ valida logradouro, numero, bairro, UF e o

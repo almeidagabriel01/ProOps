@@ -194,6 +194,46 @@ describe("requirePlanCapability", () => {
     });
   });
 
+  describe("priceTables", () => {
+    it("bloqueia o Starter com 402 e aponta o Pro", async () => {
+      givenTenant("starter");
+      const ctx = buildReqRes();
+
+      await run("priceTables", ctx);
+
+      expect(ctx.next).not.toHaveBeenCalled();
+      expect(ctx.res.status).toHaveBeenCalledWith(402);
+      expect(ctx.json).toHaveBeenCalledWith(
+        expect.objectContaining({
+          code: "PLAN_CAPABILITY_REQUIRED",
+          capability: "priceTables",
+          requiredPlan: "pro",
+        }),
+      );
+    });
+
+    it("nenhum add-on abre as tabelas no Starter", async () => {
+      givenTenant("starter", ["financial", "crm", "field_service"]);
+      const ctx = buildReqRes();
+
+      await run("priceTables", ctx);
+
+      expect(ctx.res.status).toHaveBeenCalledWith(402);
+    });
+
+    it("libera Pro e Enterprise", async () => {
+      for (const tier of ["pro", "enterprise"] as const) {
+        givenTenant(tier);
+        const ctx = buildReqRes();
+
+        await run("priceTables", ctx);
+
+        expect(ctx.next).toHaveBeenCalled();
+        expect(ctx.res.status).not.toHaveBeenCalled();
+      }
+    });
+  });
+
   describe("escapes", () => {
     it("superadmin nao e bloqueado e nem consulta o plano", async () => {
       const ctx = buildReqRes({ tenantId: "t1", uid: "root", isSuperAdmin: true });

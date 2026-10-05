@@ -94,6 +94,40 @@ e contam no armazenamento do plano.
   `PUT|DELETE /v1/projects/:id/stages/:stageId/schedule`. Mesmas seis respostas
   do módulo: Pro e Enterprise, demonstração com uma visita de exemplo (seed),
   sem coleção nova, item no tutorial do passo Projetos, igual nos dois nichos.
+- **Itens da obra** (2026-10-05, pedido de um cliente de automação). Os
+  produtos da proposta, copiados para `project.items` na criação, para quem
+  compra e quem instala marcar cada um: pendente, compra solicitada, em
+  estoque, instalado (`statusAt`, `statusBy`, `statusByName`). A tela mostra
+  "X de Y instalados", filtra pendentes e instalados, agrupa por grupo e local
+  da proposta e marca em lote. Decisões do dono do produto:
+  - **Versão simples:** cópia da proposta, status à mão. Não mexe em estoque
+    nem no financeiro (não baixa nem soma estoque, não cria conta a pagar), e
+    mudar a proposta depois não muda a lista.
+  - **Nenhum valor.** O técnico lê o projeto direto do Firestore, então a
+    cópia é por lista de campos permitidos (`buildProjectItemsFromProposal`,
+    `PROJECT_ITEM_FIELDS` em `api/services/projects/project-items.ts`), nunca
+    um spread da linha: preço, markup, total e pagamento ficam de fora, e um
+    campo de preço novo na proposta não vaza sozinho. Testes afirmam isso na
+    criação, na importação e na demonstração.
+  - **Só produtos.** Serviço ("instalação") não se compra nem se instala como
+    peça; o andamento dele é o das etapas. Linha inativa também fica de fora.
+  - **Medida** (largura x altura, ou a medida linear) guardada na linha por
+    medida, com a quantidade em peças; a tela só a mostra no nicho que cobra
+    por medida (`pricing.dimensionModes`: persianas, vidraçaria, marcenaria e
+    climatização), pelo mesmo rótulo da proposta.
+  - **Permissão:** ver a lista é ver Projetos; marcar é editar Projetos
+    (`PUT /v1/projects/:id/items/status`, numa transação; PUT e não PATCH
+    porque o CORS e o `callApi` não conhecem PATCH). O preset "Técnico" da
+    Equipe passou a ter Projetos com ver e editar, sem criar nem excluir, e o
+    link "Ver proposta" só aparece para quem vê propostas.
+  - **Obra antiga** (sem `items`): "Trazer itens da proposta"
+    (`POST /v1/projects/:id/items/import`) lê a proposta pelo Admin SDK e grava
+    a lista; só preenche lista vazia (409 se já existe). É o que dá a lista ao
+    técnico sem ele ver a proposta. Projeto avulso não mostra a seção.
+  - Plano, rules e tutorial: os de Projetos (sem capacidade nem coleção nova;
+    uma linha a mais no checklist do passo). Demonstração: a obra de exemplo
+    de cada nicho tem itens com situações variadas (`itemStatuses` no dataset,
+    montados pela mesma função do backend no motor).
 - **Entrega:** `POST /v1/projects/:id/delivery-link` gera (ou reaproveita) o
   link `/share/project/{token}`, enviado pelo WhatsApp ou e-mail da empresa. O
   cliente confere etapas, checklist e fotos (sem notas internas nem ids da
@@ -110,12 +144,14 @@ e contam no armazenamento do plano.
 | `_components/stage-schedule-dialog.tsx` | Marcar ou remarcar a visita da etapa |
 | `lib/projects/stage-schedule.ts` | Formato da data e montagem do envio (obra, entrega e portal) |
 | `_components/delivery-card.tsx` | Link de entrega e o aceite |
+| `_components/project-items-card.tsx` | Itens da obra: situação de cada produto, filtro, ação em lote |
+| `_lib/project-items.ts` | Rótulos, contagem, agrupamento, medida por nicho e a camada de resposta imediata dos itens |
 | `_components/project-settings-dialog.tsx` | Criação automática e roteiro de etapas |
 | `_lib/projects.ts` | Rótulos, progresso (espelha o backend), filtros, atraso |
 | `components/features/projects/proposal-project-button.tsx` | Atalho na proposta |
 | `app/share/project/[token]/` | Página pública da entrega |
-| `components/features/field-service/project-equipment-dialog.tsx` | "Registrar equipamentos": os produtos da proposta viram equipamentos do cliente (só com `fieldService`) |
-| Backend | `api/services/projects/` (a visita em `project-schedule.ts`, puro, e `project-schedule-store.ts`), `api/controllers/projects.controller.ts`, `shared-projects.controller.ts`, `api/routes/projects.routes.ts` |
+| `components/features/field-service/project-equipment-dialog.tsx` | "Registrar equipamentos": os produtos da proposta viram equipamentos do cliente (só com `fieldService`). Lê as linhas por `GET /v1/projects/:id/proposal-equipment` (Projetos ver + Equipamentos criar, sem preço), e não pelo SDK: quem registra costuma ser o técnico, que não deve ler a proposta |
+| Backend | `api/services/projects/` (a visita em `project-schedule.ts`, puro, e `project-schedule-store.ts`; os itens em `project-items.ts`, puro), `api/controllers/projects.controller.ts`, `shared-projects.controller.ts`, `api/routes/projects.routes.ts` |
 
 ## Pendente de propósito
 

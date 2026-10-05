@@ -18,6 +18,7 @@ const DIRS = [
   "app/automation",
   "app/solutions",
   "app/ambientes",
+  "app/projects",
   "components/features/automation",
   "components/features/proposal",
   "components/pdf",

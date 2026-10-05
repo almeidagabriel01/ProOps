@@ -48,6 +48,10 @@ import {
   ContactResponsiblesSection,
   showsContactResponsibles,
 } from "../_components/contact-responsibles-section";
+import {
+  ContactPriceTableField,
+  priceTableIdForSave,
+} from "../_components/contact-price-table-field";
 
 
 /**
@@ -118,6 +122,7 @@ export default function NewCustomerPage() {
     linkedMemberId: null as string | null,
     responsibleMemberId: null as string | null,
     partnerContactIds: [] as string[],
+    priceTableId: null as string | null,
     fiscal: EMPTY_CLIENT_FISCAL as ClientFiscalValues,
   });
 
@@ -133,7 +138,7 @@ export default function NewCustomerPage() {
       clearFieldError(
         name as Exclude<
           keyof typeof formData,
-          "types" | "commissionPercentage" | "linkedMemberId" | "responsibleMemberId" | "partnerContactIds" | "fiscal"
+          "types" | "commissionPercentage" | "linkedMemberId" | "responsibleMemberId" | "partnerContactIds" | "priceTableId" | "fiscal"
         >,
       );
     }
@@ -156,7 +161,7 @@ export default function NewCustomerPage() {
       validateField(
         name as Exclude<
           keyof typeof formData,
-          "types" | "commissionPercentage" | "linkedMemberId" | "responsibleMemberId" | "partnerContactIds" | "fiscal"
+          "types" | "commissionPercentage" | "linkedMemberId" | "responsibleMemberId" | "partnerContactIds" | "priceTableId" | "fiscal"
         >,
         value,
         formData,
@@ -211,13 +216,15 @@ export default function NewCustomerPage() {
         commissionPercentage: formData.commissionPercentage,
         // Só parceiro (vendedor ou arquiteto) fica ligado a um membro.
         linkedMemberId: isCommissionPartner(formData) ? formData.linkedMemberId : null,
-        // Quem cuida do cliente só vale para cliente.
+        // Quem cuida do contato só vale para cliente e arquiteto.
         ...(showsContactResponsibles(formData.types)
           ? {
               responsibleMemberId: formData.responsibleMemberId,
               partnerContactIds: formData.partnerContactIds,
             }
           : {}),
+        // Só cliente tem tabela de preço; vazio é a tabela padrão.
+        priceTableId: priceTableIdForSave(formData.types, formData.priceTableId),
         enderecoFiscal: {
           cep: formData.fiscal.cep.replace(/\D/g, ""),
           logradouro: formData.fiscal.logradouro.trim(),
@@ -405,6 +412,12 @@ export default function NewCustomerPage() {
                 partnerContactIds: formData.partnerContactIds,
               }}
               onChange={(responsibles) => setFormData((prev) => ({ ...prev, ...responsibles }))}
+            />
+
+            <ContactPriceTableField
+              types={formData.types}
+              value={formData.priceTableId}
+              onChange={(priceTableId) => setFormData((prev) => ({ ...prev, priceTableId }))}
             />
           </div>
           <StepNavigation onBeforeNext={validateStep1} />

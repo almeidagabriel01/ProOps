@@ -172,11 +172,14 @@ export type RolePreset = "viewer" | "editor" | "admin" | "technician";
 
 /**
  * O técnico de campo: atende as OS atribuídas a ele (sem criar nem excluir),
- * consulta os equipamentos e vê a agenda. O resto do ERP fica fechado, e
- * `service_orders_all` fica de fora de propósito.
+ * acompanha as obras (marca etapas, fotos e os itens instalados, sem criar nem
+ * excluir projeto), consulta os equipamentos e vê a agenda. O resto do ERP
+ * fica fechado, e `service_orders_all` fica de fora de propósito. Propostas
+ * também: a obra traz a lista do que instalar sem valor nenhum.
  */
 const TECHNICIAN_PERMISSIONS: MemberPermissions = {
   service_orders: { canView: true, canCreate: false, canEdit: true, canDelete: false },
+  projects: { canView: true, canCreate: false, canEdit: true, canDelete: false },
   equipment: { canView: true, canCreate: false, canEdit: false, canDelete: false },
   calendar: { canView: true, canCreate: false, canEdit: false, canDelete: false },
 };

@@ -47,6 +47,22 @@ describe("sanitizeProposalProductsInput", () => {
     expect(forged).not.toHaveProperty("isMonthly");
   });
 
+  it("a posição escolhida ao arrastar chega gravada; sem ela a linha não ganha o campo", () => {
+    const [ordered, legacy, forged, negative, huge] = sanitizeProposalProductsInput([
+      { productId: "a", sortOrder: 2 },
+      { productId: "b" },
+      { productId: "c", sortOrder: "1" },
+      { productId: "d", sortOrder: -3 },
+      { productId: "e", sortOrder: 99999.7 },
+    ]);
+    expect(ordered.sortOrder).toBe(2);
+    // Propostas antigas não ganham o campo: o hash do PDF delas não muda.
+    expect(legacy).not.toHaveProperty("sortOrder");
+    expect(forged).not.toHaveProperty("sortOrder");
+    expect(negative.sortOrder).toBe(0);
+    expect(huge.sortOrder).toBe(500);
+  });
+
   it("serviço é sempre padrão, mesmo mandando medida", () => {
     const [line] = sanitizeProposalProductsInput([
       { itemType: "service", pricingDetails: { mode: "curtain_width", width: 2, panels: 2 } },

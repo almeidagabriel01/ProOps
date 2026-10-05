@@ -38,7 +38,17 @@ export const vidracariaEsquadriasDemo: DemoDataset = {
   clients: [
     { id: "demo_vid_client_paula", name: "Paula Andrade", email: "paula.demo@exemplo.com", phone: "11999992001" },
     { id: "demo_vid_client_eduardo", name: "Eduardo Ribeiro", email: "eduardo.demo@exemplo.com", phone: "11999992002" },
-    { id: "demo_vid_client_clinica", name: "Clínica Sorriso", email: "contato.demo@clinicasorriso.com", phone: "1133332003" },
+    { id: "demo_vid_client_clinica", name: "Clínica Sorriso", email: "contato.demo@clinicasorriso.com", phone: "1133332003", priceTableId: "demo_vid_price_table_empresas" },
+  ],
+  // Tabela de exemplo: o ajuste sobre o catálogo e um preço próprio. O cliente
+  // acima aponta para ela, e a aba de Produtos e o cadastro têm o que mostrar.
+  priceTables: [
+    {
+      id: "demo_vid_price_table_empresas",
+      name: "Construtoras e clínicas",
+      adjustmentPercent: -7,
+      productPrices: { [P.temperado]: 310 },
+    },
   ],
   ambientes: [
     {
@@ -118,6 +128,7 @@ export const vidracariaEsquadriasDemo: DemoDataset = {
       { status: "pending", doneItems: 0, completedOffset: null },
     ],
     visit: { eventId: "demo_vid_event_instalacao", stageIndex: 2, dayOffset: 3, hours: 3, color: "#0e7490" },
+    itemStatuses: ["installed", "installed", "in_stock", "purchase_requested", "pending"],
   },
   leads: [
     { id: "demo_vid_lead_juliana", name: "Juliana Mota", phone: "11988882001", source: "instagram", stage: "novo", estimatedValue: 4800, nextAction: "Agendar a medição do box", nextActionOffset: 1 },

@@ -15,6 +15,7 @@ import {
   getDefaultProposalColumns,
 } from "@/services/kanban-service";
 import { useTenant } from "@/providers/tenant-provider";
+import { usePagePermission } from "@/hooks/usePagePermission";
 import { toast } from "@/lib/toast";
 import {
   computeFinanceOverview,
@@ -89,6 +90,10 @@ function mergeTransactions(...lists: Transaction[][]): Transaction[] {
 
 export function useDashboardData() {
   const { tenant, isLoading: isTenantLoading, isDemo } = useTenant();
+  // As rules só deixam ler proposta a quem pode vê-la; o painel também só a
+  // mostra para essa pessoa, então o membro sem a permissão nem consulta.
+  const { canView: canViewProposals, isLoading: isPermissionLoading } =
+    usePagePermission("proposals");
   const tenantId = tenant?.id;
   const currentMonth = toMonthKey(new Date());
   const [selectedMonth, setSelectedMonth] = React.useState(currentMonth);
@@ -174,7 +179,11 @@ export function useDashboardData() {
 
   // Propostas: recentes e contagens (dependem das colunas do kanban).
   React.useEffect(() => {
-    if (isTenantLoading || !tenantId) return;
+    if (isTenantLoading || !tenantId || isPermissionLoading) return;
+    if (!canViewProposals) {
+      setGroupLoading("proposals", false);
+      return;
+    }
     let cancelled = false;
     setGroupLoading("proposals", true);
     (async () => {
@@ -214,7 +223,7 @@ export function useDashboardData() {
     return () => {
       cancelled = true;
     };
-  }, [tenantId, isTenantLoading]);
+  }, [tenantId, isTenantLoading, isPermissionLoading, canViewProposals]);
 
   // Mês escolhido: comissões e, fora do mês corrente, os lançamentos pagos
   // nele. O mês corrente reaproveita o que o grupo financeiro já trouxe.

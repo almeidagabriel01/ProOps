@@ -166,6 +166,7 @@ export type PlanFeatures = {
   hasBookingLink: boolean; // Link público de agendamento de visitas (Pro e Enterprise)
   hasClientPortal: boolean; // Portal do cliente por link (Pro e Enterprise)
   hasFieldService: boolean; // Ordens de serviço, equipamentos e contratos (Pro e Enterprise; Starter por add-on)
+  hasPriceTables: boolean; // Tabelas de preço por cliente (Pro e Enterprise)
   hasFiscalReceiving: boolean; // Recepção de notas de entrada (Enterprise)
   hasWhatsApp: boolean; // Bot do WhatsApp (Enterprise)
   canCustomizeTheme: boolean; // Can change colors/branding

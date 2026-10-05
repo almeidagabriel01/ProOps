@@ -73,6 +73,9 @@ export function buildPlanFeatureList(plan: UserPlan): string[] {
     f.hasFieldService
       ? "Ordens de serviço: o técnico atende no celular e o cliente assina na tela"
       : null,
+    f.hasPriceTables
+      ? "Tabelas de preço por cliente: desconto geral e preço próprio por produto"
+      : null,
     f.hasOnlinePayments
       ? "Pagamento online: o cliente paga a parcela por Pix ou boleto no link"
       : null,

@@ -8,10 +8,13 @@ import {
   deleteStagePhoto,
   scheduleStage,
   unscheduleStage,
+  getProjectProposalEquipment,
   getProjectSettings,
+  importProjectItems,
   listProjectAssignees,
   toggleChecklistItem,
   updateProject,
+  updateProjectItemsStatus,
   updateProjectSettings,
   updateStage,
   uploadStagePhoto,
@@ -34,6 +37,12 @@ router.post("/projects", createProject);
 router.put("/projects/:id", updateProject);
 router.delete("/projects/:id", deleteProject);
 router.post("/projects/:id/delivery-link", createDeliveryLink);
+router.get("/projects/:id/proposal-equipment", getProjectProposalEquipment);
+
+// Itens da obra (os produtos da proposta, sem valor). PUT e não PATCH: o CORS
+// da API e o `callApi` do front só conhecem GET, POST, PUT e DELETE.
+router.post("/projects/:id/items/import", importProjectItems);
+router.put("/projects/:id/items/status", updateProjectItemsStatus);
 
 router.put("/projects/:id/stages/:stageId", updateStage);
 router.put("/projects/:id/stages/:stageId/schedule", scheduleStage);
