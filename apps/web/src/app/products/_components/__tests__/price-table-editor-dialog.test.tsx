@@ -1,14 +1,14 @@
 // @vitest-environment jsdom
 import "@testing-library/jest-dom/vitest";
 import { describe, expect, it, vi } from "vitest";
-import { render, screen, waitFor, within } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 /**
- * Editor da tabela de preço. Dois ajustes pedidos depois do primeiro teste do
- * cliente (2026-10-05): o catálogo fica à vista para escolher o preço próprio
- * sem precisar digitar (como nos outros seletores do ERP), e o campo do
- * percentual tem a mesma altura dos botões Desconto/Acréscimo ao lado.
+ * Editor da tabela de preço. Pedidos depois do primeiro teste do cliente
+ * (2026-10-05): o preço próprio se escolhe no MESMO catálogo do Novo Contrato
+ * (cartões com busca e filtro, à vista sem digitar), e o campo do percentual
+ * tem a mesma altura dos botões Desconto/Acréscimo ao lado.
  */
 
 vi.mock("@/providers/tenant-provider", () => ({
@@ -23,6 +23,16 @@ vi.mock("@/services/product-service", () => ({
     getProducts: vi.fn(async () => [
       { id: "p2", name: "Caixa Acústica", price: "200", markup: "50", manufacturer: "" },
       { id: "p1", name: "Amplificador", price: "100", markup: "50", manufacturer: "" },
+      {
+        id: "p3",
+        name: "Persiana Rolô",
+        price: "0",
+        manufacturer: "",
+        pricingModel: {
+          mode: "curtain_height",
+          tiers: [{ id: "t1", maxHeight: 2.5, basePrice: 100, markup: 50 }],
+        },
+      },
     ]),
   },
 }));
@@ -46,34 +56,65 @@ function renderDialog() {
   );
 }
 
-const catalogNames = () =>
-  within(screen.getByRole("listbox", { name: "Catálogo" }))
-    .getAllByRole("option")
-    .map((option) => option.textContent ?? "");
+async function openPicker(user: ReturnType<typeof userEvent.setup>) {
+  // Enquanto o catálogo carrega o botão leva o spinner (que tem rótulo
+  // próprio) e fica desabilitado.
+  await waitFor(() =>
+    expect(screen.getByRole("button", { name: "Adicionar do catálogo" })).toBeEnabled(),
+  );
+  await user.click(screen.getByRole("button", { name: "Adicionar do catálogo" }));
+  await waitFor(() => expect(screen.getByRole("dialog", { name: "Preço próprio" })).toBeInTheDocument());
+  await waitFor(() => expect(screen.getByRole("button", { name: /^Amplificador/ })).toBeInTheDocument());
+}
 
 describe("PriceTableEditorDialog", () => {
-  it("mostra o catálogo inteiro sem digitar nada, produtos antes de serviços", async () => {
-    renderDialog();
-    await waitFor(() => expect(screen.getByRole("listbox", { name: "Catálogo" })).toBeInTheDocument());
-    const names = catalogNames();
-    expect(names).toHaveLength(3);
-    expect(names[0]).toContain("Amplificador");
-    expect(names[1]).toContain("Caixa Acústica");
-    expect(names[2]).toContain("Instalação");
-  });
-
-  it("o filtro estreita a lista, e o item escolhido sai dela", async () => {
+  it("abre o catálogo do Novo Contrato, com tudo à vista sem digitar", async () => {
     const user = userEvent.setup();
     renderDialog();
-    await waitFor(() => expect(screen.getByRole("listbox", { name: "Catálogo" })).toBeInTheDocument());
+    await openPicker(user);
+    for (const name of [/^Amplificador/, /^Caixa Acústica/, /^Instalação/, /^Persiana Rolô/]) {
+      expect(screen.getByRole("button", { name })).toBeInTheDocument();
+    }
+  });
 
-    await user.type(screen.getByLabelText("Buscar item do catálogo"), "caixa");
-    expect(catalogNames()).toHaveLength(1);
+  it("escolhe vários itens de uma vez, e eles saem do catálogo na próxima vez", async () => {
+    const user = userEvent.setup();
+    renderDialog();
+    await openPicker(user);
 
-    await user.click(screen.getByRole("option", { name: /Caixa Acústica/ }));
-    await user.clear(screen.getByLabelText("Buscar item do catálogo"));
-    expect(catalogNames().some((name) => name.includes("Caixa Acústica"))).toBe(false);
-    expect(screen.getByLabelText("Preço próprio de Caixa Acústica")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: /^Amplificador/ }));
+    await user.click(screen.getByRole("button", { name: /^Instalação/ }));
+    await user.click(screen.getByRole("button", { name: "Adicionar 2 itens" }));
+
+    expect(screen.getByLabelText("Preço próprio de Amplificador")).toBeInTheDocument();
+    expect(screen.getByLabelText("Preço próprio de Instalação")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Adicionar do catálogo" }));
+    await waitFor(() => expect(screen.getByRole("button", { name: /^Caixa Acústica/ })).toBeInTheDocument());
+    expect(screen.queryByRole("button", { name: /^Amplificador/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^Instalação/ })).not.toBeInTheDocument();
+  });
+
+  it("tocar de novo desmarca o item", async () => {
+    const user = userEvent.setup();
+    renderDialog();
+    await openPicker(user);
+    const card = screen.getByRole("button", { name: /^Amplificador/ });
+    await user.click(card);
+    expect(card).toHaveAttribute("aria-pressed", "true");
+    await user.click(card);
+    expect(card).toHaveAttribute("aria-pressed", "false");
+  });
+
+  it("produto por faixa de altura aparece desabilitado: vale só o ajuste", async () => {
+    const user = userEvent.setup();
+    renderDialog();
+    await openPicker(user);
+    const card = screen.getByRole("button", { name: /^Persiana Rolô/ });
+    expect(card).toHaveAttribute("aria-disabled", "true");
+    expect(screen.getByText("Por faixa de altura: vale só o ajuste")).toBeInTheDocument();
+    await user.click(card);
+    expect(card).toHaveAttribute("aria-pressed", "false");
   });
 
   it("percentual e botões de ajuste têm a mesma altura", () => {

@@ -270,7 +270,7 @@ passo no tutorial.
 | Camada | Arquivo |
 |---|---|
 | Aba (lista, excluir) | `_components/price-tables-tab.tsx` |
-| Criar, editar e ver | `_components/price-table-editor-dialog.tsx` |
+| Criar, editar e ver | `_components/price-table-editor-dialog.tsx`. O preço próprio se escolhe no `CatalogPickerDialog` do Novo Contrato (`components/features/field-service/`), em `pickMode="select"`, sem os itens já na tabela e com a faixa de altura desabilitada |
 | Hooks | `src/hooks/use-price-tables.ts` (`usePriceTables`, `usePriceTableOptions`, `useClientPriceTable`) |
 | Service | `src/services/price-table-service.ts` (`/v1/price-tables`) |
 | Conta pura | `src/lib/pricing/price-table.ts` |

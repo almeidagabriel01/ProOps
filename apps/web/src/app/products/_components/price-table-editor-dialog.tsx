@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { Minus, Plus, Search, Trash2, TriangleAlert } from "lucide-react";
+import { Minus, Plus, Trash2, TriangleAlert } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -21,16 +21,14 @@ import { ProductService, type Product } from "@/services/product-service";
 import { ServiceService, type Service } from "@/services/service-service";
 import type { PriceTable, PriceTableInput } from "@/services/price-table-service";
 import {
-  acceptsSpecificPrice,
   resolveProductTablePrice,
   resolveServiceTablePrice,
 } from "@/lib/pricing/price-table";
 import { normalizeProductPricingModel } from "@/lib/product-pricing";
 import { linearPriceUnit } from "@/lib/pricing/dimension-mode-labels";
 import { formatCurrency } from "@/utils/format";
-import { normalize } from "@/utils/text";
-import { compareCatalogDisplayItem } from "@/lib/sort-text";
 import { cn } from "@/lib/utils";
+import { CatalogPickerDialog } from "@/components/features/field-service/catalog-picker-dialog";
 
 type ItemKind = "product" | "service";
 type Direction = "discount" | "increase";
@@ -80,12 +78,11 @@ export function PriceTableEditorDialog({
 }: PriceTableEditorDialogProps) {
   const { tenant } = useTenant();
   const nicheConfig = useCurrentNicheConfig();
-  const productLabel = nicheConfig.productCatalog.singularLabel.toLowerCase();
   const [name, setName] = React.useState("");
   const [direction, setDirection] = React.useState<Direction>("discount");
   const [percent, setPercent] = React.useState(0);
   const [items, setItems] = React.useState<EditorItem[]>([]);
-  const [search, setSearch] = React.useState("");
+  const [pickerOpen, setPickerOpen] = React.useState(false);
   const [products, setProducts] = React.useState<Product[] | null>(null);
   const [services, setServices] = React.useState<Service[] | null>(null);
   const [catalogError, setCatalogError] = React.useState(false);
@@ -98,7 +95,7 @@ export function PriceTableEditorDialog({
     setDirection((table?.adjustmentPercent ?? 0) > 0 ? "increase" : "discount");
     setPercent(Math.abs(table?.adjustmentPercent ?? 0));
     setItems(itemsFromTable(table));
-    setSearch("");
+    setPickerOpen(false);
     setError(null);
   }, [open, table]);
 
@@ -142,31 +139,25 @@ export function PriceTableEditorDialog({
     return "un";
   };
 
-  // O catálogo inteiro fica à vista, como nos outros seletores do ERP; a busca
-  // só filtra.
-  const searchResults = React.useMemo(() => {
-    const term = normalize(search.trim());
-    if (!catalogLoaded) return [];
-    const taken = new Set(items.map((item) => `${item.kind}:${item.id}`));
-    const candidates = [
-      ...(products ?? []).map((p) => ({ kind: "product" as const, id: p.id, name: p.name, product: p })),
-      ...(services ?? []).map((s) => ({ kind: "service" as const, id: s.id, name: s.name, product: null })),
-    ];
-    return candidates
-      .filter((c) => !taken.has(`${c.kind}:${c.id}`) && (!term || normalize(c.name).includes(term)))
-      .sort((a, b) => compareCatalogDisplayItem(
-        { itemType: a.kind, name: a.name, id: a.id },
-        { itemType: b.kind, name: b.name, id: b.id },
-      ));
-  }, [search, catalogLoaded, products, services, items]);
+  const takenKeys = React.useMemo(
+    () => new Set(items.map((item) => `${item.kind}:${item.id}`)),
+    [items],
+  );
 
-  const addItem = (kind: ItemKind, id: string) => {
-    const base =
-      kind === "product"
-        ? resolveProductTablePrice(productById.get(id)!, percentOnly).sellingPrice
-        : resolveServiceTablePrice(serviceById.get(id)!, percentOnly).sellingPrice;
-    setItems((prev) => [{ kind, id, price: base }, ...prev]);
-    setSearch("");
+  // Cada item escolhido no catálogo entra com o preço que a tabela já daria
+  // (o ajuste aplicado), para a pessoa partir dele.
+  const addItems = (picked: { kind: ItemKind; id: string }[]) => {
+    const added = picked
+      .filter(({ kind, id }) => (kind === "product" ? productById.has(id) : serviceById.has(id)))
+      .map(({ kind, id }) => ({
+        kind,
+        id,
+        price:
+          kind === "product"
+            ? resolveProductTablePrice(productById.get(id)!, percentOnly).sellingPrice
+            : resolveServiceTablePrice(serviceById.get(id)!, percentOnly).sellingPrice,
+      }));
+    setItems((prev) => [...added, ...prev]);
   };
 
   const handleSubmit = async (event: React.FormEvent) => {
@@ -300,70 +291,25 @@ export function PriceTableEditorDialog({
             </div>
 
             {!readOnly && (
-              <div className="relative">
-                <Input
-                  placeholder={`Filtrar ${productLabel} ou serviço...`}
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  icon={
-                    catalogLoaded || catalogError ? (
-                      <Search className="h-4 w-4" />
-                    ) : (
-                      <Loader size="sm" variant="button" />
-                    )
-                  }
-                  aria-label="Buscar item do catálogo"
-                />
-                {catalogLoaded && searchResults.length === 0 && (
-                  <p className="mt-2 rounded-lg border border-dashed px-3 py-3 text-center text-sm text-muted-foreground">
-                    {search.trim()
-                      ? "Nenhum item do catálogo com esse nome."
-                      : "Todos os itens do catálogo já têm preço próprio."}
-                  </p>
-                )}
-                {searchResults.length > 0 && (
-                  <ul
-                    className="mt-2 max-h-64 divide-y overflow-y-auto rounded-lg border bg-card"
-                    role="listbox"
-                    aria-label="Catálogo"
-                  >
-                    {searchResults.map((result) => {
-                      const allowed = result.product ? acceptsSpecificPrice(result.product) : true;
-                      const catalogPrice = result.product
-                        ? resolveProductTablePrice(result.product, null).sellingPrice
-                        : resolveServiceTablePrice(serviceById.get(result.id)!, null).sellingPrice;
-                      return (
-                        <li key={`${result.kind}:${result.id}`}>
-                          <button
-                            type="button"
-                            role="option"
-                            aria-selected={false}
-                            disabled={!allowed}
-                            onClick={() => addItem(result.kind, result.id)}
-                            className="flex w-full flex-col items-start gap-0.5 px-3 py-2 text-left hover:bg-muted/60 disabled:opacity-60 disabled:hover:bg-transparent sm:flex-row sm:items-center sm:justify-between"
-                          >
-                            <span className="text-sm font-medium wrap-break-word">
-                              {result.name}
-                              <span className="ml-2 text-xs font-normal text-muted-foreground">
-                                {result.kind === "service" ? "Serviço" : nicheConfig.productCatalog.singularLabel}
-                              </span>
-                            </span>
-                            <span className="text-xs text-muted-foreground">
-                              {allowed
-                                ? `Padrão: ${formatCurrency(catalogPrice)}${
-                                    result.product ? ` / ${unitLabel(result.product)}` : ""
-                                  }`
-                                : "Por faixa de altura: vale só o ajuste"}
-                            </span>
-                          </button>
-                        </li>
-                      );
-                    })}
-                  </ul>
-                )}
+              <div className="flex flex-wrap items-center gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="gap-1.5"
+                  onClick={() => setPickerOpen(true)}
+                  disabled={!catalogLoaded}
+                >
+                  {catalogLoaded || catalogError ? (
+                    <Plus className="h-4 w-4" />
+                  ) : (
+                    <Loader size="sm" variant="button" />
+                  )}
+                  Adicionar do catálogo
+                </Button>
                 {catalogError && (
-                  <p className="mt-2 text-xs text-destructive">
-                    Não foi possível carregar o catálogo para a busca.
+                  <p className="text-xs text-destructive">
+                    Não foi possível carregar o catálogo.
                   </p>
                 )}
               </div>
@@ -452,6 +398,23 @@ export function PriceTableEditorDialog({
           </div>
 
           {error && <p className="text-sm text-destructive">{error}</p>}
+
+          <CatalogPickerDialog
+            open={pickerOpen}
+            onOpenChange={setPickerOpen}
+            title="Preço próprio"
+            description="Escolha os itens que terão um preço próprio nesta tabela."
+            pickMode="select"
+            excludeKeys={takenKeys}
+            disabledReason={(entry) =>
+              entry.pricingMode === "curtain_height" ? "Por faixa de altura: vale só o ajuste" : null
+            }
+            onConfirm={(picked) =>
+              addItems(
+                picked.flatMap((item) => (item.refId ? [{ kind: item.kind, id: item.refId }] : [])),
+              )
+            }
+          />
 
           <DialogFooter className="gap-2">
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
