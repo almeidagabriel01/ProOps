@@ -336,8 +336,36 @@ service cloud.firestore {
     // Writes blocked (Cloud Functions only) or restricted.
 
     // PROPOSALS
+    //
+    // A proposta carrega os valores da venda, entao ser da empresa nao basta:
+    // o membro precisa de "Ver" (users/{uid}/permissions/{pageId}, o doc que a
+    // tela de Equipe grava) numa das telas que mostram a proposta inteira:
+    // Propostas ou o CRM (o quadro exibe cada proposta com o valor). Dono e
+    // administradores leem tudo. Sem isso o tecnico de campo, que so tem OS,
+    // equipamentos e agenda, lia todos os precos pelo SDK.
+    //
+    // Telas de membro que precisam de algo da proposta sem os valores passam
+    // pela API: a checagem de "em uso" antes de excluir contato, produto ou
+    // servico (GET /v1/proposals/usage) e os aparelhos da obra
+    // (GET /v1/projects/:id/proposal-equipment).
+    function memberCanViewPage(pageId) {
+      let permissionPath = /databases/$(database)/documents/users/$(request.auth.uid)/permissions/$(pageId);
+      return exists(permissionPath) && get(permissionPath).data.get('canView', false) == true;
+    }
+
+    function canReadTenantProposals() {
+      return hasTenantAdminRole()
+             || memberCanViewPage('proposals')
+             || memberCanViewPage('kanban');
+    }
+
     match /proposals/{proposalId} {
-      allow read: if isSuperAdmin() || isDemoRead(resource.data.tenantId) || (isAuthenticated() && belongsToTenant(resource.data.tenantId) && tenantSubscriptionAllowsRead(resource.data.tenantId));
+      allow read: if isSuperAdmin()
+                  || isDemoRead(resource.data.tenantId)
+                  || (isAuthenticated()
+                      && belongsToTenant(resource.data.tenantId)
+                      && tenantSubscriptionAllowsRead(resource.data.tenantId)
+                      && canReadTenantProposals());
       allow write: if false; // Managed by Cloud Functions (limits, validation)
       allow delete: if isSuperAdmin(); // Super admin can delete for tenant cleanup
     }
@@ -361,6 +389,14 @@ service cloud.firestore {
       allow read: if isSuperAdmin() || isDemoRead(resource.data.tenantId) || (isAuthenticated() && belongsToTenant(resource.data.tenantId) && tenantSubscriptionAllowsRead(resource.data.tenantId));
       allow write: if false; // Managed by Cloud Functions (limits)
       allow delete: if isSuperAdmin(); // Super admin can delete for tenant cleanup
+    }
+
+    // PRICE TABLES (tabelas de preço específicas; a padrão é o catálogo).
+    // Escrita só pelo backend (price-tables.controller), que aplica a
+    // permissão de Produtos e o plano (Pro e Enterprise).
+    match /price_tables/{priceTableId} {
+      allow read: if isSuperAdmin() || isDemoRead(resource.data.tenantId) || (isAuthenticated() && belongsToTenant(resource.data.tenantId) && tenantSubscriptionAllowsRead(resource.data.tenantId));
+      allow write: if false; // Managed by Cloud Functions
     }
 
     // TRANSACTIONS (Financial)
