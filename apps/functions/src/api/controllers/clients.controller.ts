@@ -21,6 +21,11 @@ import {
   resolvePartnerContactIds,
   resolveResponsibleMember,
 } from "../services/contact-responsibles";
+import {
+  isPriceTableContact,
+  validateContactPriceTable,
+} from "../services/price-tables/contact-price-table";
+import { PriceTableError } from "../services/price-tables/price-tables.service";
 
 /**
  * Campos fiscais do destinatário.
@@ -74,6 +79,8 @@ const CreateClientSchema = z.object({
   responsibleMemberId: z.string().max(128).nullable().optional(),
   /** Parceiros externos (contatos vendedor ou arquiteto) que cuidam dele. */
   partnerContactIds: z.array(z.string().min(1).max(128)).max(MAX_PARTNER_CONTACTS).optional(),
+  /** Tabela de preço do cliente. Ausente ou `null` = tabela padrão (o catálogo). */
+  priceTableId: z.string().trim().min(1).max(128).nullable().optional(),
   source: z.string().max(50).trim().optional(),
   sourceId: z.string().max(100).trim().optional().nullable(),
   targetTenantId: z.string().max(100).optional(),
@@ -93,8 +100,17 @@ const UpdateClientSchema = z.object({
   linkedMemberId: z.string().max(128).nullable().optional(),
   responsibleMemberId: z.string().max(128).nullable().optional(),
   partnerContactIds: z.array(z.string().min(1).max(128)).max(MAX_PARTNER_CONTACTS).optional(),
+  priceTableId: z.string().trim().min(1).max(128).nullable().optional(),
   ...ClientFiscalFields,
 });
+
+/** Erro de tabela de preço do contato vira resposta; o resto sobe. */
+function priceTableErrorResponse(res: Response, error: unknown) {
+  if (!(error instanceof PriceTableError)) return null;
+  return res
+    .status(error.status)
+    .json({ message: error.message, ...(error.code ? { code: error.code } : {}) });
+}
 
 /** Descarta chaves vazias para não gravar um endereço só de strings em branco. */
 export function compactEnderecoFiscal(
@@ -264,6 +280,16 @@ export const createClient = async (req: Request, res: Response) => {
       }
     }
 
+    if (input.priceTableId) {
+      try {
+        await validateContactPriceTable(targetTenantId, input.priceTableId, input.types);
+      } catch (error) {
+        const response = priceTableErrorResponse(res, error);
+        if (response) return response;
+        throw error;
+      }
+    }
+
     let responsible: { id: string; name: string } | null = null;
     let partnerContactIds: string[] = [];
     try {
@@ -325,6 +351,7 @@ export const createClient = async (req: Request, res: Response) => {
         clientData.responsibleMemberName = responsible.name;
       }
       if (partnerContactIds.length > 0) clientData.partnerContactIds = partnerContactIds;
+      if (input.priceTableId) clientData.priceTableId = input.priceTableId;
 
       const enderecoFiscal = compactEnderecoFiscal(input.enderecoFiscal);
       if (enderecoFiscal) clientData.enderecoFiscal = enderecoFiscal;
@@ -500,6 +527,28 @@ export const updateClient = async (req: Request, res: Response) => {
       const message = contactResponsiblesErrorMessage(error);
       if (message) return res.status(400).json({ message });
       throw error;
+    }
+
+    if (updateData.priceTableId !== undefined) {
+      if (updateData.priceTableId) {
+        try {
+          await validateContactPriceTable(
+            String(clientData?.tenantId ?? tenantId),
+            updateData.priceTableId,
+            updateData.types ?? (clientData?.types as string[] | undefined),
+          );
+        } catch (error) {
+          const response = priceTableErrorResponse(res, error);
+          if (response) return response;
+          throw error;
+        }
+        safeUpdate.priceTableId = updateData.priceTableId;
+      } else {
+        safeUpdate.priceTableId = FieldValue.delete();
+      }
+    } else if (updateData.types !== undefined && !isPriceTableContact(updateData.types)) {
+      // Deixou de ser cliente: a tabela de preço não vale mais.
+      safeUpdate.priceTableId = FieldValue.delete();
     }
 
     if (updateData.enderecoFiscal !== undefined) {

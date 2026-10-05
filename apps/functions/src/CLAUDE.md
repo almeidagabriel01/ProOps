@@ -352,6 +352,7 @@ Funcao HTTP separada (nao faz parte do monolito `api`):
 | `shared_pmoc/{token}` | Assistencia tecnica | Link publico do PMOC de um contrato (o id e o token; o contrato guarda `pmocShareToken`). Admin SDK only |
 | `technical_responsibles/{id}` | Assistencia tecnica | Responsavel tecnico do PMOC (conselho, registro, ART e o PDF dela). Tenant le; escrita so via Cloud Functions, pelo dono e pelos admins |
 | `stock_movements/{id}` | Estoque | Historico de estoque, gravado na mesma transacao que ajusta `inventoryValue`. Id `so_{ordem}_{revisao}_{produto}`. Tenant le; escrita so via Cloud Functions |
+| `price_tables/{id}` | Tabelas de preco | Tabela especifica (`name`, `adjustmentPercent`, `productPrices`, `servicePrices`), escolhida no contato (`clients.priceTableId`); a padrao e o catalogo, sem documento. Tenant le; escrita so via Cloud Functions (`price-tables.controller.ts`, capacidade `priceTables`, permissao de Produtos) |
 | `proposal_counters/{tenantId}` | Propostas | Configuracao e contador da numeracao (o codigo `0018926SP`). Admin SDK only |
 | `proposals/{proposalId}` | Propostas | Propostas (com `pdf.storagePath` e `pdfGenerationLock`) |
 | `transactions/{transactionId}` | Financeiro | Lancamentos financeiros |

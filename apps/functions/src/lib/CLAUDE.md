@@ -468,6 +468,7 @@ aplicaria o gate a API inteira.
 | `/v1/booking*` | `bookingLink` (Pro e Enterprise). As rotas publicas `/v1/public/booking/:token` nao tem usuario: conferem o plano pela empresa do token (`resolveBookingToken`) |
 | `/v1/client-portal*` | `clientPortal` (Pro e Enterprise). As rotas publicas `/v1/share/portal/:token` conferem o plano pela empresa do token (`resolvePortalToken`) |
 | `/v1/equipment*`, `/v1/service-orders*` | `fieldService` (Pro e Enterprise; Starter pelo add-on `field_service`) |
+| `/v1/price-tables*` | `priceTables` (Pro e Enterprise, sem add-on). O `priceTableId` do contato e gravado por `/v1/clients`, fora do prefixo: `validateContactPriceTable` confere a capacidade ali, no mesmo modo do gate |
 
 **Caminhos que nao passam por rota checam a capacidade por conta propria**,
 senao um downgrade nao desliga nada: a fila do Drive (`isDriveConnected` /

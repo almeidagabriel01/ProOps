@@ -46,6 +46,7 @@ describe("PLAN_CATALOG — matriz alvo", () => {
           "bookingLink",
           "clientPortal",
           "fieldService",
+          "priceTables",
         ],
       ],
       [
@@ -66,6 +67,7 @@ describe("PLAN_CATALOG — matriz alvo", () => {
           "bookingLink",
           "clientPortal",
           "fieldService",
+          "priceTables",
           "fiscalReceiving",
         ],
       ],
@@ -120,6 +122,18 @@ describe("PLAN_CATALOG — matriz alvo", () => {
     expect(PLAN_CATALOG.enterprise.capabilities.fieldService).toBe(true);
     expect(buildPublicPlanFeatures("pro").hasFieldService).toBe(true);
     expect(buildPublicPlanFeatures("starter").hasFieldService).toBe(false);
+  });
+
+  it("tabelas de preco: Pro e Enterprise, sem add-on para o Starter", () => {
+    expect(minimumTierForCapability("priceTables")).toBe("pro");
+    expect(PLAN_CATALOG.free.capabilities.priceTables).toBe(false);
+    expect(PLAN_CATALOG.starter.capabilities.priceTables).toBe(false);
+    expect(PLAN_CATALOG.pro.capabilities.priceTables).toBe(true);
+    expect(PLAN_CATALOG.enterprise.capabilities.priceTables).toBe(true);
+    expect(buildPublicPlanFeatures("pro").hasPriceTables).toBe(true);
+    expect(buildPublicPlanFeatures("enterprise").hasPriceTables).toBe(true);
+    expect(buildPublicPlanFeatures("starter").hasPriceTables).toBe(false);
+    expect(addonsGrantingCapability("priceTables")).toEqual([]);
   });
 
   it("planilhas: Starter 5, Pro 50, Enterprise ilimitado", () => {

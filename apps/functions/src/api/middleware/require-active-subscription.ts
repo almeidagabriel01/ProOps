@@ -79,6 +79,9 @@ const DEMO_READABLE_PREFIXES = [
   "/v1/tasks",
   "/v1/calendar",
   "/v1/notifications",
+  // Tabelas de preço (price-tables.routes.ts): a aba de Produtos e o seletor
+  // do cadastro do cliente leem o tenant de exemplo do nicho da conta.
+  "/v1/price-tables",
   // Ambientes, sistemas, campos customizados, opcoes e templates de proposta
   // vivem TODOS sob /v1/aux (app.use("/v1/aux", auxiliaryRoutes)).
   //

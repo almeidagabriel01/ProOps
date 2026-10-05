@@ -974,6 +974,49 @@ de docs por mês. Montado sob `/transactions` para herdar o
 `commission-report.service.test.ts`, `commission-report.index.test.ts` e
 `finance.routes.commissions.test.ts`.
 
+### Tabelas de preco (`api/services/price-tables/`)
+
+"Tabela de preco padrao e uma especifica para um cliente". A padrao e o
+proprio catalogo (nao tem documento); cada tabela especifica e um doc de
+`price_tables`, escolhido no cadastro do contato (`clients.priceTableId`,
+ausente = padrao) e aplicado nas propostas dele. Pro e Enterprise
+(`priceTables`), sem add-on. Sem pageId proprio: segue a permissao de Produtos
+(ver para listar; criar, editar e excluir para as acoes).
+
+- **Duas formas na mesma tabela.** `adjustmentPercent` ajusta o PRECO DE VENDA
+  padrao de todo item do catalogo (negativo = desconto, de -99,99% a +1000%),
+  inclusive produto por faixa de altura e servico. `productPrices` e
+  `servicePrices` (id -> preco de venda na unidade de medida do item: unidade,
+  m2, m linear) vencem o percentual naquele item. Produto por faixa de altura
+  NAO aceita preco proprio (o preco depende da faixa): o backend recusa.
+- **Servico entra nas duas formas.** O servico do catalogo so tem preco (sem
+  custo e markup), entao a tabela muda o preco dele direto.
+- **Limites:** 50 tabelas por empresa (o `.limit()` da lista) e 500 precos
+  proprios por tabela. Os ids de produto e servico sao conferidos contra a
+  empresa (`getAll`) a cada gravacao.
+- **Excluir tabela em uso e recusado (409)**, com quantos clientes a usam
+  (`count()` por `tenantId` + `priceTableId`, igualdades sem indice composto).
+  Desvincular em silencio mudaria o preco das proximas propostas sem ninguem
+  decidir.
+- **Duas leituras sem a permissao de Produtos**, porque o preco da tabela vale
+  na proposta de quem quer que a monte: `GET /v1/price-tables/options` (nome e
+  percentual, para o seletor do contato) e `GET /v1/price-tables/:id`.
+- **O contato** (`clients.controller.ts`): `priceTableId` so em contato do tipo
+  cliente, tabela da mesma empresa e, para ESCOLHER uma, o modulo no plano
+  (`validateContactPriceTable`, 402 em `enforce`). `null` volta para a padrao
+  sempre; deixar de ser cliente apaga o campo.
+- **Demonstracao:** `/v1/price-tables` esta em `DEMO_READABLE_PREFIXES`, e a
+  conta free le a tabela do tenant de exemplo do nicho dela
+  (`demoTenantIdForNiche`), como o DRE. Cada dataset traz uma tabela e um
+  cliente apontando para ela.
+- **A conta acontece no front**, em `apps/web/src/lib/pricing/price-table.ts`
+  (puro): o backend nao recalcula preco de proposta. A Lia ainda nao aplica a
+  tabela ao montar proposta.
+
+Guards: `price-tables.controller.test.ts`, `clients.controller.price-table.test.ts`,
+`price-tables.routes.gates.test.ts`, o bloco `priceTables` de
+`require-plan-capability.test.ts` e `tests/firestore-rules/price-tables.test.ts`.
+
 ### Infraestrutura / GCP
 
 - **Cloud Monitoring alerts** — as policies vivem SÓ no GCP (o script
