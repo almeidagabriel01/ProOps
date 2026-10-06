@@ -455,6 +455,7 @@ export default function ProductsPage() {
           initialValue={getProductInventoryValue(product)}
           inventory={inventoryDefinitionFor(inventoryConfig, productInventoryUnit(product))}
           onUpdate={(val) => handleInventoryUpdate(product, val)}
+          readOnly={!canEdit}
         />
       ),
     }] as DataTableColumn<Product>[])),
