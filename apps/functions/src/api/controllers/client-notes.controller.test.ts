@@ -151,6 +151,19 @@ describe("client notes", () => {
     expect(deleted).toHaveLength(0);
   });
 
+  it("quem só edita Contatos apaga só a própria anotação", async () => {
+    hasPagePermission.mockImplementation(async (_c: unknown, _p: string, action: string) => action !== "canDelete");
+    notes.n3 = { tenantId: "t1", clientId: "c1", text: "De outro", authorId: "outro" };
+    const alheia = fakeRes();
+    await deleteClientNote(fakeReq({ id: "c1", noteId: "n3" }), alheia);
+    expect(alheia.statusCode).toBe(403);
+
+    const propria = fakeRes();
+    await deleteClientNote(fakeReq({ id: "c1", noteId: "n1" }), propria);
+    expect(propria.statusCode).toBe(200);
+    expect(deleted).toEqual(["n1"]);
+  });
+
   it("apaga só anotação do mesmo contato e empresa", async () => {
     notes.n2 = { tenantId: "outra", clientId: "c1" };
     const outra = fakeRes();
