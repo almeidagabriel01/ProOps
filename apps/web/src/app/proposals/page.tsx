@@ -1295,7 +1295,7 @@ export default function ProposalsPage() {
                 }
                 onEdit={() => handleEdit(proposal.id)}
                 onDelete={() => setDeleteId(proposal.id)}
-                canIssueInvoice={isProposalApproved(proposal)}
+                canIssueInvoice={isProposalApproved(proposal) && canIssueInvoice}
                 isIssuingInvoice={false}
                 onIssueInvoice={() => router.push(invoiceEditorPath(proposal.id))}
               />
