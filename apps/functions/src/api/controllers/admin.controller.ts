@@ -436,6 +436,13 @@ export const updateMember = async (req: Request, res: Response) => {
           .status(500)
           .json({ message: "Erro ao atualizar credenciais." });
       }
+      // Trocar a senha ou o e-mail do membro derruba as sessões abertas com a
+      // credencial antiga, como na troca pela própria pessoa. Sem isso quem
+      // tinha a senha antiga (o ex-funcionário, por exemplo) seguia logado.
+      if (authUpdates.password || authUpdates.email) {
+        await auth.revokeRefreshTokens(id);
+        invalidateRevocationState(id);
+      }
     }
 
     const firestoreUpdates: Record<string, unknown> = {
