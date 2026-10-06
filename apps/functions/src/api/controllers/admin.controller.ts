@@ -1,6 +1,10 @@
 import { Request, Response } from "express";
 import { db, auth } from "../../init";
 import { invalidateRevocationState } from "../../lib/token-revocation";
+import {
+  isAssignablePermissionPage,
+  isPermissionActionKey,
+} from "../../shared/permission-pages";
 import { withActors } from "../../lib/admin-actors";
 import { FieldValue, Timestamp } from "firebase-admin/firestore";
 import { getStorage } from "firebase-admin/storage";
@@ -297,6 +301,9 @@ export const createMember = async (req: Request, res: Response) => {
           // perms is untyped input
           const permData = perms as Record<string, boolean>;
           const pageId = pageSlug.replace(/\//g, "_").replace(/^_/, "");
+          // Página que a tela de Equipe não conhece não vira documento (ver
+          // updatePermissions).
+          if (!isAssignablePermissionPage(pageId)) continue;
           const permRef = memberRef.collection("permissions").doc(pageId);
 
           transaction.set(permRef, {
@@ -666,6 +673,20 @@ export const updatePermissions = async (req: Request, res: Response) => {
       .collection("users")
       .doc(actualMemberId)
       .collection("permissions");
+
+    // Só páginas e ações que a tela de Equipe conhece. Antes qualquer pageId
+    // ou chave era gravado: uma chave inventada não abre nada, mas fica no
+    // documento parecendo permissão, e é assim que nasce uma chave fantasma.
+    if (mode === "single" && pageId && key) {
+      if (!isAssignablePermissionPage(pageId) || !isPermissionActionKey(key) || typeof value !== "boolean") {
+        return res.status(400).json({ message: "Permissão inválida." });
+      }
+    } else if (permissions && typeof permissions === "object") {
+      const unknownPages = Object.keys(permissions).filter((id) => !isAssignablePermissionPage(id));
+      if (unknownPages.length > 0) {
+        return res.status(400).json({ message: "Permissão inválida.", unknownPages });
+      }
+    }
 
     // Handle single permission update mode
     if (mode === "single" && pageId && key) {
