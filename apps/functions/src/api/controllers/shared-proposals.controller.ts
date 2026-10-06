@@ -5,6 +5,7 @@ import { db } from "../../init";
 import { FieldPath } from "firebase-admin/firestore";
 import { resolveClientIp } from "../../lib/client-ip";
 import { resolveOnlineApprovalState } from "./proposal-online-approval.controller";
+import { stripCostFromSharedLine } from "../services/shared-proposal-lines";
 
 type ProductLike = {
   productId?: string;
@@ -93,7 +94,7 @@ const SHARED_PROPOSAL_ALLOWED_FIELDS = [
   "paymentMethod",
 ] as const;
 
-function sanitizeSharedProposalPayload(
+export function sanitizeSharedProposalPayload(
   proposalId: string,
   proposalData: ProposalLike | undefined,
 ): Record<string, unknown> {
@@ -116,6 +117,14 @@ function sanitizeSharedProposalPayload(
   // Remover o campo pdf inteiro (contém storagePath e versionHash internos).
   // O cliente público não precisa de metadados de cache do PDF.
   delete safe.pdf;
+
+  // Na proposta gravada, unitPrice é o custo e markup é a margem: o link
+  // público leva só o preço de venda.
+  if (Array.isArray(safe.products)) {
+    safe.products = (safe.products as Array<Record<string, unknown>>).map(
+      (line) => stripCostFromSharedLine(line),
+    );
+  }
 
   return safe;
 }
