@@ -45,7 +45,10 @@ membro? Se sim, ele precisa de um `pageId`.
 
 - [ ] `pageId` acrescentado a `PERMISSION_PAGES` em
       `apps/web/src/lib/permissions/pages.ts` — **fonte canônica**, consumida
-      pelas duas telas da área de Equipe.
+      pelas duas telas da área de Equipe — e a
+      `ASSIGNABLE_PERMISSION_PAGE_IDS` em
+      `apps/functions/src/shared/permission-pages.ts`: o backend recusa gravar
+      página que não está ali. Paridade: `permission-pages-parity.test.ts`.
 - [ ] Controller checa: `hasPagePermission(claims, pageId, action)` (padrão
       novo) ou o bloco `if (!isMaster && !isSuperAdmin) checkPermission(...)`
       (controllers antigos que já têm o contexto resolvido em mãos).
