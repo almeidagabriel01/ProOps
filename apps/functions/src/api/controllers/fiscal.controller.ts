@@ -60,6 +60,7 @@ import {
   refreshInvoice,
 } from "../services/fiscal/invoice.service";
 import { sanitizeFiscalText } from "../services/fiscal/fiscal-text";
+import { canRequestNcmSuggestion } from "../services/fiscal/ncm-suggestion-access";
 import { readArchivedDocument } from "../services/fiscal/invoice-archive.service";
 import { resolveTenantCapabilities } from "../../lib/tenant-capabilities";
 import {
@@ -622,6 +623,11 @@ export const suggestNcmHandler = async (req: Request, res: Response): Promise<vo
   const user = req.user;
   if (!user?.uid || !user?.tenantId) {
     res.status(401).json({ message: "Não autenticado" });
+    return;
+  }
+
+  if (!(await canRequestNcmSuggestion(user))) {
+    res.status(403).json({ message: "Sem permissão para sugerir NCM." });
     return;
   }
 
