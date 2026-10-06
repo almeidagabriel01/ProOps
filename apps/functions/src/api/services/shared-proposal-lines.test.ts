@@ -69,7 +69,7 @@ describe("stripCostFromSharedLine (link público da proposta)", () => {
   });
 
   it("sem total: recalcula o preço de venda pelo modelo padrão", () => {
-    const safe = stripCostFromSharedLine({
+    const safe = stripCostFromSharedLine<Record<string, unknown>>({
       quantity: 3,
       unitPrice: 100,
       markup: 25,
