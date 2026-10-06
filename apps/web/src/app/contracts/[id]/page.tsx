@@ -190,13 +190,15 @@ export default function ContractDetailPage() {
 
         {writable && (
           <div className="flex flex-wrap gap-2">
-            {contract.status === "draft" && (
+            {/* Ativar e retomar ligam a cobrança: criam lançamentos (e a
+                NFS-e, se ligada), então pedem o financeiro, como o backend. */}
+            {contract.status === "draft" && financial.canCreate && (
               <Button onClick={() => setActivateOpen(true)}>
                 <Play className="mr-2 h-4 w-4" />
                 Ativar
               </Button>
             )}
-            {contract.status === "suspended" && (
+            {contract.status === "suspended" && financial.canCreate && (
               <Button
                 onClick={() => run(() => FieldService.resumeContract(contract.id), "Contrato retomado.")}
                 disabled={busy}

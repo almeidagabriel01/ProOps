@@ -327,6 +327,95 @@ describe("ativar", () => {
   });
 });
 
+describe("cobrança exige o financeiro, não só Contratos", () => {
+  const member = (body: Doc = {}, params: Doc = {}) => req({ role: "MEMBER", uid: "m1", params, body });
+
+  it("membro só com Contratos não ativa: ativar cria lançamento", async () => {
+    const id = await createContract();
+    permissions.set("contracts.canEdit", true);
+    const res = mockRes();
+    await activateServiceContract(member({ startDate: "2026-10-05" }, { id }), res);
+    expect(res.statusCode).toBe(403);
+    expect(store.service_contracts[id].status).toBe("draft");
+    expect(contractTransactions()).toHaveLength(0);
+  });
+
+  it("com Contratos e criar em Lançamentos, ativa", async () => {
+    const id = await createContract();
+    permissions.set("contracts.canEdit", true);
+    permissions.set("transactions.canCreate", true);
+    const res = mockRes();
+    await activateServiceContract(member({ startDate: "2026-10-05" }, { id }), res);
+    expect(res.statusCode).toBe(200);
+    expect(contractTransactions()).toHaveLength(1);
+  });
+
+  it("contrato que emite NFS-e exige também emitir em Notas Fiscais", async () => {
+    const id = await createContract({ issueNfse: true });
+    permissions.set("contracts.canEdit", true);
+    permissions.set("transactions.canCreate", true);
+    const blocked = mockRes();
+    await activateServiceContract(member({ startDate: "2026-10-05" }, { id }), blocked);
+    expect(blocked.statusCode).toBe(403);
+
+    permissions.set("invoices.canCreate", true);
+    const ok = mockRes();
+    await activateServiceContract(member({ startDate: "2026-10-05" }, { id }), ok);
+    expect(ok.statusCode).toBe(200);
+  });
+
+  it("membro só com Contratos não retoma, mas suspende", async () => {
+    const id = await createContract();
+    await activate(id, "2026-10-05");
+    permissions.set("contracts.canEdit", true);
+
+    const suspended = mockRes();
+    await suspendServiceContract(member({}, { id }), suspended);
+    expect(suspended.statusCode).toBe(200);
+
+    const resumed = mockRes();
+    await resumeServiceContract(member({}, { id }), resumed);
+    expect(resumed.statusCode).toBe(403);
+    expect(store.service_contracts[id].status).toBe("suspended");
+  });
+
+  it("num contrato ativo, só Contratos não muda valor nem liga a NFS-e", async () => {
+    const id = await createContract();
+    await activate(id, "2026-10-05");
+    permissions.set("contracts.canEdit", true);
+
+    const price = mockRes();
+    await updateServiceContract(member({ lines: [{ ...LINES[0], unitPrice: 1 }] }, { id }), price);
+    expect(price.statusCode).toBe(403);
+    expect(store.service_contracts[id].monthlyAmount).toBe(129);
+
+    const nfse = mockRes();
+    await updateServiceContract(member({ issueNfse: true }, { id }), nfse);
+    expect(nfse.statusCode).toBe(403);
+  });
+
+  it("o formulário reenvia a cobrança igual: editar o título de um ativo segue liberado", async () => {
+    const id = await createContract();
+    await activate(id, "2026-10-05");
+    permissions.set("contracts.canEdit", true);
+    const res = mockRes();
+    await updateServiceContract(
+      member({ title: "Monitoramento 24h", lines: LINES, billingDay: 10, wallet: "w1", issueNfse: false }, { id }),
+      res,
+    );
+    expect(res.statusCode).toBe(200);
+    expect(store.service_contracts[id].title).toBe("Monitoramento 24h");
+  });
+
+  it("no rascunho, só Contratos edita o valor (a ativação é que confere)", async () => {
+    const id = await createContract();
+    permissions.set("contracts.canEdit", true);
+    const res = mockRes();
+    await updateServiceContract(member({ lines: [{ ...LINES[0], unitPrice: 150 }] }, { id }), res);
+    expect(res.statusCode).toBe(200);
+  });
+});
+
 describe("rotina diária", () => {
   it("rodar duas vezes no mesmo dia não cobra em dobro", async () => {
     const id = await createContract({ billingDay: 20 });

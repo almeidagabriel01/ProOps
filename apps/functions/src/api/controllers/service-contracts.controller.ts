@@ -95,6 +95,59 @@ async function assertResponsible(responsibleId: string | null | undefined, tenan
   }
 }
 
+/**
+ * Ativar ou retomar põe o contrato para cobrar: a rotina lança uma
+ * mensalidade por mês e, com `issueNfse`, emite a NFS-e de cada uma. Isso é
+ * criar lançamento (e nota), então exige as permissões do financeiro e das
+ * notas, e não só "Editar" em Contratos. Até 2026-10 quem só editava
+ * contratos ligava a cobrança e a emissão sem ter nenhuma das duas.
+ * Suspender e encerrar só param de cobrar, e seguem com a permissão de
+ * Contratos.
+ */
+async function assertBillingPermission(req: Request, issueNfse: boolean) {
+  if (!(await hasPagePermission(req.user, "transactions", "canCreate"))) {
+    throw new HttpError(
+      403,
+      "Ligar a cobrança do contrato cria lançamentos: é preciso poder criar em Lançamentos.",
+    );
+  }
+  if (issueNfse && !(await hasPagePermission(req.user, "invoices", "canCreate"))) {
+    throw new HttpError(
+      403,
+      "Este contrato emite NFS-e: é preciso poder emitir em Notas Fiscais.",
+    );
+  }
+}
+
+/**
+ * O que a edição muda na cobrança de um contrato que já cobra. O formulário
+ * manda todos os campos em toda edição, então vale o valor, não a presença:
+ * quem só ajusta o plano de visitas não mexe no que é lançado.
+ */
+export function billingChanges(
+  current: Pick<ServiceContract, "lines" | "billingDay" | "wallet" | "issueNfse">,
+  input: { lines?: unknown; billingDay?: number; wallet?: string; issueNfse?: boolean },
+): { changed: boolean; issueNfse: boolean } {
+  const issueNfse = input.issueNfse ?? current.issueNfse === true;
+  const linesKey = (lines: unknown) =>
+    JSON.stringify(
+      (Array.isArray(lines) ? lines : []).map((line: Record<string, unknown>) => [
+        line.id,
+        line.kind,
+        line.refId ?? null,
+        line.name,
+        Number(line.quantity),
+        Number(line.unitPrice),
+      ]),
+    );
+  const changed =
+    (input.lines !== undefined && linesKey(input.lines) !== linesKey(current.lines)) ||
+    (input.billingDay !== undefined && input.billingDay !== current.billingDay) ||
+    (input.wallet !== undefined && input.wallet !== current.wallet) ||
+    (input.issueNfse !== undefined && input.issueNfse !== (current.issueNfse === true));
+  return { changed, issueNfse };
+}
+
 /** A mensalidade vira lançamento: sem o financeiro no plano, não há onde cobrar. */
 async function assertFinancial(tenantId: string) {
   if (!(await tenantHasCapability(tenantId, "financial"))) {
@@ -215,6 +268,12 @@ export async function updateServiceContract(req: Request, res: Response) {
     const { ref, contract } = await loadContract(req, tenantId);
     if (contract.status === "ended") throw new HttpError(409, "Este contrato está encerrado.");
     const input = parsed.data;
+    // Num contrato que já cobra, mudar valor, dia, carteira ou NFS-e muda o que
+    // é lançado daqui para a frente. No rascunho, a ativação confere.
+    if (contract.status !== "draft") {
+      const billing = billingChanges(contract, input);
+      if (billing.changed) await assertBillingPermission(req, billing.issueNfse);
+    }
 
     const update: Record<string, unknown> = { updatedAt: new Date().toISOString() };
     for (const key of ["title", "type", "lines", "billingDay", "wallet", "issueNfse", "notes", "endDate"] as const) {
@@ -285,6 +344,7 @@ export async function activateServiceContract(req: Request, res: Response) {
     await assertFinancial(tenantId);
     const { ref, contract } = await loadContract(req, tenantId);
     assertTransition(contract.status, "active");
+    await assertBillingPermission(req, contract.issueNfse === true);
     if (contract.lines.length === 0 || contract.monthlyAmount <= 0) {
       throw new HttpError(400, "Defina o valor da mensalidade antes de ativar.");
     }
@@ -360,6 +420,7 @@ export async function resumeServiceContract(req: Request, res: Response) {
     }
     const { ref, contract } = await loadContract(req, tenantId);
     assertTransition(contract.status, "active");
+    await assertBillingPermission(req, contract.issueNfse === true);
     const today = todayInBrazil();
     const plan = contract.visitPlan;
     const nextVisitDate =
