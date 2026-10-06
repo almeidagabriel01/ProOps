@@ -487,10 +487,11 @@ const HANDLERS: Record<string, ToolHandler> = {
         error: "Confirmacao obrigatoria. Use request_confirmation antes de deletar.",
       };
     }
-    const result = await deleteTransactionForAi(
-      args.transactionId as string,
-      ctx.tenantId,
-    );
+    const result = await deleteTransactionForAi(args.transactionId as string, {
+      uid: ctx.uid,
+      role: ctx.role,
+      tenantId: ctx.tenantId,
+    });
     return { success: true, data: result };
   },
 
@@ -543,7 +544,7 @@ const HANDLERS: Record<string, ToolHandler> = {
     const result = await payInstallmentForAi(
       args.transactionId as string,
       Number(args.installmentNumber),
-      ctx.tenantId,
+      { uid: ctx.uid, role: ctx.role, tenantId: ctx.tenantId },
       paidAt,
     );
     return { success: true, data: result };
