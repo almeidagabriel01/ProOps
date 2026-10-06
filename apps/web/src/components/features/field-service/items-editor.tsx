@@ -22,6 +22,11 @@ interface ItemsEditorProps {
   /** Rótulo e sufixo do total: "Mensalidade" e "/mês" no contrato. */
   totalLabel?: string;
   totalSuffix?: string;
+  /**
+   * O técnico lança peças, mas o valor é de quem coordena (o backend mantém o
+   * valor gravado e usa o do catálogo nas peças novas): o campo fica só leitura.
+   */
+  lockPrices?: boolean;
 }
 
 function newId(): string {
@@ -108,6 +113,7 @@ export function ItemsEditor({
   emptyText = "Nenhuma peça ou serviço lançado.",
   totalLabel = "Total",
   totalSuffix = "",
+  lockPrices = false,
 }: ItemsEditorProps) {
   const [pickerOpen, setPickerOpen] = React.useState(false);
 
@@ -197,7 +203,7 @@ export function ItemsEditor({
                       value={item.unitPrice}
                       onChange={(e) => update(item.id, { unitPrice: Number(e.target.value) || 0 })}
                       placeholder="0,00"
-                      disabled={disabled}
+                      disabled={disabled || lockPrices}
                       className="h-9 py-0 pl-10"
                     />
                   </div>

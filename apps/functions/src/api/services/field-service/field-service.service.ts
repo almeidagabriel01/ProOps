@@ -10,12 +10,18 @@ import {
   SERVICE_ORDERS_COLLECTION,
   SERVICE_ORDER_COUNTERS_COLLECTION,
   STOCK_MOVEMENTS_COLLECTION,
+  catalogKey,
   formatOrderCode,
   stockConsumption,
   stockDelta,
   stockMovementId,
   type ServiceOrderItem,
 } from "./field-service-model";
+import {
+  normalizeProductPricingModel,
+  parsePricingNumber,
+  roundPricingValue,
+} from "../../../shared/dimension-pricing";
 
 /**
  * Leitura e gravação de equipamentos e ordens de serviço. As regras de negócio
@@ -29,6 +35,42 @@ export async function loadOfTenant(collection: string, id: string, tenantId: str
   const data = snap.data();
   if (!snap.exists || data?.tenantId !== tenantId) return null;
   return { ref, data: data as Record<string, unknown> };
+}
+
+/**
+ * Preço de VENDA de um item do catálogo, como o seletor da OS mostra: o do
+ * produto é custo mais markup (a primeira faixa, no produto por altura); o do
+ * serviço é o preço dele.
+ */
+export function catalogSellingPrice(kind: "product" | "service", data: Record<string, unknown>): number {
+  if (kind === "service") return roundPricingValue(Math.max(0, parsePricingNumber(data.price)));
+  const model = normalizeProductPricingModel(data.pricingModel);
+  if (model.mode === "curtain_height") {
+    const tier = model.tiers[0];
+    return tier ? roundPricingValue(tier.basePrice * (1 + tier.markup / 100)) : 0;
+  }
+  const base = Math.max(0, parsePricingNumber(data.price));
+  const markup = Math.max(0, parsePricingNumber(data.markup));
+  return roundPricingValue(base * (1 + markup / 100));
+}
+
+/** Preço de venda dos itens do catálogo pedidos, só os da empresa. */
+export async function loadCatalogPrices(
+  items: ReadonlyArray<{ kind: "product" | "service"; refId: string | null }>,
+  tenantId: string,
+): Promise<Map<string, number>> {
+  const prices = new Map<string, number>();
+  const wanted = new Map<string, { kind: "product" | "service"; refId: string }>();
+  for (const item of items) {
+    if (item.refId) wanted.set(catalogKey(item.kind, item.refId), { kind: item.kind, refId: item.refId });
+  }
+  await Promise.all(
+    [...wanted.entries()].map(async ([key, { kind, refId }]) => {
+      const found = await loadOfTenant(kind === "product" ? "products" : "services", refId, tenantId);
+      if (found) prices.set(key, catalogSellingPrice(kind, found.data));
+    }),
+  );
+  return prices;
 }
 
 export interface ClientSnapshot {

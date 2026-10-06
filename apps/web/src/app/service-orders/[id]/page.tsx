@@ -360,6 +360,7 @@ export default function ServiceOrderDetailPage() {
                 items={execution.draft.items}
                 onChange={(items) => execution.change("items", items)}
                 disabled={!canWork}
+                lockPrices={!scope.seesAll}
               />
             </CardContent>
           </Card>

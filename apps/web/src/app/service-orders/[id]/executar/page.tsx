@@ -13,6 +13,7 @@ import { useTenant } from "@/providers/tenant-provider";
 import { useAuth } from "@/providers/auth-provider";
 import { usePlanLimits } from "@/hooks/usePlanLimits";
 import { usePagePermission } from "@/hooks/usePagePermission";
+import { useServiceOrderScope } from "@/hooks/useServiceOrders";
 import { toast } from "@/lib/toast";
 import { cn } from "@/lib/utils";
 import { FieldService } from "@/services/field-service-service";
@@ -38,6 +39,7 @@ export default function ExecuteServiceOrderPage() {
   const router = useRouter();
   const { isReadOnly } = useTenant();
   const { user } = useAuth();
+  const scope = useServiceOrderScope();
   const { hasFieldService, isLoading: isPlanLoading } = usePlanLimits();
   const { canEdit } = usePagePermission("service_orders");
   const allowed = hasFieldService || user?.role === "superadmin";
@@ -210,6 +212,7 @@ export default function ExecuteServiceOrderPage() {
           items={execution.draft.items}
           onChange={(items) => execution.change("items", items)}
           disabled={!canWork}
+          lockPrices={!scope.seesAll}
         />
       )}
       {step === 3 && <PhotosSection orderId={order.id} photos={order.photos} canEdit={canWork} />}

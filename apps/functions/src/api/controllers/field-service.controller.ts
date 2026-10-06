@@ -40,6 +40,7 @@ import {
   computeOrderTotals,
   decodeSignatureDataUrl,
   isClosedStatus,
+  lockTechnicianItemPrices,
   newServiceOrderDoc,
   signatureContentHash,
   type ServiceOrderItem,
@@ -54,6 +55,7 @@ import {
   ensureOrderShareToken,
   generateOrderPdf,
   loadClientSnapshot,
+  loadCatalogPrices,
   loadEquipmentLabels,
   loadOfTenant,
   loadTechnician,
@@ -466,8 +468,17 @@ export async function updateServiceOrder(req: Request, res: Response) {
       if (input[key] !== undefined) update[key] = input[key];
     }
     if (input.items !== undefined) {
-      update.items = input.items;
-      update.totals = computeOrderTotals(input.items as ServiceOrderItem[]);
+      let items = input.items as ServiceOrderItem[];
+      // O técnico lança peças, mas o valor é de quem coordena: o total é o
+      // que o cliente assina e o que vai para o financeiro.
+      if (!found.seesAll) {
+        const current = (Array.isArray(found.data.items) ? found.data.items : []) as ServiceOrderItem[];
+        const currentIds = new Set(current.map((item) => item.id));
+        const added = items.filter((item) => !currentIds.has(item.id));
+        items = lockTechnicianItemPrices(items, current, await loadCatalogPrices(added, tenantId));
+      }
+      update.items = items;
+      update.totals = computeOrderTotals(items);
     }
 
     let clientId = String(found.data.clientId);

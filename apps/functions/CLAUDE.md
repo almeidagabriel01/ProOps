@@ -662,7 +662,11 @@ nichos: chamado de alarme, manutenção de ar-condicionado, suporte de automaç�
 - **A OS é do técnico.** Membro sem a permissão de escopo `service_orders_all`
   (não é tela: `scopeOf` em `PERMISSION_PAGES`) só alcança as OS em que está em
   `technicianUids`, e só mexe na execução (`ExecutionUpdateSchema`: checklist,
-  peças, relatório). As rules aplicam a mesma regra na leitura; a lista dele
+  peças, relatório). **Valor não é dele** (desde 2026-10): a peça que já estava
+  mantém o valor gravado, a nova do catálogo entra com o preço de venda do
+  catálogo e a digitada à mão entra zerada (`lockTechnicianItemPrices`,
+  `loadCatalogPrices`). O total é o que o cliente assina e o que vai para o
+  financeiro. As rules aplicam a mesma regra na leitura; a lista dele
   filtra por `technicianUids` (índice `tenantId` + `technicianUids`). O preset
   "Técnico" da tela de Equipe nasce sem o escopo.
 - **Cliente copiado na OS** (nome, telefone, endereço): o técnico não tem acesso
