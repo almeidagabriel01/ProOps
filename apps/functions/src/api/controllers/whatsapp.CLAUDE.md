@@ -111,17 +111,22 @@ Validacoes apos busca:
 
 ## Controle de acesso financeiro
 
-Apenas roles `admin`, `master`, `wk` e `superadmin` podem acessar dados financeiros pelo WhatsApp.
+O financeiro pelo WhatsApp segue a permissao de pagina do ERP, como as propostas. Ate 2026-10 ele
+decidia pelo PAPEL (`FINANCIAL_ACCESS_ROLES`): todo administrador passava e um membro com "Ver" em
+Lancamentos era barrado, e o link de lancamento saia para qualquer numero vinculado.
 
-| Acao | Roles permitidos |
+| Acao | Quem pode |
 |------|-----------------|
 | Ver propostas | dono, admins e membro com "Ver" em Propostas |
-| Resumo financeiro do dia | admin, master, wk, superadmin |
-| Saldo atual | admin, master, wk, superadmin |
-| Ultimos lancamentos | admin, master, wk, superadmin |
-| Contas da semana | admin, master, wk, superadmin |
+| Resumo financeiro do dia | dono, admins e membro com "Ver" em Lancamentos ou Carteiras |
+| Saldo atual | dono, admins e membro com "Ver" em Lancamentos ou Carteiras |
+| Ultimos lancamentos | dono, admins e membro com "Ver" em Lancamentos ou Carteiras |
+| Contas da semana | dono, admins e membro com "Ver" em Lancamentos ou Carteiras |
 | PDF de proposta | dono, admins e membro com "Ver" em Propostas |
-| Link de lancamento | Todos |
+| Link de lancamento | dono, admins e membro com "Editar" em Lancamentos; so lancamento da propria empresa |
+
+O financeiro passa por `canAccessFinancialViaWhatsApp` e o link por `handleSendTransactionLink`, os dois
+em `whatsapp.flows.ts`. Guard: `services/whatsapp/__tests__/whatsapp-financial-permission.test.ts`.
 
 Propostas seguem a permissao de pagina do ERP (`hasPagePermission(..., "proposals", "canView")`,
 em `ensureProposalAccess` de `whatsapp.flows.ts`): a lista leva o valor de cada proposta e o PDF abre
