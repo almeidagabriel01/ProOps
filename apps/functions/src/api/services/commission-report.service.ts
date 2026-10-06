@@ -84,12 +84,20 @@ export async function getCommissionReport(
   claims: Parameters<typeof resolveUserAndTenant>[1],
   options: { month?: string; requestedTenantId?: string } = {},
 ): Promise<CommissionReport> {
-  const { tenantId, isSuperAdmin } = await checkFinancialPermission(
+  const { tenantId, isMaster, isSuperAdmin } = await checkFinancialPermission(
     userId,
     "transactions",
     "canView",
     claims,
   );
+
+  // O relatório diz quanto cada parceiro recebe: a tela /commissions é só do
+  // dono e dos administradores, e a API passa a seguir a mesma regra. Antes,
+  // qualquer membro com "Ver" em Lançamentos o lia (e o painel do Dashboard
+  // mostrava). Cada parceiro continua vendo o próprio em "Minhas comissões".
+  if (!isMaster && !isSuperAdmin) {
+    throw new Error("FORBIDDEN_COMMISSIONS_ADMIN_ONLY");
+  }
 
   // No "Acessar Painel" o tenant ja e o da empresa vista; o parametro antigo
   // so vale para o superadmin fora dele, senao uma aba com outro tenant em

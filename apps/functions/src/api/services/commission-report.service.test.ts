@@ -63,6 +63,7 @@ beforeEach(() => {
   ultimoTenantConsultado = "";
   checkFinancialPermission.mockResolvedValue({
     tenantId: "t1",
+    isMaster: true,
     isSuperAdmin: false,
   });
 });
@@ -169,6 +170,31 @@ describe("getCommissionReport", () => {
     });
   });
 
+  it("membro com Ver em Lancamentos nao le o relatorio: e so do dono e dos admins", async () => {
+    docs.push(doc("c1", { ...BASE, amount: 1000 }));
+    checkFinancialPermission.mockResolvedValue({
+      tenantId: "t1",
+      isMaster: false,
+      isSuperAdmin: false,
+    });
+
+    await expect(
+      getCommissionReport("u1", undefined, { month: "2026-10" }),
+    ).rejects.toThrow("FORBIDDEN_COMMISSIONS_ADMIN_ONLY");
+    expect(ultimoTenantConsultado).toBe("");
+  });
+
+  it("superadmin le o relatorio", async () => {
+    checkFinancialPermission.mockResolvedValue({
+      tenantId: "t1",
+      isMaster: true,
+      isSuperAdmin: true,
+    });
+    await expect(
+      getCommissionReport("u1", undefined, { month: "2026-10" }),
+    ).resolves.toMatchObject({ month: "2026-10" });
+  });
+
   it("exige a permissao de Lancamentos", async () => {
     checkFinancialPermission.mockRejectedValue(
       new Error("Sem permissão financeira."),
@@ -212,6 +238,7 @@ describe("getCommissionReport", () => {
   it("sem tenant nenhum falha em vez de varrer a colecao inteira", async () => {
     checkFinancialPermission.mockResolvedValue({
       tenantId: "",
+      isMaster: true,
       isSuperAdmin: false,
     });
     await expect(
