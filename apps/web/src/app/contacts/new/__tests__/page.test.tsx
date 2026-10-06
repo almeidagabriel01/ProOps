@@ -34,6 +34,7 @@ vi.mock("@/providers/tenant-provider", () => ({
   useTenant: () => ({ tenant: { id: "tenant-1" } }),
 }));
 
+vi.mock("@/providers/permissions-provider", () => ({ usePermissions: () => ({ isMaster: true }) }));
 vi.mock("@/hooks/usePagePermission", () => ({
   usePagePermission: () => ({ canCreate: true, isLoading: false }),
 }));

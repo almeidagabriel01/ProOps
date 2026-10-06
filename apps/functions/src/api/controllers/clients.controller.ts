@@ -305,6 +305,20 @@ export const createClient = async (req: Request, res: Response) => {
       });
     }
 
+    // Ligar o contato a um membro (e o percentual de comissão dele) decide
+    // quanto alguém recebe e o que ele vê em "Minhas comissões": é do dono e
+    // dos administradores. Antes qualquer membro com Contatos se ligava a um
+    // parceiro e passava a ler as comissões dele.
+    if (
+      !isMaster &&
+      !isSuperAdmin &&
+      (input.linkedMemberId || input.commissionPercentage != null)
+    ) {
+      return res.status(403).json({
+        message: "Comissão e vínculo com a equipe são definidos pelo dono ou por um administrador.",
+      });
+    }
+
     if (input.linkedMemberId) {
       try {
         await validateMemberLink(
@@ -485,6 +499,24 @@ export const updateClient = async (req: Request, res: Response) => {
         return res
           .status(403)
           .json({ message: "Sem permissão para editar clientes." });
+      }
+    }
+
+    // Mesma regra da criação: comissão e vínculo com a equipe são do dono e
+    // dos administradores. O formulário reenvia os campos, então vale a
+    // mudança de valor, não a presença.
+    if (!isMaster && !isSuperAdmin) {
+      const linkChanged =
+        updateData.linkedMemberId !== undefined &&
+        (updateData.linkedMemberId || null) !== ((clientData?.linkedMemberId as string | undefined) || null);
+      const commissionChanged =
+        updateData.commissionPercentage !== undefined &&
+        (updateData.commissionPercentage ?? null) !==
+          ((clientData?.commissionPercentage as number | undefined) ?? null);
+      if (linkChanged || commissionChanged) {
+        return res.status(403).json({
+          message: "Comissão e vínculo com a equipe são definidos pelo dono ou por um administrador.",
+        });
       }
     }
 
