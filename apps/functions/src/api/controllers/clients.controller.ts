@@ -3,6 +3,7 @@ import { db } from "../../init";
 import { FieldValue, Timestamp } from "firebase-admin/firestore";
 import { resolveUserAndTenant, checkPermission } from "../../lib/auth-helpers";
 import { memberLinkErrorMessage, validateMemberLink } from "../services/contact-member-link";
+import { isClientUsed } from "../services/proposal-usage.service";
 import {
   enforceTenantPlanLimit,
   getTenantClientsUsage,
@@ -708,6 +709,16 @@ export const deleteClient = async (req: Request, res: Response) => {
           .status(403)
           .json({ message: "Sem permissão para deletar clientes." });
       }
+    }
+
+    // Contato que está numa proposta não se exclui: a proposta ficaria sem
+    // cliente. A tela já conferia; o backend passa a conferir também, porque
+    // a API (e a Lia) não passam pela tela.
+    if (await isClientUsed(String(clientData?.tenantId || tenantId), id)) {
+      return res.status(409).json({
+        code: "CLIENT_IN_USE",
+        message: "Este contato está em uma proposta e não pode ser excluído.",
+      });
     }
 
     // Determine correct masterRef for usage decrement

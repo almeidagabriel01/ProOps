@@ -4,6 +4,7 @@ import { sanitizeText, sanitizeRichText } from "../../utils/sanitize";
 import { buildClientSearchTokens, matchesAllWords, parseSearchQuery } from "../../lib/search-tokens";
 import { INDEXED_SEARCH_SCAN_LIMIT, sortDocsByField } from "../../lib/indexed-search";
 import { cpf, cnpj } from "cpf-cnpj-validator";
+import { isClientUsed } from "./proposal-usage.service";
 
 // CRITICAL: collection name is "clients", not "contacts"
 const CLIENTS_COLLECTION = "clients";
@@ -264,6 +265,11 @@ export async function deleteContact(
   }
 
   const name = data.name || "";
+
+  // Como na tela e na API: contato que está numa proposta não se exclui.
+  if (await isClientUsed(tenantId, contactId)) {
+    throw new Error("Este contato está em uma proposta e não pode ser excluído.");
+  }
 
   await db.collection(CLIENTS_COLLECTION).doc(contactId).delete();
 

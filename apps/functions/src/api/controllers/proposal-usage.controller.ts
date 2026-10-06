@@ -2,6 +2,7 @@ import { Request, Response } from "express";
 import { db } from "../../init";
 import { hasPagePermission } from "../../lib/auth-helpers";
 import { logger } from "../../lib/logger";
+import { isClientUsed } from "../services/proposal-usage.service";
 
 /**
  * GET /v1/proposals/usage?kind=client|product|service&id=...
@@ -25,15 +26,6 @@ function parseKind(value: unknown): UsageKind | null {
   return value === "client" || value === "product" || value === "service" ? value : null;
 }
 
-async function isClientUsed(tenantId: string, clientId: string): Promise<boolean> {
-  const snap = await db
-    .collection("proposals")
-    .where("tenantId", "==", tenantId)
-    .where("clientId", "==", clientId)
-    .limit(1)
-    .get();
-  return !snap.empty;
-}
 
 /**
  * Mesmo critério do método antigo do front: o índice `productRefs` só vale
