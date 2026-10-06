@@ -403,7 +403,7 @@ export default function InvoicesPage() {
         },
       },
     ],
-    [refresh, refreshingId, canCancel],
+    [refresh, refreshingId, canCancel, canCorrect],
   );
 
   // Gate de plano ANTES do de configuração: sem ele, um assinante sem o módulo
