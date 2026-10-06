@@ -24,6 +24,7 @@ import {
   univerPtBrLocale,
 } from "@/lib/univer-pt-br";
 import { Loader } from "@/components/ui/loader";
+import { usePagePermission } from "@/hooks/usePagePermission";
 
 type DisposableLike = {
   dispose?: () => void;
@@ -91,6 +92,10 @@ export default function SpreadsheetEditorPage() {
   const params = useParams();
   const router = useRouter();
   const id = params?.id as string;
+  // Sem "Editar" em Planilhas a planilha abre para leitura: dá para rolar e
+  // conferir, mas nada é salvo (o backend também recusa).
+  const { canEdit, isLoading: isPermissionLoading } = usePagePermission("spreadsheets");
+  const readOnly = !isPermissionLoading && !canEdit;
 
   const [spreadsheet, setSpreadsheet] = useState<Spreadsheet | null>(null);
   const [loading, setLoading] = useState(true);
@@ -346,7 +351,7 @@ export default function SpreadsheetEditorPage() {
   const resolvedCurrentName = resolveSpreadsheetName(name, spreadsheet.name);
   const hasNameChanges = resolvedCurrentName !== persistedNameRef.current;
   const canSave =
-    !saving && (hasNameChanges || hasWorkbookChanges || hasLiveEditChanges);
+    !readOnly && !saving && (hasNameChanges || hasWorkbookChanges || hasLiveEditChanges);
 
   return (
     <div className="flex h-full min-h-0 flex-col bg-background">
@@ -366,18 +371,25 @@ export default function SpreadsheetEditorPage() {
               onChange={(e) => setName(e.target.value)}
               className="h-8 w-64 font-medium border-transparent hover:border-input focus:border-input px-2 -ml-2 text-lg"
               placeholder="Nome da Planilha"
+              readOnly={readOnly}
             />
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <Button onClick={handleSave} disabled={!canSave} className="gap-2">
-            {saving ? (
-              <Loader size="sm" variant="button" />
-            ) : (
-              <Save className="w-4 h-4" />
-            )}
-            Salvar
-          </Button>
+          {readOnly ? (
+            <span className="text-sm text-muted-foreground">
+              Somente leitura: as alterações não são salvas.
+            </span>
+          ) : (
+            <Button onClick={handleSave} disabled={!canSave} className="gap-2">
+              {saving ? (
+                <Loader size="sm" variant="button" />
+              ) : (
+                <Save className="w-4 h-4" />
+              )}
+              Salvar
+            </Button>
+          )}
         </div>
       </div>
 
