@@ -727,6 +727,13 @@ capacidade `fieldService`, pageId `contracts`, rotas em `/v1/service-contracts`.
   pede a data de início (até 31 dias no passado) e o financeiro no plano
   (402): a primeira cobrança é o primeiro dia de cobrança (1 a 28) a partir do
   início. Só o rascunho se exclui; o resto se encerra.
+- **Ligar a cobrança pede o financeiro, não só Contratos** (desde 2026-10).
+  Ativar e retomar exigem criar em Lançamentos, e o contrato com `issueNfse`
+  exige também emitir em Notas Fiscais (`assertBillingPermission`). Num
+  contrato que já cobra, mudar linhas, dia, carteira ou NFS-e segue a mesma
+  regra; o formulário reenvia tudo, então vale o VALOR mudado
+  (`billingChanges`), não a presença do campo. Suspender e encerrar só param
+  de cobrar e seguem com "Editar" em Contratos.
 - **A rotina diária cobra** (`processServiceContracts`, 06:00,
   `contract-billing-run.ts`): cada vencimento que entrou na janela de 10 dias
   vira um lançamento `pending` na categoria "Contratos", com id
