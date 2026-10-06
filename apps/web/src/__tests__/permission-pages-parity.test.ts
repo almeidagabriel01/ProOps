@@ -1,3 +1,5 @@
+import fs from "node:fs";
+import path from "node:path";
 import { describe, expect, it } from "vitest";
 import { PERMISSION_PAGES } from "@/lib/permissions/pages";
 import {
@@ -19,5 +21,38 @@ describe("páginas de permissão: front e backend", () => {
 
   it("as ações são as quatro da tela", () => {
     expect([...PERMISSION_ACTION_KEYS]).toEqual(["canView", "canCreate", "canEdit", "canDelete"]);
+  });
+});
+
+/**
+ * Toda tela consulta uma página que a Equipe grava: uma chave que só existe no
+ * leitor esconde a tela de todo membro, para sempre, sem erro visível.
+ */
+describe("chaves de permissão usadas nas telas", () => {
+  const SRC = path.resolve(__dirname, "..");
+  const READ = /\b(?:usePagePermission|hasPermission)\(\s*["']([A-Za-z_]+)["']/g;
+
+  function walk(dir: string, out: string[] = []): string[] {
+    for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+      const full = path.join(dir, entry.name);
+      if (entry.isDirectory()) {
+        if (entry.name === "__tests__" || entry.name === "node_modules") continue;
+        walk(full, out);
+      } else if (/\.(tsx?)$/.test(entry.name) && !/\.test\./.test(entry.name)) {
+        out.push(full);
+      }
+    }
+    return out;
+  }
+
+  it("toda página consultada existe em PERMISSION_PAGES", () => {
+    const known = new Set(PERMISSION_PAGES.map((p) => p.id));
+    const offenders: string[] = [];
+    for (const file of walk(SRC)) {
+      for (const match of fs.readFileSync(file, "utf8").matchAll(READ)) {
+        if (!known.has(match[1])) offenders.push(`${path.relative(SRC, file)}: "${match[1]}"`);
+      }
+    }
+    expect(offenders).toEqual([]);
   });
 });
