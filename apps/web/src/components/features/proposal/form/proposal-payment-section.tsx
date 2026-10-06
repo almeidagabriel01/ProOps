@@ -27,6 +27,7 @@ import {
 } from "@/lib/proposal-payment";
 import { countsInProposalTotal, monthlyTotal } from "@/lib/proposal/monthly-lines";
 import { proposalProfit } from "@/lib/proposal/profit";
+import { useSensitiveData } from "@/hooks/usePermission";
 
 interface ProposalPaymentSectionProps {
   formData: Partial<Proposal>;
@@ -55,6 +56,7 @@ export function ProposalPaymentSection({
   errors = {},
   isReadOnly = false,
 }: ProposalPaymentSectionProps) {
+  const { canSeeCost } = useSensitiveData();
   const CUSTOM_PAYMENT_METHOD_VALUE = "__custom__";
   // Calculate components
   const { tenant } = useTenant();
@@ -372,6 +374,7 @@ export function ProposalPaymentSection({
                 })}
               </span>
             </div>
+            {canSeeCost && (
             <div className="flex justify-between items-center">
               <span className="text-green-600 dark:text-green-400">
                 Lucro Total:
@@ -384,6 +387,7 @@ export function ProposalPaymentSection({
                 })}
               </span>
             </div>
+            )}
             {extraExpense > 0 && (
               <div className="flex justify-between items-center">
                 <span className="text-orange-600">+ Valor Extra:</span>

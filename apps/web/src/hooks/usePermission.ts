@@ -1,6 +1,6 @@
 "use client";
 
-import { permissionDocOf, usePermissions } from "@/providers/permissions-provider";
+import { permissionDocOf, usePermissions } from "@/providers/permissions-context";
 import {
   getPermissionPageDef,
   resolvePermissionKey,

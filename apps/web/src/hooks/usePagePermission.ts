@@ -1,4 +1,4 @@
-import { permissionDocOf, usePermissions } from "@/providers/permissions-provider";
+import { permissionDocOf, usePermissions } from "@/providers/permissions-context";
 import { getPermissionPageDef, resolvePermissionKey } from "@/lib/permissions/catalog";
 
 export function usePagePermission(pageId: string) {

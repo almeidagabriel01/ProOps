@@ -108,6 +108,7 @@ export default function ProductsPage() {
   // porque o produto nasce dele (o backend recusa do mesmo jeito).
   const { canSeeCost, canSeeStock } = useSensitiveData();
   const canImport = usePermission("products", "import") && canSeeCost;
+  const canAdjustStock = usePermission("products", "adjustStock");
   const canCreate = canCreatePage && canSeeCost;
   const nicheConfig = useCurrentNicheConfig();
   const inventoryConfig = nicheConfig.productCatalog.inventory;
@@ -462,7 +463,7 @@ export default function ProductsPage() {
           initialValue={getProductInventoryValue(product)}
           inventory={inventoryDefinitionFor(inventoryConfig, productInventoryUnit(product))}
           onUpdate={(val) => handleInventoryUpdate(product, val)}
-          readOnly={!canEdit}
+          readOnly={!canEdit || !canAdjustStock}
         />
       ),
     }] as DataTableColumn<Product>[])),

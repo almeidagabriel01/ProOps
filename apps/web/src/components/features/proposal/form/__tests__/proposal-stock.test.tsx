@@ -23,8 +23,14 @@ vi.mock("@/hooks/useCurrentNicheConfig", () => ({
   useCurrentNicheConfig: () => nicheRef.current ?? NICHE_CONFIGS.automacao_residencial,
 }));
 
+const sensitive = vi.hoisted(() => ({ canSeeStock: true }));
+vi.mock("@/hooks/usePermission", () => ({
+  useSensitiveData: () => ({ isLoading: false, canSeeCost: true, canSeeStock: sensitive.canSeeStock }),
+}));
+
 afterEach(() => {
   nicheRef.current = null;
+  sensitive.canSeeStock = true;
 });
 
 const line = (productId: string, quantity: number, extra: Partial<ProposalProduct> = {}) =>
@@ -51,6 +57,20 @@ function renderWith(selected: ProposalProduct[], children: React.ReactNode) {
     </ProposalStockProvider>,
   );
 }
+
+describe("estoque é dado sensível", () => {
+  it("sem 'Ver estoque', nem o seletor nem a linha mostram o saldo", () => {
+    sensitive.canSeeStock = false;
+    renderWith([line("modulo", 9)], (
+      <>
+        <ProductStockHint product={catalog[0]} />
+        <ProposalLineStock productId="modulo" />
+      </>
+    ));
+    expect(screen.queryByText(/Em estoque/)).toBeNull();
+    expect(screen.queryByText(/Estoque/)).toBeNull();
+  });
+});
 
 describe("ProductStockHint", () => {
   it("automacao: saldo em unidades", () => {

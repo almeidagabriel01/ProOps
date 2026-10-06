@@ -93,6 +93,7 @@ import {
 import { MonthlyLineBadge, MonthlyLineSwitch } from "./monthly-line";
 import { countsInProposalTotal } from "@/lib/proposal/monthly-lines";
 import { ProductStockHint, ProposalLineStock } from "./proposal-stock";
+import { useSensitiveData } from "@/hooks/usePermission";
 
 interface ProposalEnvironmentsSectionProps {
   selectedSistemas: ProposalSistema[];
@@ -478,6 +479,7 @@ function EnvironmentCard({
   onRemoveProduct,
   onToggleStatus,
 }: EnvironmentCardProps) {
+  const { canSeeCost } = useSensitiveData();
   const { place } = useNicheVocabulary();
   const visibleProducts = hideZeroQty
     ? ambienteProducts.filter((product) => Number(product.quantity || 0) !== 0)
@@ -541,18 +543,20 @@ function EnvironmentCard({
           </div>
           <div className="flex shrink-0 items-center justify-between gap-3 sm:gap-10 sm:ml-4">
             <div className="flex min-w-0 flex-col items-start gap-1 sm:items-end">
-              <span
-                className="text-xs sm:text-sm font-medium text-muted-foreground sm:mr-2"
-                title="Soma do valor de custo dos produtos sem markup"
-              >
-                Custo (Bruto): R$ {ambienteTotal.toFixed(2)}
-              </span>
+              {canSeeCost && (
+                <span
+                  className="text-xs sm:text-sm font-medium text-muted-foreground sm:mr-2"
+                  title="Soma do valor de custo dos produtos sem markup"
+                >
+                  Custo (Bruto): R$ {ambienteTotal.toFixed(2)}
+                </span>
+              )}
               <span
                 className="text-xs sm:text-sm font-bold"
                 style={{ color: primaryColor }}
                 title="Soma do valor final dos produtos com markup"
               >
-                Valor Final (c/ Lucro): R$ {ambienteTotalWithMarkup.toFixed(2)}
+                {canSeeCost ? "Valor Final (c/ Lucro)" : "Valor final"}: R$ {ambienteTotalWithMarkup.toFixed(2)}
               </span>
             </div>
 
@@ -747,6 +751,7 @@ function EnvironmentProductRow({
   onRemoveProduct,
   onToggleStatus,
 }: EnvironmentProductRowProps) {
+  const { canSeeCost } = useSensitiveData();
   const { place } = useNicheVocabulary();
   const { pricing } = useCurrentNicheConfig();
   const areaMeasures = measureTerms(pricing, "curtain_meter");
@@ -1273,7 +1278,7 @@ function EnvironmentProductRow({
                   Categoria: <span className="font-medium text-foreground/80">{product.category || catalogProduct?.category}</span>
                 </span>
               )}
-              {isActive && !isService && (
+              {isActive && !isService && canSeeCost && (
                 <span className="text-[10px] text-muted-foreground">
                   Custo unit.: <span className="font-medium text-foreground/80">R$ {(product.unitPrice || 0).toFixed(2)}{priceSuffix}</span>
                 </span>
@@ -1358,7 +1363,7 @@ function EnvironmentProductRow({
         <MonthlyLineSwitch product={product} systemInstanceId={systemInstanceId} disabled={isUpdating} />
 
         <div className="flex flex-1 flex-wrap items-center justify-end gap-3">
-          {isActive && !isService && (
+          {isActive && !isService && canSeeCost && (
             <div className="flex min-w-[88px] flex-col items-start">
               <span className="mb-0.5 text-[10px] text-muted-foreground">
                 Markup

@@ -24,63 +24,16 @@ import {
   resolvePermissionKey,
 } from "@/lib/permissions/catalog";
 
-// ============================================
-// TYPES
-// ============================================
+import {
+  PermissionsContext,
+  permissionDocOf,
+  usePermissions,
+  type PagePermission,
+  type UserPermissions,
+} from "./permissions-context";
 
-export interface PagePermission {
-  pageId: string;
-  pageSlug: string;
-  canView: boolean;
-  canCreate: boolean;
-  canEdit: boolean;
-  canDelete: boolean;
-  /**
-   * O doc como foi gravado, com as ações finas, os dados sensíveis e o escopo
-   * do catálogo (`lib/permissions/catalog.ts`). Quem lê uma chave fina passa
-   * por `resolvePermissionKey`, que aplica o fallback de chave ausente.
-   */
-  raw?: Record<string, unknown>;
-}
-
-/** O doc gravado de uma página, para as leituras do catálogo. */
-export function permissionDocOf(page: PagePermission | undefined | null): Record<string, unknown> | null {
-  if (!page) return null;
-  return page.raw ?? (page as unknown as Record<string, unknown>);
-}
-
-export interface UserPermissions {
-  role: "MASTER" | "MEMBER";
-  masterId: string | null;
-  companyId: string;
-  companyName: string;
-  masterName?: string; // Only for MEMBERs
-  pages: Record<string, PagePermission>;
-}
-
-interface PermissionsContextType {
-  permissions: UserPermissions | null;
-  isLoading: boolean;
-  hasPermission: (
-    pageId: string,
-    action: "view" | "create" | "edit" | "delete",
-  ) => boolean;
-  isMaster: boolean;
-  isMember: boolean;
-  /** Free/demo account: gets full UI permissions (writes blocked downstream). */
-  isDemo: boolean;
-  refreshPermissions: () => Promise<void>;
-}
-
-const PermissionsContext = React.createContext<PermissionsContextType>({
-  permissions: null,
-  isLoading: true,
-  hasPermission: () => false,
-  isMaster: false,
-  isMember: false,
-  isDemo: false,
-  refreshPermissions: async () => {},
-});
+export { PermissionsContext, permissionDocOf, usePermissions };
+export type { PagePermission, UserPermissions };
 
 // ============================================
 // PROVIDER
@@ -331,12 +284,6 @@ export function PermissionsProvider({
 // HOOKS
 // ============================================
 
-/**
- * Main hook to access permissions context
- */
-export function usePermissions() {
-  return React.useContext(PermissionsContext);
-}
 
 /**
  * Hook to check permission for a specific page

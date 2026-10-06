@@ -71,6 +71,8 @@ import {
 import { MonthlyLineBadge, MonthlyLineSwitch } from "./monthly-line";
 import { countsInProposalTotal } from "@/lib/proposal/monthly-lines";
 import { ProductStockHint, ProposalLineStock } from "./proposal-stock";
+import { useSensitiveData } from "@/hooks/usePermission";
+import { catalogPickerPrice } from "@/lib/proposal/catalog-picker-price";
 
 interface ProposalSystemsSectionProps {
   /** Título e descrição do card, que mudam por nicho. */
@@ -529,6 +531,7 @@ function SystemCard({
   hideZeroQtyByEnvironment = {},
   onToggleHideZeroQtyByEnvironment,
 }: SystemCardProps) {
+  const { canSeeCost } = useSensitiveData();
   // Descrições longas viravam uma parede de texto no celular. Abaixo de sm o
   // texto é limitado a 3 linhas com um "Ver mais"; de sm para cima nada muda.
   const [isDescriptionExpanded, setIsDescriptionExpanded] =
@@ -612,18 +615,20 @@ function SystemCard({
           </div>
           <div className="flex shrink-0 items-center justify-between gap-3 sm:gap-10 sm:ml-4">
             <div className="flex min-w-0 flex-col items-start gap-1 sm:items-end">
-              <span
-                className="text-xs sm:text-sm font-medium text-muted-foreground sm:mr-2"
-                title="Soma do valor de custo dos produtos (sem markup)"
-              >
-                Custo (Bruto): R$ {sistemaTotal.toFixed(2)}
-              </span>
+              {canSeeCost && (
+                <span
+                  className="text-xs sm:text-sm font-medium text-muted-foreground sm:mr-2"
+                  title="Soma do valor de custo dos produtos (sem markup)"
+                >
+                  Custo (Bruto): R$ {sistemaTotal.toFixed(2)}
+                </span>
+              )}
               <span
                 className="text-xs sm:text-sm font-bold"
                 style={{ color: primaryColor }}
                 title="Soma do valor final dos produtos (com markup)"
               >
-                Valor Final (c/ Lucro): R$ {sistemaTotalWithMarkup.toFixed(2)}
+                {canSeeCost ? "Valor Final (c/ Lucro)" : "Valor final"}: R$ {sistemaTotalWithMarkup.toFixed(2)}
               </span>
             </div>
 
@@ -946,6 +951,7 @@ function ProductRow({
   onRemoveProduct,
   onToggleStatus,
 }: ProductRowProps) {
+  const { canSeeCost } = useSensitiveData();
   const isExtra = !!product.isExtra;
   const isService = (product.itemType || "product") === "service";
   const [isUpdating, setIsUpdating] = React.useState(false);
@@ -1153,8 +1159,9 @@ function ProductRow({
         />
       </div>
 
-      {/* Markup Control */}
-      {isActive && !isService && (
+      {/* Markup Control: sem "Ver custo" o markup não aparece (o valor final
+          continua editável onde o nicho deixa digitar o valor da linha). */}
+      {isActive && !isService && canSeeCost && (
         <div className="flex shrink-0 flex-col items-center mr-2">
           <span className="text-[10px] text-muted-foreground mb-0.5">
             Markup
@@ -1356,6 +1363,7 @@ function ExtraProductsGrid({
   primaryColor,
   onAddProduct,
 }: ExtraProductsGridProps) {
+  const { canSeeCost } = useSensitiveData();
   const [isProductsOpen, setIsProductsOpen] = React.useState(false);
   const [isServicesOpen, setIsServicesOpen] = React.useState(false);
   const [productSearchTerm, setProductSearchTerm] = React.useState("");
@@ -1526,7 +1534,7 @@ function ExtraProductsGrid({
                             <span>{product.category || "Sem categoria"}</span>
                             <span className="w-0.5 h-0.5 rounded-full bg-muted-foreground/50" />
                             <span>
-                              R$ {parseFloat(product.price).toFixed(2)}
+                              R$ {catalogPickerPrice(product, canSeeCost).toFixed(2)}
                             </span>
                             <span className="w-0.5 h-0.5 rounded-full bg-muted-foreground/50" />
                             <ProductStockHint product={product} />
