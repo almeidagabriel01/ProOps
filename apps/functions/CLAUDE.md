@@ -610,6 +610,9 @@ as notas fiscais dele. Pro e Enterprise (`clientPortal`).
   anterior para de abrir na hora; desligar apaga o doc. A empresa lê e grava
   por `/v1/client-portal/:clientId/link`, com a permissão de Contatos
   (`clients`: ver para ler o link, editar para criar, trocar ou desligar).
+  Ler, criar e trocar pedem também "Ver" em Propostas ou Lançamentos (desde
+  2026-10): o portal abre as propostas e os pagamentos do contato, e quem só
+  tinha Contatos os entregava pelo link. Desligar pede só Contatos.
 - **Abrir o portal é leitura pura.** Ele não cria link nenhum: cada item leva
   à página pública que já existe (proposta, lançamento, obra), e o link dela só
   é obtido ou criado quando o cliente clica (`POST /v1/share/portal/:token/open`,
