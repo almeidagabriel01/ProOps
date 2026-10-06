@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 
+import { CNPJ, RAZAO_SOCIAL } from "@/lib/site/empresa";
 import { canonicalLegal } from "@/lib/site/host-seo";
 import { LegalPage } from "@/components/legal/legal-page";
 
@@ -15,7 +16,7 @@ export default function PrivacyPage() {
     <LegalPage
       title="Política de Privacidade"
       description="Esta Política de Privacidade explica como a ProOps coleta, utiliza, armazena e protege dados pessoais de usuários, clientes e contatos cadastrados na plataforma."
-      updatedAt="3 de outubro de 2026"
+      updatedAt="6 de outubro de 2026"
       sections={[
         {
           title: "1. Quem somos",
@@ -26,6 +27,10 @@ export default function PrivacyPage() {
                 operação comercial, propostas, financeiro, CRM, agenda e rotinas
                 administrativas. Esta política se aplica ao uso do site e da
                 aplicação disponibilizados em `proops.com.br`.
+              </p>
+              <p>
+                A ProOps é operada pela {RAZAO_SOCIAL}, inscrita no CNPJ sob o
+                nº {CNPJ}.
               </p>
               <p>
                 Para dúvidas sobre privacidade ou tratamento de dados, entre em

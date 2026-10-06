@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 
+import { CNPJ, RAZAO_SOCIAL } from "@/lib/site/empresa";
 import { canonicalLegal } from "@/lib/site/host-seo";
 import { LegalPage } from "@/components/legal/legal-page";
 
@@ -15,12 +16,16 @@ export default function TermsPage() {
     <LegalPage
       title="Termos de Serviço"
       description="Estes Termos de Serviço regulam o acesso e o uso da ProOps por empresas, administradores e membros autorizados."
-      updatedAt="19 de março de 2026"
+      updatedAt="6 de outubro de 2026"
       sections={[
         {
           title: "1. Aceitação",
           content: (
             <>
+              <p>
+                A ProOps é operada pela {RAZAO_SOCIAL}, inscrita no CNPJ sob o
+                nº {CNPJ}.
+              </p>
               <p>
                 Ao acessar ou utilizar a ProOps, a empresa usuária e seus
                 usuários autorizados concordam com estes Termos de Serviço e com
