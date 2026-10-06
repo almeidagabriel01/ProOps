@@ -23,6 +23,7 @@ import {
   toMonthKey,
   type MonthStats,
 } from "@/lib/dashboard-metrics";
+import { canSeeDashboardFinance } from "@/lib/dashboard-finance-access";
 
 interface ProposalStats {
   approved: number;
@@ -94,6 +95,16 @@ export function useDashboardData() {
   // mostra para essa pessoa, então o membro sem a permissão nem consulta.
   const { canView: canViewProposals, isLoading: isPermissionLoading } =
     usePagePermission("proposals");
+  // Saldo, alertas, gráficos e lançamentos: as rules só deixam ler a quem vê
+  // Lançamentos ou Carteiras, e o painel só consulta para essa pessoa.
+  const transactionsPermission = usePagePermission("transactions");
+  const walletPermission = usePagePermission("wallet");
+  const isFinancePermissionLoading =
+    transactionsPermission.isLoading || walletPermission.isLoading;
+  const canViewFinance = canSeeDashboardFinance({
+    canViewTransactions: transactionsPermission.canView,
+    canViewWallet: walletPermission.canView,
+  });
   const tenantId = tenant?.id;
   const currentMonth = toMonthKey(new Date());
   const [selectedMonth, setSelectedMonth] = React.useState(currentMonth);
@@ -131,7 +142,12 @@ export function useDashboardData() {
 
   // Financeiro: janela do mês atual até +12 meses (gráficos, projeção, alertas).
   React.useEffect(() => {
-    if (isTenantLoading || !tenantId) return;
+    if (isTenantLoading || !tenantId || isFinancePermissionLoading) return;
+    if (!canViewFinance) {
+      setFinance({ transactions: [], wallets: [] });
+      setGroupLoading("finance", false);
+      return;
+    }
     let cancelled = false;
     setGroupLoading("finance", true);
     (async () => {
@@ -175,7 +191,7 @@ export function useDashboardData() {
     return () => {
       cancelled = true;
     };
-  }, [tenantId, isTenantLoading]);
+  }, [tenantId, isTenantLoading, isFinancePermissionLoading, canViewFinance]);
 
   // Propostas: recentes e contagens (dependem das colunas do kanban).
   React.useEffect(() => {
@@ -228,7 +244,12 @@ export function useDashboardData() {
   // Mês escolhido: comissões e, fora do mês corrente, os lançamentos pagos
   // nele. O mês corrente reaproveita o que o grupo financeiro já trouxe.
   React.useEffect(() => {
-    if (isTenantLoading || !tenantId) return;
+    if (isTenantLoading || !tenantId || isFinancePermissionLoading) return;
+    if (!canViewFinance) {
+      setMonthData({ transactions: null, commissionReport: null });
+      setGroupLoading("month", false);
+      return;
+    }
     let cancelled = false;
     setGroupLoading("month", true);
     (async () => {
@@ -271,7 +292,15 @@ export function useDashboardData() {
     return () => {
       cancelled = true;
     };
-  }, [tenantId, isTenantLoading, isDemo, selectedMonth, currentMonth]);
+  }, [
+    tenantId,
+    isTenantLoading,
+    isDemo,
+    selectedMonth,
+    currentMonth,
+    isFinancePermissionLoading,
+    canViewFinance,
+  ]);
 
   const overview = React.useMemo(
     () => computeFinanceOverview(finance.transactions, finance.wallets),
@@ -294,6 +323,7 @@ export function useDashboardData() {
     selectedMonth,
     setSelectedMonth,
     isCurrentMonth,
+    canViewFinance,
     loading: {
       ...loading,
       // O mês corrente vem do grupo financeiro.

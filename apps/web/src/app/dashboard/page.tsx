@@ -79,6 +79,7 @@ export default function DashboardPage() {
     setSelectedMonth,
     isCurrentMonth,
     openProposalStatuses,
+    canViewFinance,
     loading,
     isLoading,
   } = useDashboardData();
@@ -149,6 +150,7 @@ export default function DashboardPage() {
           </p>
         </div>
 
+        {canViewFinance && (
         <div className="flex items-center gap-4 md:gap-8">
           <div className="text-center md:text-right mt-2 md:mt-0">
             <div className="flex items-center gap-2 text-muted-foreground mb-1 justify-center md:justify-end">
@@ -168,6 +170,7 @@ export default function DashboardPage() {
             )}
           </div>
         </div>
+        )}
       </div>
 
       {/* Primeiros passos (conta nova, some quando tudo estiver feito) */}
@@ -176,7 +179,7 @@ export default function DashboardPage() {
       {/* Alertas e ações rápidas. No celular as ações vêm primeiro: são o que
           se usa todo dia, e os alertas empurravam os botões para baixo. */}
       <div className="flex flex-col gap-8">
-        {loading.finance ? (
+        {!canViewFinance ? null : loading.finance ? (
           <Skeleton className="h-24 w-full rounded-xl" />
         ) : (
           <AlertsCard
@@ -196,6 +199,7 @@ export default function DashboardPage() {
       </div>
 
       {/* Charts (Fluxo de Caixa & Balanço Futuro) */}
+      {canViewFinance && (
       <div className="grid lg:grid-cols-2 gap-6">
         {/* Fluxo de Caixa (Chart) */}
         <Card className="flex flex-col shadow-md bg-gradient-to-br from-background to-slate-50/30 dark:to-slate-950/10 border border-border/50 h-full">
@@ -239,6 +243,7 @@ export default function DashboardPage() {
           <FutureBalanceChart data={futureBalances} />
         )}
       </div>
+      )}
 
       {/* O mês escolhido: vendas, metas, comissões e o resumo de gastos seguem
           o seletor daqui. Os gráficos acima são projeção, não dependem dele. */}
@@ -278,7 +283,7 @@ export default function DashboardPage() {
             {!loading.month && <CommissionsPanel report={commissionReport} />}
             <MyCommissionsCard month={selectedMonth} />
           </div>
-          {loading.month ? (
+          {!canViewFinance ? null : loading.month ? (
             <>
               <Skeleton className="h-64 rounded-xl" />
               <Skeleton className="h-64 rounded-xl" />
@@ -311,13 +316,15 @@ export default function DashboardPage() {
       )}
 
       {/* Recent Activity (Remaining) */}
-      <div className="grid gap-6">
-        {loading.finance ? (
-          <Skeleton className="h-72 rounded-xl" />
-        ) : (
-          <RecentTransactionsList transactions={recentTransactions} />
-        )}
-      </div>
+      {canViewFinance && (
+        <div className="grid gap-6">
+          {loading.finance ? (
+            <Skeleton className="h-72 rounded-xl" />
+          ) : (
+            <RecentTransactionsList transactions={recentTransactions} />
+          )}
+        </div>
+      )}
     </div>
     </>
   );

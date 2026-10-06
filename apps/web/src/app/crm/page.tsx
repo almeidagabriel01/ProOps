@@ -15,16 +15,24 @@ import { Button } from "@/components/ui/button";
 import { usePagePermission } from "@/hooks/usePagePermission";
 import { LeadsTab } from "./_components/leads-tab";
 import KanbanSkeleton from "@/app/crm/loading";
-
-type KanbanTab = "proposals" | "transactions" | "leads";
+import {
+  canShowCrmTransactionsTab,
+  resolveCrmTab,
+  type CrmTab as KanbanTab,
+} from "@/lib/crm/crm-tabs";
 
 export default function KanbanPage() {
   const { tenant, isReadOnly } = useTenant();
   const { user } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { hasKanban, isLoading: isPlanLoading } = usePlanLimits();
+  const { hasKanban, hasFinancial, isLoading: isPlanLoading } = usePlanLimits();
   const { canCreate: canCreateLead } = usePagePermission("kanban");
+  const transactionsPermission = usePagePermission("transactions");
+  const showTransactionsTab = canShowCrmTransactionsTab({
+    canViewTransactions: transactionsPermission.canView,
+    hasFinancial,
+  });
   const [newLeadSignal, setNewLeadSignal] = React.useState(0);
 
   const scopeParam = searchParams.get("scope");
@@ -78,7 +86,7 @@ export default function KanbanPage() {
     return <SelectTenantState title="Selecione uma empresa para ver o CRM" />;
   }
 
-  if (isPlanLoading) {
+  if (isPlanLoading || transactionsPermission.isLoading) {
     return <KanbanSkeleton />;
   }
 
@@ -92,7 +100,8 @@ export default function KanbanPage() {
   }
 
   const isScopedView = lockedTab !== null;
-  const currentTab = lockedTab ?? activeTab;
+  const currentTab = resolveCrmTab(lockedTab ?? activeTab, showTransactionsTab);
+  const visibleTab = resolveCrmTab(activeTab, showTransactionsTab);
   const description =
     currentTab === "transactions"
       ? "Visualize seus lançamentos em um quadro visual"
@@ -127,7 +136,7 @@ export default function KanbanPage() {
         </div>
       ) : (
         <Tabs
-          value={activeTab}
+          value={visibleTab}
           onValueChange={handleTabChange}
           className="w-full space-y-6 flex-1 flex flex-col"
         >
@@ -147,13 +156,15 @@ export default function KanbanPage() {
               <LayoutDashboard className="w-4 h-4" />
               Propostas
             </TabsTrigger>
-            <TabsTrigger
-              value="transactions"
-              className="gap-2 rounded-lg px-4 py-2.5 data-[state=active]:bg-background data-[state=active]:shadow-sm"
-            >
-              <ReceiptText className="w-4 h-4" />
-              Lançamentos
-            </TabsTrigger>
+            {showTransactionsTab && (
+              <TabsTrigger
+                value="transactions"
+                className="gap-2 rounded-lg px-4 py-2.5 data-[state=active]:bg-background data-[state=active]:shadow-sm"
+              >
+                <ReceiptText className="w-4 h-4" />
+                Lançamentos
+              </TabsTrigger>
+            )}
           </TabsList>
 
           <TabsContent value="proposals" className="m-0 flex-1">
@@ -164,9 +175,11 @@ export default function KanbanPage() {
             <LeadsTab createSignal={newLeadSignal} />
           </TabsContent>
 
-          <TabsContent value="transactions" className="m-0 flex-1">
-            <TransactionKanbanTab />
-          </TabsContent>
+          {showTransactionsTab && (
+            <TabsContent value="transactions" className="m-0 flex-1">
+              <TransactionKanbanTab />
+            </TabsContent>
+          )}
         </Tabs>
       )}
     </div>
