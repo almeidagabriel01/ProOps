@@ -16,6 +16,7 @@ import { useIsMobile } from "@/hooks/use-is-mobile";
 import { useAuth } from "@/providers/auth-provider";
 import { useSessionPing } from "@/hooks/use-session-ping";
 import { useActivityTracking } from "@/hooks/use-activity-tracking";
+import { usePermission } from "@/hooks/usePermission";
 import { trackActivity } from "@/lib/activity/activity-tracker";
 import { useTenant } from "@/providers/tenant-provider";
 import { useViewingMember } from "@/providers/viewing-member-provider";
@@ -221,7 +222,7 @@ function ProtectedShell({ children }: { children: React.ReactNode }) {
         </div>
         {!isMobile && <BottomDock />}
         {planTier !== undefined && user !== null && user.role !== "free" && !viewingMember && (
-          <LiaContainer />
+          <LiaGate />
         )}
       </div>
     </SubscriptionGuard>
@@ -240,4 +241,14 @@ export function ProtectedAppShell({
       </OnboardingProvider>
     </ScrollContainerProvider>
   );
+}
+
+/**
+ * A Lia só aparece para quem pode usá-la: é uma permissão de membro, ligada
+ * por padrão, que o dono desliga por pessoa (o backend recusa a conversa do
+ * mesmo jeito).
+ */
+function LiaGate() {
+  const canUseLia = usePermission("lia", "canView");
+  return canUseLia ? <LiaContainer /> : null;
 }

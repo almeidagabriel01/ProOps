@@ -26,7 +26,11 @@ jest.mock("../lib/tenant-capabilities", () => ({
   resolveTenantCapabilities: async () => ({ capabilities: {} }),
 }));
 jest.mock("../lib/whatsapp-eligibility", () => ({ tenantPlanAllowsWhatsApp: async () => false }));
-jest.mock("../lib/auth-helpers", () => ({ loadPagePermissions: async () => ({}) }));
+const liaAllowed = { value: true };
+jest.mock("../lib/auth-helpers", () => ({
+  loadPagePermissions: async () => ({}),
+  hasPagePermission: async (_c: unknown, pageId: string) => (pageId === "lia" ? liaAllowed.value : true),
+}));
 jest.mock("./usage-tracker", () => ({
   checkAiLimit: async () => ({ allowed: true, messagesUsed: 0, messagesLimit: 100, resetAt: "" }),
   reserveAiMessage: async () => undefined,
@@ -190,5 +194,45 @@ describe("POST /chat — fallback do Groq usa o mesmo laço de ferramentas", () 
       | { toolResult: { confirmationToken?: string } }
       | undefined;
     expect(toolResult?.toolResult.confirmationToken).toBe("tok-main");
+  });
+});
+
+/**
+ * A Lia é uma permissão de membro ("Lia (assistente)" na tela de Equipe):
+ * ligada para quem nunca teve o doc, o dono a desliga por pessoa.
+ */
+describe("POST /chat — permissão de usar a Lia", () => {
+  afterEach(() => {
+    liaAllowed.value = true;
+  });
+
+  it("membro com a Lia desligada leva 403 e nenhum provedor é chamado", async () => {
+    liaAllowed.value = false;
+    const statuses: number[] = [];
+    const bodies: unknown[] = [];
+    const res = {
+      headersSent: false,
+      setTimeout: () => res,
+      setHeader: () => res,
+      status(code: number) {
+        statuses.push(code);
+        return res;
+      },
+      json(body: unknown) {
+        bodies.push(body);
+        return res;
+      },
+      write: () => true,
+      end: () => undefined,
+    };
+    const req = {
+      user: { uid: "m1", tenantId: "t1", role: "MEMBER", email: "m@b.c" },
+      body: { message: "oi", sessionId: "s1" },
+    };
+    createAiProvider.mockReset();
+    await chatHandler()(req as unknown as Request, res as unknown as Response);
+    expect(statuses).toContain(403);
+    expect(bodies[0]).toMatchObject({ code: "AI_MEMBER_NOT_ALLOWED" });
+    expect(createAiProvider).not.toHaveBeenCalled();
   });
 });
