@@ -627,11 +627,14 @@ service cloud.firestore {
     // Quem pode ver o Calendario e decidido pela permissao "calendar" na tela
     // de Equipe, que a API cobra; aqui a regra e a mesma das outras colecoes
     // do tenant. Escrita segue exclusiva das Cloud Functions.
+    // A Agenda (inclusive o que veio do Google: título, descrição, local)
+    // exige "Ver" na Agenda. A tela lê pela API; ninguém precisa do SDK aqui.
     match /calendar_events/{eventId} {
       allow read: if isSuperAdmin()
                   || (isAuthenticated()
                       && belongsToTenant(resource.data.tenantId)
-                      && tenantSubscriptionAllowsRead(resource.data.tenantId));
+                      && tenantSubscriptionAllowsRead(resource.data.tenantId)
+                      && (hasTenantAdminRole() || memberCanViewPage('calendar')));
       allow write: if false; // Managed by Cloud Functions
     }
 
@@ -938,12 +941,15 @@ service cloud.firestore {
     // Notas de ENTRADA — emitidas contra o CNPJ do tenant. Mesmo molde de
     // invoices: o tenant le (a UI lista), so a Cloud Function escreve. A
     // manifestacao e ato formal perante a Receita e nao pode partir do client.
+    // Notas (emitidas e de entrada) levam CPF/CNPJ e valores: exigem "Ver"
+    // em Notas Fiscais. A tela lê pela API.
     match /received_invoices/{docId} {
       allow read: if isSuperAdmin()
                   || isDemoRead(resource.data.tenantId)
                   || (isAuthenticated()
                       && belongsToTenant(resource.data.tenantId)
-                      && tenantSubscriptionAllowsRead(resource.data.tenantId));
+                      && tenantSubscriptionAllowsRead(resource.data.tenantId)
+                      && (hasTenantAdminRole() || memberCanViewPage('invoices')));
       allow write: if false;
     }
 
@@ -957,7 +963,8 @@ service cloud.firestore {
                   || isDemoRead(resource.data.tenantId)
                   || (isAuthenticated()
                       && belongsToTenant(resource.data.tenantId)
-                      && tenantSubscriptionAllowsRead(resource.data.tenantId));
+                      && tenantSubscriptionAllowsRead(resource.data.tenantId)
+                      && (hasTenantAdminRole() || memberCanViewPage('invoices')));
       allow write: if false;
     }
 

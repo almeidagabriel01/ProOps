@@ -19,7 +19,9 @@ import { doc, getDoc, setDoc, deleteDoc } from "firebase/firestore";
  * discordavam sobre o modelo do produto.
  *
  * Quem pode ver o Calendário é decidido pela permissão `calendar` na tela de
- * Equipe, que a API cobra. Aqui a regra é de tenant, como nas outras coleções.
+ * Equipe, que a API cobra. Desde 2026-10 a regra cobra a mesma permissão: sem
+ * ela, o membro lia pelo SDK os eventos (inclusive os que vieram do Google,
+ * com título, descrição e local) que a tela não lhe mostrava.
  */
 
 let testEnv: RulesTestEnvironment;
@@ -58,6 +60,23 @@ beforeEach(async () => {
     await setDoc(doc(db, "tenants", BETA), {
       name: "Beta",
       subscriptionStatus: "active",
+    });
+
+    await setDoc(doc(db, "users", "member-alpha"), {
+      tenantId: ALPHA,
+      role: "MEMBER",
+      masterId: "master-alpha",
+    });
+    await setDoc(doc(db, "users", "member-alpha", "permissions", "calendar"), {
+      canView: true,
+    });
+    await setDoc(doc(db, "users", "member-sem-agenda"), {
+      tenantId: ALPHA,
+      role: "MEMBER",
+      masterId: "master-alpha",
+    });
+    await setDoc(doc(db, "users", "member-sem-agenda", "permissions", "proposals"), {
+      canView: true,
     });
 
     // Evento criado pelo MASTER do tenant alpha
@@ -109,6 +128,21 @@ function masterAlpha() {
     })
     .firestore();
 }
+
+describe("permissão da Agenda", () => {
+  it("membro sem 'Ver' na Agenda não lê evento nenhum", async () => {
+    const db = testEnv
+      .authenticatedContext("member-sem-agenda", {
+        role: "MEMBER",
+        tenantId: ALPHA,
+        masterId: "master-alpha",
+        subscriptionStatus: "active",
+      })
+      .firestore();
+    await assertFails(getDoc(doc(db, "calendar_events", "ev-master")));
+    await assertFails(getDoc(doc(db, "calendar_events", "ev-colega")));
+  });
+});
 
 describe("calendário compartilhado do tenant", () => {
   it("membro lê o evento do master — é o mesmo calendário", async () => {
