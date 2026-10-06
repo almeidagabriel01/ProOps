@@ -102,6 +102,32 @@ export const PERMS_MEMBER_CUSTOM: SeedPermissionUser = {
   },
 };
 
+/**
+ * A vendedora do relato que abriu a revisão de permissões (2026-10): usa o
+ * CRM, as propostas, os contatos e vê os produtos, mas o dono não quer que
+ * ela veja os lançamentos (o aluguel aparecia na aba Lançamentos do CRM) nem
+ * o saldo da empresa no Dashboard.
+ */
+export const PERMS_MEMBER_VENDEDORA: SeedPermissionUser = {
+  uid: "user-perms-vendedora",
+  email: "vendedora@perms.test",
+  password: PASSWORD,
+  name: "Membro Vendedora",
+  role: "MEMBER",
+  permissions: {
+    dashboard: { canView: true },
+    kanban: { canView: true, canCreate: true, canEdit: true },
+    proposals: { canView: true, canCreate: true, canEdit: true },
+    clients: { canView: true, canCreate: true, canEdit: true },
+    products: { canView: true },
+  },
+};
+
+/** Lançamento, carteira e ambiente do tenant de permissões (Onda 0). */
+export const TRANSACTION_PERMS = "transaction-perms-aluguel";
+export const WALLET_PERMS = "wallet-perms-caixa";
+export const AMBIENTE_PERMS = "ambiente-perms-sala";
+
 /** Proposta do tenant de permissoes — alvo do PUT que mede canEdit. */
 export const PROPOSAL_PERMS = "proposal-perms-001";
 
@@ -110,6 +136,7 @@ export const PERMS_USERS = [
   PERMS_MEMBER_RESTRITO,
   PERMS_MEMBER_OPERADOR,
   PERMS_MEMBER_CUSTOM,
+  PERMS_MEMBER_VENDEDORA,
 ];
 
 const ALL_FLAGS: PermissionFlag[] = [
@@ -218,7 +245,38 @@ export async function seedPermissionTenant(
     updatedAt: new Date("2024-01-01T00:00:00Z").toISOString(),
   });
 
+  await db.collection("wallets").doc(WALLET_PERMS).set({
+    tenantId: TENANT_PERMS,
+    name: "Caixa Perms",
+    type: "cash",
+    color: "#16a34a",
+    balance: 12345,
+    isDefault: true,
+    status: "active",
+    createdAt: new Date("2024-01-01T00:00:00Z").toISOString(),
+  });
+
+  await db.collection("transactions").doc(TRANSACTION_PERMS).set({
+    tenantId: TENANT_PERMS,
+    type: "expense",
+    description: "Aluguel Perms",
+    amount: 9447,
+    date: "2026-10-01",
+    dueDate: "2026-10-01",
+    status: "pending",
+    wallet: WALLET_PERMS,
+    category: "Aluguel",
+    createdAt: new Date("2024-01-01T00:00:00Z").toISOString(),
+    updatedAt: new Date("2024-01-01T00:00:00Z").toISOString(),
+  });
+
+  await db.collection("ambientes").doc(AMBIENTE_PERMS).set({
+    tenantId: TENANT_PERMS,
+    name: "Sala Perms",
+    createdAt: new Date("2024-01-01T00:00:00Z").toISOString(),
+  });
+
   console.log(
-    `[seed] Permission tenant created: ${TENANT_PERMS} (master + 3 membros)`,
+    `[seed] Permission tenant created: ${TENANT_PERMS} (master + ${PERMS_USERS.length - 1} membros)`,
   );
 }

@@ -5,6 +5,7 @@ import { USER_ADMIN_ALPHA, USER_ADMIN_BETA } from "../seed/data/users";
 import {
   PERMS_MEMBER_OPERADOR,
   PERMS_MEMBER_RESTRITO,
+  PERMS_MEMBER_VENDEDORA,
   type SeedPermissionUser,
 } from "../seed/data/permissions";
 import {
@@ -32,6 +33,8 @@ interface AuthFixtures {
    * carteira e CRM só leitura, sem notas fiscais.
    */
   memberOperador: Page;
+  /** MEMBRO vendedora: CRM, propostas, contatos e produtos, sem financeiro. */
+  memberVendedora: Page;
   /** MASTER de um tenant Starter — nenhum módulo premium nativo. */
   planStarter: Page;
   /** MASTER de um tenant Pro — financeiro sim, CRM e fiscal não. */
@@ -147,6 +150,11 @@ export const test = base.extend<AuthFixtures>({
 
   memberOperador: async ({ page }, provide) => {
     await loginAsMember(page, PERMS_MEMBER_OPERADOR);
+    await provide(page);
+  },
+
+  memberVendedora: async ({ page }, provide) => {
+    await loginAsMember(page, PERMS_MEMBER_VENDEDORA);
     await provide(page);
   },
 
