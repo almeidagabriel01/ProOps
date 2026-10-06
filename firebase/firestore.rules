@@ -399,16 +399,31 @@ service cloud.firestore {
       allow write: if false; // Managed by Cloud Functions
     }
 
+    // O financeiro (lançamentos, resumos de grupo, carteiras e o histórico
+    // delas) exige "Ver" em Lançamentos ou em Carteiras, além de ser da
+    // empresa. Até 2026-10 bastava ser da empresa: o membro que só tinha o CRM
+    // lia, pelo SDK, o aluguel e o saldo das carteiras. Quem vê Carteiras lê
+    // também os lançamentos, porque o histórico da carteira os mostra.
+    //
+    // Telas de membro que precisam de algo do financeiro sem os valores passam
+    // pela API: o seletor de carteira da proposta e do contrato
+    // (GET /v1/wallets/options, só id e nome).
+    function canReadTenantFinance() {
+      return hasTenantAdminRole()
+             || memberCanViewPage('transactions')
+             || memberCanViewPage('wallet');
+    }
+
     // TRANSACTIONS (Financial)
     match /transactions/{transactionId} {
-      allow read: if isSuperAdmin() || isDemoRead(resource.data.tenantId) || (isAuthenticated() && belongsToTenant(resource.data.tenantId) && tenantSubscriptionAllowsRead(resource.data.tenantId));
+      allow read: if isSuperAdmin() || isDemoRead(resource.data.tenantId) || (isAuthenticated() && belongsToTenant(resource.data.tenantId) && tenantSubscriptionAllowsRead(resource.data.tenantId) && canReadTenantFinance());
       allow write: if false; // Managed by Cloud Functions (calculations)
     }
 
     // TRANSACTION GROUPS (resumos desnormalizados da aba Agrupados —
     // 1 doc por grupo, mantidos pelo trigger onTransactionTotals)
     match /transaction_groups/{groupDocId} {
-      allow read: if isSuperAdmin() || isDemoRead(resource.data.tenantId) || (isAuthenticated() && belongsToTenant(resource.data.tenantId) && tenantSubscriptionAllowsRead(resource.data.tenantId));
+      allow read: if isSuperAdmin() || isDemoRead(resource.data.tenantId) || (isAuthenticated() && belongsToTenant(resource.data.tenantId) && tenantSubscriptionAllowsRead(resource.data.tenantId) && canReadTenantFinance());
       allow write: if false; // Admin SDK only (trigger)
     }
 
@@ -426,13 +441,13 @@ service cloud.firestore {
 
     // WALLETS
     match /wallets/{walletId} {
-      allow read: if isSuperAdmin() || isDemoRead(resource.data.tenantId) || (isAuthenticated() && belongsToTenant(resource.data.tenantId) && tenantSubscriptionAllowsRead(resource.data.tenantId));
+      allow read: if isSuperAdmin() || isDemoRead(resource.data.tenantId) || (isAuthenticated() && belongsToTenant(resource.data.tenantId) && tenantSubscriptionAllowsRead(resource.data.tenantId) && canReadTenantFinance());
       allow write: if false; // Managed by Cloud Functions
     }
 
     // WALLET TRANSACTIONS (audit log)
     match /wallet_transactions/{transactionId} {
-      allow read: if isSuperAdmin() || isDemoRead(resource.data.tenantId) || (isAuthenticated() && belongsToTenant(resource.data.tenantId) && tenantSubscriptionAllowsRead(resource.data.tenantId));
+      allow read: if isSuperAdmin() || isDemoRead(resource.data.tenantId) || (isAuthenticated() && belongsToTenant(resource.data.tenantId) && tenantSubscriptionAllowsRead(resource.data.tenantId) && canReadTenantFinance());
       allow write: if false; // Managed by Cloud Functions
     }
 
