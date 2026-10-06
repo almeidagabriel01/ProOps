@@ -4,6 +4,7 @@ import {
   ASSIGNABLE_PERMISSION_PAGE_IDS,
   PERMISSION_ACTION_KEYS,
 } from "../permission-pages";
+import { PERMISSION_CATALOG } from "../permission-catalog";
 
 /**
  * Toda checagem de permissão de página no backend usa uma chave que a tela de
@@ -42,6 +43,7 @@ describe("chaves de permissão usadas no backend", () => {
       ...ASSIGNABLE_PERMISSION_PAGE_IDS,
       ...PERMISSION_ACTION_KEYS,
       ...LEGACY_PAGE_IDS,
+      ...PERMISSION_CATALOG.flatMap((page) => page.extras.map((extra) => extra.key)),
     ]);
     const offenders: string[] = [];
     for (const file of walk(SRC)) {

@@ -11,7 +11,7 @@ import { normalizePagePermission } from "../auth-helpers";
 describe("normalizePagePermission", () => {
   it("preserva as acoes quando canView esta ligado", () => {
     expect(
-      normalizePagePermission({
+      normalizePagePermission("services", {
         canView: true,
         canCreate: true,
         canEdit: false,
@@ -27,7 +27,7 @@ describe("normalizePagePermission", () => {
 
   it("zera as tres acoes quando canView esta desligado", () => {
     expect(
-      normalizePagePermission({
+      normalizePagePermission("services", {
         canView: false,
         canCreate: true,
         canEdit: true,
@@ -42,7 +42,7 @@ describe("normalizePagePermission", () => {
   });
 
   it("trata campo ausente como desligado", () => {
-    expect(normalizePagePermission({})).toEqual({
+    expect(normalizePagePermission("services", {})).toEqual({
       canView: false,
       canCreate: false,
       canEdit: false,
@@ -51,7 +51,7 @@ describe("normalizePagePermission", () => {
   });
 
   it("canView sozinho nao liga nada mais", () => {
-    expect(normalizePagePermission({ canView: true })).toEqual({
+    expect(normalizePagePermission("services", { canView: true })).toEqual({
       canView: true,
       canCreate: false,
       canEdit: false,

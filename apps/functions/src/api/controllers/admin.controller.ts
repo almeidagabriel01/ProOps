@@ -1,10 +1,8 @@
 import { Request, Response } from "express";
 import { db, auth } from "../../init";
 import { invalidateRevocationState } from "../../lib/token-revocation";
-import {
-  isAssignablePermissionPage,
-  isPermissionActionKey,
-} from "../../shared/permission-pages";
+import { isAssignablePermissionPage } from "../../shared/permission-pages";
+import { isValidPermissionValue } from "../../shared/permission-catalog";
 import { withActors } from "../../lib/admin-actors";
 import { FieldValue, Timestamp } from "firebase-admin/firestore";
 import { getStorage } from "firebase-admin/storage";
@@ -310,7 +308,7 @@ export const createMember = async (req: Request, res: Response) => {
             pageId,
             pageSlug,
             pageName: pageSlug, // Simplified
-            ...normalizePagePermission(permData),
+            ...normalizePagePermission(pageId, permData),
             updatedAt: now,
           });
         }
@@ -678,7 +676,7 @@ export const updatePermissions = async (req: Request, res: Response) => {
     // ou chave era gravado: uma chave inventada não abre nada, mas fica no
     // documento parecendo permissão, e é assim que nasce uma chave fantasma.
     if (mode === "single" && pageId && key) {
-      if (!isAssignablePermissionPage(pageId) || !isPermissionActionKey(key) || typeof value !== "boolean") {
+      if (!isAssignablePermissionPage(pageId) || !isValidPermissionValue(pageId, key, value)) {
         return res.status(400).json({ message: "Permissão inválida." });
       }
     } else if (permissions && typeof permissions === "object") {
@@ -698,11 +696,8 @@ export const updatePermissions = async (req: Request, res: Response) => {
         {
           pageId,
           pageSlug: `/${pageId}`,
-          ...normalizePagePermission({
-            canView: existingData?.canView ?? false,
-            canCreate: existingData?.canCreate ?? false,
-            canEdit: existingData?.canEdit ?? false,
-            canDelete: existingData?.canDelete ?? false,
+          ...normalizePagePermission(pageId, {
+            ...(existingData ?? {}),
             [key]: value,
           }),
           updatedAt: new Date().toISOString(),
@@ -733,12 +728,12 @@ export const updatePermissions = async (req: Request, res: Response) => {
 
     for (const [pId, perms] of Object.entries(permissions)) {
       // perms is untyped
-      const p = perms as Record<string, boolean>;
+      const p = perms as Record<string, unknown>;
       const docRef = permissionsRef.doc(pId);
       batch.set(docRef, {
         pageId: pId,
         pageSlug: `/${pId}`,
-        ...normalizePagePermission(p),
+        ...normalizePagePermission(pId, p),
         updatedAt: new Date().toISOString(),
         updatedBy: masterId,
       });
