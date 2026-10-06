@@ -21,6 +21,7 @@ import {
   getProductPricingSummary,
 } from "@/lib/product-pricing";
 import { useCurrentNicheConfig } from "@/hooks/useCurrentNicheConfig";
+import { usePermission, useSensitiveData } from "@/hooks/usePermission";
 import { cap, no, o, pick } from "@/lib/niches/vocabulary";
 import { Product } from "@/services/product-service";
 import { Service } from "@/services/service-service";
@@ -213,26 +214,56 @@ export function ProductPricingStep({
     ? "Estoque"
     : nicheConfig.productCatalog.inventory.formLabel;
 
-  if (isReadOnly) {
+  // Custo, markup e estoque seguem o catálogo de permissões: sem "Ver custo"
+  // ou sem "Mudar preço", o membro vê só o preço final; sem "Ver estoque", o
+  // estoque some, e sem "Ajustar estoque" ele fica travado. O backend descarta
+  // o que o membro não pode mudar.
+  const { canSeeCost, canSeeStock } = useSensitiveData();
+  const canEditPrice = usePermission("products", "editPrice");
+  const canAdjustStock = usePermission("products", "adjustStock");
+  const priceRestricted = entityType === "product" && (!canSeeCost || !canEditPrice);
+  const showStock = shouldShowInventoryField && canSeeStock;
+
+  if (isReadOnly || priceRestricted) {
     const readOnlySummary = buildPricingSummary(initialData, nicheConfig.pricing);
 
     return (
       <div className="space-y-4">
         <FormGroup>
           <FormStatic
-            label={entityType === "product" ? "Preço configurado" : "Preço base"}
+            label={entityType === "product" ? (canSeeCost ? "Preço configurado" : "Preço final") : "Preço base"}
             value={
               entityType === "service"
                 ? `R$ ${basePrice.toFixed(2)}`
-                : readOnlySummary || `R$ ${sellingPrice.toFixed(2)}`
+                : canSeeCost
+                  ? readOnlySummary || `R$ ${sellingPrice.toFixed(2)}`
+                  : initialData
+                    ? getProductPricingSummary(initialData, nicheConfig.pricing)
+                    : `R$ ${sellingPrice.toFixed(2)}`
             }
           />
-          {shouldShowInventoryField && (
-            <FormStatic
-              label={inventoryReadOnlyLabel}
-              value={formData.inventoryValue || "0"}
-            />
+          {entityType === "product" && canSeeCost && formData.pricingMode !== "curtain_height" && (
+            <FormStatic label="Custo e markup" value={`R$ ${basePrice.toFixed(2)} + ${markupValue.toFixed(2)}%`} />
           )}
+          {showStock &&
+            (!isReadOnly && canAdjustStock ? (
+              <FormItem label={inventoryFormLabel} htmlFor="inventoryValue" error={errors.inventoryValue}>
+                <Input
+                  id="inventoryValue"
+                  name="inventoryValue"
+                  type="number"
+                  min="0"
+                  step={nicheConfig.productCatalog.inventory.step}
+                  placeholder="0"
+                  value={formData.inventoryValue}
+                  onChange={onChange}
+                  onBlur={onBlur}
+                  className={errors.inventoryValue ? "border-destructive" : ""}
+                />
+              </FormItem>
+            ) : (
+              <FormStatic label={inventoryReadOnlyLabel} value={formData.inventoryValue || "0"} />
+            ))}
         </FormGroup>
       </div>
     );
@@ -368,6 +399,7 @@ export function ProductPricingStep({
                 />
               </FormItem>
 
+              {canSeeStock && (
               <FormItem
                 label={inventoryFormLabel}
                 htmlFor="inventoryValue"
@@ -383,9 +415,11 @@ export function ProductPricingStep({
                   value={formData.inventoryValue}
                   onChange={onChange}
                   onBlur={onBlur}
+                  disabled={!canAdjustStock}
                   className={errors.inventoryValue ? "border-destructive" : ""}
                 />
               </FormItem>
+              )}
             </FormGroup>
 
             <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
@@ -619,6 +653,7 @@ export function ProductPricingStep({
                 />
               </FormItem>
 
+              {canSeeStock && (
               <FormItem
                 label={inventoryFormLabel}
                 htmlFor="inventoryValue"
@@ -634,9 +669,11 @@ export function ProductPricingStep({
                   value={formData.inventoryValue}
                   onChange={onChange}
                   onBlur={onBlur}
+                  disabled={!canAdjustStock}
                   className={errors.inventoryValue ? "border-destructive" : ""}
                 />
               </FormItem>
+              )}
             </FormGroup>
 
             <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
