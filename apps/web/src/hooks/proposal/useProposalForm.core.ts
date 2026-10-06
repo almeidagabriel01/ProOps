@@ -18,7 +18,7 @@ import { ProposalSistema } from "@/types/automation";
 import { prepareCreatePayload } from "./submit-helpers";
 import { toast } from "@/lib/toast";
 import { useMasterDataTransaction } from "./useMasterDataTransaction";
-import { useWalletsData } from "@/app/wallets/_hooks/useWalletsData";
+import { useWalletOptions } from "@/hooks/useWalletOptions";
 import { ClientService, ClientType } from "@/services/client-service";
 import { useClientPriceTable } from "@/hooks/use-price-tables";
 import { applyPriceTableToCatalog } from "@/lib/pricing/price-table";
@@ -132,8 +132,9 @@ export function useProposalFormCore({
   const isEnvironmentProposal =
     tenant !== null && proposalWorkflow === "environment";
 
-  // Get wallets to pre-select default wallet
-  const { wallets } = useWalletsData();
+  // Get wallets to pre-select default wallet (sem saldo: quem monta a
+  // proposta não precisa ver o financeiro)
+  const { wallets } = useWalletOptions();
 
   // Pre-select default wallet and resolve legacy name→ID for payment options
   React.useEffect(() => {

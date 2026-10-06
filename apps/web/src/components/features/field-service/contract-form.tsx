@@ -31,8 +31,7 @@ import { buildPmocItems, type PmocItem } from "@/lib/field-service/pmoc";
 import { parseOptionalNumber, validatePmocForm, type PmocFormErrors } from "@/lib/field-service/pmoc-form";
 import { FieldService } from "@/services/field-service-service";
 import { TechnicalResponsiblesService } from "@/services/technical-responsibles-service";
-import { WalletService } from "@/services/wallet-service";
-import type { Wallet } from "@/types";
+import { WalletService, type WalletOption } from "@/services/wallet-service";
 import type {
   ContractLine,
   ContractType,
@@ -152,7 +151,7 @@ export function ContractForm({ contract }: ContractFormProps) {
   );
   const [form, setForm] = React.useState<FormState>(() => initialState(contract, defaults));
   const [saving, setSaving] = React.useState(false);
-  const [wallets, setWallets] = React.useState<Wallet[]>([]);
+  const [wallets, setWallets] = React.useState<WalletOption[]>([]);
   const [equipment, setEquipment] = React.useState<CustomerEquipment[]>([]);
   const [technicians, setTechnicians] = React.useState<{ id: string; name: string }[]>([]);
   const [responsibles, setResponsibles] = React.useState<TechnicalResponsible[]>([]);
@@ -167,7 +166,8 @@ export function ContractForm({ contract }: ContractFormProps) {
 
   React.useEffect(() => {
     if (!tenant?.id) return;
-    WalletService.getWallets(tenant.id)
+    // Sem saldo: quem cadastra o contrato não precisa ver o financeiro.
+    WalletService.getWalletOptions()
       .then((list) => {
         const active = list.filter((w) => w.status !== "archived");
         setWallets(active);
