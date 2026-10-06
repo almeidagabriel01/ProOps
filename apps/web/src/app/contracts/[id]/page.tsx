@@ -344,7 +344,7 @@ export default function ContractDetailPage() {
                   </div>
                   <div className="flex items-center gap-2">
                     <span className="font-semibold">{formatCurrency(charge.amount)}</span>
-                    {charge.status !== "paid" && !isReadOnly && (
+                    {charge.status !== "paid" && !isReadOnly && financial.canEdit && (
                       <Button variant="outline" size="sm" onClick={() => copyPaymentLink(charge)}>
                         <Link2 className="mr-1.5 h-4 w-4" />
                         Link de pagamento

@@ -568,16 +568,20 @@ export function TransactionCard({
               className="flex shrink-0 items-center gap-1 pl-2 border-l ml-2 max-md:ml-0 max-md:border-l-0 max-md:pl-0"
               onClick={(e) => e.stopPropagation()}
             >
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-8 w-8 text-muted-foreground hover:text-primary"
-                disabled={isReadOnly}
-                onClick={handleShare}
-                title="Compartilhar Link"
-              >
-                <Share2 className="w-4 h-4" />
-              </Button>
+              {/* O link é público e abre o Pix e o boleto: gerá-lo exige
+                  editar lançamentos, como no backend. */}
+              {canEdit && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 text-muted-foreground hover:text-primary"
+                  disabled={isReadOnly}
+                  onClick={handleShare}
+                  title="Compartilhar Link"
+                >
+                  <Share2 className="w-4 h-4" />
+                </Button>
+              )}
               {canEdit && !transaction.proposalId && onUpdate && (
                 <Button
                   variant="ghost"
