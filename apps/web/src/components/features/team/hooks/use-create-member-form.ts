@@ -4,8 +4,9 @@ import {
   getDefaultPermissions,
 } from "@/hooks/useCreateMember";
 import { useUpgradeModal } from "@/components/ui/upgrade-modal";
-import { roleConfig } from "../team-constants";
 import { useTenant } from "@/providers/tenant-provider";
+import { usePlanLimits } from "@/hooks/usePlanLimits";
+import type { RolePreset } from "@/lib/permissions/pages";
 
 interface UseCreateMemberFormProps {
   onSuccess: () => void;
@@ -15,6 +16,7 @@ export function useCreateMemberForm({ onSuccess }: UseCreateMemberFormProps) {
   const { createMember, isLoading, error } = useCreateMember();
   const { tenantOwner } = useTenant();
   const upgradeModal = useUpgradeModal();
+  const { hasFinancial } = usePlanLimits();
 
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -22,16 +24,21 @@ export function useCreateMemberForm({ onSuccess }: UseCreateMemberFormProps) {
   const [phoneNumber, setPhoneNumber] = useState("");
   const [selectedRole, setSelectedRole] = useState<string>("viewer");
   const [customPermissions, setCustomPermissions] = useState(
-    getDefaultPermissions("viewer"),
+    getDefaultPermissions("viewer", hasFinancial),
   );
   const [errors, setErrors] = React.useState<Record<string, string>>({});
   const [showPassword, setShowPassword] = React.useState(false);
 
+  // O plano chega depois do primeiro render: refaz o perfil escolhido quando
+  // ele chega, senão as páginas do financeiro ficariam de fora do membro novo.
+  React.useEffect(() => {
+    setCustomPermissions(getDefaultPermissions(selectedRole as RolePreset, hasFinancial));
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- só quando o plano muda
+  }, [hasFinancial]);
+
   const handleRoleSelect = (roleId: string) => {
     setSelectedRole(roleId);
-    setCustomPermissions(
-      getDefaultPermissions(roleId as keyof typeof roleConfig),
-    );
+    setCustomPermissions(getDefaultPermissions(roleId as RolePreset, hasFinancial));
   };
 
   const handleSubmit = async () => {
@@ -50,7 +57,7 @@ export function useCreateMemberForm({ onSuccess }: UseCreateMemberFormProps) {
       setPassword("");
       setPhoneNumber("");
       setSelectedRole("viewer");
-      setCustomPermissions(getDefaultPermissions("viewer"));
+      setCustomPermissions(getDefaultPermissions("viewer", hasFinancial));
       onSuccess();
     } else if (
       result?.error &&

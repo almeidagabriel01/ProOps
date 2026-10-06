@@ -19,6 +19,10 @@ import {
 } from "@/lib/permissions/member-view";
 import { db } from "@/lib/firebase";
 import { collection, getDocs, doc, getDoc } from "firebase/firestore";
+import {
+  getPermissionPageDef,
+  resolvePermissionKey,
+} from "@/lib/permissions/catalog";
 
 // ============================================
 // TYPES
@@ -31,6 +35,18 @@ export interface PagePermission {
   canCreate: boolean;
   canEdit: boolean;
   canDelete: boolean;
+  /**
+   * O doc como foi gravado, com as ações finas, os dados sensíveis e o escopo
+   * do catálogo (`lib/permissions/catalog.ts`). Quem lê uma chave fina passa
+   * por `resolvePermissionKey`, que aplica o fallback de chave ausente.
+   */
+  raw?: Record<string, unknown>;
+}
+
+/** O doc gravado de uma página, para as leituras do catálogo. */
+export function permissionDocOf(page: PagePermission | undefined | null): Record<string, unknown> | null {
+  if (!page) return null;
+  return page.raw ?? (page as unknown as Record<string, unknown>);
 }
 
 export interface UserPermissions {
@@ -150,6 +166,7 @@ export function PermissionsProvider({
           canCreate: data.canCreate ?? false,
           canEdit: data.canEdit ?? false,
           canDelete: data.canDelete ?? false,
+          raw: data,
         };
       });
 
@@ -261,8 +278,13 @@ export function PermissionsProvider({
         return true;
       }
 
-      // MEMBER: Check explicit page permissions
+      // MEMBER: Check explicit page permissions. Página do catálogo passa pela
+      // mesma leitura do backend (a Lia vale sem doc gravado).
       const pagePerm = permissions.pages[pageId];
+      if (getPermissionPageDef(pageId)) {
+        const key = ({ view: "canView", create: "canCreate", edit: "canEdit", delete: "canDelete" } as const)[action];
+        return resolvePermissionKey(pageId, permissionDocOf(pagePerm), key);
+      }
       if (!pagePerm) {
         // MEMBER with no permission doc = no access
         return false;

@@ -78,14 +78,47 @@ describe("presets de papel", () => {
     });
   });
 
-  it("admin concede tudo", () => {
+  it("admin concede tudo, inclusive as ações finas que nascem fechadas", () => {
     const perms = getDefaultPermissions("admin", true);
-    expect(perms.proposals).toEqual({
+    expect(perms.proposals).toMatchObject({
       canView: true,
       canCreate: true,
       canEdit: true,
       canDelete: true,
+      approve: true,
+      discount: true,
     });
+    expect(perms.service_orders?.reopen).toBe(true);
+    expect(perms.transactions?.viewCommissions).toBe(true);
+  });
+
+  it("visualizador não vê o financeiro", () => {
+    const perms = getDefaultPermissions("viewer", true);
+    for (const id of ["transactions", "wallet", "invoices"]) expect(perms[id]?.canView, id).toBe(false);
+    expect(perms.proposals?.canView).toBe(true);
+  });
+
+  it("vendedor: CRM, propostas e contatos dele, catálogo sem custo nem estoque, sem financeiro", () => {
+    const perms = getDefaultPermissions("seller", true);
+    expect(perms.proposals).toMatchObject({ canView: true, canCreate: true, canEdit: true, canDelete: false, scope: "own" });
+    expect(perms.kanban).toMatchObject({ canView: true, scope: "own", columns: false });
+    expect(perms.clients).toMatchObject({ canView: true, scope: "own" });
+    expect(perms.products).toMatchObject({ canView: true, canEdit: false, viewCost: false, viewStock: false });
+    for (const id of ["transactions", "wallet", "invoices"]) expect(perms[id]?.canView, id).toBe(false);
+  });
+
+  it("financeiro: lançamentos completos, carteiras sem excluir, notas sem cancelar", () => {
+    const perms = getDefaultPermissions("finance", true);
+    expect(perms.transactions).toMatchObject({ canView: true, canDelete: true, viewCommissions: true });
+    expect(perms.wallet).toMatchObject({ canView: true, canEdit: true, canDelete: false });
+    expect(perms.invoices).toMatchObject({ canView: true, canCreate: true, cancel: false });
+  });
+
+  it("todo preset oferece as mesmas páginas", () => {
+    const ids = Object.keys(getDefaultPermissions("viewer", true)).sort();
+    for (const role of ["editor", "admin", "technician", "seller", "finance"] as const) {
+      expect(Object.keys(getDefaultPermissions(role, true)).sort(), role).toEqual(ids);
+    }
   });
 
   it("página viewOnly nunca recebe criar/editar/excluir", () => {
@@ -123,6 +156,8 @@ describe("preset de técnico", () => {
       canCreate: false,
       canEdit: true,
       canDelete: false,
+      viewPrices: false,
+      reopen: false,
     });
     expect(perms.equipment?.canView).toBe(true);
     expect(perms.equipment?.canEdit).toBe(false);

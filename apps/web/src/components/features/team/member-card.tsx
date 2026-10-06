@@ -14,26 +14,31 @@ import {
   ChevronDown,
   ChevronUp,
   Check,
+  Copy,
 } from "lucide-react";
-import { TeamMember, AVAILABLE_PAGES } from "./team-types";
-import { PagePermissionRow } from "./page-permission-row";
+import { TeamMember } from "./team-types";
+import { PermissionEditor } from "./permission-editor";
+import { ApplyPermissionsDialog } from "./apply-permissions-dialog";
+import type { MemberPermissions } from "@/lib/permissions/pages";
 import {
   EditMemberModal,
   DeleteMemberDialog,
   ResetMfaDialog,
 } from "./member-modals";
 import { usePlanLimits } from "@/hooks/usePlanLimits";
-import { useTenant } from "@/providers/tenant-provider";
-import { getPermissionPageName } from "@/lib/permissions/pages";
 
 interface MemberCardProps {
   member: TeamMember;
+  /** Os outros membros: a origem de "Copiar de outro membro". */
+  otherMembers: TeamMember[];
   onUpdatePermission: (
     memberId: string,
     pageId: string,
     key: string,
-    value: boolean,
+    value: boolean | string,
   ) => void;
+  /** Depois de aplicar um perfil ou copiar, o mapa inteiro novo. */
+  onPermissionsReplaced: (memberId: string, permissions: MemberPermissions) => void;
   saving: boolean;
   updatingKey: string | null;
   onRefresh: () => void;
@@ -41,7 +46,9 @@ interface MemberCardProps {
 
 export function MemberCard({
   member,
+  otherMembers,
   onUpdatePermission,
+  onPermissionsReplaced,
   saving,
   updatingKey,
   onRefresh,
@@ -50,8 +57,8 @@ export function MemberCard({
   const [showEdit, setShowEdit] = React.useState(false);
   const [showDelete, setShowDelete] = React.useState(false);
   const [showResetMfa, setShowResetMfa] = React.useState(false);
+  const [showApply, setShowApply] = React.useState(false);
   const { hasFinancial } = usePlanLimits();
-  const { tenant } = useTenant();
 
   return (
     <>
@@ -128,33 +135,24 @@ export function MemberCard({
         {/* Permissions Panel */}
         {isExpanded && (
           <div className="border-t bg-muted/20 p-4">
-            <h4 className="font-medium mb-4 flex items-center gap-2 text-sm">
-              <Shield className="w-4 h-4" />
-              Permissões por página
-            </h4>
-
-            <div className="space-y-2">
-              {AVAILABLE_PAGES.map((page) => {
-                // Hide financial pages if tenant doesn't have the module
-                if (page.requiresFinancial && !hasFinancial) return null;
-
-                return (
-                  <PagePermissionRow
-                    key={page.id}
-                    page={{ ...page, name: getPermissionPageName(page, tenant?.niche) }}
-                    permission={
-                      member.permissions[page.id] || { canView: false }
-                    }
-                    onUpdate={(key, value) =>
-                      onUpdatePermission(member.id, page.id, key, value)
-                    }
-                    saving={saving}
-                    updatingKey={updatingKey}
-                    memberId={member.id}
-                  />
-                );
-              })}
+            <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+              <h4 className="flex items-center gap-2 text-sm font-medium">
+                <Shield className="w-4 h-4" />
+                Permissões
+              </h4>
+              <Button variant="outline" size="sm" onClick={() => setShowApply(true)} className="w-full sm:w-auto">
+                <Copy className="mr-2 h-4 w-4" />
+                Aplicar perfil ou copiar
+              </Button>
             </div>
+
+            <PermissionEditor
+              permissions={member.permissions}
+              onChange={(pageId, key, value) => onUpdatePermission(member.id, pageId, key, value)}
+              hasFinancial={hasFinancial}
+              disabled={saving}
+              busyKey={updatingKey?.startsWith(`${member.id}-`) ? updatingKey.slice(member.id.length + 1) : null}
+            />
 
             <p className="text-xs text-muted-foreground mt-4 flex items-center gap-1">
               <Check className="w-3 h-3" />
@@ -175,6 +173,14 @@ export function MemberCard({
         open={showDelete}
         onOpenChange={setShowDelete}
         onSuccess={onRefresh}
+      />
+      <ApplyPermissionsDialog
+        member={member}
+        otherMembers={otherMembers}
+        hasFinancial={hasFinancial}
+        open={showApply}
+        onOpenChange={setShowApply}
+        onApplied={(permissions) => onPermissionsReplaced(member.id, permissions)}
       />
       <ResetMfaDialog
         member={member}

@@ -56,3 +56,23 @@ describe("chaves de permissão usadas nas telas", () => {
     expect(offenders).toEqual([]);
   });
 });
+
+describe("catálogo de permissões: espelho do backend", () => {
+  it("o espelho do front é igual à fonte do backend", async () => {
+    const front = await import("@/lib/permissions/catalog");
+    const back = await import("../../../functions/src/shared/permission-catalog");
+    expect(JSON.parse(JSON.stringify(front.PERMISSION_CATALOG))).toEqual(
+      JSON.parse(JSON.stringify(back.PERMISSION_CATALOG)),
+    );
+    expect(front.PERMISSION_AREAS).toEqual(back.PERMISSION_AREAS);
+    // As funções de leitura também precisam dar o mesmo resultado.
+    const doc = { canView: true, canEdit: true, approve: false, viewCost: false, scope: "own" };
+    for (const page of back.PERMISSION_CATALOG) {
+      for (const key of [...back.BASE_PERMISSION_ACTIONS, ...page.extras.map((e) => e.key)]) {
+        expect(front.resolvePermissionKey(page.id, doc, key)).toBe(back.resolvePermissionKey(page.id, doc, key));
+        expect(front.resolvePermissionKey(page.id, null, key)).toBe(back.resolvePermissionKey(page.id, null, key));
+      }
+      expect(front.resolvePermissionScope(page.id, doc)).toBe(back.resolvePermissionScope(page.id, doc));
+    }
+  });
+});

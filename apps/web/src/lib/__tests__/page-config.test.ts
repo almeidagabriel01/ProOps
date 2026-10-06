@@ -49,7 +49,8 @@ describe("toda página marcável na tela de Equipe tem guarda de rota", () => {
       .map((config) => config.pageId),
   );
 
-  it.each(PERMISSION_PAGES.filter((page) => !page.scopeOf).map((page) => page.id))(
+  // A Lia não é tela: o "Ver" dela libera a conversa, conferido na rota do chat.
+  it.each(PERMISSION_PAGES.filter((page) => !page.scopeOf && page.id !== "lia").map((page) => page.id))(
     "%s é gateado por alguma rota",
     (pageId) => {
       expect(gatedPageIds).toContain(pageId);
