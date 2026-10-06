@@ -114,6 +114,39 @@ describe("link do portal (empresa)", () => {
     expect(svc[method]).not.toHaveBeenCalled();
   });
 
+  describe("o portal abre propostas e pagamentos", () => {
+    const only = (granted: string[]) =>
+      hasPagePermission.mockImplementation(async (_c: unknown, pageId: string, action: string) =>
+        granted.includes(`${pageId}.${action}`),
+      );
+
+    it.each([
+      ["ver", getClientPortalLink, "getPortalLink", "clients.canView"],
+      ["criar", createClientPortalLink, "ensurePortalLink", "clients.canEdit"],
+      ["trocar", rotateClientPortalLink, "rotatePortalLink", "clients.canEdit"],
+    ] as const)("%s só com Contatos, sem Propostas nem Lançamentos: 403", async (_n, handler, method, clients) => {
+      only([clients]);
+      const r = res();
+      await handler(req(), r);
+      expect(r.statusCode).toBe(403);
+      expect(svc[method]).not.toHaveBeenCalled();
+    });
+
+    it.each(["proposals.canView", "transactions.canView"])("com Contatos e %s, cria o link", async (extra) => {
+      only(["clients.canEdit", extra]);
+      const r = res();
+      await createClientPortalLink(req(), r);
+      expect(svc.ensurePortalLink).toHaveBeenCalled();
+    });
+
+    it("desligar só fecha o acesso: pede só editar Contatos", async () => {
+      only(["clients.canEdit"]);
+      const r = res();
+      await revokeClientPortalLink(req(), r);
+      expect(svc.revokePortalLink).toHaveBeenCalledWith("t1", "c1");
+    });
+  });
+
   it("criar e trocar usam o tenant do usuário, não o do corpo", async () => {
     await createClientPortalLink(req({ body: { tenantId: "outro" } }), res());
     expect(svc.ensurePortalLink).toHaveBeenCalledWith("t1", "c1", "u1");

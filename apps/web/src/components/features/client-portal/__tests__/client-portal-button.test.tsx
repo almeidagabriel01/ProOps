@@ -8,6 +8,7 @@ import userEvent from "@testing-library/user-event";
 const m = vi.hoisted(() => ({
   plan: { hasClientPortal: true },
   perm: { canEdit: true },
+  pages: { proposals: { canView: true }, transactions: { canView: false } } as Record<string, { canView?: boolean }>,
   perms: { isDemo: false },
   get: vi.fn(),
   create: vi.fn(),
@@ -16,7 +17,9 @@ const m = vi.hoisted(() => ({
 }));
 
 vi.mock("@/hooks/usePlanLimits", () => ({ usePlanLimits: () => m.plan }));
-vi.mock("@/hooks/usePagePermission", () => ({ usePagePermission: () => m.perm }));
+vi.mock("@/hooks/usePagePermission", () => ({
+  usePagePermission: (pageId: string) => (pageId === "clients" ? m.perm : (m.pages[pageId] ?? {})),
+}));
 vi.mock("@/providers/permissions-provider", () => ({ usePermissions: () => m.perms }));
 vi.mock("@/providers/tenant-provider", () => ({ useTenant: () => ({ tenant: { name: "Casa Viva" } }) }));
 vi.mock("@/lib/toast", () => ({ toast: { success: vi.fn(), error: vi.fn(), info: vi.fn() } }));
@@ -39,6 +42,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   m.plan = { hasClientPortal: true };
   m.perm = { canEdit: true };
+  m.pages = { proposals: { canView: true }, transactions: { canView: false } };
   m.perms = { isDemo: false };
   m.get.mockResolvedValue(NO_LINK);
   m.create.mockResolvedValue(WITH_LINK);
@@ -51,6 +55,18 @@ async function openDialog() {
 }
 
 describe("portal do cliente na ficha do contato", () => {
+  it("quem só tem Contatos não vê o portal: ele abre propostas e pagamentos", () => {
+    m.pages = { proposals: { canView: false }, transactions: { canView: false } };
+    render(<ClientPortalButton client={CLIENT} />);
+    expect(screen.queryByRole("button", { name: "Portal do cliente" })).toBeNull();
+  });
+
+  it("com Contatos e Lançamentos (sem Propostas) o portal aparece", () => {
+    m.pages = { proposals: { canView: false }, transactions: { canView: true } };
+    render(<ClientPortalButton client={CLIENT} />);
+    expect(screen.getByRole("button", { name: "Portal do cliente" })).toBeInTheDocument();
+  });
+
   it("cria o link e já mostra a mensagem com o primeiro nome", async () => {
     render(<ClientPortalButton client={CLIENT} />);
     await openDialog();
