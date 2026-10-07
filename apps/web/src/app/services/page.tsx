@@ -37,11 +37,14 @@ import { ImportButton, ImportDialog } from "@/components/features/import/import-
 import { OptionService } from "@/services/option-service";
 import { SERVICE_FIELDS } from "@/lib/import/import-fields";
 import { Loader } from "@/components/ui/loader";
+import { usePermission } from "@/hooks/usePermission";
 
 export default function ServicesPage() {
   const { tenant, isLoading: tenantLoading } = useTenant();
   const { user } = useAuth();
   const { canCreate, canDelete, canEdit } = usePagePermission("services");
+  // "Importar planilha" (ausente, vale o Criar). O backend confere a mesma chave.
+  const canImport = usePermission("services", "import");
   const [allServices, setAllServices] = useState<Service[] | null>(null);
   const [isLoadingAll, setIsLoadingAll] = useState(false);
   const [hasAnyServices, setHasAnyServices] = useState<boolean | null>(null);
@@ -392,7 +395,7 @@ export default function ServicesPage() {
               </div>
               {canCreate && (
                 <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
-                  <ImportButton onClick={() => setImportOpen(true)} />
+                  {canImport && <ImportButton onClick={() => setImportOpen(true)} />}
                   <Link href="/services/new" className="block w-full sm:w-auto">
                     <Button size="lg" className="gap-2 w-full sm:w-auto">
                       <Plus className="w-5 h-5" />
