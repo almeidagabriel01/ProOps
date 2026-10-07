@@ -2,7 +2,7 @@ import { Request, Response } from "express";
 import { randomUUID } from "node:crypto";
 import { db } from "../../init";
 import { logger } from "../../lib/logger";
-import { hasPagePermission } from "../../lib/auth-helpers";
+import { hasPagePermission, getPageScope } from "../../lib/auth-helpers";
 import { isTenantAdminRole } from "../../lib/auth-context";
 import { isStatusApproved } from "./proposals.controller";
 import {
@@ -84,6 +84,15 @@ async function requireProjectAccess(req: Request, action: Action): Promise<{ ten
   if (!tenantId || !uid) throw new HttpError(403, "Tenant não identificado.");
   if (!(await hasPagePermission(req.user, "projects", action))) {
     throw new HttpError(403, "Sem permissão para esta ação em Projetos.");
+  }
+  // "Só os meus" (o técnico da obra): o projeto de outra pessoa não existe
+  // para quem tem o alcance restrito, como nas rules. Toda rota com :id aqui
+  // é de um projeto.
+  if (req.params?.id && (await getPageScope(req.user, "projects")) !== "all") {
+    const snap = await db.collection("projects").doc(String(req.params.id)).get();
+    if (snap.exists && snap.data()?.assigneeId !== uid) {
+      throw new HttpError(404, "Projeto não encontrado.");
+    }
   }
   return { tenantId, uid };
 }

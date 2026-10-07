@@ -1,7 +1,7 @@
 import { Request, Response } from "express";
 import { db } from "../../init";
 import { FieldValue, Timestamp } from "firebase-admin/firestore";
-import { resolveUserAndTenant, checkPermission } from "../../lib/auth-helpers";
+import { resolveUserAndTenant, checkPermission, recordInScope } from "../../lib/auth-helpers";
 import { memberLinkErrorMessage, validateMemberLink } from "../services/contact-member-link";
 import { isClientUsed } from "../services/proposal-usage.service";
 import {
@@ -362,8 +362,17 @@ export const createClient = async (req: Request, res: Response) => {
     let responsible: { id: string; name: string } | null = null;
     let partnerContactIds: string[] = [];
     try {
+      // Contato que um membro cria nasce com ele como responsável (quando o
+      // tipo tem responsável): é o que mantém o contato no alcance "só os
+      // meus" de quem o cadastrou, em vez de sumir da lista dele ao salvar.
+      const ownsByDefault =
+        !isMaster &&
+        !isSuperAdmin &&
+        (input.types ?? ["cliente"]).some((type: string) => type === "cliente" || type === "arquiteto");
       if (input.responsibleMemberId) {
         responsible = await resolveResponsibleMember(targetTenantId, input.responsibleMemberId);
+      } else if (ownsByDefault) {
+        responsible = await resolveResponsibleMember(targetTenantId, userId).catch(() => null);
       }
       if (input.partnerContactIds?.length) {
         partnerContactIds = await resolvePartnerContactIds(targetTenantId, input.partnerContactIds);
@@ -501,6 +510,10 @@ export const updateClient = async (req: Request, res: Response) => {
       return res
         .status(403)
         .json({ message: "Este cliente não pertence a sua organização." });
+    }
+    // "Só os meus": o contato de outra pessoa não existe, como nas rules.
+    if (!isMaster && !isSuperAdmin && !(await recordInScope(req.user, "clients", clientData))) {
+      return res.status(404).json({ message: "Cliente não encontrado." });
     }
 
     if (!isMaster && !isSuperAdmin) {
@@ -725,6 +738,9 @@ export const deleteClient = async (req: Request, res: Response) => {
 
     if (!isSuperAdmin && clientData?.tenantId !== tenantId) {
       return res.status(403).json({ message: "Acesso negado." });
+    }
+    if (!isMaster && !isSuperAdmin && !(await recordInScope(req.user, "clients", clientData))) {
+      return res.status(404).json({ message: "Cliente não encontrado." });
     }
 
     if (!isMaster && !isSuperAdmin) {

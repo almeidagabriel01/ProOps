@@ -1,7 +1,7 @@
 import { Request, Response } from "express";
 import { FieldValue, Timestamp } from "firebase-admin/firestore";
 import { db } from "../../init";
-import { hasPagePermission } from "../../lib/auth-helpers";
+import { hasPagePermission, recordInScope, getPageScope } from "../../lib/auth-helpers";
 import {
   enforceTenantPlanLimit,
   getTenantClientsUsage,
@@ -72,12 +72,10 @@ export async function listLeads(req: Request, res: Response) {
     }
 
     // Só igualdade, ordenado em memória: evita índice composto para uma
-    // coleção que tem teto por tenant.
-    const snap = await db
-      .collection(COLLECTION)
-      .where("tenantId", "==", tenantId)
-      .limit(MAX_LEADS_LISTED)
-      .get();
+    // coleção que tem teto por tenant. "Só os meus": só os leads da pessoa.
+    let query = db.collection(COLLECTION).where("tenantId", "==", tenantId);
+    if ((await getPageScope(req.user, "kanban")) !== "all") query = query.where("ownerId", "==", req.user?.uid ?? "");
+    const snap = await query.limit(MAX_LEADS_LISTED).get();
 
     const leads = snap.docs
       .map((doc) => toPublicLead(doc.id, doc.data() as LeadDoc))
@@ -136,7 +134,10 @@ export async function updateLead(req: Request, res: Response) {
     }
 
     const found = await loadLeadOfTenant(req.params.id, tenantId);
-    if (!found) return res.status(404).json({ message: "Lead não encontrado." });
+    // "Só os meus" no CRM: o lead de outra pessoa não existe, como nas rules.
+    if (!found || !(await recordInScope(req.user, "kanban", found.data))) {
+      return res.status(404).json({ message: "Lead não encontrado." });
+    }
 
     // "Convertido" só nasce pela conversão, que cria o contato; arrastar para a
     // coluna deixaria um lead convertido sem contato nenhum.
@@ -183,7 +184,10 @@ export async function deleteLead(req: Request, res: Response) {
     }
 
     const found = await loadLeadOfTenant(req.params.id, tenantId);
-    if (!found) return res.status(404).json({ message: "Lead não encontrado." });
+    // "Só os meus" no CRM: o lead de outra pessoa não existe, como nas rules.
+    if (!found || !(await recordInScope(req.user, "kanban", found.data))) {
+      return res.status(404).json({ message: "Lead não encontrado." });
+    }
 
     const activities = await db
       .collection("activities")
@@ -221,7 +225,10 @@ export async function convertLead(req: Request, res: Response) {
     }
 
     const found = await loadLeadOfTenant(req.params.id, tenantId);
-    if (!found) return res.status(404).json({ message: "Lead não encontrado." });
+    // "Só os meus" no CRM: o lead de outra pessoa não existe, como nas rules.
+    if (!found || !(await recordInScope(req.user, "kanban", found.data))) {
+      return res.status(404).json({ message: "Lead não encontrado." });
+    }
 
     const existingClientId = found.data.clientId as string | undefined;
     if (existingClientId) {

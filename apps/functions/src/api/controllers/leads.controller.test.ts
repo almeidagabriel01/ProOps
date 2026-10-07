@@ -16,6 +16,8 @@ const txUpdates: Array<{ id: string; data: Record<string, unknown> }> = [];
 const batchDeletes: string[] = [];
 
 jest.mock("../../lib/auth-helpers", () => ({
+  recordInScope: async () => true,
+  getPageScope: async () => "all",
   hasPagePermission: (...a: unknown[]) => hasPagePermission(...a),
 }));
 jest.mock("../../lib/tenant-plan-policy", () => ({

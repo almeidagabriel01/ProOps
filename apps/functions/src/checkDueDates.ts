@@ -319,7 +319,11 @@ async function upsertDueReminderNotification(
   const stableDocId = `due_${tenantId}_${type}_${resourceField}_${resourceId}`;
   const notificationRef = db.collection("notifications").doc(stableDocId);
   // Regravar zera a leitura (`readBy: []`): é um lembrete diário.
-  const { fields } = await NotificationService.recipientFields(tenantId, type);
+  // Os ids vão junto para o alcance "só os meus" de quem recebe.
+  const { fields } = await NotificationService.recipientFields(tenantId, type, undefined, {
+    proposalId,
+    transactionId,
+  });
 
   // Falha já é registrada (e retentada) pelo onWriteError do writer; o catch
   // só impede que a promise rejeitada vire unhandled rejection.

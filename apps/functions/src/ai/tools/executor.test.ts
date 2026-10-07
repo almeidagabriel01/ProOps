@@ -323,3 +323,57 @@ describe("executeToolCall: create_proposal precifica pelo catálogo", () => {
     ]);
   });
 });
+
+// ── "Só os meus" ──────────────────────────────────────────────────────────────
+
+describe("executeToolCall: alcance (só os meus)", () => {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const proposals = require("../../api/services/proposals.service");
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const contacts = require("../../api/services/contacts.service");
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const transactions = require("../../api/services/transaction-ai.service");
+  const scoped: ToolCallContext = {
+    ...memberCtx,
+    permissions: {
+      proposals: { canView: true, scope: "own" },
+      clients: { canView: true, scope: "own" },
+      kanban: { canView: true },
+      transactions: { canView: true, scope: "income" },
+    },
+  };
+
+  beforeEach(() => jest.clearAllMocks());
+
+  test("lista só as propostas e os contatos dele", async () => {
+    await executeToolCall("list_proposals", {}, scoped);
+    expect(proposals.listProposals).toHaveBeenCalledWith(
+      "tenant-a",
+      expect.objectContaining({ owner: { field: "sellerId", uid: "uid-member" } }),
+    );
+    await executeToolCall("list_contacts", {}, scoped);
+    expect(contacts.listContacts).toHaveBeenCalledWith(
+      "tenant-a",
+      expect.objectContaining({ owner: { field: "responsibleMemberId", uid: "uid-member" } }),
+    );
+  });
+
+  test("não abre a proposta de outro vendedor", async () => {
+    proposals.getProposal.mockResolvedValueOnce({ id: "p1", sellerId: "outro" });
+    const result = await executeToolCall("get_proposal", { proposalId: "p1" }, scoped);
+    expect(result.success).toBe(false);
+  });
+
+  test("lançamentos seguem o alcance de Lançamentos", async () => {
+    await executeToolCall("list_transactions", {}, scoped);
+    expect(transactions.listTransactionsForAi).toHaveBeenCalledWith(
+      "tenant-a",
+      expect.objectContaining({ scope: { field: "type", value: "income" } }),
+    );
+  });
+
+  test("o administrador vê tudo", async () => {
+    await executeToolCall("list_proposals", {}, { ...adminCtx, permissions: scoped.permissions });
+    expect(proposals.listProposals).toHaveBeenCalledWith("tenant-a", expect.objectContaining({ owner: undefined }));
+  });
+});

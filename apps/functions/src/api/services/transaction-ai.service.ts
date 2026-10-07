@@ -36,6 +36,8 @@ export async function listTransactionsForAi(
     startDate?: string;
     endDate?: string;
     limit?: number;
+    /** O alcance de Lançamentos: `type == income` ou `sellerId == uid`. */
+    scope?: { field: "type" | "sellerId"; value: string };
   },
 ): Promise<TransactionListItem[]> {
   const maxLimit = Math.min(opts?.limit || 20, 100);
@@ -43,6 +45,12 @@ export async function listTransactionsForAi(
   let query: FirebaseFirestore.Query = db
     .collection(COLLECTION_NAME)
     .where("tenantId", "==", tenantId);
+
+  if (opts?.scope) {
+    // "Só receitas" pedindo despesas: nada a mostrar.
+    if (opts.scope.field === "type" && opts.type && opts.type !== opts.scope.value) return [];
+    if (!(opts.scope.field === "type" && opts.type)) query = query.where(opts.scope.field, "==", opts.scope.value);
+  }
 
   if (opts?.type) {
     query = query.where("type", "==", opts.type);

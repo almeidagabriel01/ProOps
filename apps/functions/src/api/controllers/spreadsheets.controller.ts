@@ -1,7 +1,7 @@
 import { Request, Response } from "express";
 import { Timestamp } from "firebase-admin/firestore";
 import { db } from "../../init";
-import { checkPermission, resolveUserAndTenant } from "../../lib/auth-helpers";
+import { checkPermission, resolveUserAndTenant, recordInScope } from "../../lib/auth-helpers";
 import {
   enforceTenantPlanLimit,
   getTenantSpreadsheetsUsage,
@@ -175,6 +175,10 @@ export const updateSpreadsheet = async (req: Request, res: Response) => {
     if (!isSuperAdmin && docTenantId !== requesterTenantId) {
       return res.status(403).json({ message: "Acesso negado." });
     }
+    // "Só as minhas": a planilha de outra pessoa não existe, como nas rules.
+    if (!isMaster && !isSuperAdmin && !(await recordInScope(req.user, "spreadsheets", existingData))) {
+      return res.status(404).json({ message: "Planilha não encontrada." });
+    }
 
     const nextDataJson = resolveSpreadsheetJsonData(input);
     if (nextDataJson !== null) {
@@ -264,6 +268,9 @@ export const deleteSpreadsheet = async (req: Request, res: Response) => {
     const docTenantId = String(data?.tenantId || "").trim();
     if (!isSuperAdmin && docTenantId !== requesterTenantId) {
       return res.status(403).json({ message: "Acesso negado." });
+    }
+    if (!isMaster && !isSuperAdmin && !(await recordInScope(req.user, "spreadsheets", data))) {
+      return res.status(404).json({ message: "Planilha não encontrada." });
     }
 
     await docRef.delete();

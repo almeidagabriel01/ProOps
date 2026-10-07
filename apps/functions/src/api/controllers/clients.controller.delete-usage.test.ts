@@ -37,6 +37,7 @@ jest.mock("firebase-admin/firestore", () => ({
   Timestamp: { now: () => "agora" },
 }));
 jest.mock("../../lib/auth-helpers", () => ({
+  recordInScope: async () => true,
   resolveUserAndTenant: async () => ({
     tenantId: "t1",
     isMaster: true,

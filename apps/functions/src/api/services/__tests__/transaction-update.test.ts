@@ -12,6 +12,8 @@ jest.mock("../../../lib/finance-helpers", () => ({
   statusChangeKey: jest.requireActual("../../../lib/finance-helpers").statusChangeKey,
   extraCostsChanged: jest.requireActual("../../../lib/finance-helpers").extraCostsChanged,
   FINANCIAL_KEY_MESSAGES: jest.requireActual("../../../lib/finance-helpers").FINANCIAL_KEY_MESSAGES,
+  loadTransactionScope: jest.fn(async () => () => true),
+  OUT_OF_SCOPE_MESSAGE: "Transação não encontrada.",
   loadFinancialKeys: jest.fn(async () => () => true),
   checkFinancialPermission: jest.fn(() => ({ tenantId: "tenant-1", isSuperAdmin: false })),
   resolveWalletRef: jest.fn(() => ({ ref: { id: "wallet-1" } })),

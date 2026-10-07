@@ -7,8 +7,11 @@ import { sanitizeText } from "../../utils/sanitize";
 import { logSecurityEvent } from "../../lib/security-observability";
 import {
   resolvePagePermission,
+  SCOPE_OWNER_FIELD,
   type PagePermissionMap,
 } from "../../lib/auth-helpers";
+import { isTenantAdminRole } from "../../lib/auth-context";
+import { resolvePermissionScope } from "../../shared/permission-catalog";
 import type { TenantPlanTier } from "../../lib/tenant-plan-policy";
 import {
   PLAN_TIER_LABELS,
@@ -102,6 +105,28 @@ export interface ToolCallResult {
  * Falls back to the original string if format does not match.
  */
 /** Os dados sensíveis do catálogo de permissões para quem conversa com a Lia. */
+/**
+ * O alcance ("só os meus") de quem conversa, como nas rules e na API: a Lia
+ * não lista nem abre o registro de outra pessoa a quem tem o alcance
+ * restrito. Dono e administradores veem tudo.
+ */
+function scopeOf(ctx: ToolCallContext, pageId: string): string {
+  if (isTenantAdminRole(String(ctx.role || "").toUpperCase())) return "all";
+  return resolvePermissionScope(pageId, (ctx.permissions?.[pageId] ?? null) as Record<string, unknown> | null) ?? "all";
+}
+
+function ownerOf(ctx: ToolCallContext, pageId: "proposals" | "clients") {
+  if (scopeOf(ctx, pageId) === "all") return undefined;
+  return { field: SCOPE_OWNER_FIELD[pageId], uid: ctx.uid };
+}
+
+function transactionScopeOf(ctx: ToolCallContext): { field: "type" | "sellerId"; value: string } | undefined {
+  const scope = scopeOf(ctx, "transactions");
+  if (scope === "income") return { field: "type", value: "income" };
+  if (scope === "mine") return { field: "sellerId", value: ctx.uid };
+  return undefined;
+}
+
 function sensitiveAccess(ctx: ToolCallContext) {
   return {
     viewCost: resolvePagePermission({ role: ctx.role }, ctx.permissions, "products", "viewCost"),
@@ -244,6 +269,7 @@ const HANDLERS: Record<string, ToolHandler> = {
       limit: Number(args.limit) || 10,
       orderBy: args.orderBy as "createdAt" | "updatedAt" | "title" | "clientName" | undefined,
       direction: args.direction as "asc" | "desc" | undefined,
+      owner: ownerOf(ctx, "proposals"),
     });
     return { success: true, data };
   },
@@ -253,6 +279,10 @@ const HANDLERS: Record<string, ToolHandler> = {
       args.proposalId as string,
       ctx.tenantId,
     );
+    const owner = ownerOf(ctx, "proposals");
+    if (owner && (data as unknown as Record<string, unknown>)[owner.field] !== owner.uid) {
+      return { success: false, error: "Proposta não encontrada." };
+    }
     return {
       success: true,
       data: projectProposalForViewer(data as unknown as Record<string, unknown>, sensitiveAccess(ctx)),
@@ -333,6 +363,7 @@ const HANDLERS: Record<string, ToolHandler> = {
       limit: Number(args.limit) || 10,
       orderBy: args.orderBy as "createdAt" | "name" | "updatedAt" | undefined,
       direction: args.direction as "asc" | "desc" | undefined,
+      owner: ownerOf(ctx, "clients"),
     });
     return { success: true, data };
   },
@@ -342,6 +373,10 @@ const HANDLERS: Record<string, ToolHandler> = {
       args.contactId as string,
       ctx.tenantId,
     );
+    const owner = ownerOf(ctx, "clients");
+    if (owner && (data as unknown as Record<string, unknown>)[owner.field] !== owner.uid) {
+      return { success: false, error: "Contato não encontrado." };
+    }
     return { success: true, data };
   },
 
@@ -471,6 +506,7 @@ const HANDLERS: Record<string, ToolHandler> = {
       startDate,
       endDate,
       limit: Number(args.limit) || 20,
+      scope: transactionScopeOf(ctx),
     });
     return { success: true, data };
   },
@@ -579,6 +615,7 @@ const HANDLERS: Record<string, ToolHandler> = {
     const data = await proposalsService.listProposals(ctx.tenantId, {
       status: args.status as string | undefined,
       limit: Number(args.limit) || 20,
+      owner: ownerOf(ctx, "proposals"),
     });
     return { success: true, data };
   },

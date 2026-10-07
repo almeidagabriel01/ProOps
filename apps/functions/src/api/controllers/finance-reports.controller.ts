@@ -1,7 +1,7 @@
 import { Request, Response } from "express";
 import { z } from "zod";
 import { logger } from "../../lib/logger";
-import { hasPagePermission } from "../../lib/auth-helpers";
+import { getPageScope, hasPagePermission } from "../../lib/auth-helpers";
 import { demoTenantIdForNiche } from "../../shared/demo-tenant";
 import { getTenantDocCached } from "../../lib/tenant-doc-cache";
 import { DRE_GROUPS, type DreGroup } from "../services/finance-reports/dre-model";
@@ -128,6 +128,12 @@ export async function getDre(req: Request, res: Response) {
   if (!parsed.success) return res.status(400).json({ message: "Período inválido." });
   try {
     const tenantId = await requireTransactions(req, "canView");
+    // O DRE soma receita e despesa da empresa inteira: com o alcance de
+    // Lançamentos restrito ("só receitas", "só as minhas vendas"), ele
+    // revelaria o que a lista esconde.
+    if ((await getPageScope(req.user, "transactions")) !== "all") {
+      return res.status(403).json({ message: "O DRE é de quem vê todos os lançamentos." });
+    }
     return res.json({ dre: await buildDre(tenantId, parsed.data) });
   } catch (error) {
     return fail(res, error, "Erro ao montar o DRE.", "dre_build_failed");

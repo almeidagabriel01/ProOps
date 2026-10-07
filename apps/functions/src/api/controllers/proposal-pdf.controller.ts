@@ -1,6 +1,7 @@
 import { Request, Response } from "express";
 import { getOrGenerateProposalPdf } from "../services/proposal-pdf.service";
-import { hasPagePermission } from "../../lib/auth-helpers";
+import { hasPagePermission, recordInScope } from "../../lib/auth-helpers";
+import { db } from "../../init";
 import {
   buildPdfContentDisposition,
   buildPdfFilename,
@@ -25,6 +26,13 @@ export async function downloadProposalPdf(req: Request, res: Response) {
       return res
         .status(403)
         .json({ message: "Sem permissão para ver propostas." });
+    }
+    // "Só as minhas": o PDF da proposta de outro vendedor não sai, como nas rules.
+    if (!isSuperAdmin) {
+      const snap = await db.collection("proposals").doc(proposalId).get();
+      if (snap.exists && !(await recordInScope(req.user, "proposals", snap.data()))) {
+        return res.status(404).json({ message: "Proposta nao encontrada" });
+      }
     }
 
     const result = await getOrGenerateProposalPdf(

@@ -25,6 +25,7 @@ jest.mock("firebase-admin/firestore", () => ({
   Timestamp: { now: () => "agora" },
 }));
 jest.mock("../../lib/auth-helpers", () => ({
+  recordInScope: async () => true,
   resolveUserAndTenant: async () => ({
     userData: { tenantId: "t1" },
     masterData: { tenantId: "t1" },
@@ -158,6 +159,19 @@ describe("ações finas de Contatos", () => {
     const proprio = fakeRes();
     await createClient(req({ name: "Novo", types: ["cliente"], responsibleMemberId: "u1" }), proprio);
     expect(proprio.statusCode).toBe(201);
+  });
+
+  it("contato que o membro cria nasce com ele como responsável", async () => {
+    const res = fakeRes();
+    await createClient(req({ name: "Novo cliente", types: ["cliente"] }), res);
+    expect(res.statusCode).toBe(201);
+    const created = Object.values(store.clients).find((c) => c.name === "Novo cliente");
+    expect(created).toMatchObject({ responsibleMemberId: "u1", responsibleMemberName: "Vendedora" });
+
+    const fornecedor = fakeRes();
+    await createClient(req({ name: "Fornecedor X", types: ["fornecedor"] }), fornecedor);
+    const supplier = Object.values(store.clients).find((c) => c.name === "Fornecedor X");
+    expect(supplier?.responsibleMemberId).toBeUndefined();
   });
 
   it("dono não depende das chaves", async () => {

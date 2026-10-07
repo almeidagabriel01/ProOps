@@ -259,6 +259,46 @@ export const getPageScope = async (
   return resolvePermissionScope(pageId, data) ?? "all";
 };
 
+/** O campo do dono de cada página com "só os meus" (o mesmo das rules). */
+export const SCOPE_OWNER_FIELD: Record<string, string> = {
+  proposals: "sellerId",
+  clients: "responsibleMemberId",
+  kanban: "ownerId",
+  projects: "assigneeId",
+  spreadsheets: "createdById",
+};
+
+/**
+ * Se o registro está no alcance de quem pede: com "own", só o registro em que
+ * a pessoa é o dono (o campo de `SCOPE_OWNER_FIELD`). É a mesma regra das
+ * rules, para a API não abrir pelo id o que o SDK recusa. Dono e
+ * administradores alcançam tudo.
+ */
+export const recordInScope = async (
+  claims: { uid?: string; role?: string } | undefined,
+  pageId: string,
+  data: Record<string, unknown> | undefined,
+): Promise<boolean> => {
+  const scope = await getPageScope(claims, pageId);
+  if (scope === "all") return true;
+  const field = SCOPE_OWNER_FIELD[pageId];
+  return Boolean(field && claims?.uid && data?.[field] === claims.uid);
+};
+
+/**
+ * O mesmo para Lançamentos, que têm três alcances: tudo, só receitas e só os
+ * das minhas vendas (`sellerId`).
+ */
+export const transactionInScope = async (
+  claims: { uid?: string; role?: string } | undefined,
+  data: Record<string, unknown> | undefined,
+): Promise<boolean> => {
+  const scope = await getPageScope(claims, "transactions");
+  if (scope === "all") return true;
+  if (scope === "income") return data?.type === "income";
+  return Boolean(claims?.uid && data?.sellerId === claims.uid);
+};
+
 export type PagePermissionMap = Record<string, Record<string, unknown>>;
 
 /**

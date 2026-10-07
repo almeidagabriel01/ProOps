@@ -1,6 +1,6 @@
 import { db } from "../init";
 import { UserDoc } from "./auth-helpers";
-import { resolvePermissionKey } from "../shared/permission-catalog";
+import { resolvePermissionKey, resolvePermissionScope } from "../shared/permission-catalog";
 
 function normalizeRole(value: unknown): string {
   return String(value || "")
@@ -259,3 +259,22 @@ export function extraCostsChanged(current: unknown, next: unknown): boolean {
     );
   return key(current) !== key(next);
 }
+
+/**
+ * O alcance de Lançamentos de quem age, numa leitura: tudo, só receitas ou só
+ * os das vendas dele (`sellerId`). É a regra das rules, para a API não mexer
+ * pelo id no que o SDK recusa. Dono, administradores e superadmin alcançam tudo.
+ */
+export async function loadTransactionScope(
+  userId: string,
+  isPrivileged: boolean,
+): Promise<(data: Record<string, unknown> | undefined) => boolean> {
+  if (isPrivileged) return () => true;
+  const snap = await db.collection("users").doc(userId).collection("permissions").doc("transactions").get();
+  const scope = resolvePermissionScope("transactions", snap.exists ? (snap.data() ?? null) : null) ?? "all";
+  if (scope === "all") return () => true;
+  if (scope === "income") return (data) => data?.type === "income";
+  return (data) => data?.sellerId === userId;
+}
+
+export const OUT_OF_SCOPE_MESSAGE = "Transação não encontrada.";

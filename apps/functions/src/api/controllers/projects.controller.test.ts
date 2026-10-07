@@ -7,6 +7,7 @@
 import type { Request, Response } from "express";
 
 const hasPagePermission = jest.fn();
+const getPageScope = jest.fn(async (..._args: unknown[]) => "all");
 const svc = {
   createProjectFromProposal: jest.fn(),
   createStandaloneProject: jest.fn(),
@@ -51,6 +52,7 @@ jest.mock("./proposals.controller", () => ({
 
 jest.mock("../../lib/auth-helpers", () => ({
   hasPagePermission: (...a: unknown[]) => hasPagePermission(...a),
+  getPageScope: (...a: unknown[]) => getPageScope(...a),
 }));
 
 jest.mock("../../init", () => {

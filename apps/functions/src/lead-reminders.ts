@@ -67,9 +67,12 @@ export async function runLeadReminders(
   for (const doc of leads.docs) {
     const lead = doc.data();
     if (!lead.tenantId || !isLeadOpen(lead.stage)) continue;
+    // O id vai junto para o alcance "só os meus" de quem recebe.
     const { fields } = await NotificationService.recipientFields(
       String(lead.tenantId),
       "lead_reminder",
+      undefined,
+      { leadId: doc.id },
     );
     writer.set(
       db.collection("notifications").doc(`lead_${doc.id}_${today}`),
@@ -98,9 +101,12 @@ export async function runLeadReminders(
   for (const doc of activities.docs) {
     const activity = doc.data();
     if (!activity.tenantId || activity.doneAt) continue;
+    // A atividade de um lead segue o dono do lead; a de um contato, não tem.
     const { fields } = await NotificationService.recipientFields(
       String(activity.tenantId),
       "lead_reminder",
+      undefined,
+      { leadId: activity.leadId },
     );
     writer.set(
       db.collection("notifications").doc(`activity_${doc.id}_${today}`),

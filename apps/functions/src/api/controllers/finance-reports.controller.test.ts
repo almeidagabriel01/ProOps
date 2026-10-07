@@ -46,8 +46,10 @@ jest.mock("../../lib/tenant-doc-cache", () => ({
 }));
 
 const hasPagePermission = jest.fn();
+const mockScope = { value: "all" };
 jest.mock("../../lib/auth-helpers", () => ({
   hasPagePermission: (...a: unknown[]) => hasPagePermission(...a),
+  getPageScope: async () => mockScope.value,
 }));
 
 import type { Request, Response } from "express";
@@ -113,6 +115,18 @@ describe("permissão de Lançamentos", () => {
     await handler(request, r);
     expect(r.statusCode).toBe(403);
     expect(hasPagePermission).toHaveBeenCalledWith(expect.anything(), "transactions", action);
+  });
+
+  it("com o alcance de Lançamentos restrito, o DRE é recusado", async () => {
+    mockScope.value = "income";
+    try {
+      const r = res();
+      await getDre(req({ query: { from: "2026-01", to: "2026-03" } } as Partial<Request>), r);
+      expect(r.statusCode).toBe(403);
+      expect(svc.buildDre).not.toHaveBeenCalled();
+    } finally {
+      mockScope.value = "all";
+    }
   });
 
   it("DRE usa o tenant do usuário e caixa como padrão", async () => {

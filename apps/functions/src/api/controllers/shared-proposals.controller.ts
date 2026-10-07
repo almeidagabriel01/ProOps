@@ -1,6 +1,10 @@
 import { Request, Response } from "express";
 import { SharedProposalService } from "../services/shared-proposal.service";
-import { hasPagePermission, resolveUserAndTenant } from "../../lib/auth-helpers";
+import {
+  hasPagePermission,
+  resolveUserAndTenant,
+  recordInScope,
+} from "../../lib/auth-helpers";
 import { db } from "../../init";
 import { FieldPath } from "firebase-admin/firestore";
 import { resolveClientIp } from "../../lib/client-ip";
@@ -330,6 +334,10 @@ export const createShareLink = async (req: Request, res: Response) => {
     // Validar acesso (proposta deve pertencer ao tenant do usuário)
     if (!isSuperAdmin && proposalData?.tenantId !== tenantId) {
       return res.status(403).json({ message: "Acesso negado" });
+    }
+    // "Só as minhas": a de outro vendedor não se compartilha, como nas rules.
+    if (!isSuperAdmin && !(await recordInScope(req.user, "proposals", proposalData))) {
+      return res.status(404).json({ message: "Proposta não encontrada" });
     }
 
     // Gerar link compartilhável
