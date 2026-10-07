@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import dynamic from "next/dynamic";
-import { AlertTriangle, RotateCcw } from "lucide-react";
+import { AlertTriangle, EyeOff, RotateCcw } from "lucide-react";
 import { PageViewSwitcher } from "@/components/layout/page-view-switcher";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -28,6 +28,8 @@ import {
 import { useCashFlowData } from "./_hooks/use-cash-flow-data";
 import { useCashFlowScenarios } from "./_hooks/use-cash-flow-scenarios";
 import { CashFlowSkeleton } from "./_components/cash-flow-skeleton";
+import { EmptyState } from "@/components/shared/empty-state";
+import { usePageScope } from "@/hooks/usePermission";
 
 // O gráfico (Recharts) chega depois do resto; o placeholder ocupa o lugar.
 const CashFlowChart = dynamic(() => import("./_components/cash-flow-chart").then((m) => m.CashFlowChart), {
@@ -47,7 +49,13 @@ export default function CashFlowPage() {
   const { tenant, isLoading: isTenantLoading } = useTenant();
   const { user } = useAuth();
   const { hasFinancial, isLoading: planLoading } = usePlanLimits();
-  const { items, startingBalance, walletCount, loading, error } = useCashFlowData(tenant?.id, hasFinancial);
+  // O fluxo parte do saldo de todas as carteiras: é de quem vê todos os lançamentos.
+  const { scope: transactionsScope, isLoading: scopeLoading } = usePageScope("transactions");
+  const seesAll = !scopeLoading && transactionsScope === "all";
+  const { items, startingBalance, walletCount, loading, error } = useCashFlowData(
+    tenant?.id,
+    hasFinancial && seesAll,
+  );
   const { scenarios, update, reset } = useCashFlowScenarios();
   const [selected, setSelected] = React.useState<CashFlowScenarioId>("realistic");
   const [horizon, setHorizon] = React.useState(6);
@@ -69,6 +77,16 @@ export default function CashFlowPage() {
       <UpgradeRequired
         feature="Fluxo de caixa"
         description="O fluxo de caixa projetado mostra quanto você vai ter em caixa nos próximos meses, em cenários pessimista, realista e otimista. Faça upgrade para o plano Profissional ou adquira o módulo Financeiro."
+      />
+    );
+  }
+
+  if (!scopeLoading && transactionsScope !== "all") {
+    return (
+      <EmptyState
+        icon={EyeOff}
+        title="Disponível para quem vê todos os lançamentos"
+        description="Seu acesso a Lançamentos mostra só uma parte deles (só receitas ou só os das suas vendas). Este relatório soma a empresa inteira, então fica com quem vê tudo."
       />
     );
   }

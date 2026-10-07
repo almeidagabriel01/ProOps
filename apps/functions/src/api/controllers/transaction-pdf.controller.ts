@@ -1,5 +1,5 @@
 import { Request, Response } from "express";
-import { resolveUserAndTenant } from "../../lib/auth-helpers";
+import { hasPagePermission, resolveUserAndTenant } from "../../lib/auth-helpers";
 import { buildPdfContentDisposition, buildPdfFilename } from "../services/pdf-filename";
 import { generateAuthenticatedTransactionPdf } from "../services/transaction-pdf.service";
 
@@ -24,6 +24,12 @@ export async function downloadTransactionPdf(req: Request, res: Response) {
     const userId = req.user?.uid;
     if (!userId) {
       return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    // O recibo é o lançamento inteiro: exige "Ver" em Lançamentos, como a
+    // tela. Antes bastava ser da empresa.
+    if (!(await hasPagePermission(req.user, "transactions", "canView"))) {
+      return res.status(403).json({ message: "Sem permissão para ver o lançamento." });
     }
 
     const { tenantId } = await resolveUserAndTenant(userId, req.user);

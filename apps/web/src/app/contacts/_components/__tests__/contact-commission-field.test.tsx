@@ -23,6 +23,9 @@ import { describe, it, expect, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
+const perms = vi.hoisted(() => ({ isMaster: true }));
+vi.mock("@/providers/permissions-provider", () => ({ usePermissions: () => perms }));
+
 import { ContactCommissionField } from "../contact-commission-field";
 import type { ClientType } from "@/services/client-service";
 
@@ -53,6 +56,17 @@ function setup(types: ClientType[], inicial: number | null = null) {
 }
 
 describe("ContactCommissionField", () => {
+  it("membro vê o percentual mas não muda: é o dono quem define", () => {
+    perms.isMaster = false;
+    try {
+      setup(["arquiteto"], 5);
+      expect(screen.getByLabelText(/Comissão padrão/)).toBeDisabled();
+      expect(screen.getByText("Definida pelo dono")).toBeInTheDocument();
+    } finally {
+      perms.isMaster = true;
+    }
+  });
+
   it("nao pede comissao de cliente nem de fornecedor", () => {
     setup(["cliente", "fornecedor"]);
     expect(screen.queryByLabelText(/Comissão padrão/)).toBeNull();

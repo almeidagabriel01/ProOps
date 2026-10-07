@@ -43,6 +43,7 @@ import { buildWhatsAppShareHref } from "@/lib/send-link";
 import { formatCurrency } from "@/utils/format";
 import { formatDateBR } from "@/utils/date-format";
 import { toast } from "@/lib/toast";
+import { useEffectiveViewer } from "@/hooks/use-effective-viewer";
 import { summarizeFinance, summarizeProposals } from "../../_lib/client-summary";
 
 // A aba só existe com o módulo de assistência: carrega quando é aberta, e o
@@ -98,7 +99,12 @@ export function ContactHub({ client, dataTab }: ContactHubProps) {
   const { canView: canViewProposals } = usePagePermission("proposals");
   const { canView: canViewTransactions } = usePagePermission("transactions");
   const { canView: canViewInvoices } = usePagePermission("invoices");
-  const { canEdit: canEditClient } = usePagePermission("clients");
+  const { canEdit: canEditClient, canDelete: canDeleteClient } = usePagePermission("clients");
+  const { uid: viewerUid } = useEffectiveViewer();
+  // Com "Excluir" em Contatos apaga qualquer anotação; quem só edita, só a
+  // própria (o backend cobra o mesmo).
+  const canDeleteNote = (note: { authorId?: string }) =>
+    canDeleteClient || (canEditClient && note.authorId === viewerUid);
   const { canView: canViewTasks } = usePagePermission("tasks");
   const { canView: canViewEquipment } = usePagePermission("equipment");
   const showEquipment = hasFieldService && canViewEquipment;
@@ -539,7 +545,7 @@ export function ContactHub({ client, dataTab }: ContactHubProps) {
                         {note.authorName ?? "Equipe"} em {formatDateBR(note.createdAt)}
                       </p>
                     </div>
-                    {canEditClient && (
+                    {canDeleteNote(note) && (
                       <Button
                         variant="ghost"
                         size="icon"

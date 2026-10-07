@@ -6,7 +6,7 @@ import type {
 import {
   resolvePagePermission,
   type PagePermissionMap,
-  type PermissionAction,
+  type PermissionKey,
 } from "../../lib/auth-helpers";
 import { TOOL_DEFINITIONS } from "./definitions";
 
@@ -39,7 +39,7 @@ export interface ToolRegistryEntry {
    * Sem isto a Lia era um desvio completo do sistema de permissoes: os
    * handlers chamam os services direto, e os services nao checam nada.
    */
-  permission: { pageId: string; action: PermissionAction } | null;
+  permission: { pageId: string; action: PermissionKey } | null;
 }
 
 
@@ -91,9 +91,9 @@ export const TOOL_REGISTRY: ToolRegistryEntry[] = [
   { declaration: TOOL_DEFINITIONS.create_transaction,    capability: "financial", minRole: "member", module: "financial" , permission: { pageId: "transactions", action: "canCreate" } },
   { declaration: TOOL_DEFINITIONS.list_wallets,          capability: "financial", minRole: "member", module: "financial" , permission: { pageId: "wallet", action: "canView" } },
   { declaration: TOOL_DEFINITIONS.create_wallet,         capability: "financial", minRole: "admin", module: "financial" , permission: { pageId: "wallet", action: "canCreate" } },
-  { declaration: TOOL_DEFINITIONS.transfer_between_wallets, capability: "financial", minRole: "admin", module: "financial" , permission: { pageId: "wallet", action: "canEdit" } },
+  { declaration: TOOL_DEFINITIONS.transfer_between_wallets, capability: "financial", minRole: "admin", module: "financial" , permission: { pageId: "wallet", action: "transfer" } },
   { declaration: TOOL_DEFINITIONS.delete_transaction,    capability: "financial", minRole: "admin", module: "financial" , permission: { pageId: "transactions", action: "canDelete" } },
-  { declaration: TOOL_DEFINITIONS.pay_installment,       capability: "financial", minRole: "admin", module: "financial" , permission: { pageId: "transactions", action: "canEdit" } },
+  { declaration: TOOL_DEFINITIONS.pay_installment,       capability: "financial", minRole: "admin", module: "financial" , permission: { pageId: "transactions", action: "settle" } },
 
   // ─── CRM ──────────────────────────────────────────────────────────────────
   { declaration: TOOL_DEFINITIONS.list_crm_leads,        capability: "crm",       minRole: "member", module: "crm" , permission: { pageId: "kanban", action: "canView" } },

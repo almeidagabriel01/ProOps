@@ -21,6 +21,7 @@ import {
 import { Proposal } from "@/types/proposal";
 import { useTenant } from "@/providers/tenant-provider";
 import { usePagePermission } from "@/hooks/usePagePermission";
+import { usePermission } from "@/hooks/usePermission";
 import { KanbanBoardSkeleton } from "@/app/crm/_components/kanban-skeleton";
 import { EmptyState } from "@/components/shared/empty-state";
 import { Button } from "@/components/ui/button";
@@ -94,14 +95,17 @@ export function ProposalKanbanTab() {
   //  - arrastar um CARTAO muda o status da PROPOSTA → pageId proposals.
   // Quem so tem "Ver" em kanban navega o quadro; mover proposta exige "Editar"
   // em propostas, que e a permissao que o backend cobra no PUT /v1/proposals.
-  const {
-    canCreate: canCreateColumn,
-    canEdit: canEditColumn,
-    canDelete: canDeleteColumn,
-  } = usePagePermission("kanban");
+  const kanbanPermission = usePagePermission("kanban");
+  // "Colunas" (ausente, vale o Editar) separa mexer no quadro de mexer nos cartões.
+  const canManageColumns = usePermission("kanban", "columns");
+  const canCreateColumn = kanbanPermission.canCreate && canManageColumns;
+  const canEditColumn = kanbanPermission.canEdit && canManageColumns;
+  const canDeleteColumn = kanbanPermission.canDelete && canManageColumns;
   const { canEdit: canEditProposal, canCreate: canCreateProposal } =
     usePagePermission("proposals");
   const canMoveCards = !isDemoReadOnly && canEditProposal;
+  // Levar para a coluna de ganho (ou tirar dela) é aprovar ou reverter.
+  const canApproveProposal = usePermission("proposals", "approve");
   const [proposals, setProposals] = React.useState<Proposal[]>([]);
   const [columns, setColumns] = React.useState<KanbanStatusColumn[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
@@ -427,6 +431,13 @@ export function ProposalKanbanTab() {
       if (!proposal || proposal.status === newStatus) return;
 
       const fromColumn = columns.find((c) => c.id === fromColumnId);
+      if (
+        !canApproveProposal &&
+        (isApprovedColumn(targetColumn) || (fromColumn && isApprovedColumn(fromColumn)))
+      ) {
+        toast.warning("Aprovar ou reverter propostas pede a permissão de aprovar.");
+        return;
+      }
       const fromKey = fromColumn ? columnStatusKey(fromColumn) : null;
       const toKey = columnStatusKey(targetColumn);
 
@@ -470,7 +481,7 @@ export function ProposalKanbanTab() {
         toast.error("Erro ao atualizar o status da proposta.");
       }
     },
-    [columns, proposals, adjustColumnTotals, promptAfterApproval, startPreview, dismissInvoicePrompt],
+    [columns, proposals, adjustColumnTotals, promptAfterApproval, startPreview, dismissInvoicePrompt, canApproveProposal],
   );
 
   // Handle card click — open detail modal

@@ -18,6 +18,7 @@ import { AdjustBalanceInput } from "@/services/wallet-service";
 import { CurrencyInput } from "@/components/ui/currency-input";
 import { formatCurrency } from "@/utils/format";
 import { Loader } from "@/components/ui/loader";
+import { useSensitiveData } from "@/hooks/usePermission";
 
 interface AdjustBalanceDialogProps {
     open: boolean;
@@ -34,6 +35,7 @@ export function AdjustBalanceDialog({
     wallet,
     onSubmit,
 }: AdjustBalanceDialogProps) {
+  const { canSeeBalance } = useSensitiveData();
     const [isSubmitting, setIsSubmitting] = React.useState(false);
     const [adjustType, setAdjustType] = React.useState<AdjustType>("add");
     const [amount, setAmount] = React.useState(0);
@@ -85,7 +87,9 @@ export function AdjustBalanceDialog({
                     <DialogHeader>
                         <DialogTitle>Ajustar Saldo</DialogTitle>
                         <DialogDescription>
-                            {wallet?.name} - Saldo atual: {formatCurrency(wallet?.balance || 0)}
+                            {canSeeBalance
+                                ? `${wallet?.name} - Saldo atual: ${formatCurrency(wallet?.balance || 0)}`
+                                : wallet?.name}
                         </DialogDescription>
                     </DialogHeader>
 
@@ -143,7 +147,7 @@ export function AdjustBalanceDialog({
                         </div>
 
                         {/* Preview */}
-                        {wallet && amount > 0 && (
+                        {wallet && amount > 0 && canSeeBalance && (
                             <div className="p-4 bg-muted rounded-lg space-y-2">
                                 <div className="flex justify-between text-sm">
                                     <span className="text-muted-foreground">Saldo Atual:</span>

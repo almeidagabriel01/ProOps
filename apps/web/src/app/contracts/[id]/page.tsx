@@ -25,6 +25,7 @@ import { useTenant } from "@/providers/tenant-provider";
 import { useAuth } from "@/providers/auth-provider";
 import { usePlanLimits } from "@/hooks/usePlanLimits";
 import { usePagePermission } from "@/hooks/usePagePermission";
+import { usePermission, useSensitiveData } from "@/hooks/usePermission";
 import { useServiceOrderScope } from "@/hooks/useServiceOrders";
 import { toast } from "@/lib/toast";
 import { formatCurrency } from "@/utils/format";
@@ -55,6 +56,10 @@ export default function ContractDetailPage() {
   const { hasFieldService, isLoading: isPlanLoading } = usePlanLimits();
   const { canEdit, canDelete } = usePagePermission("contracts");
   const financial = usePagePermission("transactions");
+  const { canSeeContractValues } = useSensitiveData();
+  // Ações finas de Contratos: ativar, suspender, retomar e encerrar; e o PMOC.
+  const canLifecycle = usePermission("contracts", "lifecycle");
+  const canSharePmoc = usePermission("contracts", "pmocShare");
   const scope = useServiceOrderScope();
   const allowed = hasFieldService || user?.role === "superadmin";
 
@@ -190,13 +195,15 @@ export default function ContractDetailPage() {
 
         {writable && (
           <div className="flex flex-wrap gap-2">
-            {contract.status === "draft" && (
+            {/* Ativar e retomar ligam a cobrança: criam lançamentos (e a
+                NFS-e, se ligada), então pedem o financeiro, como o backend. */}
+            {contract.status === "draft" && canLifecycle && financial.canCreate && (
               <Button onClick={() => setActivateOpen(true)}>
                 <Play className="mr-2 h-4 w-4" />
                 Ativar
               </Button>
             )}
-            {contract.status === "suspended" && (
+            {contract.status === "suspended" && canLifecycle && financial.canCreate && (
               <Button
                 onClick={() => run(() => FieldService.resumeContract(contract.id), "Contrato retomado.")}
                 disabled={busy}
@@ -211,13 +218,13 @@ export default function ContractDetailPage() {
                 Editar
               </Button>
             )}
-            {contract.status === "active" && (
+            {contract.status === "active" && canLifecycle && (
               <Button variant="outline" onClick={() => setConfirm("suspend")}>
                 <Pause className="mr-2 h-4 w-4" />
                 Suspender
               </Button>
             )}
-            {contract.status !== "ended" && contract.status !== "draft" && (
+            {contract.status !== "ended" && contract.status !== "draft" && canLifecycle && (
               <Button variant="outline" onClick={() => setConfirm("end")}>
                 <Power className="mr-2 h-4 w-4" />
                 Encerrar
@@ -248,7 +255,9 @@ export default function ContractDetailPage() {
                     {line.quantity !== 1 && <span className="text-muted-foreground">{line.quantity}x </span>}
                     {line.name}
                   </span>
-                  <span className="shrink-0 font-medium">{formatCurrency(line.quantity * line.unitPrice)}</span>
+                  {canSeeContractValues && (
+                    <span className="shrink-0 font-medium">{formatCurrency(line.quantity * line.unitPrice)}</span>
+                  )}
                 </li>
               ))}
             </ul>
@@ -259,10 +268,12 @@ export default function ContractDetailPage() {
                 {contract.endDate ? `, até ${formatDay(contract.endDate)}` : ""}
                 {contract.issueNfse ? ". Emite nota de serviço ao receber." : "."}
               </span>
-              <span className="text-xl font-bold">
-                {formatCurrency(contract.monthlyAmount)}
-                <span className="text-sm font-normal text-muted-foreground">/mês</span>
-              </span>
+              {canSeeContractValues && (
+                <span className="text-xl font-bold">
+                  {formatCurrency(contract.monthlyAmount)}
+                  <span className="text-sm font-normal text-muted-foreground">/mês</span>
+                </span>
+              )}
             </div>
             {contract.notes && <p className="whitespace-pre-wrap text-sm text-muted-foreground">{contract.notes}</p>}
           </CardContent>
@@ -311,7 +322,7 @@ export default function ContractDetailPage() {
       </div>
 
       {contract.type === "pmoc" && tenant?.id && (
-        <PmocCard contract={contract} tenantId={tenant.id} showSettingsLink={writable} canShare={!isReadOnly} />
+        <PmocCard contract={contract} tenantId={tenant.id} showSettingsLink={writable} canShare={!isReadOnly && canSharePmoc} />
       )}
 
       <Card>
@@ -344,7 +355,7 @@ export default function ContractDetailPage() {
                   </div>
                   <div className="flex items-center gap-2">
                     <span className="font-semibold">{formatCurrency(charge.amount)}</span>
-                    {charge.status !== "paid" && !isReadOnly && (
+                    {charge.status !== "paid" && !isReadOnly && financial.canEdit && (
                       <Button variant="outline" size="sm" onClick={() => copyPaymentLink(charge)}>
                         <Link2 className="mr-1.5 h-4 w-4" />
                         Link de pagamento
@@ -358,7 +369,12 @@ export default function ContractDetailPage() {
         </CardContent>
       </Card>
 
-      <ActivateContractDialog open={activateOpen} onOpenChange={setActivateOpen} contract={contract} />
+      <ActivateContractDialog
+        open={activateOpen}
+        onOpenChange={setActivateOpen}
+        contract={contract}
+        showValue={canSeeContractValues}
+      />
 
       <ConfirmDialog
         open={confirm === "suspend"}

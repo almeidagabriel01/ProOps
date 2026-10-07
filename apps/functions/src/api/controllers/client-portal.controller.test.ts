@@ -105,13 +105,46 @@ describe("link do portal (empresa)", () => {
     ["criar", createClientPortalLink, "ensurePortalLink"],
     ["trocar", rotateClientPortalLink, "rotatePortalLink"],
     ["desligar", revokeClientPortalLink, "revokePortalLink"],
-  ] as const)("%s sem editar Contatos: 403 e nada muda", async (_name, handler, method) => {
+  ] as const)("%s sem 'Portal do cliente' em Contatos: 403 e nada muda", async (_name, handler, method) => {
     hasPagePermission.mockResolvedValue(false);
     const r = res();
     await handler(req(), r);
     expect(r.statusCode).toBe(403);
-    expect(hasPagePermission).toHaveBeenCalledWith(expect.anything(), "clients", "canEdit");
+    expect(hasPagePermission).toHaveBeenCalledWith(expect.anything(), "clients", "portal");
     expect(svc[method]).not.toHaveBeenCalled();
+  });
+
+  describe("o portal abre propostas e pagamentos", () => {
+    const only = (granted: string[]) =>
+      hasPagePermission.mockImplementation(async (_c: unknown, pageId: string, action: string) =>
+        granted.includes(`${pageId}.${action}`),
+      );
+
+    it.each([
+      ["ver", getClientPortalLink, "getPortalLink", "clients.canView"],
+      ["criar", createClientPortalLink, "ensurePortalLink", "clients.portal"],
+      ["trocar", rotateClientPortalLink, "rotatePortalLink", "clients.portal"],
+    ] as const)("%s só com Contatos, sem Propostas nem Lançamentos: 403", async (_n, handler, method, clients) => {
+      only([clients]);
+      const r = res();
+      await handler(req(), r);
+      expect(r.statusCode).toBe(403);
+      expect(svc[method]).not.toHaveBeenCalled();
+    });
+
+    it.each(["proposals.canView", "transactions.canView"])("com Contatos e %s, cria o link", async (extra) => {
+      only(["clients.portal", extra]);
+      const r = res();
+      await createClientPortalLink(req(), r);
+      expect(svc.ensurePortalLink).toHaveBeenCalled();
+    });
+
+    it("desligar só fecha o acesso: pede só o portal em Contatos", async () => {
+      only(["clients.portal"]);
+      const r = res();
+      await revokeClientPortalLink(req(), r);
+      expect(svc.revokePortalLink).toHaveBeenCalledWith("t1", "c1");
+    });
   });
 
   it("criar e trocar usam o tenant do usuário, não o do corpo", async () => {

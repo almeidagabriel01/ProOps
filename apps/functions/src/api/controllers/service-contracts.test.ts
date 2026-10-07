@@ -12,11 +12,22 @@ let store: Record<string, Record<string, Doc>>;
 let autoId = 0;
 const permissions = new Map<string, boolean>();
 
-jest.mock("../../lib/auth-helpers", () => ({
-  hasPagePermission: async (claims: { role?: string } | undefined, pageId: string, action: string) =>
-    ["MASTER", "ADMIN"].includes(String(claims?.role ?? "").toUpperCase()) ||
-    permissions.get(`${pageId}.${action}`) === true,
-}));
+jest.mock("../../lib/auth-helpers", () => {
+  // O mapa vira o doc da página e passa pelo catálogo, com o fallback das chaves
+  // finas: "Ver valores" ausente vale true, como no backend de verdade.
+  const { resolvePermissionKey } = jest.requireActual("../../shared/permission-catalog");
+  return {
+    hasPagePermission: async (claims: { role?: string } | undefined, pageId: string, action: string) => {
+      if (["MASTER", "ADMIN"].includes(String(claims?.role ?? "").toUpperCase())) return true;
+      const doc: Record<string, boolean> = {};
+      for (const [key, value] of permissions) {
+        const [page, field] = key.split(".");
+        if (page === pageId) doc[field] = value;
+      }
+      return resolvePermissionKey(pageId, doc, action);
+    },
+  };
+});
 let caps = { fieldService: true, financial: true };
 jest.mock("../../lib/tenant-capabilities", () => ({
   tenantHasCapability: async (_t: string, key: "fieldService" | "financial") => caps[key],
@@ -273,6 +284,30 @@ describe("criar e editar", () => {
     expect(ok.statusCode).toBe(201);
   });
 
+  it("sem 'Ver valores', não cria contrato e a edição mantém as linhas gravadas", async () => {
+    permissions.set("contracts.canView", true);
+    permissions.set("contracts.canCreate", true);
+    permissions.set("contracts.canEdit", true);
+    permissions.set("contracts.viewValues", false);
+    const created = mockRes();
+    await createServiceContract(
+      req({ role: "MEMBER", uid: "m1", body: { clientId: "c1", title: "Suporte", type: "support", lines: LINES, billingDay: 5, wallet: "w1", issueNfse: false } }),
+      created,
+    );
+    expect(created.statusCode).toBe(403);
+
+    const id = await createContract();
+    const res = mockRes();
+    await updateServiceContract(
+      req({ role: "MEMBER", uid: "m1", params: { id }, body: { title: "Suporte novo", lines: [{ ...LINES[0], unitPrice: 0 }] } }),
+      res,
+    );
+    expect(res.statusCode).toBe(200);
+    expect(store.service_contracts[id].title).toBe("Suporte novo");
+    expect(store.service_contracts[id].monthlyAmount).toBe(129);
+    expect((store.service_contracts[id].lines as Doc[])[0].unitPrice).toBe(129);
+  });
+
   it("outra empresa não enxerga o contrato", async () => {
     const id = await createContract();
     const res = mockRes();
@@ -324,6 +359,129 @@ describe("ativar", () => {
     const res = await activate(id, "2026-10-05");
     expect(res.statusCode).toBe(409);
     expect(contractTransactions()).toHaveLength(1);
+  });
+});
+
+describe("cobrança exige o financeiro, não só Contratos", () => {
+  const member = (body: Doc = {}, params: Doc = {}) => req({ role: "MEMBER", uid: "m1", params, body });
+
+  it("sem 'Ativar, suspender e encerrar', o membro com financeiro não ativa nem suspende", async () => {
+    const id = await createContract();
+    permissions.set("contracts.canView", true);
+    permissions.set("contracts.canEdit", true);
+    permissions.set("contracts.lifecycle", false);
+    permissions.set("transactions.canCreate", true);
+    const activateRes = mockRes();
+    await activateServiceContract(member({ startDate: "2026-10-05" }, { id }), activateRes);
+    expect(activateRes.statusCode).toBe(403);
+
+    await activate(id, "2026-10-05");
+    const suspendRes = mockRes();
+    await suspendServiceContract(member({}, { id }), suspendRes);
+    expect(suspendRes.statusCode).toBe(403);
+    expect(store.service_contracts[id].status).toBe("active");
+  });
+
+  it("sem 'Editar a cobrança', o contrato ativo não muda de valor; o título segue", async () => {
+    const id = await createContract();
+    await activate(id, "2026-10-05");
+    permissions.set("contracts.canView", true);
+    permissions.set("contracts.canEdit", true);
+    permissions.set("contracts.editBilling", false);
+    permissions.set("transactions.canCreate", true);
+    const price = mockRes();
+    await updateServiceContract(member({ lines: [{ ...LINES[0], unitPrice: 200 }] }, { id }), price);
+    expect(price.statusCode).toBe(403);
+    expect(store.service_contracts[id].monthlyAmount).toBe(129);
+
+    const title = mockRes();
+    await updateServiceContract(member({ title: "Monitoramento novo", lines: LINES }, { id }), title);
+    expect(title.statusCode).toBe(200);
+  });
+
+  it("membro só com Contratos não ativa: ativar cria lançamento", async () => {
+    const id = await createContract();
+    permissions.set("contracts.canEdit", true);
+    const res = mockRes();
+    await activateServiceContract(member({ startDate: "2026-10-05" }, { id }), res);
+    expect(res.statusCode).toBe(403);
+    expect(store.service_contracts[id].status).toBe("draft");
+    expect(contractTransactions()).toHaveLength(0);
+  });
+
+  it("com Contratos e criar em Lançamentos, ativa", async () => {
+    const id = await createContract();
+    permissions.set("contracts.canEdit", true);
+    permissions.set("transactions.canCreate", true);
+    const res = mockRes();
+    await activateServiceContract(member({ startDate: "2026-10-05" }, { id }), res);
+    expect(res.statusCode).toBe(200);
+    expect(contractTransactions()).toHaveLength(1);
+  });
+
+  it("contrato que emite NFS-e exige também emitir em Notas Fiscais", async () => {
+    const id = await createContract({ issueNfse: true });
+    permissions.set("contracts.canEdit", true);
+    permissions.set("transactions.canCreate", true);
+    const blocked = mockRes();
+    await activateServiceContract(member({ startDate: "2026-10-05" }, { id }), blocked);
+    expect(blocked.statusCode).toBe(403);
+
+    permissions.set("invoices.canCreate", true);
+    const ok = mockRes();
+    await activateServiceContract(member({ startDate: "2026-10-05" }, { id }), ok);
+    expect(ok.statusCode).toBe(200);
+  });
+
+  it("membro só com Contratos não retoma, mas suspende", async () => {
+    const id = await createContract();
+    await activate(id, "2026-10-05");
+    permissions.set("contracts.canEdit", true);
+
+    const suspended = mockRes();
+    await suspendServiceContract(member({}, { id }), suspended);
+    expect(suspended.statusCode).toBe(200);
+
+    const resumed = mockRes();
+    await resumeServiceContract(member({}, { id }), resumed);
+    expect(resumed.statusCode).toBe(403);
+    expect(store.service_contracts[id].status).toBe("suspended");
+  });
+
+  it("num contrato ativo, só Contratos não muda valor nem liga a NFS-e", async () => {
+    const id = await createContract();
+    await activate(id, "2026-10-05");
+    permissions.set("contracts.canEdit", true);
+
+    const price = mockRes();
+    await updateServiceContract(member({ lines: [{ ...LINES[0], unitPrice: 1 }] }, { id }), price);
+    expect(price.statusCode).toBe(403);
+    expect(store.service_contracts[id].monthlyAmount).toBe(129);
+
+    const nfse = mockRes();
+    await updateServiceContract(member({ issueNfse: true }, { id }), nfse);
+    expect(nfse.statusCode).toBe(403);
+  });
+
+  it("o formulário reenvia a cobrança igual: editar o título de um ativo segue liberado", async () => {
+    const id = await createContract();
+    await activate(id, "2026-10-05");
+    permissions.set("contracts.canEdit", true);
+    const res = mockRes();
+    await updateServiceContract(
+      member({ title: "Monitoramento 24h", lines: LINES, billingDay: 10, wallet: "w1", issueNfse: false }, { id }),
+      res,
+    );
+    expect(res.statusCode).toBe(200);
+    expect(store.service_contracts[id].title).toBe("Monitoramento 24h");
+  });
+
+  it("no rascunho, só Contratos edita o valor (a ativação é que confere)", async () => {
+    const id = await createContract();
+    permissions.set("contracts.canEdit", true);
+    const res = mockRes();
+    await updateServiceContract(member({ lines: [{ ...LINES[0], unitPrice: 150 }] }, { id }), res);
+    expect(res.statusCode).toBe(200);
   });
 });
 

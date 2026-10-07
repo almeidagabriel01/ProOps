@@ -7,7 +7,16 @@
 jest.mock("../../../lib/logger", () => ({
   logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn(), debug: jest.fn() },
 }));
+const mockDenied = new Set<string>();
+let mockInScope: (data: Record<string, unknown>) => boolean = () => true;
 jest.mock("../../../lib/finance-helpers", () => ({
+  // As regras das ações finas são as de verdade; quem age aqui pode tudo.
+  statusChangeKey: jest.requireActual("../../../lib/finance-helpers").statusChangeKey,
+  extraCostsChanged: jest.requireActual("../../../lib/finance-helpers").extraCostsChanged,
+  FINANCIAL_KEY_MESSAGES: jest.requireActual("../../../lib/finance-helpers").FINANCIAL_KEY_MESSAGES,
+  loadTransactionScope: jest.fn(async () => (data: Record<string, unknown>) => mockInScope(data)),
+  OUT_OF_SCOPE_MESSAGE: "Transação não encontrada.",
+  loadFinancialKeys: jest.fn(async () => (key: string) => !mockDenied.has(key)),
   checkFinancialPermission: jest.fn(async () => ({ tenantId: "t1", isSuperAdmin: false })),
   resolveWalletRef: jest.fn(async (_t: unknown, _db: unknown, _tenant: string, wallet: string) => ({
     ref: { path: `wallets/${wallet}` },
@@ -67,6 +76,8 @@ beforeEach(() => {
   getAllCalls = [];
   singleGets = 0;
   updates = [];
+  mockDenied.clear();
+  mockInScope = () => true;
 });
 
 describe("updateStatusBatch", () => {
@@ -140,5 +151,58 @@ describe("updateTransactionsBatch", () => {
     );
     expect(byPath["transactions/c"]).toMatchObject({ description: "C nova" });
     expect(byPath["transactions/a"]).toMatchObject({ description: "A nova" });
+  });
+});
+
+describe("ações finas: dar baixa, estornar e custos extras", () => {
+  it("sem 'Dar baixa', o lote para pago é recusado e nada é gravado", async () => {
+    mockDenied.add("settle");
+    await expect(TransactionService.updateStatusBatch("u1", USER as never, ["a", "b"], "paid")).rejects.toThrow(
+      /dar baixa/,
+    );
+    expect(updates).toHaveLength(0);
+  });
+
+  it("sem 'Estornar', tirar de pago é recusado; entre pendente e atrasado segue", async () => {
+    mockDenied.add("revert");
+    docs.a.status = "paid";
+    await expect(TransactionService.updateStatusBatch("u1", USER as never, ["a"], "pending")).rejects.toThrow(
+      /estornar/,
+    );
+    await expect(TransactionService.updateStatusBatch("u1", USER as never, ["b"], "overdue")).resolves.toBe(1);
+  });
+
+  it("na edição em lote, mudar os custos extras pede 'Custos extras'; reenviar igual passa", async () => {
+    mockDenied.add("extraCosts");
+    docs.a.extraCosts = [{ id: "e1", description: "Frete", amount: 20, status: "pending" }];
+    await expect(
+      TransactionService.updateTransactionsBatch("u1", USER as never, [
+        { id: "a", data: { extraCosts: [{ id: "e1", description: "Frete", amount: 35, status: "pending" }] } },
+      ]),
+    ).rejects.toThrow(/custos extras/);
+    await expect(
+      TransactionService.updateTransactionsBatch("u1", USER as never, [
+        { id: "a", data: { description: "Venda", extraCosts: [{ id: "e1", description: "Frete", amount: 20 }] } },
+      ]),
+    ).resolves.toBe(1);
+  });
+});
+
+describe("alcance de Lançamentos no servidor", () => {
+  it("'só receitas' não dá baixa em despesa, nem no lote", async () => {
+    mockInScope = (data) => data.type === "income";
+    await expect(TransactionService.updateStatusBatch("u1", USER as never, ["a", "b"], "paid")).rejects.toThrow(
+      /não encontrada/,
+    );
+    expect(updates).toHaveLength(0);
+    await expect(TransactionService.updateStatusBatch("u1", USER as never, ["a", "c"], "paid")).resolves.toBe(2);
+  });
+
+  it("'só as minhas vendas' não edita o lançamento de outra venda", async () => {
+    docs.a.sellerId = "outra";
+    mockInScope = (data) => data.sellerId === "u1";
+    await expect(
+      TransactionService.updateTransactionsBatch("u1", USER as never, [{ id: "a", data: { description: "x" } }]),
+    ).rejects.toThrow(/não encontrada/);
   });
 });

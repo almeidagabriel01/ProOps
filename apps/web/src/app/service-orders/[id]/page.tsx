@@ -40,10 +40,10 @@ import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { EmptyState } from "@/components/shared/empty-state";
 import { useTenant } from "@/providers/tenant-provider";
 import { useAuth } from "@/providers/auth-provider";
-import { usePermissions } from "@/providers/permissions-provider";
 import { usePlanLimits } from "@/hooks/usePlanLimits";
 import { usePagePermission } from "@/hooks/usePagePermission";
 import { useServiceOrderScope } from "@/hooks/useServiceOrders";
+import { usePermission, useSensitiveData } from "@/hooks/usePermission";
 import { toast } from "@/lib/toast";
 import { FieldService } from "@/services/field-service-service";
 import { downloadServiceOrderPdf } from "@/services/pdf/download-service-order-pdf";
@@ -66,11 +66,15 @@ export default function ServiceOrderDetailPage() {
   const router = useRouter();
   const { isReadOnly } = useTenant();
   const { user } = useAuth();
-  const { isMaster } = usePermissions();
   const { hasFieldService, hasFinancial, isLoading: isPlanLoading } = usePlanLimits();
   const { canEdit, canDelete } = usePagePermission("service_orders");
   const { canCreate: canCreateTransaction } = usePagePermission("transactions");
   const scope = useServiceOrderScope();
+  const { canSeeServiceOrderPrices } = useSensitiveData();
+  // Ações finas da OS: concluir, compartilhar (link e PDF) e reabrir.
+  const canComplete = usePermission("service_orders", "complete");
+  const canShareOrder = usePermission("service_orders", "share");
+  const canReopen = usePermission("service_orders", "reopen");
   const allowed = hasFieldService || user?.role === "superadmin";
 
   const [order, setOrder] = React.useState<ServiceOrder | null>(null);
@@ -194,7 +198,7 @@ export default function ServiceOrderDetailPage() {
                 </Link>
               </Button>
             )}
-            {canWork && (
+            {canWork && canComplete && (
               <Button onClick={openCompletion} disabled={busy || execution.saving}>
                 <CheckCircle2 className="mr-2 h-4 w-4" />
                 Concluir
@@ -229,19 +233,20 @@ export default function ServiceOrderDetailPage() {
               canCreateTransaction &&
               order.status === "completed" &&
               !order.transactionId &&
+              canSeeServiceOrderPrices &&
               order.totals.total > 0 && (
                 <Button variant="outline" onClick={() => setLaunchOpen(true)} disabled={busy}>
                   <Landmark className="mr-2 h-4 w-4" />
                   Lançar no financeiro
                 </Button>
               )}
-            {!isReadOnly && isMaster && order.status === "completed" && (
+            {!isReadOnly && canReopen && order.status === "completed" && (
               <Button variant="outline" onClick={() => setReopenOpen(true)} disabled={busy}>
                 <RotateCcw className="mr-2 h-4 w-4" />
                 Reabrir
               </Button>
             )}
-            {!isReadOnly && (
+            {!isReadOnly && canShareOrder && (
               <Button
                 variant="outline"
                 disabled={busy}
@@ -251,7 +256,7 @@ export default function ServiceOrderDetailPage() {
                 PDF
               </Button>
             )}
-            {!isReadOnly && (
+            {!isReadOnly && canShareOrder && (
               <Button
                 variant="outline"
                 disabled={busy}
@@ -360,6 +365,8 @@ export default function ServiceOrderDetailPage() {
                 items={execution.draft.items}
                 onChange={(items) => execution.change("items", items)}
                 disabled={!canWork}
+                lockPrices={!scope.seesAll}
+                hidePrices={!canSeeServiceOrderPrices}
               />
             </CardContent>
           </Card>
@@ -418,7 +425,12 @@ export default function ServiceOrderDetailPage() {
       )}
 
       <ServiceOrderFormDialog open={editOpen} onOpenChange={setEditOpen} order={order} onSaved={() => undefined} />
-      <CompleteDialog open={completeOpen} onOpenChange={setCompleteOpen} order={order} onCompleted={() => undefined} />
+      <CompleteDialog
+        open={completeOpen}
+        onOpenChange={setCompleteOpen}
+        order={order}
+        onCompleted={() => undefined}
+      />
       <ConfirmDialog
         open={cancelOpen}
         onOpenChange={setCancelOpen}

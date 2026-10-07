@@ -327,6 +327,18 @@ const { canCreate, canEdit, canDelete, canView } = usePagePermission("products")
 - Sem `canCreate` → redireciona para `/products` na rota `/products/new`
 - Sem `canEdit` → formulário em modo `isReadOnly`
 
+Dados sensíveis e ações finas (catálogo de permissões, `useSensitiveData()` e
+`usePermission("products", ...)`):
+
+- Sem **"Ver custo e markup"** (`viewCost`): a lista, o cadastro e a proposta
+  mostram só o preço de venda; custo, markup, lucro e as faixas de altura somem.
+  Criar e importar produto pedem a chave, e o backend descarta preço e markup
+  enviados por quem não pode mudá-los.
+- Sem **"Ver estoque"** (`viewStock`): os cards de saldo, a coluna e as dicas de
+  estoque somem; o aviso de estoque negativo fica sem o número.
+- **"Mudar preço"** (`editPrice`) e **"Ajustar estoque"** (`adjustStock`) travam
+  os campos na edição; **"Importar planilha"** (`import`) esconde o importar.
+
 ---
 
 ## O que NÃO fazer

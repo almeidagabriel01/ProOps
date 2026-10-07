@@ -18,11 +18,13 @@ import {
   WalletsEmptyState,
   WalletsNoResults,
 } from "./_components/wallets-empty-states";
+import { useSensitiveData } from "@/hooks/usePermission";
 
 export default function WalletsPage() {
   const { tenant, isLoading: tenantLoading } = useTenant();
   const { user } = useAuth();
   const { state, actions } = useWalletsCtrl();
+  const { canSeeBalance } = useSensitiveData();
 
   const {
     hasFinancial,
@@ -104,6 +106,7 @@ export default function WalletsPage() {
           {/* Abaixo de sm o saldo fica em cima e o botão ocupa a linha inteira,
               como nas demais páginas. Lado a lado ele ficava com 199px. */}
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4 md:gap-8">
+            {canSeeBalance && (
             <div className="text-center md:text-right">
               <div className="flex items-center gap-2 text-muted-foreground mb-1 justify-center md:justify-center">
                 <WalletIcon className="w-4 h-4" />
@@ -119,6 +122,7 @@ export default function WalletsPage() {
                 {formatCurrency(summary.totalBalance)}
               </div>
             </div>
+            )}
 
             {canCreate && (
               <Button

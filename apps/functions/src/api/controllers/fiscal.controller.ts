@@ -3,7 +3,7 @@ import { cnpj as cnpjValidator } from "cpf-cnpj-validator";
 import {
   checkPermission,
   resolveUserAndTenant,
-  type PermissionAction,
+  type PermissionKey,
 } from "../../lib/auth-helpers";
 import { logger } from "../../lib/logger";
 import { describeFocusError } from "../services/fiscal/focus-error";
@@ -60,6 +60,7 @@ import {
   refreshInvoice,
 } from "../services/fiscal/invoice.service";
 import { sanitizeFiscalText } from "../services/fiscal/fiscal-text";
+import { canRequestNcmSuggestion } from "../services/fiscal/ncm-suggestion-access";
 import { readArchivedDocument } from "../services/fiscal/invoice-archive.service";
 import { resolveTenantCapabilities } from "../../lib/tenant-capabilities";
 import {
@@ -89,6 +90,7 @@ import {
   CORRECTION_TEXT_MIN_LENGTH,
 } from "../services/fiscal/fiscal-provider";
 import type { FiscalDocumentType } from "../services/fiscal/fiscal-types";
+import { recordMemberAudit } from "../../lib/member-audit";
 
 /** Sugestao por IA segue o mesmo gate dos demais recursos de IA. */
 const NCM_AI_PLANS = new Set<string>(["pro", "enterprise"]);
@@ -219,7 +221,8 @@ async function requireFiscalAdmin(
 async function requireInvoiceAccess(
   req: Request,
   res: Response,
-  action: PermissionAction,
+  // Ação básica ou fina do catálogo (`cancel`, `correct`; ausentes, valem a básica).
+  action: PermissionKey,
 ): Promise<{ tenantId: string; isSuperAdmin: boolean } | null> {
   const userId = req.user?.uid;
   if (!userId) {
@@ -625,6 +628,11 @@ export const suggestNcmHandler = async (req: Request, res: Response): Promise<vo
     return;
   }
 
+  if (!(await canRequestNcmSuggestion(user))) {
+    res.status(403).json({ message: "Sem permissão para sugerir NCM." });
+    return;
+  }
+
   const body = req.body as Record<string, unknown>;
   const nome = typeof body.nome === "string" ? sanitizeText(body.nome) : "";
   if (!nome.trim()) {
@@ -832,7 +840,7 @@ export const issueInvoiceHandler = async (req: Request, res: Response): Promise<
 // POST /v1/fiscal/invoices/:id/cancel
 export const cancelInvoiceHandler = async (req: Request, res: Response): Promise<void> => {
   try {
-    const ctx = await requireInvoiceAccess(req, res, "canDelete");
+    const ctx = await requireInvoiceAccess(req, res, "cancel");
     if (!ctx) return;
 
     const invoice = await getInvoice(String(req.params.id || ""));
@@ -857,7 +865,14 @@ export const cancelInvoiceHandler = async (req: Request, res: Response): Promise
       return;
     }
 
-    res.status(200).json(await cancelInvoice(invoice.id, justificativa));
+    const canceled = await cancelInvoice(invoice.id, justificativa);
+    await recordMemberAudit({
+      tenantId: ctx.tenantId,
+      actorUid: req.user!.uid,
+      action: "invoice_canceled",
+      target: { type: "invoice", id: invoice.id, label: String((invoice as { numero?: unknown }).numero ?? "") },
+    });
+    res.status(200).json(canceled);
   } catch (error) {
     const err = error as Error;
     if (err.message === "INVOICE_NAO_AUTORIZADA") {
@@ -1359,7 +1374,7 @@ export const downloadCorrectionDocumentHandler = async (
 // NCM nem CFOP; para esses o caminho é cancelar e reemitir.
 export const correctInvoiceHandler = async (req: Request, res: Response): Promise<void> => {
   try {
-    const ctx = await requireInvoiceAccess(req, res, "canEdit");
+    const ctx = await requireInvoiceAccess(req, res, "correct");
     if (!ctx) return;
 
     const invoice = await getInvoice(String(req.params.id || ""));
@@ -1389,7 +1404,14 @@ export const correctInvoiceHandler = async (req: Request, res: Response): Promis
       return;
     }
 
-    res.status(200).json(await correctInvoice(invoice.id, texto));
+    const corrected = await correctInvoice(invoice.id, texto);
+    await recordMemberAudit({
+      tenantId: ctx.tenantId,
+      actorUid: req.user!.uid,
+      action: "invoice_corrected",
+      target: { type: "invoice", id: invoice.id, label: String((invoice as { numero?: unknown }).numero ?? "") },
+    });
+    res.status(200).json(corrected);
   } catch (error) {
     const err = error as Error;
     if (err.message === "CCE_APENAS_NFE") {

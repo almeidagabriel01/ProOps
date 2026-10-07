@@ -111,12 +111,17 @@ export async function createClientNote(req: Request, res: Response) {
   }
 }
 
-/** DELETE /v1/clients/:id/notes/:noteId */
+/**
+ * DELETE /v1/clients/:id/notes/:noteId
+ *
+ * Excluir é "Excluir" em Contatos; quem só edita apaga só a própria anotação.
+ */
 export async function deleteClientNote(req: Request, res: Response) {
   try {
     const tenantId = req.user?.tenantId;
     if (!tenantId) return res.status(403).json({ message: "Tenant não identificado." });
-    if (!(await hasPagePermission(req.user, "clients", "canEdit"))) {
+    const canDelete = await hasPagePermission(req.user, "clients", "canDelete");
+    if (!canDelete && !(await hasPagePermission(req.user, "clients", "canEdit"))) {
       return res.status(403).json({ message: "Sem permissão para editar contatos." });
     }
 
@@ -125,6 +130,9 @@ export async function deleteClientNote(req: Request, res: Response) {
     const data = snap.data();
     if (!snap.exists || data?.tenantId !== tenantId || data?.clientId !== req.params.id) {
       return res.status(404).json({ message: "Anotação não encontrada." });
+    }
+    if (!canDelete && data?.authorId !== req.user?.uid) {
+      return res.status(403).json({ message: "Você só exclui as anotações que escreveu." });
     }
 
     await ref.delete();

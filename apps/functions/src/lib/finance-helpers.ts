@@ -1,5 +1,6 @@
 import { db } from "../init";
 import { UserDoc } from "./auth-helpers";
+import { resolvePermissionKey, resolvePermissionScope } from "../shared/permission-catalog";
 
 function normalizeRole(value: unknown): string {
   return String(value || "")
@@ -184,7 +185,9 @@ export async function checkFinancialPermission(
   const permRef = userRef.collection("permissions").doc(pageId);
   const permSnap = await permRef.get();
 
-  if (!permSnap.exists || !permSnap.data()?.[permission]) {
+  // Pelo catálogo: as quatro ações leem o valor gravado, como sempre; a ação
+  // fina (`settle`, `transfer`...) ausente vale a básica equivalente.
+  if (!permSnap.exists || !resolvePermissionKey(pageId, permSnap.data() ?? null, permission)) {
     throw new Error("Sem permissão financeira.");
   }
 
@@ -195,3 +198,83 @@ export async function checkFinancialPermission(
     isSuperAdmin: false,
   };
 }
+
+/**
+ * As chaves finas de uma página do financeiro para quem está agindo, com UMA
+ * leitura: dar baixa, estornar e custos extras são conferidos por lançamento
+ * dentro de lotes. Dono, administradores e superadmin podem tudo.
+ */
+export async function loadFinancialKeys(
+  userId: string,
+  pageId: FinancialPageId,
+  isPrivileged: boolean,
+): Promise<(key: string) => boolean> {
+  if (isPrivileged) return () => true;
+  const snap = await db.collection("users").doc(userId).collection("permissions").doc(pageId).get();
+  const data = snap.exists ? (snap.data() ?? null) : null;
+  return (key: string) => resolvePermissionKey(pageId, data, key);
+}
+
+/**
+ * O que uma mudança de status de lançamento pede: ir para pago é dar baixa,
+ * sair de pago é estornar. Pendente e atrasado entre si não pedem nada além
+ * do Editar.
+ */
+export function statusChangeKey(
+  current: unknown,
+  next: unknown,
+): "settle" | "revert" | null {
+  if (!next || next === current) return null;
+  if (next === "paid") return "settle";
+  if (current === "paid") return "revert";
+  return null;
+}
+
+export const FINANCIAL_KEY_MESSAGES: Record<"settle" | "revert" | "extraCosts", string> = {
+  settle: "Sem permissão para dar baixa em lançamentos.",
+  revert: "Sem permissão para estornar lançamentos pagos.",
+  extraCosts: "Sem permissão para mexer nos custos extras.",
+};
+
+/**
+ * Se os custos extras mudaram de verdade: o formulário reenvia a lista
+ * inteira. Compara o que importa (descrição, valor, carteira, status), na
+ * ordem de id, para reenvio igual não contar como mudança.
+ */
+export function extraCostsChanged(current: unknown, next: unknown): boolean {
+  const key = (value: unknown) =>
+    JSON.stringify(
+      (Array.isArray(value) ? value : [])
+        .map((raw) => {
+          const ec = (raw ?? {}) as Record<string, unknown>;
+          return [
+            String(ec.id ?? ""),
+            String(ec.description ?? "").trim(),
+            Math.round(Number(ec.amount ?? 0) * 100),
+            String(ec.wallet ?? ""),
+            String(ec.status ?? "pending"),
+          ];
+        })
+        .sort((a, b) => String(a[0]).localeCompare(String(b[0]))),
+    );
+  return key(current) !== key(next);
+}
+
+/**
+ * O alcance de Lançamentos de quem age, numa leitura: tudo, só receitas ou só
+ * os das vendas dele (`sellerId`). É a regra das rules, para a API não mexer
+ * pelo id no que o SDK recusa. Dono, administradores e superadmin alcançam tudo.
+ */
+export async function loadTransactionScope(
+  userId: string,
+  isPrivileged: boolean,
+): Promise<(data: Record<string, unknown> | undefined) => boolean> {
+  if (isPrivileged) return () => true;
+  const snap = await db.collection("users").doc(userId).collection("permissions").doc("transactions").get();
+  const scope = resolvePermissionScope("transactions", snap.exists ? (snap.data() ?? null) : null) ?? "all";
+  if (scope === "all") return () => true;
+  if (scope === "income") return (data) => data?.type === "income";
+  return (data) => data?.sellerId === userId;
+}
+
+export const OUT_OF_SCOPE_MESSAGE = "Transação não encontrada.";

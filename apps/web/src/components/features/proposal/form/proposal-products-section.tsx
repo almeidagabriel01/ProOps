@@ -21,6 +21,8 @@ import { filterCatalogItems } from "@/lib/catalog-search";
 import { useNicheVocabulary } from "@/hooks/useNicheVocabulary";
 import { dos } from "@/lib/niches/vocabulary";
 import { ProductStockHint, ProposalLineStock } from "./proposal-stock";
+import { useSensitiveData } from "@/hooks/usePermission";
+import { catalogPickerPrice } from "@/lib/proposal/catalog-picker-price";
 
 interface ProposalProductsSectionProps {
   products: Array<Product | Service>;
@@ -162,6 +164,7 @@ function ProductCard({
   onUpdateQuantity,
   onToggleStatus,
 }: ProductCardProps) {
+  const { canSeeCost } = useSensitiveData();
   const [isUpdating, setIsUpdating] = React.useState(false);
   // Use proposal status if selected, otherwise default to active
   const isActive = selected?.status ? selected.status !== "inactive" : true;
@@ -244,7 +247,11 @@ function ProductCard({
           </div>
         </div>
         <span className="text-sm font-bold text-primary whitespace-nowrap">
-          R$ {parseFloat(product.price).toFixed(2)}
+          R${" "}
+          {((product.itemType || "product") === "service"
+            ? parseFloat(product.price)
+            : catalogPickerPrice(product, canSeeCost)
+          ).toFixed(2)}
         </span>
       </div>
 

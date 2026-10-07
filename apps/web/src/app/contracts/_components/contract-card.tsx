@@ -6,8 +6,14 @@ import { CONTRACT_TYPE_LABELS, formatDay } from "@/lib/field-service/contracts";
 import type { ServiceContract } from "@/types/field-service";
 import { ContractStatusBadge } from "./contract-status-badge";
 
+interface ContractCardProps {
+  contract: ServiceContract;
+  /** "Ver valores" de Contratos: sem ela, a mensalidade não aparece. */
+  showValue?: boolean;
+}
+
 /** Um contrato na lista: de quem, quanto por mês e quando vence a próxima. */
-export function ContractCard({ contract }: { contract: ServiceContract }) {
+export function ContractCard({ contract, showValue = true }: ContractCardProps) {
   return (
     <Link
       href={`/contracts/${contract.id}`}
@@ -40,10 +46,12 @@ export function ContractCard({ contract }: { contract: ServiceContract }) {
             <span className="text-muted-foreground">
               {contract.visitPlan.enabled ? "Com visitas preventivas" : "Sem visitas preventivas"}
             </span>
-            <span className="text-sm font-semibold text-foreground">
-              {formatCurrency(contract.monthlyAmount)}
-              <span className="text-xs font-normal text-muted-foreground">/mês</span>
-            </span>
+            {showValue && (
+              <span className="text-sm font-semibold text-foreground">
+                {formatCurrency(contract.monthlyAmount)}
+                <span className="text-xs font-normal text-muted-foreground">/mês</span>
+              </span>
+            )}
           </div>
         </CardContent>
       </Card>

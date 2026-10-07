@@ -14,7 +14,7 @@ import {
 import { getNicheConfig, isPageEnabledForNiche } from "@/lib/niches/config";
 
 export function useNavigationItems(): { visibleMenuItems: MenuItem[] } {
-  const { hasPermission, isMaster } = usePermissions();
+  const { hasPermission, hasPermissionKey, isMaster } = usePermissions();
   const { tenant, isDemo } = useTenant();
 
   const visibleMenuItems = React.useMemo(() => {
@@ -23,6 +23,7 @@ export function useNavigationItems(): { visibleMenuItems: MenuItem[] } {
       isMaster,
       isDemo,
       hasPermission,
+      hasPermissionKey,
       isPageEnabled: (pageId?: string | null) =>
         isPageEnabledForNiche(tenant?.niche, pageId),
     };
@@ -68,7 +69,7 @@ export function useNavigationItems(): { visibleMenuItems: MenuItem[] } {
       .map((item) =>
         item.children ? { ...item, children: filterChildren(item) } : item,
       );
-  }, [isMaster, isDemo, hasPermission, tenant?.niche]);
+  }, [isMaster, isDemo, hasPermission, hasPermissionKey, tenant?.niche]);
 
   return { visibleMenuItems };
 }

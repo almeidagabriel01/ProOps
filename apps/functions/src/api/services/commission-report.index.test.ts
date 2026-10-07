@@ -47,6 +47,7 @@ jest.mock("../../init", () => ({
 jest.mock("../../lib/finance-helpers", () => ({
   checkFinancialPermission: jest.fn(async () => ({
     tenantId: "t1",
+    isMaster: true,
     isSuperAdmin: false,
   })),
 }));

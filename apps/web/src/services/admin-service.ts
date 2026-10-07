@@ -37,9 +37,13 @@ export interface TenantMemberInfo {
   masterId: string | null;
   isOwner: boolean;
   createdAt: string | null;
+  /** Doc de cada página: as quatro ações, as chaves finas e o escopo do catálogo. */
   permissions: Record<
     string,
-    { canView: boolean; canCreate: boolean; canEdit: boolean; canDelete: boolean }
+    { canView: boolean; canCreate: boolean; canEdit: boolean; canDelete: boolean } & Record<
+      string,
+      boolean | string | undefined
+    >
   >;
 }
 

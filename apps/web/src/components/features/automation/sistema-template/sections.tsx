@@ -15,6 +15,8 @@ import {
 } from "@/lib/sort-text";
 import { useNicheVocabulary } from "@/hooks/useNicheVocabulary";
 import { cap, do_, este, nenhum, pick } from "@/lib/niches/vocabulary";
+import { useSensitiveData } from "@/hooks/usePermission";
+import { catalogPickerPrice } from "@/lib/proposal/catalog-picker-price";
 
 interface SistemaInfoSectionProps {
   name: string;
@@ -146,6 +148,7 @@ export function ProductSelectorSection({
   onRemoveProduct,
   onUpdateQuantity,
 }: ProductSelectorSectionProps) {
+  const { canSeeCost } = useSensitiveData();
   const v = useNicheVocabulary();
   const filteredProducts = products
     .filter(
@@ -296,7 +299,11 @@ export function ProductSelectorSection({
                         : "Produto") +
                         (product.category ? ` • ${product.category}` : "") +
                         " • "}
-                      R$ {parseFloat(product.price).toFixed(2)}
+                      R${" "}
+                      {(product.itemType === "service"
+                        ? parseFloat(product.price)
+                        : catalogPickerPrice(product, canSeeCost)
+                      ).toFixed(2)}
                     </div>
                   </div>
                   <Plus className="h-5 w-5 text-muted-foreground group-hover:text-primary shrink-0 transition-colors" />

@@ -1,6 +1,6 @@
 import { AggregateField } from "firebase-admin/firestore";
 import { db } from "../../init";
-import { resolveUserAndTenant } from "../../lib/auth-helpers";
+import { getPageScope, resolveUserAndTenant } from "../../lib/auth-helpers";
 import { checkFinancialPermission } from "../../lib/finance-helpers";
 
 /**
@@ -26,11 +26,12 @@ export type TransactionsSummary = {
 async function sumTotalsByType(
   tenantId: string,
   type: "income" | "expense",
+  sellerId?: string,
 ): Promise<{ paid: number; pending: number }> {
-  const snapshot = await db
-    .collection("transactions")
-    .where("tenantId", "==", tenantId)
-    .where("type", "==", type)
+  let query = db.collection("transactions").where("tenantId", "==", tenantId).where("type", "==", type);
+  // "Só os das minhas vendas": índice (tenantId, type, sellerId, paidTotal, pendingTotal).
+  if (sellerId) query = query.where("sellerId", "==", sellerId);
+  const snapshot = await query
     .aggregate({
       paid: AggregateField.sum("paidTotal"),
       pending: AggregateField.sum("pendingTotal"),
@@ -52,7 +53,7 @@ export async function getTransactionsSummary(
   // Era a UNICA rota financeira que parava no resolveUserAndTenant: devolvia o
   // total pago e pendente do tenant a qualquer membro, inclusive a quem nao
   // tem a pagina de Lancamentos.
-  const { tenantId, isSuperAdmin } = await checkFinancialPermission(
+  const { tenantId, isSuperAdmin, isMaster } = await checkFinancialPermission(
     userId,
     "transactions",
     "canView",
@@ -72,9 +73,14 @@ export async function getTransactionsSummary(
     throw new Error("AUTH_CLAIMS_MISSING_TENANT");
   }
 
+  // O alcance de Lançamentos recorta o resumo como recorta a lista: "só
+  // receitas" não soma despesa; "só as minhas vendas" soma pelo vendedor.
+  const scope = isMaster || isSuperAdmin ? "all" : await getPageScope(claims, "transactions");
+  const sellerId = scope === "mine" ? userId : undefined;
+  const none = { paid: 0, pending: 0 };
   const [income, expense] = await Promise.all([
-    sumTotalsByType(effectiveTenantId, "income"),
-    sumTotalsByType(effectiveTenantId, "expense"),
+    sumTotalsByType(effectiveTenantId, "income", sellerId),
+    scope === "income" ? Promise.resolve(none) : sumTotalsByType(effectiveTenantId, "expense", sellerId),
   ]);
 
   return {

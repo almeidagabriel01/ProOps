@@ -63,13 +63,35 @@ function resolveEffectiveTenantId(
 /**
  * Os recursos auxiliares nao tem tela propria: cada um pertence ao modulo que
  * o consome, e e a permissao DESSE modulo que os gateia. ambientes e sistemas
- * sao Solucoes; custom_fields, options e proposal_templates sao Propostas.
+ * sao Solucoes; custom_fields e proposal_templates sao Propostas; options sao
+ * as listas dos cadastros (categoria e fabricante de Produtos e Servicos, e a
+ * lista antiga de carteiras do lancamento), entao basta a permissao de uma
+ * dessas telas.
+ *
+ * Ate 2026-10 a exclusao nao conferia permissao nenhuma (qualquer membro,
+ * ate o tecnico, apagava ambientes, sistemas e categorias pela API), a edicao
+ * exigia tambem "Excluir", e as options conferiam Propostas, que nao as usa.
  */
+type AuxPages = string | readonly string[];
+
+async function hasAnyPagePermission(
+  req: Request,
+  pages: AuxPages,
+  action: "canCreate" | "canEdit" | "canDelete",
+): Promise<boolean> {
+  const list = typeof pages === "string" ? [pages] : pages;
+  for (const pageId of list) {
+    if (await hasPagePermission(req.user, pageId, action)) return true;
+  }
+  return false;
+}
+
+const OPTION_PAGES = ["products", "services", "transactions"] as const;
 const handleCreate = async (
   req: Request,
   res: Response,
   collectionName: string,
-  pageId: string,
+  pageId: AuxPages,
   requiredFields: string[],
 ) => {
   try {
@@ -87,7 +109,7 @@ const handleCreate = async (
       }
     }
 
-    if (!(await hasPagePermission(req.user, pageId, "canCreate"))) {
+    if (!(await hasAnyPagePermission(req, pageId, "canCreate"))) {
       return res.status(403).json({ message: "Sem permissao para criar." });
     }
 
@@ -128,19 +150,15 @@ const handleUpdate = async (
   req: Request,
   res: Response,
   collectionName: string,
-  pageId: string,
+  pageId: AuxPages,
 ) => {
   try {
     const { id } = req.params;
     const userId = req.user!.uid;
     const input = (req.body || {}) as Record<string, unknown>;
 
-    if (!(await hasPagePermission(req.user, pageId, "canEdit"))) {
+    if (!(await hasAnyPagePermission(req, pageId, "canEdit"))) {
       return res.status(403).json({ message: "Sem permissao para editar." });
-    }
-
-    if (!(await hasPagePermission(req.user, pageId, "canDelete"))) {
-      return res.status(403).json({ message: "Sem permissao para excluir." });
     }
 
     const { tenantId, isSuperAdmin } = await resolveUserAndTenant(userId, req.user);
@@ -176,11 +194,15 @@ const handleDelete = async (
   req: Request,
   res: Response,
   collectionName: string,
-  pageId: string,
+  pageId: AuxPages,
 ) => {
   try {
     const { id } = req.params;
     const userId = req.user!.uid;
+
+    if (!(await hasAnyPagePermission(req, pageId, "canDelete"))) {
+      return res.status(403).json({ message: "Sem permissao para excluir." });
+    }
 
     const { tenantId, isSuperAdmin } = await resolveUserAndTenant(userId, req.user);
 
@@ -228,11 +250,11 @@ export const deleteCustomField = (req: Request, res: Response) =>
   handleDelete(req, res, "customFields", "proposals");
 
 export const createOption = (req: Request, res: Response) =>
-  handleCreate(req, res, "options", "proposals", ["label"]);
+  handleCreate(req, res, "options", OPTION_PAGES, ["label"]);
 export const updateOption = (req: Request, res: Response) =>
-  handleUpdate(req, res, "options", "proposals");
+  handleUpdate(req, res, "options", OPTION_PAGES);
 export const deleteOption = (req: Request, res: Response) =>
-  handleDelete(req, res, "options", "proposals");
+  handleDelete(req, res, "options", OPTION_PAGES);
 
 export const createProposalTemplate = (req: Request, res: Response) =>
   handleCreate(req, res, "proposalTemplates", "proposals", ["name", "content"]);

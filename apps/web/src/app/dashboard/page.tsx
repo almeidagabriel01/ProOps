@@ -13,6 +13,7 @@ import { CalendarDays, Wallet } from "lucide-react";
 import { useAuth } from "@/providers/auth-provider";
 import { getGreeting, formatCurrency, resolveGreetingName } from "@/utils/format";
 import { formatDateBR } from "@/utils/date-format";
+import { cn } from "@/lib/utils";
 import { useDashboardData } from "@/hooks/useDashboardData";
 import {
   AlertsCard,
@@ -58,6 +59,7 @@ import { useProposalAttention, useSalesSummary } from "@/hooks/use-dashboard-sal
 import { canSeeCompanySales } from "@/lib/sales/dashboard-sales";
 import { SalesSummaryCard } from "./_components/sales-summary-card";
 import { ProposalAttentionCard } from "./_components/proposal-attention-card";
+import { useSensitiveData } from "@/hooks/usePermission";
 
 export default function DashboardPage() {
   const { user } = useAuth();
@@ -79,12 +81,14 @@ export default function DashboardPage() {
     setSelectedMonth,
     isCurrentMonth,
     openProposalStatuses,
+    canViewFinance,
     loading,
     isLoading,
   } = useDashboardData();
   const { isLoading: planLoading } = usePlanLimits();
   const { isLoading: permissionsLoading, isMaster, isDemo } = usePermissions();
   const { canView: canViewProposals } = usePagePermission("proposals");
+  const { canSeeBalance } = useSensitiveData();
   const showSales = canSeeCompanySales({ canViewProposals, isMaster, isDemo });
   const sales = useSalesSummary(
     tenant?.id,
@@ -149,6 +153,7 @@ export default function DashboardPage() {
           </p>
         </div>
 
+        {canViewFinance && canSeeBalance && (
         <div className="flex items-center gap-4 md:gap-8">
           <div className="text-center md:text-right mt-2 md:mt-0">
             <div className="flex items-center gap-2 text-muted-foreground mb-1 justify-center md:justify-end">
@@ -168,6 +173,7 @@ export default function DashboardPage() {
             )}
           </div>
         </div>
+        )}
       </div>
 
       {/* Primeiros passos (conta nova, some quando tudo estiver feito) */}
@@ -176,7 +182,7 @@ export default function DashboardPage() {
       {/* Alertas e ações rápidas. No celular as ações vêm primeiro: são o que
           se usa todo dia, e os alertas empurravam os botões para baixo. */}
       <div className="flex flex-col gap-8">
-        {loading.finance ? (
+        {!canViewFinance ? null : loading.finance ? (
           <Skeleton className="h-24 w-full rounded-xl" />
         ) : (
           <AlertsCard
@@ -196,7 +202,8 @@ export default function DashboardPage() {
       </div>
 
       {/* Charts (Fluxo de Caixa & Balanço Futuro) */}
-      <div className="grid lg:grid-cols-2 gap-6">
+      {canViewFinance && (
+      <div className={cn("grid gap-6", canSeeBalance && "lg:grid-cols-2")}>
         {/* Fluxo de Caixa (Chart) */}
         <Card className="flex flex-col shadow-md bg-gradient-to-br from-background to-slate-50/30 dark:to-slate-950/10 border border-border/50 h-full">
           <CardHeader>
@@ -233,12 +240,14 @@ export default function DashboardPage() {
         </Card>
 
         {/* Future Balances (Chart) - NEW */}
-        {loading.finance ? (
+        {/* A projeção parte do saldo de hoje: sem "Ver saldo", ela o revelaria. */}
+        {!canSeeBalance ? null : loading.finance ? (
           <Skeleton className="h-full min-h-[380px] rounded-xl" />
         ) : (
           <FutureBalanceChart data={futureBalances} />
         )}
       </div>
+      )}
 
       {/* O mês escolhido: vendas, metas, comissões e o resumo de gastos seguem
           o seletor daqui. Os gráficos acima são projeção, não dependem dele. */}
@@ -278,7 +287,7 @@ export default function DashboardPage() {
             {!loading.month && <CommissionsPanel report={commissionReport} />}
             <MyCommissionsCard month={selectedMonth} />
           </div>
-          {loading.month ? (
+          {!canViewFinance ? null : loading.month ? (
             <>
               <Skeleton className="h-64 rounded-xl" />
               <Skeleton className="h-64 rounded-xl" />
@@ -311,13 +320,15 @@ export default function DashboardPage() {
       )}
 
       {/* Recent Activity (Remaining) */}
-      <div className="grid gap-6">
-        {loading.finance ? (
-          <Skeleton className="h-72 rounded-xl" />
-        ) : (
-          <RecentTransactionsList transactions={recentTransactions} />
-        )}
-      </div>
+      {canViewFinance && (
+        <div className="grid gap-6">
+          {loading.finance ? (
+            <Skeleton className="h-72 rounded-xl" />
+          ) : (
+            <RecentTransactionsList transactions={recentTransactions} />
+          )}
+        </div>
+      )}
     </div>
     </>
   );

@@ -333,7 +333,7 @@ export async function getClientFolderHandler(req: Request, res: Response) {
     if (
       !req.user.isSuperAdmin &&
       !isTenantAdminRole(req.user.role || "") &&
-      !(await hasPagePermission(req.user, "contacts", "canView"))
+      !(await hasPagePermission(req.user, "clients", "canView"))
     ) {
       return res.status(403).json({ message: "Sem permissão para ver contatos." });
     }

@@ -1,6 +1,7 @@
 import { ProposalProduct } from "@/services/proposal-service";
 import { monthlyTotal } from "@/lib/proposal/monthly-lines";
 import { proposalProductsCost, proposalProfit } from "@/lib/proposal/profit";
+import { useSensitiveData } from "@/hooks/usePermission";
 
 interface SummaryFooterProps {
   selectedProducts: ProposalProduct[];
@@ -21,6 +22,7 @@ export function SummaryFooter({
   totalValue,
   closedValue,
 }: SummaryFooterProps) {
+  const { canSeeCost } = useSensitiveData();
   // Custo e lucro são da venda: a mensalidade fica fora, como do total.
   const monthly = monthlyTotal(selectedProducts);
 
@@ -35,7 +37,8 @@ export function SummaryFooter({
 
   return (
     <tfoot className="bg-muted/50">
-      {/* Cost row (without markup) - VISIBLE AGAIN with clear label */}
+      {/* Custo e lucro: só para quem vê o custo (catálogo de permissões). */}
+      {canSeeCost && (
       <tr className="no-pdf-export border-t bg-muted/20">
         <td
           colSpan={2}
@@ -47,9 +50,10 @@ export function SummaryFooter({
           R$ {totalCost.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
         </td>
       </tr>
+      )}
 
       {/* Profit row - only visible in UI, not PDF */}
-      {totalProfit > 0 && (
+      {canSeeCost && totalProfit > 0 && (
         <tr className="no-pdf-export">
           <td
             colSpan={2}

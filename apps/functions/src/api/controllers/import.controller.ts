@@ -38,6 +38,14 @@ async function context(req: Request, kind: ImportKind): Promise<ImportContext> {
   if (!(await hasPagePermission(req.user, PAGE[kind], "canCreate"))) {
     throw new ImportError(403, "Sem permissão para cadastrar aqui.");
   }
+  // Produtos e serviços têm a ação fina "Importar planilha" (padrão: quem
+  // cria); produto também pede ver o custo, que a planilha traz.
+  if (kind !== "clients" && !(await hasPagePermission(req.user, PAGE[kind], "import"))) {
+    throw new ImportError(403, "Sem permissão para importar planilha aqui.");
+  }
+  if (kind === "products" && !(await hasPagePermission(req.user, "products", "viewCost"))) {
+    throw new ImportError(403, "Importar produtos pede ver o custo, e o dono não liberou isso para você.");
+  }
   const { masterRef, isSuperAdmin } = await resolveUserAndTenant(uid, req.user);
   return { tenantId, uid, ownerRef: masterRef, isSuperAdmin, requestId: req.requestId, route: req.path };
 }

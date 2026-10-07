@@ -64,6 +64,8 @@ export async function listProposals(
     limit?: number;
     orderBy?: "createdAt" | "updatedAt" | "title" | "clientName";
     direction?: "asc" | "desc";
+    /** "Só as minhas": só igualdade no dono, e o resto na memória. */
+    owner?: { field: string; uid: string };
   },
 ): Promise<ProposalListItem[]> {
   const maxLimit = Math.min(opts?.limit || 10, 50);
@@ -87,6 +89,25 @@ export async function listProposals(
   // Com termo, a busca vai pelo índice (searchTokens) em vez de filtrar só as
   // N mais recentes, que perdia qualquer proposta fora dessa janela.
   const parsed = opts?.search ? parseSearchQuery(opts.search) : null;
+  if (opts?.owner) {
+    const own = await db
+      .collection("proposals")
+      .where("tenantId", "==", tenantId)
+      .where(opts.owner.field, "==", opts.owner.uid)
+      .limit(500)
+      .get();
+    const search = opts.search?.toLowerCase();
+    const matched = own.docs.filter((doc) => {
+      const data = doc.data();
+      if (opts.status && data.status !== opts.status) return false;
+      if (parsed && !parsed.digits) return matchesAllWords(parsed.words, [data.title, data.clientName]);
+      if (search) {
+        return [data.title, data.clientName].some((value) => String(value || "").toLowerCase().includes(search));
+      }
+      return true;
+    });
+    return sortDocsByField(matched, orderField, orderDir).slice(0, maxLimit).map(toItem);
+  }
   if (parsed && !parsed.digits) {
     const found = await db
       .collection("proposals")

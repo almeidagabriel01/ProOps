@@ -53,6 +53,7 @@ import {
 import { DEFAULT_SPREADSHEET_LOCALE } from "@/lib/univer-pt-br";
 import { formatDateBR } from "@/utils/date-format";
 import { Loader } from "@/components/ui/loader";
+import { usePermission } from "@/hooks/usePermission";
 
 /**
  * O 402 do teto de planilhas é desfecho de plano, não falha: sem este caso a
@@ -73,6 +74,8 @@ function notifyCreateError(error: unknown, fallback: string) {
 export default function SpreadsheetsPage() {
   const { tenant, isLoading: tenantLoading } = useTenant();
   const { canCreate, canEdit, canDelete } = usePagePermission("spreadsheets");
+  // "Importar do Excel" (ausente, vale o Criar).
+  const canImport = usePermission("spreadsheets", "import") && canCreate;
   const { user } = useAuth();
   const router = useRouter();
   const [allSpreadsheets, setAllSpreadsheets] = useState<Spreadsheet[] | null>(
@@ -361,7 +364,7 @@ export default function SpreadsheetsPage() {
             </p>
           </div>
           <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
-            {canCreate && (
+            {canImport && (
               <Button
                 size="lg"
                 variant="outline"
@@ -426,31 +429,35 @@ export default function SpreadsheetsPage() {
                 Crie sua primeira planilha para organizar seus dados.
               </p>
               <div className="flex flex-wrap items-center justify-center gap-2">
-                <Button
-                  variant="outline"
-                  className="gap-2"
-                  onClick={handleImportClick}
-                  disabled={creating || importing}
-                >
-                  {importing ? (
-                    <Loader size="sm" variant="button" />
-                  ) : (
-                    <Upload className="w-4 h-4" />
-                  )}
-                  {importing ? "Importando..." : "Importar Planilha"}
-                </Button>
-                <Button
-                  className="gap-2"
-                  onClick={handleCreate}
-                  disabled={creating || importing}
-                >
-                  {creating ? (
-                    <Loader size="sm" variant="button" />
-                  ) : (
-                    <Plus className="w-4 h-4" />
-                  )}
-                  Criar Primeira Planilha
-                </Button>
+                {canImport && (
+                  <Button
+                    variant="outline"
+                    className="gap-2"
+                    onClick={handleImportClick}
+                    disabled={creating || importing}
+                  >
+                    {importing ? (
+                      <Loader size="sm" variant="button" />
+                    ) : (
+                      <Upload className="w-4 h-4" />
+                    )}
+                    {importing ? "Importando..." : "Importar Planilha"}
+                  </Button>
+                )}
+                {canCreate && (
+                  <Button
+                    className="gap-2"
+                    onClick={handleCreate}
+                    disabled={creating || importing}
+                  >
+                    {creating ? (
+                      <Loader size="sm" variant="button" />
+                    ) : (
+                      <Plus className="w-4 h-4" />
+                    )}
+                    Criar Primeira Planilha
+                  </Button>
+                )}
               </div>
             </CardContent>
           </Card>

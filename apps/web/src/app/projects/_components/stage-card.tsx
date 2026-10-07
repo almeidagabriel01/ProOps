@@ -34,6 +34,8 @@ interface StageCardProps {
   stage: ProjectStage;
   index: number;
   canEdit: boolean;
+  /** "Agendar etapa": marcar, remarcar e desmarcar a visita. Ausente, segue o Editar. */
+  canSchedule?: boolean;
   /** Quem cuida da obra: é avisado quando a visita é marcada. */
   assigneeName?: string | null;
   /** Marca ou desmarca o item. A tela mostra na hora; o servidor confirma depois. */
@@ -52,6 +54,7 @@ export function StageCard({
   stage,
   index,
   canEdit,
+  canSchedule = canEdit,
   assigneeName = null,
   onToggleItem,
   onStageStatus,
@@ -149,7 +152,7 @@ export function StageCard({
 
       {/* A visita da etapa: a data mora no evento da Agenda e volta pelo
           listener do projeto, inclusive quando alguém a arrasta na Agenda. */}
-      {(stage.schedule || (canEdit && stage.status !== "done")) && (
+      {(stage.schedule || (canSchedule && stage.status !== "done")) && (
         <div className="flex flex-col gap-2 rounded-lg bg-muted/50 px-3 py-2 sm:flex-row sm:items-center sm:justify-between">
           <p className="flex items-center gap-2 text-sm">
             <CalendarDays className="h-4 w-4 shrink-0 text-muted-foreground" />
@@ -162,7 +165,7 @@ export function StageCard({
               <span className="text-muted-foreground">Sem visita marcada</span>
             )}
           </p>
-          {canEdit && (
+          {canSchedule && (
             <div className="flex gap-2">
               {stage.schedule && (
                 <Button

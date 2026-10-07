@@ -7,8 +7,11 @@ import { sanitizeText } from "../../utils/sanitize";
 import { logSecurityEvent } from "../../lib/security-observability";
 import {
   resolvePagePermission,
+  SCOPE_OWNER_FIELD,
   type PagePermissionMap,
 } from "../../lib/auth-helpers";
+import { isTenantAdminRole } from "../../lib/auth-context";
+import { resolvePermissionScope } from "../../shared/permission-catalog";
 import type { TenantPlanTier } from "../../lib/tenant-plan-policy";
 import {
   PLAN_TIER_LABELS,
@@ -29,6 +32,7 @@ import {
 import * as walletsService from "../../api/services/wallets.service";
 import { changeProposalStatusAsUser } from "../../api/controllers/proposal-status-internal";
 import { buildLiaProposalLine, type LiaProposalItemInput } from "./proposal-items";
+import { projectProductForViewer, projectProposalForViewer, projectWalletForViewer } from "./sensitive-projection";
 
 // ─── Phone normalization ─────────────────────────────────────────────────────
 
@@ -100,6 +104,37 @@ export interface ToolCallResult {
  * Converts dd/MM/yyyy to YYYY-MM-DD.
  * Falls back to the original string if format does not match.
  */
+/** Os dados sensíveis do catálogo de permissões para quem conversa com a Lia. */
+/**
+ * O alcance ("só os meus") de quem conversa, como nas rules e na API: a Lia
+ * não lista nem abre o registro de outra pessoa a quem tem o alcance
+ * restrito. Dono e administradores veem tudo.
+ */
+function scopeOf(ctx: ToolCallContext, pageId: string): string {
+  if (isTenantAdminRole(String(ctx.role || "").toUpperCase())) return "all";
+  return resolvePermissionScope(pageId, (ctx.permissions?.[pageId] ?? null) as Record<string, unknown> | null) ?? "all";
+}
+
+function ownerOf(ctx: ToolCallContext, pageId: "proposals" | "clients") {
+  if (scopeOf(ctx, pageId) === "all") return undefined;
+  return { field: SCOPE_OWNER_FIELD[pageId], uid: ctx.uid };
+}
+
+function transactionScopeOf(ctx: ToolCallContext): { field: "type" | "sellerId"; value: string } | undefined {
+  const scope = scopeOf(ctx, "transactions");
+  if (scope === "income") return { field: "type", value: "income" };
+  if (scope === "mine") return { field: "sellerId", value: ctx.uid };
+  return undefined;
+}
+
+function sensitiveAccess(ctx: ToolCallContext) {
+  return {
+    viewCost: resolvePagePermission({ role: ctx.role }, ctx.permissions, "products", "viewCost"),
+    viewStock: resolvePagePermission({ role: ctx.role }, ctx.permissions, "products", "viewStock"),
+    viewBalance: resolvePagePermission({ role: ctx.role }, ctx.permissions, "wallet", "viewBalance"),
+  };
+}
+
 function parseBrDate(brDate: string): string {
   const match = brDate.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
   if (!match) return brDate;
@@ -234,6 +269,7 @@ const HANDLERS: Record<string, ToolHandler> = {
       limit: Number(args.limit) || 10,
       orderBy: args.orderBy as "createdAt" | "updatedAt" | "title" | "clientName" | undefined,
       direction: args.direction as "asc" | "desc" | undefined,
+      owner: ownerOf(ctx, "proposals"),
     });
     return { success: true, data };
   },
@@ -243,7 +279,14 @@ const HANDLERS: Record<string, ToolHandler> = {
       args.proposalId as string,
       ctx.tenantId,
     );
-    return { success: true, data };
+    const owner = ownerOf(ctx, "proposals");
+    if (owner && (data as unknown as Record<string, unknown>)[owner.field] !== owner.uid) {
+      return { success: false, error: "Proposta não encontrada." };
+    }
+    return {
+      success: true,
+      data: projectProposalForViewer(data as unknown as Record<string, unknown>, sensitiveAccess(ctx)),
+    };
   },
 
   create_proposal: async (args, ctx) => {
@@ -320,6 +363,7 @@ const HANDLERS: Record<string, ToolHandler> = {
       limit: Number(args.limit) || 10,
       orderBy: args.orderBy as "createdAt" | "name" | "updatedAt" | undefined,
       direction: args.direction as "asc" | "desc" | undefined,
+      owner: ownerOf(ctx, "clients"),
     });
     return { success: true, data };
   },
@@ -329,6 +373,10 @@ const HANDLERS: Record<string, ToolHandler> = {
       args.contactId as string,
       ctx.tenantId,
     );
+    const owner = ownerOf(ctx, "clients");
+    if (owner && (data as unknown as Record<string, unknown>)[owner.field] !== owner.uid) {
+      return { success: false, error: "Contato não encontrado." };
+    }
     return { success: true, data };
   },
 
@@ -386,7 +434,11 @@ const HANDLERS: Record<string, ToolHandler> = {
       orderBy: args.orderBy as "createdAt" | "name" | "price" | "updatedAt" | undefined,
       direction: args.direction as "asc" | "desc" | undefined,
     });
-    return { success: true, data };
+    const access = sensitiveAccess(ctx);
+    return {
+      success: true,
+      data: data.map((item) => projectProductForViewer(item as unknown as Record<string, unknown>, access)),
+    };
   },
 
   get_product: async (args, ctx) => {
@@ -394,7 +446,10 @@ const HANDLERS: Record<string, ToolHandler> = {
       args.productId as string,
       ctx.tenantId,
     );
-    return { success: true, data };
+    return {
+      success: true,
+      data: projectProductForViewer(data as unknown as Record<string, unknown>, sensitiveAccess(ctx)),
+    };
   },
 
   create_product: async (args, ctx) => {
@@ -451,6 +506,7 @@ const HANDLERS: Record<string, ToolHandler> = {
       startDate,
       endDate,
       limit: Number(args.limit) || 20,
+      scope: transactionScopeOf(ctx),
     });
     return { success: true, data };
   },
@@ -487,15 +543,19 @@ const HANDLERS: Record<string, ToolHandler> = {
         error: "Confirmacao obrigatoria. Use request_confirmation antes de deletar.",
       };
     }
-    const result = await deleteTransactionForAi(
-      args.transactionId as string,
-      ctx.tenantId,
-    );
+    const result = await deleteTransactionForAi(args.transactionId as string, {
+      uid: ctx.uid,
+      role: ctx.role,
+      tenantId: ctx.tenantId,
+    });
     return { success: true, data: result };
   },
 
   list_wallets: async (_args, ctx) => {
-    const data = await walletsService.listWallets(ctx.tenantId);
+    const access = sensitiveAccess(ctx);
+    const data = (await walletsService.listWallets(ctx.tenantId)).map((wallet) =>
+      projectWalletForViewer(wallet, access),
+    );
     return { success: true, data };
   },
 
@@ -543,7 +603,7 @@ const HANDLERS: Record<string, ToolHandler> = {
     const result = await payInstallmentForAi(
       args.transactionId as string,
       Number(args.installmentNumber),
-      ctx.tenantId,
+      { uid: ctx.uid, role: ctx.role, tenantId: ctx.tenantId },
       paidAt,
     );
     return { success: true, data: result };
@@ -555,6 +615,7 @@ const HANDLERS: Record<string, ToolHandler> = {
     const data = await proposalsService.listProposals(ctx.tenantId, {
       status: args.status as string | undefined,
       limit: Number(args.limit) || 20,
+      owner: ownerOf(ctx, "proposals"),
     });
     return { success: true, data };
   },

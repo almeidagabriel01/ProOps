@@ -5,10 +5,12 @@ import { cn } from "@/lib/utils";
 import { formatCurrency } from "@/utils/format";
 import type { ServiceOrder } from "@/types/field-service";
 import { PRIORITY_LABELS, TYPE_LABELS, formatWhen } from "@/lib/field-service/service-orders";
+import { useSensitiveData } from "@/hooks/usePermission";
 import { ServiceOrderStatusBadge } from "./status-badge";
 
 /** Um chamado na lista: o que é, de quem, quando e com quem. */
 export function ServiceOrderCard({ order }: { order: ServiceOrder }) {
+  const { canSeeServiceOrderPrices } = useSensitiveData();
   const when = formatWhen(order.scheduledStart);
   const urgent = order.priority === "urgent" || order.priority === "high";
   return (
@@ -50,7 +52,7 @@ export function ServiceOrderCard({ order }: { order: ServiceOrder }) {
             <span className={cn("font-medium", urgent ? "text-rose-600 dark:text-rose-400" : "text-muted-foreground")}>
               Prioridade {PRIORITY_LABELS[order.priority].toLowerCase()}
             </span>
-            {order.totals.total > 0 && (
+            {canSeeServiceOrderPrices && order.totals.total > 0 && (
               <span className="font-semibold text-foreground">{formatCurrency(order.totals.total)}</span>
             )}
           </div>

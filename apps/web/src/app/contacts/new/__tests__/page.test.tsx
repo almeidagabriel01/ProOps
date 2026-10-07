@@ -23,6 +23,19 @@ const createClient = vi.fn().mockResolvedValue({ success: true, clientId: "c1" }
 const plan = { hasPriceTables: false };
 
 // "É da equipe?" busca a equipe na API de metas; aqui não importa.
+vi.mock("@/hooks/usePermission", () => ({
+  usePermission: () => true,
+  usePageScope: () => ({ scope: "all", isLoading: false }),
+  useSensitiveData: () => ({
+    isLoading: false,
+    canSeeCost: true,
+    canSeeStock: true,
+    canSeeContractValues: true,
+    canSeeServiceOrderPrices: true,
+    canSeeCommissions: true,
+    canSeeBalance: true,
+  }),
+}));
 vi.mock("@/services/sales-goals-service", () => ({
   SalesGoalsService: { sellers: vi.fn().mockResolvedValue([]) },
 }));
@@ -34,6 +47,7 @@ vi.mock("@/providers/tenant-provider", () => ({
   useTenant: () => ({ tenant: { id: "tenant-1" } }),
 }));
 
+vi.mock("@/providers/permissions-provider", () => ({ usePermissions: () => ({ isMaster: true }) }));
 vi.mock("@/hooks/usePagePermission", () => ({
   usePagePermission: () => ({ canCreate: true, isLoading: false }),
 }));

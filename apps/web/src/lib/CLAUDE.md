@@ -61,6 +61,15 @@ lib/
 - `getDefaultPermissions()` também vive aqui: é função pura, e mantê-la no hook
   obrigava todo consumidor (e todo teste) a arrastar o cliente HTTP e a init do
   Firebase.
+- `catalog.ts` é o espelho do catálogo do backend
+  (`apps/functions/src/shared/permission-catalog.ts`): ações finas, dados
+  sensíveis e alcance de cada página, com o `fallback` que mantém o membro
+  antigo como estava. `editor.ts` tem as regras puras da tela de Equipe
+  (valor efetivo, cascata, prévia do que muda, busca).
+- `query-scope.ts` publica o alcance ("só os meus") de quem está logado para
+  os services do SDK: toda lista de propostas, contatos, leads, projetos,
+  planilhas e lançamentos passa por `ownerFilter`/`transactionScopeWhere`,
+  senão as rules recusam a consulta inteira de quem tem o alcance restrito.
 
 ### Sessão (`auth/` e `app/api/auth/session`)
 - O cookie `__session` é um session cookie do Firebase, **5 dias** por padrão

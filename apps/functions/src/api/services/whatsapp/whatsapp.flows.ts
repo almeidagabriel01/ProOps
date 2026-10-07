@@ -37,6 +37,21 @@ async function ensureProposalAccess(to: string, userId: string, role: string) {
   return false;
 }
 
+/**
+ * Resumo do dia, saldo, lançamentos e contas da semana: o mesmo que as rules
+ * exigem para ler o financeiro no ERP ("Ver" em Lançamentos ou Carteiras).
+ * Dono e administradores passam direto (`hasPagePermission`).
+ */
+export async function canAccessFinancialViaWhatsApp(
+  userId: string,
+  role: string,
+): Promise<boolean> {
+  return (
+    (await hasPagePermission({ uid: userId, role }, "transactions", "canView")) ||
+    (await hasPagePermission({ uid: userId, role }, "wallet", "canView"))
+  );
+}
+
 export async function handleListProposals(
   to: string,
   tenantId: string,
@@ -341,12 +356,33 @@ export async function handleSendTransactionLink(
   tenantId: string,
   transactionId: string,
   userId: string,
+  role: string,
 ) {
   await logAction(to, userId, "send_transaction_link_attempt", {
     transactionId,
   });
 
+  // O link é público e abre o Pix e o boleto do Asaas: gerá-lo é alterar o
+  // lançamento, como no ERP. Antes qualquer número vinculado o gerava, para
+  // qualquer id que chegasse na resposta. "Compartilhar" (ausente, vale o Editar).
+  if (!(await hasPagePermission({ uid: userId, role }, "transactions", "share"))) {
+    await sendWhatsAppMessage(
+      to,
+      "Você não tem permissão para gerar o link do lançamento pelo WhatsApp.",
+    );
+    await logAction(to, userId, "unauthorized_access_attempt", {
+      target: "transaction_link",
+    });
+    return;
+  }
+
   try {
+    const txSnap = await db.collection("transactions").doc(transactionId).get();
+    if (!txSnap.exists || String(txSnap.data()?.tenantId || "") !== tenantId) {
+      await sendWhatsAppMessage(to, "Lançamento não encontrado.");
+      return;
+    }
+
     const result = await SharedTransactionService.createShareLink(
       transactionId,
       tenantId,

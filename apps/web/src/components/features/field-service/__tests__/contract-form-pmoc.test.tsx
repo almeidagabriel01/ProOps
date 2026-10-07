@@ -30,7 +30,7 @@ vi.mock("@/lib/toast", () => ({ toast: Object.assign(vi.fn(), { success: vi.fn()
 vi.mock("@/components/features/client-select", () => ({ ClientSelect: () => null }));
 vi.mock("@/components/features/field-service/items-editor", () => ({ ItemsEditor: () => null }));
 vi.mock("@/services/wallet-service", () => ({
-  WalletService: { getWallets: async () => [{ id: "w1", name: "Caixa", isDefault: true, status: "active" }] },
+  WalletService: { getWalletOptions: async () => [{ id: "w1", name: "Caixa", isDefault: true, status: "active" }] },
 }));
 vi.mock("@/services/technical-responsibles-service", () => ({
   TechnicalResponsiblesService: {

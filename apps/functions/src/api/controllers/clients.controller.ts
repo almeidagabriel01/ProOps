@@ -1,8 +1,9 @@
 import { Request, Response } from "express";
 import { db } from "../../init";
 import { FieldValue, Timestamp } from "firebase-admin/firestore";
-import { resolveUserAndTenant, checkPermission } from "../../lib/auth-helpers";
+import { resolveUserAndTenant, checkPermission, recordInScope } from "../../lib/auth-helpers";
 import { memberLinkErrorMessage, validateMemberLink } from "../services/contact-member-link";
+import { isClientUsed } from "../services/proposal-usage.service";
 import {
   enforceTenantPlanLimit,
   getTenantClientsUsage,
@@ -27,6 +28,7 @@ import {
   validateContactPriceTable,
 } from "../services/price-tables/contact-price-table";
 import { PriceTableError } from "../services/price-tables/price-tables.service";
+import { recordMemberAudit } from "../../lib/member-audit";
 
 /**
  * Campos fiscais do destinatário.
@@ -305,6 +307,34 @@ export const createClient = async (req: Request, res: Response) => {
       });
     }
 
+    // Ligar o contato a um membro (e o percentual de comissão dele) decide
+    // quanto alguém recebe e o que ele vê em "Minhas comissões": é do dono e
+    // dos administradores. Antes qualquer membro com Contatos se ligava a um
+    // parceiro e passava a ler as comissões dele.
+    if (
+      !isMaster &&
+      !isSuperAdmin &&
+      (input.linkedMemberId || input.commissionPercentage != null)
+    ) {
+      return res.status(403).json({
+        message: "Comissão e vínculo com a equipe são definidos pelo dono ou por um administrador.",
+      });
+    }
+    // Ações finas de Contatos (catálogo de permissões): pôr outra pessoa como
+    // responsável e escolher a tabela de preço.
+    if (!isMaster && !isSuperAdmin) {
+      if (
+        input.responsibleMemberId &&
+        input.responsibleMemberId !== userId &&
+        !(await checkPermission(userId, "clients", "reassign"))
+      ) {
+        return res.status(403).json({ message: "Sem permissão para trocar o responsável pelo contato." });
+      }
+      if (input.priceTableId && !(await checkPermission(userId, "clients", "priceTable"))) {
+        return res.status(403).json({ message: "Sem permissão para escolher a tabela de preço do contato." });
+      }
+    }
+
     if (input.linkedMemberId) {
       try {
         await validateMemberLink(
@@ -333,8 +363,17 @@ export const createClient = async (req: Request, res: Response) => {
     let responsible: { id: string; name: string } | null = null;
     let partnerContactIds: string[] = [];
     try {
+      // Contato que um membro cria nasce com ele como responsável (quando o
+      // tipo tem responsável): é o que mantém o contato no alcance "só os
+      // meus" de quem o cadastrou, em vez de sumir da lista dele ao salvar.
+      const ownsByDefault =
+        !isMaster &&
+        !isSuperAdmin &&
+        (input.types ?? ["cliente"]).some((type: string) => type === "cliente" || type === "arquiteto");
       if (input.responsibleMemberId) {
         responsible = await resolveResponsibleMember(targetTenantId, input.responsibleMemberId);
+      } else if (ownsByDefault) {
+        responsible = await resolveResponsibleMember(targetTenantId, userId).catch(() => null);
       }
       if (input.partnerContactIds?.length) {
         partnerContactIds = await resolvePartnerContactIds(targetTenantId, input.partnerContactIds);
@@ -473,6 +512,10 @@ export const updateClient = async (req: Request, res: Response) => {
         .status(403)
         .json({ message: "Este cliente não pertence a sua organização." });
     }
+    // "Só os meus": o contato de outra pessoa não existe, como nas rules.
+    if (!isMaster && !isSuperAdmin && !(await recordInScope(req.user, "clients", clientData))) {
+      return res.status(404).json({ message: "Cliente não encontrado." });
+    }
 
     if (!isMaster && !isSuperAdmin) {
       const canEdit = await checkPermission(userId, "clients", "canEdit");
@@ -485,6 +528,40 @@ export const updateClient = async (req: Request, res: Response) => {
         return res
           .status(403)
           .json({ message: "Sem permissão para editar clientes." });
+      }
+    }
+
+    // Mesma regra da criação: comissão e vínculo com a equipe são do dono e
+    // dos administradores. O formulário reenvia os campos, então vale a
+    // mudança de valor, não a presença.
+    if (!isMaster && !isSuperAdmin) {
+      const linkChanged =
+        updateData.linkedMemberId !== undefined &&
+        (updateData.linkedMemberId || null) !== ((clientData?.linkedMemberId as string | undefined) || null);
+      const commissionChanged =
+        updateData.commissionPercentage !== undefined &&
+        (updateData.commissionPercentage ?? null) !==
+          ((clientData?.commissionPercentage as number | undefined) ?? null);
+      if (linkChanged || commissionChanged) {
+        return res.status(403).json({
+          message: "Comissão e vínculo com a equipe são definidos pelo dono ou por um administrador.",
+        });
+      }
+      const idsKey = (value: unknown) => (Array.isArray(value) ? value.map(String) : []).sort().join("|");
+      const responsibleChanged =
+        (updateData.responsibleMemberId !== undefined &&
+          (updateData.responsibleMemberId || null) !==
+            ((clientData?.responsibleMemberId as string | undefined) || null)) ||
+        (updateData.partnerContactIds !== undefined &&
+          idsKey(updateData.partnerContactIds) !== idsKey(clientData?.partnerContactIds));
+      if (responsibleChanged && !(await checkPermission(userId, "clients", "reassign"))) {
+        return res.status(403).json({ message: "Sem permissão para trocar o responsável pelo contato." });
+      }
+      const priceTableChanged =
+        updateData.priceTableId !== undefined &&
+        (updateData.priceTableId || null) !== ((clientData?.priceTableId as string | undefined) || null);
+      if (priceTableChanged && !(await checkPermission(userId, "clients", "priceTable"))) {
+        return res.status(403).json({ message: "Sem permissão para escolher a tabela de preço do contato." });
       }
     }
 
@@ -663,6 +740,9 @@ export const deleteClient = async (req: Request, res: Response) => {
     if (!isSuperAdmin && clientData?.tenantId !== tenantId) {
       return res.status(403).json({ message: "Acesso negado." });
     }
+    if (!isMaster && !isSuperAdmin && !(await recordInScope(req.user, "clients", clientData))) {
+      return res.status(404).json({ message: "Cliente não encontrado." });
+    }
 
     if (!isMaster && !isSuperAdmin) {
       const canDelete = await checkPermission(userId, "clients", "canDelete");
@@ -676,6 +756,16 @@ export const deleteClient = async (req: Request, res: Response) => {
           .status(403)
           .json({ message: "Sem permissão para deletar clientes." });
       }
+    }
+
+    // Contato que está numa proposta não se exclui: a proposta ficaria sem
+    // cliente. A tela já conferia; o backend passa a conferir também, porque
+    // a API (e a Lia) não passam pela tela.
+    if (await isClientUsed(String(clientData?.tenantId || tenantId), id)) {
+      return res.status(409).json({
+        code: "CLIENT_IN_USE",
+        message: "Este contato está em uma proposta e não pode ser excluído.",
+      });
     }
 
     // Determine correct masterRef for usage decrement
@@ -716,6 +806,13 @@ export const deleteClient = async (req: Request, res: Response) => {
           updatedAt: Timestamp.now(),
         });
       }
+    });
+
+    await recordMemberAudit({
+      tenantId: String(clientData?.tenantId || tenantId),
+      actorUid: userId,
+      action: "client_deleted",
+      target: { type: "client", id, label: String(clientData?.name ?? "") },
     });
 
     return res.json({ success: true, message: "Cliente removido." });

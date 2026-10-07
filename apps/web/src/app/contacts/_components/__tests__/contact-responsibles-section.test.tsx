@@ -16,6 +16,21 @@ import {
 } from "../contact-responsibles-section";
 import type { Client, ClientType } from "@/services/client-service";
 
+const perm = vi.hoisted(() => ({ reassign: true }));
+vi.mock("@/hooks/usePermission", () => ({
+  usePermission: (pageId: string, key: string) =>
+    pageId === "clients" && key === "reassign" ? perm.reassign : true,
+  usePageScope: () => ({ scope: "all", isLoading: false }),
+  useSensitiveData: () => ({
+    isLoading: false,
+    canSeeCost: true,
+    canSeeStock: true,
+    canSeeContractValues: true,
+    canSeeServiceOrderPrices: true,
+    canSeeCommissions: true,
+    canSeeBalance: true,
+  }),
+}));
 vi.mock("@/hooks/use-contact-responsibles", () => ({
   useContactResponsibles: () => ({
     people: [{ id: "u-cibeli", name: "Cibeli" }],
@@ -86,5 +101,16 @@ describe("ContactResponsiblesSection", () => {
     expect(vendedor).toBeEmptyDOMElement();
     const { container: fornecedor } = renderSection(["fornecedor"]);
     expect(fornecedor).toBeEmptyDOMElement();
+  });
+
+  it("sem 'Trocar o responsável', o bloco fica só leitura", () => {
+    perm.reassign = false;
+    try {
+      renderSection(["cliente"]);
+      expect(screen.queryByLabelText("Adicionar parceiro externo")).not.toBeInTheDocument();
+      expect(screen.getByText("Responsável da equipe")).toBeInTheDocument();
+    } finally {
+      perm.reassign = true;
+    }
   });
 });

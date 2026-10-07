@@ -32,6 +32,10 @@ vi.mock("@/components/features/fiscal/catalog-fiscal-fields", () => ({
 }));
 vi.mock("@/components/ui/limit-reached-modal", () => ({ LimitReachedModal: () => null }));
 vi.mock("@/components/ui/file-upload", () => ({ FileUpload: () => null }));
+vi.mock("@/hooks/usePermission", () => ({
+  usePermission: () => true,
+  useSensitiveData: () => ({ isLoading: false, canSeeCost: true, canSeeStock: true }),
+}));
 
 const formData: ProductFormData = {
   name: "",

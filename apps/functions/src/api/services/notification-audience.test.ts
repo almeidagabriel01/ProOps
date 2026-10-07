@@ -115,3 +115,40 @@ describe("avisos diretos (tarefa atribuída, menção)", () => {
     expect(resolveRecipients(equipe, "task_reminder", ["vendedor"]).emailRecipients).toEqual([]);
   });
 });
+
+describe("alcance 'só os meus' de quem recebe", () => {
+  const vendedora = member({
+    uid: "vend",
+    permissions: { proposals: { canView: true, scope: "own" }, transactions: { canView: true, scope: "income" } },
+  });
+  const equipe = member({ uid: "todos", permissions: { proposals: { canView: true }, transactions: { canView: true } } });
+  const dono = member({ uid: "dono", isAdmin: true });
+
+  it("a proposta de outro vendedor não avisa quem vê só as próprias", () => {
+    const { recipientUids } = resolveRecipients([vendedora, equipe, dono], "proposal_accepted", undefined, {
+      sellerId: "outra",
+    });
+    expect(recipientUids).toEqual(["todos", "dono"]);
+  });
+
+  it("a proposta dela avisa", () => {
+    const { recipientUids } = resolveRecipients([vendedora, equipe], "proposal_accepted", undefined, {
+      sellerId: "vend",
+    });
+    expect(recipientUids).toEqual(["vend", "todos"]);
+  });
+
+  it("sem o registro, quem tem o alcance restrito não recebe", () => {
+    const { recipientUids } = resolveRecipients([vendedora, equipe], "proposal_accepted");
+    expect(recipientUids).toEqual(["todos"]);
+  });
+
+  it("'só receitas' recebe o lembrete de receita e não o de despesa", () => {
+    expect(
+      resolveRecipients([vendedora], "transaction_due_reminder", undefined, { type: "income" }).recipientUids,
+    ).toEqual(["vend"]);
+    expect(
+      resolveRecipients([vendedora], "transaction_due_reminder", undefined, { type: "expense" }).recipientUids,
+    ).toEqual([]);
+  });
+});

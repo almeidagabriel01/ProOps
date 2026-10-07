@@ -191,7 +191,7 @@ export const getAsaasStatus = async (req: Request, res: Response): Promise<void>
       return;
     }
 
-    const { tenantId } = await resolveUserAndTenant(userId, req.user);
+    const { tenantId, isMaster, isSuperAdmin } = await resolveUserAndTenant(userId, req.user);
 
     const asaasData = await AsaasService.getAsaasData(tenantId);
     // platformAvailable diz se o SERVIDOR consegue criar subconta. Sem isso a
@@ -219,7 +219,9 @@ export const getAsaasStatus = async (req: Request, res: Response): Promise<void>
       connectedAt: asaasData.connectedAt,
       ...(accountStatus ? { accountStatus } : {}),
       ...(asaasData.webhookStatus ? { webhookStatus: asaasData.webhookStatus } : {}),
-      ...(asaasData.payout ? { payout: asaasData.payout } : {}),
+      // O repasse carrega a chave PIX de recebimento da empresa: só o dono e
+      // os administradores, que são os únicos que o configuram, a recebem.
+      ...(asaasData.payout && (isMaster || isSuperAdmin) ? { payout: asaasData.payout } : {}),
     });
   } catch (error) {
     const err = error instanceof Error ? error : new Error(String(error));

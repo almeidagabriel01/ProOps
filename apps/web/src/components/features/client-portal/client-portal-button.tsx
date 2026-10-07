@@ -16,6 +16,7 @@ import { SendLinkPanel } from "@/components/shared/send-link-panel";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { usePlanLimits } from "@/hooks/usePlanLimits";
 import { usePagePermission } from "@/hooks/usePagePermission";
+import { usePermission } from "@/hooks/usePermission";
 import { usePermissions } from "@/providers/permissions-provider";
 import { useTenant } from "@/providers/tenant-provider";
 import { toast } from "@/lib/toast";
@@ -33,11 +34,17 @@ type Pending = "create" | "rotate" | "revoke" | null;
 /**
  * O portal do cliente a partir da ficha do contato: criar o link, mandar pelo
  * WhatsApp ou e-mail da empresa, gerar um novo (o anterior para de abrir) ou
- * desligar. Só para quem edita Contatos; a demonstração abre o exemplo.
+ * desligar. Só para quem edita Contatos e vê Propostas ou Lançamentos (o
+ * portal abre as propostas e os pagamentos do contato, e o backend cobra o
+ * mesmo); a demonstração abre o exemplo.
  */
 export function ClientPortalButton({ client }: ClientPortalButtonProps) {
   const { hasClientPortal } = usePlanLimits();
-  const { canEdit } = usePagePermission("clients");
+  // "Portal do cliente" (ação fina de Contatos; ausente, vale o Editar).
+  const canEdit = usePermission("clients", "portal");
+  const proposals = usePagePermission("proposals");
+  const transactions = usePagePermission("transactions");
+  const seesPortalContent = proposals.canView || transactions.canView;
   const { isDemo } = usePermissions();
   const { tenant } = useTenant();
   const [open, setOpen] = React.useState(false);
@@ -65,7 +72,7 @@ export function ClientPortalButton({ client }: ClientPortalButtonProps) {
     };
   }, [open, isDemo, client.id]);
 
-  if (!hasClientPortal || (!canEdit && !isDemo)) return null;
+  if (!hasClientPortal || (!(canEdit && seesPortalContent) && !isDemo)) return null;
 
   const run = async (kind: Exclude<Pending, null>) => {
     setPending(kind);

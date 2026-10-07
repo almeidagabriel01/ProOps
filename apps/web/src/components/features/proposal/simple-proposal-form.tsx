@@ -57,6 +57,7 @@ import { PartnerContactsField } from "@/components/features/responsibles/respons
 import { useContactResponsibles } from "@/hooks/use-contact-responsibles";
 import { useSellerCommission } from "@/hooks/proposal/use-seller-commission";
 import { usePlanLimits } from "@/hooks/usePlanLimits";
+import { usePermission } from "@/hooks/usePermission";
 import { MonthlyLineProvider } from "./form/monthly-line";
 
 interface SimpleProposalFormProps {
@@ -253,6 +254,9 @@ export function SimpleProposalForm({
   );
   const { hasFieldService } = usePlanLimits();
   const { user } = useAuth();
+  // Ações finas da proposta: trocar o responsável (e os parceiros) e mexer nas comissões.
+  const canChangeSeller = usePermission("proposals", "changeSeller");
+  const canEditCommissions = usePermission("proposals", "commissions");
   const { people: teamPeople, partners: partnerContacts } = useContactResponsibles();
   // A comissão do vendedor da equipe acompanha o responsável pela venda.
   const { changeSeller } = useSellerCommission({
@@ -1218,7 +1222,7 @@ export function SimpleProposalForm({
                   currentUserId={user?.id}
                   people={teamPeople}
                   onChange={changeSeller}
-                  disabled={isDemo}
+                  disabled={isDemo || !canChangeSeller}
                 />
               }
             />
@@ -1229,7 +1233,7 @@ export function SimpleProposalForm({
               onChange={(partnerContactIds) =>
                 setFormData((prev) => ({ ...prev, partnerContactIds }))
               }
-              disabled={isDemo}
+              disabled={isDemo || !canChangeSeller}
               hint="Arquiteto ou vendedor de fora que acompanha esta venda. A comissão continua no passo de pagamento."
             />
           </div>
@@ -1415,7 +1419,7 @@ export function SimpleProposalForm({
                 setFormData((prev) => ({ ...prev, commissions }))
               }
               totalValue={calculateTotal()}
-              isReadOnly={isDemo}
+              isReadOnly={isDemo || !canEditCommissions}
             />
           </div>
           <StepNavigation onBeforeNext={isDemo ? undefined : validateStep3} />

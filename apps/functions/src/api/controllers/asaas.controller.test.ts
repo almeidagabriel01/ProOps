@@ -282,6 +282,56 @@ describe("getAsaasStatus", () => {
     });
   });
 
+  it("membro não recebe o repasse (chave PIX), só o estado da conexão", async () => {
+    mockResolveUserAndTenant.mockResolvedValue({
+      tenantId: "tenant_abc",
+      isMaster: false,
+      isSuperAdmin: false,
+    });
+    mockGetAsaasData.mockResolvedValue({
+      ...ASAAS_DATA_CONNECTED,
+      payout: {
+        enabled: true,
+        pixAddressKey: "12345678901",
+        pixAddressKeyType: "CPF",
+        updatedAt: "2025-01-01T00:00:00.000Z",
+      },
+    });
+
+    const req = makeReq({
+      user: { uid: "user_member", tenantId: "tenant_abc", role: "MEMBER" },
+    } as Partial<Request>);
+    const { res, status, json } = makeRes();
+
+    await getAsaasStatus(req, res);
+
+    expect(status).toHaveBeenCalledWith(200);
+    const responsePayload = json.mock.calls[0][0] as Record<string, unknown>;
+    expect(responsePayload.connected).toBe(true);
+    expect(responsePayload).not.toHaveProperty("payout");
+    expect(JSON.stringify(responsePayload)).not.toContain("12345678901");
+  });
+
+  it("superadmin vendo a empresa recebe o repasse", async () => {
+    mockResolveUserAndTenant.mockResolvedValue({
+      tenantId: "tenant_abc",
+      isMaster: false,
+      isSuperAdmin: true,
+    });
+    mockGetAsaasData.mockResolvedValue({
+      ...ASAAS_DATA_CONNECTED,
+      payout: { enabled: true, pixAddressKey: "k", pixAddressKeyType: "EVP" },
+    });
+
+    const req = makeReq();
+    const { res, json } = makeRes();
+
+    await getAsaasStatus(req, res);
+
+    const responsePayload = json.mock.calls[0][0] as Record<string, unknown>;
+    expect(responsePayload).toHaveProperty("payout");
+  });
+
   it("omits payout field when tenant has no payout configured", async () => {
     mockGetAsaasData.mockResolvedValue(ASAAS_DATA_CONNECTED);
 

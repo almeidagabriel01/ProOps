@@ -258,8 +258,9 @@ export const discardClientAcceptance = async (req: Request, res: Response) => {
     const tenantId = req.user?.tenantId;
     const uid = req.user?.uid;
     if (!tenantId || !uid) return res.status(403).json({ message: "Tenant não identificado." });
-    if (!(await hasPagePermission(req.user, "proposals", "canEdit"))) {
-      return res.status(403).json({ message: "Sem permissão para editar propostas." });
+    // Descartar o aceite do cliente é decidir sobre a aprovação: "Aprovar".
+    if (!(await hasPagePermission(req.user, "proposals", "approve"))) {
+      return res.status(403).json({ message: "Sem permissão para aprovar ou reverter propostas." });
     }
 
     const proposalRef = db.collection(PROPOSALS_COLLECTION).doc(req.params.id);

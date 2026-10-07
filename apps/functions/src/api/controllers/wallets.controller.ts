@@ -8,6 +8,7 @@ import {
 } from "../../lib/tenant-plan-policy";
 import { z } from "zod";
 import { sanitizeText, sanitizeRichText } from "../../utils/sanitize";
+import { recordMemberAudit } from "../../lib/member-audit";
 
 const CreateWalletSchema = z.object({
   name: z.string().min(1, "Nome é obrigatório.").max(100).trim(),
@@ -182,6 +183,12 @@ export const updateWallet = async (req: Request, res: Response) => {
     if (typeof updateData.description === "string") updateData.description = sanitizeRichText(updateData.description);
 
     const { tenantId, isSuperAdmin } = await checkFinancialPermission(userId, "wallet", "canEdit", req.user);
+    // Arquivar e reativar pedem "Arquivar" (ausente, vale o Editar).
+    if (updateData.status !== undefined) {
+      await checkFinancialPermission(userId, "wallet", "archive", req.user).catch(() => {
+        throw new Error("Sem permissão para arquivar carteiras.");
+      });
+    }
     const walletRef = db.collection(WALLETS_COLLECTION).doc(id);
     const walletSnap = await walletRef.get();
 
@@ -317,6 +324,12 @@ export const deleteWallet = async (req: Request, res: Response) => {
     } while (true);
 
     await walletRef.delete();
+    await recordMemberAudit({
+      tenantId: String(walletData?.tenantId || tenantId),
+      actorUid: userId,
+      action: "wallet_deleted",
+      target: { type: "wallet", id, label: String(walletData?.name || "") },
+    });
 
     return res.json({ success: true, message: "Carteira excluída." });
   } catch (error: unknown) {
@@ -337,7 +350,7 @@ export const transferValues = async (req: Request, res: Response) => {
     if (fromWalletId === toWalletId)
       return res.status(400).json({ message: "Mesma carteira." });
 
-    const { tenantId, isSuperAdmin } = await checkFinancialPermission(userId, "wallet", "canEdit", req.user);
+    const { tenantId, isSuperAdmin } = await checkFinancialPermission(userId, "wallet", "transfer", req.user);
 
     await db.runTransaction(async (t) => {
       const fromRef = db.collection(WALLETS_COLLECTION).doc(fromWalletId);
@@ -398,6 +411,14 @@ export const transferValues = async (req: Request, res: Response) => {
       });
     });
 
+    await recordMemberAudit({
+      tenantId,
+      actorUid: userId,
+      action: "wallet_transfer",
+      target: { type: "wallet", id: String(fromWalletId) },
+      details: { amount: Number(amount), toWalletId: String(toWalletId) },
+    });
+
     return res.json({ success: true, message: "Transferência realizada." });
   } catch (error: unknown) {
     const message =
@@ -414,7 +435,7 @@ export const adjustBalance = async (req: Request, res: Response) => {
     if (!walletId || !amount || !description)
       return res.status(400).json({ message: "Dados incompletos." });
 
-    const { tenantId, isSuperAdmin } = await checkFinancialPermission(userId, "wallet", "canEdit", req.user);
+    const { tenantId, isSuperAdmin } = await checkFinancialPermission(userId, "wallet", "adjustBalance", req.user);
 
     const result = await db.runTransaction(async (t) => {
       const walletRef = db.collection(WALLETS_COLLECTION).doc(walletId);
@@ -447,6 +468,14 @@ export const adjustBalance = async (req: Request, res: Response) => {
       });
 
       return newBalance;
+    });
+
+    await recordMemberAudit({
+      tenantId,
+      actorUid: userId,
+      action: "wallet_adjusted",
+      target: { type: "wallet", id: String(walletId), label: String(description || "") },
+      details: { amount: Number(amount) },
     });
 
     return res.json({

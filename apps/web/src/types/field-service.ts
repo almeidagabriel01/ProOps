@@ -223,7 +223,8 @@ export interface ServiceContractInput {
   clientId: string;
   title: string;
   type: ContractType;
-  lines: ContractLine[];
+  /** Ausente na edição de quem não tem "Ver valores": o backend mantém as gravadas. */
+  lines?: ContractLine[];
   billingDay: number;
   wallet: string;
   issueNfse: boolean;

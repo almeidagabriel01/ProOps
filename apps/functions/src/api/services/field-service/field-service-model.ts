@@ -110,6 +110,35 @@ function roundMoney(value: number): number {
   return Math.round(value * 100) / 100;
 }
 
+/** Chave de um item do catálogo: tipo e id do produto ou serviço. */
+export function catalogKey(kind: ServiceOrderItem["kind"], refId: string): string {
+  return `${kind}:${refId}`;
+}
+
+/**
+ * O técnico lança peças e serviços, mas não muda o valor: o total da OS é o
+ * que o cliente assina e o que vai para o financeiro. Até 2026-10 o
+ * `ExecutionUpdateSchema` aceitava `unitPrice` do técnico.
+ *
+ * - item que já estava na OS mantém o valor gravado;
+ * - item novo do catálogo entra com o preço do catálogo (`catalogPrices`);
+ * - item novo digitado à mão entra com valor zero, para quem coordena
+ *   precificar.
+ */
+export function lockTechnicianItemPrices(
+  next: readonly ServiceOrderItem[],
+  current: readonly ServiceOrderItem[],
+  catalogPrices: ReadonlyMap<string, number>,
+): ServiceOrderItem[] {
+  const currentById = new Map(current.map((item) => [item.id, item]));
+  return next.map((item) => {
+    const existing = currentById.get(item.id);
+    if (existing) return { ...item, unitPrice: existing.unitPrice };
+    const catalogPrice = item.refId ? catalogPrices.get(catalogKey(item.kind, item.refId)) : undefined;
+    return { ...item, unitPrice: catalogPrice ?? 0 };
+  });
+}
+
 export function computeOrderTotals(items: readonly ServiceOrderItem[]): {
   products: number;
   services: number;

@@ -10,12 +10,14 @@ import {
   SERVICE_ORDERS_COLLECTION,
   SERVICE_ORDER_COUNTERS_COLLECTION,
   STOCK_MOVEMENTS_COLLECTION,
+  catalogKey,
   formatOrderCode,
   stockConsumption,
   stockDelta,
   stockMovementId,
   type ServiceOrderItem,
 } from "./field-service-model";
+import { catalogSellingPrice } from "../../../shared/catalog-selling-price";
 
 /**
  * Leitura e gravação de equipamentos e ordens de serviço. As regras de negócio
@@ -30,6 +32,27 @@ export async function loadOfTenant(collection: string, id: string, tenantId: str
   if (!snap.exists || data?.tenantId !== tenantId) return null;
   return { ref, data: data as Record<string, unknown> };
 }
+
+/** Preço de venda dos itens do catálogo pedidos, só os da empresa. */
+export async function loadCatalogPrices(
+  items: ReadonlyArray<{ kind: "product" | "service"; refId: string | null }>,
+  tenantId: string,
+): Promise<Map<string, number>> {
+  const prices = new Map<string, number>();
+  const wanted = new Map<string, { kind: "product" | "service"; refId: string }>();
+  for (const item of items) {
+    if (item.refId) wanted.set(catalogKey(item.kind, item.refId), { kind: item.kind, refId: item.refId });
+  }
+  await Promise.all(
+    [...wanted.entries()].map(async ([key, { kind, refId }]) => {
+      const found = await loadOfTenant(kind === "product" ? "products" : "services", refId, tenantId);
+      if (found) prices.set(key, catalogSellingPrice(kind, found.data));
+    }),
+  );
+  return prices;
+}
+
+export { catalogSellingPrice };
 
 export interface ClientSnapshot {
   id: string;

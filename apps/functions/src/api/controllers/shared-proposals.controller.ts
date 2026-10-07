@@ -1,10 +1,15 @@
 import { Request, Response } from "express";
 import { SharedProposalService } from "../services/shared-proposal.service";
-import { hasPagePermission, resolveUserAndTenant } from "../../lib/auth-helpers";
+import {
+  hasPagePermission,
+  resolveUserAndTenant,
+  recordInScope,
+} from "../../lib/auth-helpers";
 import { db } from "../../init";
 import { FieldPath } from "firebase-admin/firestore";
 import { resolveClientIp } from "../../lib/client-ip";
 import { resolveOnlineApprovalState } from "./proposal-online-approval.controller";
+import { stripCostFromSharedLine } from "../services/shared-proposal-lines";
 
 type ProductLike = {
   productId?: string;
@@ -93,7 +98,7 @@ const SHARED_PROPOSAL_ALLOWED_FIELDS = [
   "paymentMethod",
 ] as const;
 
-function sanitizeSharedProposalPayload(
+export function sanitizeSharedProposalPayload(
   proposalId: string,
   proposalData: ProposalLike | undefined,
 ): Record<string, unknown> {
@@ -116,6 +121,14 @@ function sanitizeSharedProposalPayload(
   // Remover o campo pdf inteiro (contém storagePath e versionHash internos).
   // O cliente público não precisa de metadados de cache do PDF.
   delete safe.pdf;
+
+  // Na proposta gravada, unitPrice é o custo e markup é a margem: o link
+  // público leva só o preço de venda.
+  if (Array.isArray(safe.products)) {
+    safe.products = (safe.products as Array<Record<string, unknown>>).map(
+      (line) => stripCostFromSharedLine(line),
+    );
+  }
 
   return safe;
 }
@@ -298,10 +311,10 @@ export const createShareLink = async (req: Request, res: Response) => {
       req.user,
     );
 
-    // O link abre a proposta inteira, com os valores, para quem o tiver: o
-    // membro precisa poder vê-la, como no PDF.
-    if (!(await hasPagePermission(req.user, "proposals", "canView"))) {
-      return res.status(403).json({ message: "Sem permissão para ver propostas." });
+    // O link abre a proposta inteira, com os valores, para quem o tiver:
+    // "Compartilhar" (que, ausente, vale o "Ver" da página, como no PDF).
+    if (!(await hasPagePermission(req.user, "proposals", "share"))) {
+      return res.status(403).json({ message: "Sem permissão para compartilhar propostas." });
     }
 
     // Buscar proposta
@@ -321,6 +334,10 @@ export const createShareLink = async (req: Request, res: Response) => {
     // Validar acesso (proposta deve pertencer ao tenant do usuário)
     if (!isSuperAdmin && proposalData?.tenantId !== tenantId) {
       return res.status(403).json({ message: "Acesso negado" });
+    }
+    // "Só as minhas": a de outro vendedor não se compartilha, como nas rules.
+    if (!isSuperAdmin && !(await recordInScope(req.user, "proposals", proposalData))) {
+      return res.status(404).json({ message: "Proposta não encontrada" });
     }
 
     // Gerar link compartilhável

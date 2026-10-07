@@ -17,6 +17,8 @@ import type {
   QueryDocumentSnapshot,
 } from "firebase/firestore";
 import { withDerivedOverdue } from "@/services/transaction-service";
+import { ownerFilter, transactionScope } from "@/lib/permissions/query-scope";
+import { fetchOwnDocs, pageAfter, sortSnapshots } from "./own-scope";
 import type {
   Transaction,
   TransactionStatus,
@@ -51,6 +53,22 @@ export interface KanbanPageOptions {
 const PROPOSALS_COLLECTION = "proposals";
 const TRANSACTIONS_COLLECTION = "transactions";
 
+/**
+ * "Só os meus" no quadro (`lib/permissions/query-scope.ts`): quem vê só as
+ * próprias propostas, ou só os lançamentos das próprias vendas, recebe a
+ * coluna montada na memória a partir de uma consulta de igualdade.
+ * Lançamentos "só receitas" filtram pelo tipo na própria consulta.
+ */
+async function ownColumnDocs(collectionName: string, tenantId: string) {
+  const owner = await ownerFilter(collectionName === PROPOSALS_COLLECTION ? "proposals" : "transactions");
+  return owner ? fetchOwnDocs(collectionName, tenantId, owner) : null;
+}
+
+async function incomeOnly(collectionName: string): Promise<QueryConstraint[]> {
+  if (collectionName !== TRANSACTIONS_COLLECTION) return [];
+  return (await transactionScope()) === "income" ? [where("type", "==", "income")] : [];
+}
+
 // ============================================
 // HELPERS
 // ============================================
@@ -83,8 +101,20 @@ async function fetchColumnPage(
   options?: KanbanPageOptions,
 ): Promise<KanbanColumnPage<DocumentData & { id: string }>> {
   const pageSize = options?.pageSize ?? KANBAN_COLUMN_PAGE_SIZE;
+  const own = await ownColumnDocs(collectionName, tenantId);
+  if (own) {
+    const inColumn = own.filter((d) => statusValues.includes(String(d.data().status)));
+    const page = pageAfter(
+      sortSnapshots(inColumn, orderByField, "desc"),
+      options?.cursor ?? null,
+      pageSize,
+      (d) => ({ id: d.id, ...d.data() }),
+    );
+    return { items: page.data, cursor: page.lastDoc, hasMore: page.hasMore };
+  }
   const constraints: QueryConstraint[] = [
     where("tenantId", "==", tenantId),
+    ...(await incomeOnly(collectionName)),
     statusConstraint(statusValues),
     orderBy(orderByField, "desc"),
   ];
@@ -107,10 +137,13 @@ async function countColumn(
   tenantId: string,
   statusValues: string[],
 ): Promise<number> {
+  const own = await ownColumnDocs(collectionName, tenantId);
+  if (own) return own.filter((d) => statusValues.includes(String(d.data().status))).length;
   const snapshot = await getCountFromServer(
     query(
       collection(db, collectionName),
       where("tenantId", "==", tenantId),
+      ...(await incomeOnly(collectionName)),
       statusConstraint(statusValues),
     ),
   );

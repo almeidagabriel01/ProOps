@@ -26,6 +26,8 @@ const m = vi.hoisted(() => ({
 }));
 
 // O painel de tarefas tem teste próprio; aqui só importa que ele aparece.
+vi.mock("@/services/team-service", () => ({ TeamService: { people: async () => [] } }));
+vi.mock("@/hooks/usePermission", () => ({ usePermission: () => false }));
 vi.mock("@/components/features/tasks/tasks-panel", () => ({
   TasksPanel: () => <div data-testid="tasks-panel" />,
 }));

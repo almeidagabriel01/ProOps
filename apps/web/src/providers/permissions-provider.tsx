@@ -18,53 +18,29 @@ import {
   normalizeRole,
 } from "@/lib/permissions/member-view";
 import { db } from "@/lib/firebase";
+import {
+  SCOPE_OWNER_FIELD,
+  publishViewerScope,
+  type ScopedPageId,
+  type ViewerScope,
+} from "@/lib/permissions/query-scope";
 import { collection, getDocs, doc, getDoc } from "firebase/firestore";
+import {
+  getPermissionPageDef,
+  resolvePermissionKey,
+  resolvePermissionScope,
+} from "@/lib/permissions/catalog";
 
-// ============================================
-// TYPES
-// ============================================
+import {
+  PermissionsContext,
+  permissionDocOf,
+  usePermissions,
+  type PagePermission,
+  type UserPermissions,
+} from "./permissions-context";
 
-export interface PagePermission {
-  pageId: string;
-  pageSlug: string;
-  canView: boolean;
-  canCreate: boolean;
-  canEdit: boolean;
-  canDelete: boolean;
-}
-
-export interface UserPermissions {
-  role: "MASTER" | "MEMBER";
-  masterId: string | null;
-  companyId: string;
-  companyName: string;
-  masterName?: string; // Only for MEMBERs
-  pages: Record<string, PagePermission>;
-}
-
-interface PermissionsContextType {
-  permissions: UserPermissions | null;
-  isLoading: boolean;
-  hasPermission: (
-    pageId: string,
-    action: "view" | "create" | "edit" | "delete",
-  ) => boolean;
-  isMaster: boolean;
-  isMember: boolean;
-  /** Free/demo account: gets full UI permissions (writes blocked downstream). */
-  isDemo: boolean;
-  refreshPermissions: () => Promise<void>;
-}
-
-const PermissionsContext = React.createContext<PermissionsContextType>({
-  permissions: null,
-  isLoading: true,
-  hasPermission: () => false,
-  isMaster: false,
-  isMember: false,
-  isDemo: false,
-  refreshPermissions: async () => {},
-});
+export { PermissionsContext, permissionDocOf, usePermissions };
+export type { PagePermission, UserPermissions };
 
 // ============================================
 // PROVIDER
@@ -150,6 +126,7 @@ export function PermissionsProvider({
           canCreate: data.canCreate ?? false,
           canEdit: data.canEdit ?? false,
           canDelete: data.canDelete ?? false,
+          raw: data,
         };
       });
 
@@ -261,8 +238,13 @@ export function PermissionsProvider({
         return true;
       }
 
-      // MEMBER: Check explicit page permissions
+      // MEMBER: Check explicit page permissions. Página do catálogo passa pela
+      // mesma leitura do backend (a Lia vale sem doc gravado).
       const pagePerm = permissions.pages[pageId];
+      if (getPermissionPageDef(pageId)) {
+        const key = ({ view: "canView", create: "canCreate", edit: "canEdit", delete: "canDelete" } as const)[action];
+        return resolvePermissionKey(pageId, permissionDocOf(pagePerm), key);
+      }
       if (!pagePerm) {
         // MEMBER with no permission doc = no access
         return false;
@@ -288,12 +270,43 @@ export function PermissionsProvider({
   const isMember = permissions?.role === "MEMBER";
   const isDemo = String(user?.role || "").toLowerCase() === "free";
 
+  // A demonstração segue o mesmo desenho de `usePermission`: vê e abre tudo,
+  // sem criar nem excluir.
+  const hasPermissionKey = React.useCallback(
+    (pageId: string, key: string): boolean => {
+      if (!permissions) return false;
+      if (permissions.role === "MASTER") return true;
+      if (isDemo) {
+        return resolvePermissionKey(pageId, { canView: true, canCreate: false, canEdit: true, canDelete: false }, key);
+      }
+      return resolvePermissionKey(pageId, permissionDocOf(permissions.pages[pageId]), key);
+    },
+    [permissions, isDemo],
+  );
+
+  // "Só os meus" nas consultas do SDK (`lib/permissions/query-scope.ts`):
+  // publicado na renderização, antes dos efeitos das telas, para nenhuma lista
+  // sair sem o filtro do dono que as rules exigem. Na visão de membro do
+  // superadmin, o dono é o membro visto.
+  const scopeUid = viewingMember?.id ?? user?.id ?? null;
+  const viewerScope = React.useMemo<ViewerScope | null>(() => {
+    if (isLoading || isViewingMemberLoading) return null;
+    if (!permissions || permissions.role === "MASTER" || isDemo) return { uid: scopeUid, byPage: {} };
+    const byPage: ViewerScope["byPage"] = {};
+    for (const pageId of Object.keys(SCOPE_OWNER_FIELD) as ScopedPageId[]) {
+      byPage[pageId] = resolvePermissionScope(pageId, permissionDocOf(permissions.pages[pageId])) ?? "all";
+    }
+    return { uid: scopeUid, byPage };
+  }, [isLoading, isViewingMemberLoading, permissions, isDemo, scopeUid]);
+  publishViewerScope(user?.id ? viewerScope : { uid: null, byPage: {} });
+
   return (
     <PermissionsContext.Provider
       value={{
         permissions,
         isLoading,
         hasPermission,
+        hasPermissionKey,
         isMaster,
         isMember,
         isDemo,
@@ -309,12 +322,6 @@ export function PermissionsProvider({
 // HOOKS
 // ============================================
 
-/**
- * Main hook to access permissions context
- */
-export function usePermissions() {
-  return React.useContext(PermissionsContext);
-}
 
 /**
  * Hook to check permission for a specific page

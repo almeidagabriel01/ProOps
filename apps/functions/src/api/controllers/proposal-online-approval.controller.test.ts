@@ -306,14 +306,14 @@ describe("POST /v1/proposals/:id/acceptance/discard", () => {
     );
   });
 
-  it("sem permissão de editar propostas: 403", async () => {
+  it("sem 'Aprovar' em propostas: 403", async () => {
     mocks.hasPagePermission.mockResolvedValue(false);
     proposalDoc = { ...BASE, clientAcceptance: pendingAcceptance() };
     const res = fakeRes();
     await discardClientAcceptance(erpReq(), res);
 
     expect(res.statusCode).toBe(403);
-    expect(mocks.hasPagePermission).toHaveBeenCalledWith(expect.anything(), "proposals", "canEdit");
+    expect(mocks.hasPagePermission).toHaveBeenCalledWith(expect.anything(), "proposals", "approve");
     expect(transactionUpdate).not.toHaveBeenCalled();
   });
 

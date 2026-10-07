@@ -5,6 +5,7 @@ import Link from "next/link";
 import { FormItem, FormStatic } from "@/components/ui/form-components";
 import { Select } from "@/components/ui/select";
 import { usePlanLimits } from "@/hooks/usePlanLimits";
+import { usePermission } from "@/hooks/usePermission";
 import { usePriceTableOptions } from "@/hooks/use-price-tables";
 import { describePriceTableAdjustment } from "@/lib/pricing/price-table";
 import type { ClientType } from "@/services/client-service";
@@ -45,6 +46,8 @@ export function ContactPriceTableField({
   readOnly,
 }: ContactPriceTableFieldProps) {
   const { hasPriceTables } = usePlanLimits();
+  // "Tabela de preço do cliente": sem ela a escolha fica só leitura.
+  const canChoose = usePermission("clients", "priceTable");
   const visible = showsPriceTableField(types, hasPriceTables);
   const { options, isLoading } = usePriceTableOptions(visible);
 
@@ -53,7 +56,7 @@ export function ContactPriceTableField({
   const label = (option: { name: string; adjustmentPercent: number }) =>
     `${option.name}: ${describePriceTableAdjustment(option.adjustmentPercent).toLowerCase()}`;
 
-  if (readOnly) {
+  if (readOnly || !canChoose) {
     const current = options.find((option) => option.id === value);
     return (
       <FormStatic

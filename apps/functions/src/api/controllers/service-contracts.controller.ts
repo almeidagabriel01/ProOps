@@ -31,6 +31,7 @@ import {
 import { loadClientSnapshot, loadEquipmentLabels, loadOfTenant, loadTechnician } from "../services/field-service/field-service.service";
 import { notifyTechnician, syncOrderAgenda } from "./field-service.controller";
 import { SERVICE_ORDERS_COLLECTION } from "../services/field-service/field-service-model";
+import { recordMemberAudit } from "../../lib/member-audit";
 
 /**
  * Contratos de manutenção. Capacidade `fieldService` (montada por prefixo em
@@ -40,7 +41,8 @@ import { SERVICE_ORDERS_COLLECTION } from "../services/field-service/field-servi
  * adiantam a primeira execução para o contrato em questão.
  */
 
-type Action = "canView" | "canCreate" | "canEdit" | "canDelete";
+// Ação básica ou fina do catálogo de permissões (`lifecycle`, `editBilling`).
+type Action = "canView" | "canCreate" | "canEdit" | "canDelete" | "lifecycle" | "editBilling";
 
 class HttpError extends Error {
   constructor(
@@ -95,6 +97,59 @@ async function assertResponsible(responsibleId: string | null | undefined, tenan
   }
 }
 
+/**
+ * Ativar ou retomar põe o contrato para cobrar: a rotina lança uma
+ * mensalidade por mês e, com `issueNfse`, emite a NFS-e de cada uma. Isso é
+ * criar lançamento (e nota), então exige as permissões do financeiro e das
+ * notas, e não só "Editar" em Contratos. Até 2026-10 quem só editava
+ * contratos ligava a cobrança e a emissão sem ter nenhuma das duas.
+ * Suspender e encerrar só param de cobrar, e seguem com a permissão de
+ * Contratos.
+ */
+async function assertBillingPermission(req: Request, issueNfse: boolean) {
+  if (!(await hasPagePermission(req.user, "transactions", "canCreate"))) {
+    throw new HttpError(
+      403,
+      "Ligar a cobrança do contrato cria lançamentos: é preciso poder criar em Lançamentos.",
+    );
+  }
+  if (issueNfse && !(await hasPagePermission(req.user, "invoices", "canCreate"))) {
+    throw new HttpError(
+      403,
+      "Este contrato emite NFS-e: é preciso poder emitir em Notas Fiscais.",
+    );
+  }
+}
+
+/**
+ * O que a edição muda na cobrança de um contrato que já cobra. O formulário
+ * manda todos os campos em toda edição, então vale o valor, não a presença:
+ * quem só ajusta o plano de visitas não mexe no que é lançado.
+ */
+export function billingChanges(
+  current: Pick<ServiceContract, "lines" | "billingDay" | "wallet" | "issueNfse">,
+  input: { lines?: unknown; billingDay?: number; wallet?: string; issueNfse?: boolean },
+): { changed: boolean; issueNfse: boolean } {
+  const issueNfse = input.issueNfse ?? current.issueNfse === true;
+  const linesKey = (lines: unknown) =>
+    JSON.stringify(
+      (Array.isArray(lines) ? lines : []).map((line: Record<string, unknown>) => [
+        line.id,
+        line.kind,
+        line.refId ?? null,
+        line.name,
+        Number(line.quantity),
+        Number(line.unitPrice),
+      ]),
+    );
+  const changed =
+    (input.lines !== undefined && linesKey(input.lines) !== linesKey(current.lines)) ||
+    (input.billingDay !== undefined && input.billingDay !== current.billingDay) ||
+    (input.wallet !== undefined && input.wallet !== current.wallet) ||
+    (input.issueNfse !== undefined && input.issueNfse !== (current.issueNfse === true));
+  return { changed, issueNfse };
+}
+
 /** A mensalidade vira lançamento: sem o financeiro no plano, não há onde cobrar. */
 async function assertFinancial(tenantId: string) {
   if (!(await tenantHasCapability(tenantId, "financial"))) {
@@ -142,6 +197,10 @@ export async function createServiceContract(req: Request, res: Response) {
   if (!parsed.success) return res.status(400).json({ message: firstIssue(parsed.error) });
   try {
     const { tenantId, uid } = await requireAccess(req, "canCreate");
+    // O contrato nasce com a mensalidade: quem não vê os valores não a monta.
+    if (!(await hasPagePermission(req.user, "contracts", "viewValues"))) {
+      throw new HttpError(403, "Criar contrato pede a permissão de ver os valores da mensalidade.");
+    }
     const input = parsed.data;
     const client = await loadClientSnapshot(input.clientId, tenantId);
     if (!client) return res.status(404).json({ message: "Contato não encontrado." });
@@ -215,6 +274,23 @@ export async function updateServiceContract(req: Request, res: Response) {
     const { ref, contract } = await loadContract(req, tenantId);
     if (contract.status === "ended") throw new HttpError(409, "Este contrato está encerrado.");
     const input = parsed.data;
+    // Quem não vê os valores recebe a tela sem preço: as linhas que ele
+    // reenviasse viriam sem o valor de verdade. Ficam as gravadas.
+    if (input.lines !== undefined && !(await hasPagePermission(req.user, "contracts", "viewValues"))) {
+      delete input.lines;
+    }
+    // Num contrato que já cobra, mudar valor, dia, carteira ou NFS-e muda o que
+    // é lançado daqui para a frente. No rascunho, a ativação confere.
+    if (contract.status !== "draft") {
+      const billing = billingChanges(contract, input);
+      if (billing.changed) {
+        // "Editar a cobrança" (ausente, vale o Editar) e o financeiro.
+        if (!(await hasPagePermission(req.user, "contracts", "editBilling"))) {
+          throw new HttpError(403, "Sem permissão para mudar a cobrança do contrato.");
+        }
+        await assertBillingPermission(req, billing.issueNfse);
+      }
+    }
 
     const update: Record<string, unknown> = { updatedAt: new Date().toISOString() };
     for (const key of ["title", "type", "lines", "billingDay", "wallet", "issueNfse", "notes", "endDate"] as const) {
@@ -281,10 +357,11 @@ export async function activateServiceContract(req: Request, res: Response) {
   const parsed = ActivateContractSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ message: firstIssue(parsed.error) });
   try {
-    const { tenantId, uid } = await requireAccess(req, "canEdit");
+    const { tenantId, uid } = await requireAccess(req, "lifecycle");
     await assertFinancial(tenantId);
     const { ref, contract } = await loadContract(req, tenantId);
     assertTransition(contract.status, "active");
+    await assertBillingPermission(req, contract.issueNfse === true);
     if (contract.lines.length === 0 || contract.monthlyAmount <= 0) {
       throw new HttpError(400, "Defina o valor da mensalidade antes de ativar.");
     }
@@ -320,6 +397,12 @@ export async function activateServiceContract(req: Request, res: Response) {
       updatedAt: new Date().toISOString(),
     });
     await runNow(contract.id, tenantId, uid);
+    await recordMemberAudit({
+      tenantId,
+      actorUid: uid,
+      action: "contract_activated",
+      target: { type: "contract", id: contract.id, label: `${contract.code ?? ""} ${contract.title ?? ""}`.trim() },
+    });
     return res.json({ success: true });
   } catch (error) {
     return fail(res, error, "Erro ao ativar o contrato.", "service_contract_activate_failed");
@@ -329,7 +412,7 @@ export async function activateServiceContract(req: Request, res: Response) {
 /** POST /v1/service-contracts/:id/suspend. A mensalidade para de ser lançada. */
 export async function suspendServiceContract(req: Request, res: Response) {
   try {
-    const { tenantId, uid } = await requireAccess(req, "canEdit");
+    const { tenantId, uid } = await requireAccess(req, "lifecycle");
     const { ref, contract } = await loadContract(req, tenantId);
     assertTransition(contract.status, "suspended");
     await ref.update({
@@ -353,13 +436,14 @@ export async function suspendServiceContract(req: Request, res: Response) {
  */
 export async function resumeServiceContract(req: Request, res: Response) {
   try {
-    const { tenantId, uid } = await requireAccess(req, "canEdit");
+    const { tenantId, uid } = await requireAccess(req, "lifecycle");
     await assertFinancial(tenantId);
     if (!(await tenantHasCapability(tenantId, "fieldService"))) {
       throw new HttpError(402, "O seu plano não inclui contratos de manutenção.");
     }
     const { ref, contract } = await loadContract(req, tenantId);
     assertTransition(contract.status, "active");
+    await assertBillingPermission(req, contract.issueNfse === true);
     const today = todayInBrazil();
     const plan = contract.visitPlan;
     const nextVisitDate =
@@ -384,7 +468,7 @@ export async function resumeServiceContract(req: Request, res: Response) {
 /** POST /v1/service-contracts/:id/end. Mensalidades já lançadas ficam no financeiro. */
 export async function endServiceContract(req: Request, res: Response) {
   try {
-    const { tenantId, uid } = await requireAccess(req, "canEdit");
+    const { tenantId, uid } = await requireAccess(req, "lifecycle");
     const { ref, contract } = await loadContract(req, tenantId);
     assertTransition(contract.status, "ended");
     await ref.update({
@@ -393,6 +477,12 @@ export async function endServiceContract(req: Request, res: Response) {
       endedBy: uid,
       endedReason: "manual",
       updatedAt: new Date().toISOString(),
+    });
+    await recordMemberAudit({
+      tenantId,
+      actorUid: uid,
+      action: "contract_ended",
+      target: { type: "contract", id: contract.id, label: `${contract.code ?? ""} ${contract.title ?? ""}`.trim() },
     });
     return res.json({ success: true });
   } catch (error) {

@@ -51,11 +51,18 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { useSort } from "@/hooks/use-sort";
 import { SelectTenantState } from "@/components/shared/select-tenant-state";
+import { usePageScope, usePermission, useSensitiveData } from "@/hooks/usePermission";
 
 export default function FinancialPage() {
   const { tenant, isLoading: tenantLoading } = useTenant();
   const { user } = useAuth();
   const { canCreate, canEdit, canDelete } = usePagePermission("transactions");
+  const { canSeeBalance } = useSensitiveData();
+  const canExport = usePermission("transactions", "export");
+  // "Só receitas" e "só as minhas vendas": a aba Agrupados soma lançamentos de
+  // todo alcance (as rules a negam), então quem não vê tudo fica na lista.
+  const { scope: transactionsScope, isLoading: scopeLoading } = usePageScope("transactions");
+  const seesAllTransactions = scopeLoading || transactionsScope === "all";
   // Carteiras e CRM não estão na dock — chega-se a elas por estes botões, então
   // é aqui que a permissão de cada uma tem que ser checada.
   const { canView: canViewCrm } = usePagePermission("kanban");
@@ -105,6 +112,11 @@ export default function FinancialPage() {
     refreshData,
     wallets,
   } = useFinancialData(initialUrlFilters);
+  // Quem não vê todos os lançamentos fica na lista: Agrupados soma todo alcance.
+  React.useEffect(() => {
+    if (!seesAllTransactions && viewMode === "grouped") setViewMode("byDueDate");
+  }, [seesAllTransactions, viewMode, setViewMode]);
+
 
   React.useEffect(() => {
     replaceUrlSearchParams(
@@ -136,7 +148,7 @@ export default function FinancialPage() {
   // membros lazy — independente do filtro de data (2026-07-06).
   const grouped = useGroupedTransactions({
     tenantId: tenant?.id,
-    enabled: viewMode === "grouped" && hasFinancial,
+    enabled: viewMode === "grouped" && hasFinancial && seesAllTransactions,
   });
   // Exclusões ainda dentro da janela de "Desfazer": a aba Agrupados lê resumos
   // do servidor, que só mudam depois da gravação, então a tela esconde o que
@@ -731,7 +743,7 @@ export default function FinancialPage() {
                 </Button>
               ))}
 
-            {viewMode === "byDueDate" && (
+            {viewMode === "byDueDate" && canExport && (
               <ExportMenu
                 size="lg"
                 onExport={handleExportPeriod}
@@ -749,6 +761,7 @@ export default function FinancialPage() {
             )}
           </div>
 
+          {canSeeBalance && (
           <div className="text-center sm:text-right">
             <div className="flex items-center gap-2 text-muted-foreground mb-1 justify-center sm:justify-end">
               <Wallet className="w-4 h-4" />
@@ -762,6 +775,7 @@ export default function FinancialPage() {
               {formatCurrency(balance)}
             </div>
           </div>
+          )}
         </div>
       </div>
 
@@ -830,7 +844,7 @@ export default function FinancialPage() {
         sortBy={sortBy}
         onSortChange={setSortBy}
         viewMode={viewMode}
-        onViewModeChange={handleViewModeChange}
+        onViewModeChange={seesAllTransactions ? handleViewModeChange : undefined}
       />
 
       <BulkActionsBar

@@ -18,6 +18,7 @@ import { TransferInput } from "@/services/wallet-service";
 import { CurrencyInput } from "@/components/ui/currency-input";
 import { formatCurrency } from "@/utils/format";
 import { Loader } from "@/components/ui/loader";
+import { useSensitiveData } from "@/hooks/usePermission";
 
 interface TransferDialogProps {
   open: boolean;
@@ -34,6 +35,7 @@ export function TransferDialog({
   selectedWallet,
   onSubmit,
 }: TransferDialogProps) {
+  const { canSeeBalance } = useSensitiveData();
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const [fromWalletId, setFromWalletId] = React.useState("");
   const [toWalletId, setToWalletId] = React.useState("");
@@ -103,11 +105,11 @@ export function TransferDialog({
                   .filter((w) => w.id !== toWalletId)
                   .map((wallet) => (
                     <option key={wallet.id} value={wallet.id}>
-                      {wallet.name} - {formatCurrency(wallet.balance)}
+                      {canSeeBalance ? `${wallet.name} - ${formatCurrency(wallet.balance)}` : wallet.name}
                     </option>
                   ))}
               </Select>
-              {fromWallet && (
+              {fromWallet && canSeeBalance && (
                 <p className="text-sm text-muted-foreground">
                   Saldo disponível: {formatCurrency(fromWallet.balance)}
                 </p>

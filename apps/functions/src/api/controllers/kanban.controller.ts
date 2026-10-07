@@ -27,7 +27,10 @@ export async function createKanbanStatus(req: Request, res: Response) {
       return res.status(403).json({ message: "Tenant não identificado." });
     }
 
-    if (!(await hasPagePermission(req.user, "kanban", "canCreate"))) {
+    if (
+      !(await hasPagePermission(req.user, "kanban", "canCreate")) ||
+      !(await hasPagePermission(req.user, "kanban", "columns"))
+    ) {
       return res
         .status(403)
         .json({ message: "Sem permissão para criar colunas." });
@@ -112,7 +115,10 @@ export async function updateKanbanStatus(req: Request, res: Response) {
       return res.status(403).json({ message: "Tenant não identificado." });
     }
 
-    if (!(await hasPagePermission(req.user, "kanban", "canEdit"))) {
+    if (
+      !(await hasPagePermission(req.user, "kanban", "canEdit")) ||
+      !(await hasPagePermission(req.user, "kanban", "columns"))
+    ) {
       return res
         .status(403)
         .json({ message: "Sem permissão para editar colunas." });
@@ -209,7 +215,10 @@ export async function deleteKanbanStatus(req: Request, res: Response) {
       return res.status(403).json({ message: "Tenant não identificado." });
     }
 
-    if (!(await hasPagePermission(req.user, "kanban", "canDelete"))) {
+    if (
+      !(await hasPagePermission(req.user, "kanban", "canDelete")) ||
+      !(await hasPagePermission(req.user, "kanban", "columns"))
+    ) {
       return res
         .status(403)
         .json({ message: "Sem permissão para excluir colunas." });
@@ -248,7 +257,10 @@ export async function reorderKanbanStatuses(req: Request, res: Response) {
       return res.status(403).json({ message: "Tenant não identificado." });
     }
 
-    if (!(await hasPagePermission(req.user, "kanban", "canEdit"))) {
+    if (
+      !(await hasPagePermission(req.user, "kanban", "canEdit")) ||
+      !(await hasPagePermission(req.user, "kanban", "columns"))
+    ) {
       return res
         .status(403)
         .json({ message: "Sem permissão para reordenar colunas." });

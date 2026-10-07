@@ -130,6 +130,8 @@ export class NotificationService {
     tenantId: string,
     type: NotificationType,
     targetUids?: string[],
+    /** Os ids da notificação, para o alcance "só os meus" de quem recebe. */
+    refs?: Partial<Record<string, unknown>>,
   ): Promise<{ fields: { recipientUids: string[]; readBy: string[] }; emailRecipients: EmailRecipient[] }> {
     if (tenantId === SYSTEM_TENANT_ID) {
       return { fields: { recipientUids: [], readBy: [] }, emailRecipients: [] };
@@ -138,6 +140,7 @@ export class NotificationService {
       tenantId,
       type,
       targetUids,
+      refs,
     );
     return { fields: { recipientUids, readBy: [] }, emailRecipients };
   }
@@ -211,6 +214,7 @@ export class NotificationService {
         data.tenantId,
         data.type,
         targetUids,
+        rest,
       );
       const notification: Omit<Notification, "id"> = {
         ...rest,

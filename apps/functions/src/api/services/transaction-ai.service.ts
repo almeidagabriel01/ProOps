@@ -1,7 +1,8 @@
 import { db } from "../../init";
-import { FieldValue, Timestamp } from "firebase-admin/firestore";
+import { Timestamp } from "firebase-admin/firestore";
 import { randomUUID } from "crypto";
 import { roundCurrency, addDateMonths } from "./transaction-helpers";
+import { TransactionService } from "./transaction.service";
 
 const COLLECTION_NAME = "transactions";
 
@@ -35,6 +36,8 @@ export async function listTransactionsForAi(
     startDate?: string;
     endDate?: string;
     limit?: number;
+    /** O alcance de Lançamentos: `type == income` ou `sellerId == uid`. */
+    scope?: { field: "type" | "sellerId"; value: string };
   },
 ): Promise<TransactionListItem[]> {
   const maxLimit = Math.min(opts?.limit || 20, 100);
@@ -42,6 +45,12 @@ export async function listTransactionsForAi(
   let query: FirebaseFirestore.Query = db
     .collection(COLLECTION_NAME)
     .where("tenantId", "==", tenantId);
+
+  if (opts?.scope) {
+    // "Só receitas" pedindo despesas: nada a mostrar.
+    if (opts.scope.field === "type" && opts.type && opts.type !== opts.scope.value) return [];
+    if (!(opts.scope.field === "type" && opts.type)) query = query.where(opts.scope.field, "==", opts.scope.value);
+  }
 
   if (opts?.type) {
     query = query.where("type", "==", opts.type);
@@ -83,6 +92,19 @@ export async function createTransactionForAi(
   tenantId: string,
   uid: string,
 ): Promise<{ id: string; description: string; amount: number; status: string }> {
+  // Carteira e proposta vêm do modelo: as duas têm que ser da empresa, senão
+  // o lançamento apontaria para a carteira (ou a proposta) de outra.
+  const walletSnap = await db.collection("wallets").doc(params.walletId).get();
+  if (!walletSnap.exists || walletSnap.data()?.tenantId !== tenantId) {
+    throw new Error("Carteira não encontrada nesta empresa.");
+  }
+  if (params.proposalId) {
+    const proposalSnap = await db.collection("proposals").doc(params.proposalId).get();
+    if (!proposalSnap.exists || proposalSnap.data()?.tenantId !== tenantId) {
+      throw new Error("Proposta não encontrada nesta empresa.");
+    }
+  }
+
   const now = Timestamp.now();
   const installments = params.installments && params.installments > 1 ? params.installments : 1;
 
@@ -166,101 +188,76 @@ export async function createTransactionForAi(
   };
 }
 
+/** Quem pediu à Lia: o mesmo contexto que a request HTTP teria. */
+export interface AiFinanceActor {
+  uid: string;
+  role: string;
+  tenantId: string;
+}
+
+function actorClaims(actor: AiFinanceActor) {
+  return { uid: actor.uid, role: String(actor.role || "").toUpperCase(), tenantId: actor.tenantId };
+}
+
+/**
+ * Excluir pela Lia passa pelo MESMO `TransactionService.deleteTransaction` da
+ * tela: ele estorna o saldo da carteira de um lançamento pago, recusa o
+ * lançamento de proposta aprovada e confere a permissão. Até 2026-10 a Lia
+ * apagava o documento direto, e um lançamento pago sumia deixando o saldo da
+ * carteira errado em silêncio.
+ */
 export async function deleteTransactionForAi(
   transactionId: string,
-  tenantId: string,
+  actor: AiFinanceActor,
 ): Promise<{ id: string; deleted: boolean }> {
-  const snap = await db.collection(COLLECTION_NAME).doc(transactionId).get();
-
-  if (!snap.exists) {
-    throw new Error("Transação não encontrada.");
-  }
-
-  const data = snap.data()!;
-
-  if (data.tenantId !== tenantId) {
-    throw new Error("Transação não pertence a este tenant.");
-  }
-
-  await db.collection(COLLECTION_NAME).doc(transactionId).delete();
-
+  await TransactionService.deleteTransaction(actor.uid, actorClaims(actor), transactionId);
   return { id: transactionId, deleted: true };
 }
 
+/**
+ * Pagar uma parcela pela Lia passa pelo `TransactionService.updateTransaction`,
+ * que move o saldo e grava `paidAt` como a tela. A versão anterior lia a
+ * carteira depois de gravar dentro da transação (o Firestore recusa) e
+ * gravava `paidAt` como texto.
+ */
 export async function payInstallmentForAi(
   transactionId: string,
   installmentNumber: number,
-  tenantId: string,
+  actor: AiFinanceActor,
   paidAt?: string,
 ): Promise<{ id: string; installmentNumber: number; status: string }> {
-  await db.runTransaction(async (t) => {
-    const ref = db.collection(COLLECTION_NAME).doc(transactionId);
-    const snap = await t.get(ref);
+  const snap = await db.collection(COLLECTION_NAME).doc(transactionId).get();
+  if (!snap.exists) {
+    throw new Error("Transação não encontrada.");
+  }
+  const data = snap.data()!;
+  if (data.tenantId !== actor.tenantId) {
+    throw new Error("Transação não pertence a este tenant.");
+  }
+  if (!data.isInstallment) {
+    throw new Error("Esta transação não é uma parcela.");
+  }
+  if (data.installmentNumber !== installmentNumber) {
+    throw new Error(
+      `Número de parcela não coincide: esperado ${data.installmentNumber}, recebido ${installmentNumber}.`,
+    );
+  }
+  if (data.status === "paid") {
+    throw new Error("Parcela ja esta paga.");
+  }
 
-    if (!snap.exists) {
-      throw new Error("Transação não encontrada.");
-    }
-
-    const data = snap.data()!;
-
-    if (data.tenantId !== tenantId) {
-      throw new Error("Transação não pertence a este tenant.");
-    }
-
-    if (!data.isInstallment) {
-      throw new Error("Esta transação não é uma parcela.");
-    }
-
-    if (data.installmentNumber !== installmentNumber) {
-      throw new Error(
-        `Número de parcela não coincide: esperado ${data.installmentNumber}, recebido ${installmentNumber}.`,
-      );
-    }
-
-    if (data.status === "paid") {
-      throw new Error("Parcela ja esta paga.");
-    }
-
-    const now = Timestamp.now();
-    const update: Record<string, unknown> = {
-      status: "paid",
-      paidAt: paidAt || now.toDate().toISOString(),
-      updatedAt: now,
-    };
-
-    t.update(ref, update);
-
-    // Update wallet balance if wallet is set
-    if (data.wallet && data.amount) {
-      const walletSnap = await db
-        .collection("wallets")
-        .where("tenantId", "==", tenantId)
-        .where("name", "==", data.wallet)
-        .limit(1)
-        .get();
-
-      // Also try by ID
-      const walletByIdSnap = await t.get(
-        db.collection("wallets").doc(data.wallet as string),
-      );
-
-      let walletRef: FirebaseFirestore.DocumentReference | null = null;
-
-      if (walletByIdSnap.exists && walletByIdSnap.data()?.tenantId === tenantId) {
-        walletRef = walletByIdSnap.ref;
-      } else if (!walletSnap.empty) {
-        walletRef = walletSnap.docs[0].ref;
-      }
-
-      if (walletRef) {
-        const delta = data.type === "income" ? data.amount : -(data.amount as number);
-        t.update(walletRef, {
-          balance: FieldValue.increment(delta),
-          updatedAt: now,
-        });
-      }
-    }
+  await TransactionService.updateTransaction(actor.uid, actorClaims(actor), transactionId, {
+    status: "paid",
   });
+
+  // Data de pagamento informada (dd/MM/yyyy já convertida): meio-dia no
+  // horário de Brasília, para não virar o dia anterior no UTC.
+  if (paidAt && /^\d{4}-\d{2}-\d{2}$/.test(paidAt)) {
+    await db
+      .collection(COLLECTION_NAME)
+      .doc(transactionId)
+      .update({ paidAt: Timestamp.fromDate(new Date(`${paidAt}T12:00:00-03:00`)) });
+  }
 
   return { id: transactionId, installmentNumber, status: "paid" };
 }

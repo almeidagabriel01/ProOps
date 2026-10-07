@@ -11,6 +11,11 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 
 // O painel de tarefas tem teste próprio; aqui só importa que ele aparece.
+const perm = vi.hoisted(() => ({ reassign: false }));
+vi.mock("@/services/team-service", () => ({
+  TeamService: { people: async () => [{ id: "u1", name: "Ana" }, { id: "u2", name: "Bruno" }] },
+}));
+vi.mock("@/hooks/usePermission", () => ({ usePermission: () => perm.reassign }));
 vi.mock("@/components/features/tasks/tasks-panel", () => ({
   TasksPanel: () => <div data-testid="tasks-panel" />,
 }));
@@ -45,7 +50,10 @@ const LEAD = {
 
 const noop = () => undefined;
 
-beforeEach(() => vi.clearAllMocks());
+beforeEach(() => {
+  vi.clearAllMocks();
+  perm.reassign = false;
+});
 
 describe("LeadDetailSheet", () => {
   it("seletor de tipo com a mesma altura do campo de texto", async () => {
@@ -76,5 +84,37 @@ describe("LeadDetailSheet", () => {
     await screen.findByText("Nenhuma atividade registrada.");
     expect(screen.queryByLabelText("Tipo de atividade")).toBeNull();
     expect(screen.queryByRole("button", { name: /Converter/ })).toBeNull();
+  });
+
+  it("com 'Trocar dono do lead', escolhe o responsável na ficha; sem ela, só lê", async () => {
+    const { unmount } = render(
+      <LeadDetailSheet
+        lead={{ ...LEAD, ownerId: "u1", ownerName: "Ana" }}
+        canEdit
+        canDelete
+        onClose={noop}
+        onEdit={noop}
+        onChanged={noop}
+        onDeleted={noop}
+      />,
+    );
+    await screen.findByText("Nenhuma atividade registrada.");
+    expect(screen.queryByLabelText("Responsável")).not.toBeInTheDocument();
+    expect(screen.getByText("Responsável: Ana")).toBeInTheDocument();
+    unmount();
+
+    perm.reassign = true;
+    render(
+      <LeadDetailSheet
+        lead={{ ...LEAD, ownerId: "u1", ownerName: "Ana" }}
+        canEdit
+        canDelete
+        onClose={noop}
+        onEdit={noop}
+        onChanged={noop}
+        onDeleted={noop}
+      />,
+    );
+    expect(await screen.findByLabelText("Responsável")).toBeInTheDocument();
   });
 });

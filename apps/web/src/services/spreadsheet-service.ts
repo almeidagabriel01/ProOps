@@ -23,6 +23,8 @@ import {
 import { PaginatedResult } from "./client-service";
 import { ApiError, callApi } from "@/lib/api-client";
 import { DEFAULT_SPREADSHEET_LOCALE } from "@/lib/univer-pt-br";
+import { ownerFilter } from "@/lib/permissions/query-scope";
+import { fetchOwnDocs, pageAfter, sortSnapshots } from "./own-scope";
 
 export type Spreadsheet = {
   id: string;
@@ -126,9 +128,12 @@ function mapSpreadsheetDoc(
 export const SpreadsheetService = {
   getSpreadsheets: async (tenantId: string): Promise<Spreadsheet[]> => {
     try {
+      // "Só as minhas" (quem criou): as rules recusam a lista sem o filtro.
+      const owner = await ownerFilter("spreadsheets");
       const q = query(
         collection(db, COLLECTION_NAME),
         where("tenantId", "==", tenantId),
+        ...(owner ? [where(owner.field, "==", owner.uid)] : []),
       );
 
       const querySnapshot = await getDocs(q);
@@ -148,6 +153,12 @@ export const SpreadsheetService = {
     try {
       const sortField = sortConfig?.key || "updatedAt";
       const sortDirection = sortConfig?.direction || "desc";
+
+      const owner = await ownerFilter("spreadsheets");
+      if (owner) {
+        const own = await fetchOwnDocs(COLLECTION_NAME, tenantId, owner);
+        return pageAfter(sortSnapshots(own, sortField, sortDirection), cursor, pageSize, mapSpreadsheetDoc);
+      }
 
       const q = cursor
         ? query(

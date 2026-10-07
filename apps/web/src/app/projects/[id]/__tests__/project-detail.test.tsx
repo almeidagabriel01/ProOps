@@ -37,6 +37,11 @@ vi.mock("@/hooks/usePlanLimits", () => ({ usePlanLimits: () => ({ hasProjects: t
 vi.mock("@/hooks/usePagePermission", () => ({
   usePagePermission: (pageId: string) => m.perms[pageId] ?? ALL,
 }));
+// As ações finas seguem o Editar da página no teste (o fallback do catálogo).
+vi.mock("@/hooks/usePermission", () => ({
+  usePermission: (pageId: string) => Boolean((m.perms[pageId] ?? ALL).canEdit),
+  useSensitiveData: () => ({ isLoading: false, canSeeCost: true, canSeeStock: true }),
+}));
 vi.mock("@/lib/toast", () => ({ toast: Object.assign(vi.fn(), { error: m.toastError, success: vi.fn(), info: vi.fn() }) }));
 vi.mock("@/services/projects-service", () => ({
   ProjectsService: {

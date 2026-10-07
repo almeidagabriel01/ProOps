@@ -34,14 +34,11 @@ import {
   handleListRecentTransactions,
   handleWeeklySummary,
   handleSendTransactionLink,
+  canAccessFinancialViaWhatsApp,
 } from "../services/whatsapp/whatsapp.flows";
 
 const MONTHLY_LIMIT = Number(process.env.WHATSAPP_MONTHLY_LIMIT) || 2000;
 
-/** Roles allowed to access financial data via WhatsApp */
-const FINANCIAL_ACCESS_ROLES = new Set(["admin", "master", "wk", "superadmin"]);
-const canAccessFinancial = (role: string): boolean =>
-  FINANCIAL_ACCESS_ROLES.has(role);
 
 export const verifyChallenge = async (req: Request, res: Response) => {
   const mode = req.query["hub.mode"] as string;
@@ -234,6 +231,13 @@ export const handleWebhook = async (req: Request, res: Response) => {
         }
 
         const tenantId = indexedTenantId;
+        // O financeiro pelo WhatsApp segue a permissão do ERP ("Ver" em
+        // Lançamentos ou Carteiras), não o papel: antes um membro com a
+        // permissão era barrado e todo administrador passava. Consultada uma
+        // vez por mensagem, só quando uma opção financeira entra em jogo.
+        let financialAccess: Promise<boolean> | null = null;
+        const hasFinancialAccess = () =>
+          (financialAccess ??= canAccessFinancialViaWhatsApp(user.id, effectiveRole));
         const maskedPhone =
           phone.length > 4
             ? phone.slice(0, 4) + "*****" + phone.slice(-4)
@@ -346,7 +350,7 @@ export const handleWebhook = async (req: Request, res: Response) => {
             await handleListProposals(from, tenantId, user.id, effectiveRole);
             actionProcessed = true;
           } else if (interactiveId === "menu_financial") {
-            if (!canAccessFinancial(effectiveRole)) {
+            if (!(await hasFinancialAccess())) {
               await sendWhatsAppMessage(
                 from,
                 "Você não tem permissão para acessar informações financeiras pelo WhatsApp.",
@@ -359,7 +363,7 @@ export const handleWebhook = async (req: Request, res: Response) => {
             }
             actionProcessed = true;
           } else if (interactiveId === "menu_balance") {
-            if (!canAccessFinancial(effectiveRole)) {
+            if (!(await hasFinancialAccess())) {
               await sendWhatsAppMessage(
                 from,
                 "Você não tem permissão para acessar o saldo pelo WhatsApp.",
@@ -372,7 +376,7 @@ export const handleWebhook = async (req: Request, res: Response) => {
             }
             actionProcessed = true;
           } else if (interactiveId === "menu_transactions") {
-            if (!canAccessFinancial(effectiveRole)) {
+            if (!(await hasFinancialAccess())) {
               await sendWhatsAppMessage(
                 from,
                 "Você não tem permissão para acessar os lançamentos pelo WhatsApp.",
@@ -385,7 +389,7 @@ export const handleWebhook = async (req: Request, res: Response) => {
             }
             actionProcessed = true;
           } else if (interactiveId === "menu_weekly_bills") {
-            if (!canAccessFinancial(effectiveRole)) {
+            if (!(await hasFinancialAccess())) {
               await sendWhatsAppMessage(
                 from,
                 "Você não tem permissão para acessar o financeiro da semana pelo WhatsApp.",
@@ -411,6 +415,7 @@ export const handleWebhook = async (req: Request, res: Response) => {
               tenantId,
               transactionId,
               user.id,
+              effectiveRole,
             );
             actionProcessed = true;
           }
@@ -473,7 +478,7 @@ export const handleWebhook = async (req: Request, res: Response) => {
             (t) => normalizedText.includes(t),
           )
         ) {
-          if (!canAccessFinancial(effectiveRole)) {
+          if (!(await hasFinancialAccess())) {
             await sendWhatsAppMessage(
               from,
               "Você não tem permissão para acessar informações financeiras pelo WhatsApp.",
@@ -491,7 +496,7 @@ export const handleWebhook = async (req: Request, res: Response) => {
             normalizedText.includes(t),
           )
         ) {
-          if (!canAccessFinancial(effectiveRole)) {
+          if (!(await hasFinancialAccess())) {
             await sendWhatsAppMessage(
               from,
               "Você não tem permissão para acessar o saldo pelo WhatsApp.",
@@ -516,7 +521,7 @@ export const handleWebhook = async (req: Request, res: Response) => {
         } else {
           let interactivePayload: any;
 
-          if (canAccessFinancial(effectiveRole)) {
+          if (await hasFinancialAccess()) {
             const listRows = [
               {
                 id: "menu_proposals",

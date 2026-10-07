@@ -30,6 +30,7 @@ import {
   Tag,
 } from "lucide-react";
 import { useCurrentNicheConfig } from "@/hooks/useCurrentNicheConfig";
+import { useSensitiveData } from "@/hooks/usePermission";
 import { AIFieldButton } from "@/components/shared/ai-field-button";
 import { ProductPricingStep } from "./product-pricing-step";
 import {
@@ -111,6 +112,7 @@ export function ProductFormNew({
 }: ProductFormNewProps) {
   const router = useRouter();
   const nicheConfig = useCurrentNicheConfig();
+  const { canSeeCost, canSeeStock } = useSensitiveData();
   const allowsDimensionPricing = nicheConfig.pricing.dimensionModes.length > 0;
   const {
     formData,
@@ -635,11 +637,13 @@ export function ProductFormNew({
                 ) : null}
                 {entityType === "product" && (
                   <>
-                    <div>
-                      <span className="text-muted-foreground">Preço bruto base:</span>
-                      <p className="font-medium">R$ {basePrice.toFixed(2)}</p>
-                    </div>
-                    {formData.pricingMode !== "curtain_height" && (
+                    {canSeeCost && (
+                      <div>
+                        <span className="text-muted-foreground">Preço bruto base:</span>
+                        <p className="font-medium">R$ {basePrice.toFixed(2)}</p>
+                      </div>
+                    )}
+                    {canSeeCost && formData.pricingMode !== "curtain_height" && (
                       <div>
                         <span className="text-muted-foreground">Markup:</span>
                         <p className="font-medium">{markupValue.toFixed(2)}%</p>
@@ -655,7 +659,7 @@ export function ProductFormNew({
                         </p>
                       </div>
                     )}
-                    {shouldShowInventorySummary && (
+                    {shouldShowInventorySummary && canSeeStock && (
                       <div>
                         <span className="text-muted-foreground">
                           {inventoryReadOnlyLabel}:

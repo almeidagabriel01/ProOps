@@ -5,6 +5,7 @@ import { CheckCircle2, FileSpreadsheet, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Loader } from "@/components/ui/loader";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
+import { usePermission } from "@/hooks/usePermission";
 
 interface BulkActionsBarProps {
   selectedCount: number;
@@ -41,6 +42,8 @@ export function BulkActionsBar({
   onExport,
   onDelete,
 }: BulkActionsBarProps) {
+  const canSettle = usePermission("transactions", "settle");
+  const canExport = usePermission("transactions", "export");
   const [confirm, setConfirm] = React.useState<"paid" | "delete" | null>(null);
   const [isExporting, setIsExporting] = React.useState(false);
 
@@ -67,7 +70,7 @@ export function BulkActionsBar({
           {plural(selectedCount, "lançamento selecionado", "lançamentos selecionados")}
         </span>
         <div className="flex flex-wrap gap-2">
-          {canEdit && payableCount > 0 && (
+          {canEdit && canSettle && payableCount > 0 && (
             <Button
               size="sm"
               variant="outline"
@@ -78,6 +81,7 @@ export function BulkActionsBar({
               Marcar como pago
             </Button>
           )}
+          {canExport && (
           <Button
             size="sm"
             variant="outline"
@@ -91,6 +95,7 @@ export function BulkActionsBar({
             )}
             Exportar Excel
           </Button>
+          )}
           {canDelete && deletableCount > 0 && (
             <Button
               size="sm"

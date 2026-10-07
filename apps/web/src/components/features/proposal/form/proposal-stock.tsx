@@ -3,6 +3,7 @@
 import * as React from "react";
 import { AlertTriangle } from "lucide-react";
 import { useCurrentNicheConfig } from "@/hooks/useCurrentNicheConfig";
+import { useSensitiveData } from "@/hooks/usePermission";
 import {
   formatInventoryValue,
   inventoryDefinitionFor,
@@ -83,8 +84,10 @@ interface ProductStockHintProps {
 export function ProductStockHint({ product, className }: ProductStockHintProps) {
   const context = React.useContext(ProposalStockContext);
   const format = useStockFormatter();
+  // Estoque é dado sensível ("Ver estoque" no catálogo de permissões).
+  const { canSeeStock } = useSensitiveData();
   const status = productStockStatus(product, context?.usage.get(product.id) ?? 0);
-  if (!status) return null;
+  if (!status || !canSeeStock) return null;
 
   const empty = status.stock <= 0;
   return (
@@ -115,7 +118,8 @@ interface ProposalLineStockProps {
 export function ProposalLineStock({ productId, itemType, className }: ProposalLineStockProps) {
   const context = React.useContext(ProposalStockContext);
   const format = useStockFormatter();
-  if (!context || itemType === "service") return null;
+  const { canSeeStock } = useSensitiveData();
+  if (!context || itemType === "service" || !canSeeStock) return null;
 
   const product = context.catalog.get(productId);
   if (!product) return null;
