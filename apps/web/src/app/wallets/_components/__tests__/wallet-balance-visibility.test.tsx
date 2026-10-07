@@ -15,6 +15,7 @@ const m = vi.hoisted(() => ({ canSeeBalance: true }));
 vi.mock("@/providers/tenant-provider", () => ({ useTenant: () => ({ isReadOnly: false }) }));
 vi.mock("@/hooks/usePermission", () => ({
   useSensitiveData: () => ({ isLoading: false, canSeeBalance: m.canSeeBalance }),
+  usePermission: () => true,
 }));
 
 import { WalletCard } from "../wallet-card";

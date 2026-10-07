@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Layers, TrendingUp, ArrowRightLeft } from "lucide-react";
 import { formatCurrency } from "@/utils/format";
 import { Wallet } from "@/types";
-import { useSensitiveData } from "@/hooks/usePermission";
+import { usePermission, useSensitiveData } from "@/hooks/usePermission";
 
 interface WalletsSummaryCardsProps {
   summary: {
@@ -20,6 +20,7 @@ export function WalletsSummaryCards({
   onOpenTransfer,
 }: WalletsSummaryCardsProps) {
   const { canSeeBalance } = useSensitiveData();
+  const canTransfer = usePermission("wallet", "transfer");
   return (
     <div className="grid gap-4 md:grid-cols-3">
       <Card>
@@ -64,7 +65,7 @@ export function WalletsSummaryCards({
                 variant="link"
                 className="p-0 h-auto text-lg font-semibold"
                 onClick={() => onOpenTransfer()}
-                disabled={activeWallets.length < 2}
+                disabled={activeWallets.length < 2 || !canTransfer}
               >
                 Transferir
               </Button>

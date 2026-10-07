@@ -182,6 +182,12 @@ export const updateWallet = async (req: Request, res: Response) => {
     if (typeof updateData.description === "string") updateData.description = sanitizeRichText(updateData.description);
 
     const { tenantId, isSuperAdmin } = await checkFinancialPermission(userId, "wallet", "canEdit", req.user);
+    // Arquivar e reativar pedem "Arquivar" (ausente, vale o Editar).
+    if (updateData.status !== undefined) {
+      await checkFinancialPermission(userId, "wallet", "archive", req.user).catch(() => {
+        throw new Error("Sem permissão para arquivar carteiras.");
+      });
+    }
     const walletRef = db.collection(WALLETS_COLLECTION).doc(id);
     const walletSnap = await walletRef.get();
 
@@ -337,7 +343,7 @@ export const transferValues = async (req: Request, res: Response) => {
     if (fromWalletId === toWalletId)
       return res.status(400).json({ message: "Mesma carteira." });
 
-    const { tenantId, isSuperAdmin } = await checkFinancialPermission(userId, "wallet", "canEdit", req.user);
+    const { tenantId, isSuperAdmin } = await checkFinancialPermission(userId, "wallet", "transfer", req.user);
 
     await db.runTransaction(async (t) => {
       const fromRef = db.collection(WALLETS_COLLECTION).doc(fromWalletId);
@@ -414,7 +420,7 @@ export const adjustBalance = async (req: Request, res: Response) => {
     if (!walletId || !amount || !description)
       return res.status(400).json({ message: "Dados incompletos." });
 
-    const { tenantId, isSuperAdmin } = await checkFinancialPermission(userId, "wallet", "canEdit", req.user);
+    const { tenantId, isSuperAdmin } = await checkFinancialPermission(userId, "wallet", "adjustBalance", req.user);
 
     const result = await db.runTransaction(async (t) => {
       const walletRef = db.collection(WALLETS_COLLECTION).doc(walletId);
