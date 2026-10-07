@@ -1,4 +1,4 @@
-import { projectProductForViewer, projectProposalForViewer } from "./sensitive-projection";
+import { projectProductForViewer, projectProposalForViewer, projectWalletForViewer } from "./sensitive-projection";
 
 /**
  * A Lia lia o produto inteiro (custo, markup, faixas, estoque) e a proposta
@@ -66,5 +66,22 @@ describe("proposta para a Lia", () => {
 
   it("quem vê o custo recebe a proposta como está", () => {
     expect(projectProposalForViewer(proposal, { viewCost: true })).toBe(proposal);
+  });
+});
+
+describe("carteira para a Lia", () => {
+  const wallet = { id: "w1", name: "Caixa", type: "cash", balance: 5320.5, color: "#000" };
+
+  it("com 'Ver saldo', vai como está", () => {
+    expect(projectWalletForViewer(wallet, { viewBalance: true })).toEqual(wallet);
+  });
+
+  it("sem 'Ver saldo', sai o saldo e fica o resto", () => {
+    expect(projectWalletForViewer(wallet, { viewBalance: false })).toEqual({
+      id: "w1",
+      name: "Caixa",
+      type: "cash",
+      color: "#000",
+    });
   });
 });

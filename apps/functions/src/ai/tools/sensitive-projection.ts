@@ -10,6 +10,7 @@ import { catalogSellingPrice } from "../../shared/catalog-selling-price";
 export interface SensitiveAccess {
   viewCost: boolean;
   viewStock: boolean;
+  viewBalance: boolean;
 }
 
 const COST_KEYS = ["price", "markup", "pricingModel", "cost", "basePrice"];
@@ -17,7 +18,7 @@ const STOCK_KEYS = ["inventoryValue", "stock", "inventoryUnit"];
 
 export function projectProductForViewer<T extends Record<string, unknown>>(
   product: T,
-  access: SensitiveAccess,
+  access: Pick<SensitiveAccess, "viewCost" | "viewStock">,
 ): Record<string, unknown> {
   const out: Record<string, unknown> = { ...product };
   if (out.sellingPrice === undefined) {
@@ -38,4 +39,15 @@ export function projectProposalForViewer<T extends Record<string, unknown>>(
     out.products = (out.products as Array<Record<string, unknown>>).map((line) => stripCostFromSharedLine(line));
   }
   return out;
+}
+
+/** Sem "Ver saldo", a carteira vai ao modelo com nome e tipo, sem o saldo. */
+export function projectWalletForViewer<T extends object>(
+  wallet: T,
+  access: Pick<SensitiveAccess, "viewBalance">,
+): Record<string, unknown> {
+  const rest = { ...wallet } as Record<string, unknown>;
+  if (access.viewBalance) return rest;
+  delete rest.balance;
+  return rest;
 }

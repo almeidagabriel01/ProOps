@@ -29,7 +29,7 @@ import {
 import * as walletsService from "../../api/services/wallets.service";
 import { changeProposalStatusAsUser } from "../../api/controllers/proposal-status-internal";
 import { buildLiaProposalLine, type LiaProposalItemInput } from "./proposal-items";
-import { projectProductForViewer, projectProposalForViewer } from "./sensitive-projection";
+import { projectProductForViewer, projectProposalForViewer, projectWalletForViewer } from "./sensitive-projection";
 
 // ─── Phone normalization ─────────────────────────────────────────────────────
 
@@ -106,6 +106,7 @@ function sensitiveAccess(ctx: ToolCallContext) {
   return {
     viewCost: resolvePagePermission({ role: ctx.role }, ctx.permissions, "products", "viewCost"),
     viewStock: resolvePagePermission({ role: ctx.role }, ctx.permissions, "products", "viewStock"),
+    viewBalance: resolvePagePermission({ role: ctx.role }, ctx.permissions, "wallet", "viewBalance"),
   };
 }
 
@@ -515,7 +516,10 @@ const HANDLERS: Record<string, ToolHandler> = {
   },
 
   list_wallets: async (_args, ctx) => {
-    const data = await walletsService.listWallets(ctx.tenantId);
+    const access = sensitiveAccess(ctx);
+    const data = (await walletsService.listWallets(ctx.tenantId)).map((wallet) =>
+      projectWalletForViewer(wallet, access),
+    );
     return { success: true, data };
   },
 
