@@ -11,7 +11,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 
 const m = vi.hoisted(() => ({
-  pages: {} as Record<string, { canView?: boolean; canEdit?: boolean; canCreate?: boolean }>,
+  pages: {} as Record<string, { canView?: boolean; canEdit?: boolean; canCreate?: boolean; [key: string]: boolean | undefined }>,
   isMaster: false,
 }));
 

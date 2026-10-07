@@ -3,7 +3,6 @@ import { randomUUID } from "node:crypto";
 import { db } from "../../init";
 import { logger } from "../../lib/logger";
 import { hasPagePermission } from "../../lib/auth-helpers";
-import { isTenantAdminRole } from "../../lib/auth-context";
 import { resolveClientIp } from "../../lib/client-ip";
 import { tenantHasCapability } from "../../lib/tenant-capabilities";
 import { buildPdfContentDisposition, buildPdfFilename } from "../services/pdf-filename";
@@ -75,7 +74,8 @@ import {
  * escritas.
  */
 
-type Action = "canView" | "canCreate" | "canEdit" | "canDelete";
+// Ação básica ou fina do catálogo de permissões (`complete`, `share`, `reopen`).
+type Action = "canView" | "canCreate" | "canEdit" | "canDelete" | "complete" | "share" | "reopen";
 
 class HttpError extends Error {
   constructor(
@@ -668,7 +668,7 @@ export async function completeServiceOrder(req: Request, res: Response) {
   const parsed = CompleteServiceOrderSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ message: firstIssue(parsed.error) });
   try {
-    const { tenantId, uid } = await requireAccess(req, "service_orders", "canEdit");
+    const { tenantId, uid } = await requireAccess(req, "service_orders", "complete");
     const found = await loadOrderForUser(req, tenantId, uid);
     assertEditable(found.data);
 
@@ -757,10 +757,9 @@ export async function reopenServiceOrder(req: Request, res: Response) {
   const parsed = ReopenServiceOrderSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ message: firstIssue(parsed.error) });
   try {
-    const { tenantId, uid } = await requireAccess(req, "service_orders", "canEdit");
-    if (!isTenantAdminRole(String(req.user?.role ?? "").toUpperCase())) {
-      return res.status(403).json({ message: "Só o administrador da empresa reabre uma OS concluída." });
-    }
+    // "Reabrir" nasce fechado para o membro (era só do administrador): o dono
+    // libera por pessoa. Administradores passam pelo bypass de sempre.
+    const { tenantId, uid } = await requireAccess(req, "service_orders", "reopen");
     const found = await loadOfTenant(SERVICE_ORDERS_COLLECTION, req.params.id, tenantId);
     if (!found) return res.status(404).json({ message: "Ordem de serviço não encontrada." });
     if (orderStatus(found.data) !== "completed") {
@@ -822,7 +821,7 @@ export async function deleteServiceOrder(req: Request, res: Response) {
  */
 export async function createServiceOrderShareLink(req: Request, res: Response) {
   try {
-    const { tenantId, uid } = await requireAccess(req, "service_orders", "canView");
+    const { tenantId, uid } = await requireAccess(req, "service_orders", "share");
     const found = await loadOrderForUser(req, tenantId, uid);
     const token = await ensureOrderShareToken({ tenantId, orderId: found.ref.id, uid });
     return res.json({ url: buildOrderShareUrl(token) });
@@ -867,7 +866,7 @@ export async function getSharedServiceOrder(req: Request, res: Response) {
  */
 export async function downloadServiceOrderPdf(req: Request, res: Response) {
   try {
-    const { tenantId, uid } = await requireAccess(req, "service_orders", "canView");
+    const { tenantId, uid } = await requireAccess(req, "service_orders", "share");
     if (!(await tenantHasCapability(tenantId, "fieldService"))) {
       return res.status(402).json({ message: "O plano da empresa não inclui ordens de serviço." });
     }

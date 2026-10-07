@@ -15,6 +15,7 @@ const m = vi.hoisted(() => ({
   isMaster: true,
   perms: { canView: true, canCreate: true, canEdit: true, canDelete: true },
   viewPrices: true,
+  reopen: false,
 }));
 
 const NICHE = {
@@ -35,6 +36,8 @@ vi.mock("@/hooks/usePlanLimits", () => ({
 vi.mock("@/hooks/usePagePermission", () => ({ usePagePermission: () => m.perms }));
 vi.mock("@/hooks/usePermission", () => ({
   useSensitiveData: () => ({ isLoading: false, canSeeStock: true, canSeeServiceOrderPrices: m.viewPrices }),
+  // Reabrir segue o dono (o fallback do catálogo nasce fechado); o resto, liberado.
+  usePermission: (_pageId: string, key: string) => (key === "reopen" ? m.isMaster || m.reopen : true),
 }));
 vi.mock("@/hooks/useServiceOrders", () => ({
   useServiceOrderScope: () => ({ seesAll: m.seesAll, uid: "diego", isLoading: false }),
@@ -110,6 +113,7 @@ beforeEach(() => {
   m.isMaster = true;
   m.perms = { canView: true, canCreate: true, canEdit: true, canDelete: true };
   m.viewPrices = true;
+  m.reopen = false;
 });
 
 describe("detalhe da OS", () => {
@@ -179,6 +183,13 @@ describe("detalhe da OS", () => {
     });
     expect(screen.queryByRole("button", { name: /Lançar no financeiro/ })).not.toBeInTheDocument();
     expect(screen.queryByText(/150,00/)).not.toBeInTheDocument();
+  });
+
+  it("membro com 'Reabrir' liberado reabre", () => {
+    m.isMaster = false;
+    m.reopen = true;
+    open({ status: "completed", noSignatureReason: "Cliente ausente" });
+    expect(screen.getByRole("button", { name: /Reabrir/ })).toBeInTheDocument();
   });
 
   it("membro que não é dono não reabre OS concluída", () => {

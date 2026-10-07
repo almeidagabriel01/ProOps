@@ -397,6 +397,29 @@ describe("técnico", () => {
     await reopenServiceOrder(req({ ...TECH, params: { id: "o1" }, body: { reason: "Faltou peça" } }), res);
     expect(res.statusCode).toBe(403);
   });
+
+  it("com 'Reabrir' liberado pelo dono, o membro reabre", async () => {
+    store.service_orders.o1.status = "completed";
+    permissions.set("service_orders.canView", true);
+    permissions.set("service_orders.reopen", true);
+    const res = mockRes();
+    await reopenServiceOrder(req({ ...TECH, params: { id: "o1" }, body: { reason: "Faltou peça" } }), res);
+    expect(res.statusCode).toBe(200);
+    expect(store.service_orders.o1.status).toBe("in_progress");
+  });
+
+  it("sem 'Concluir', o técnico atende mas não fecha a OS", async () => {
+    permissions.set("service_orders.canView", true);
+    permissions.set("service_orders.canEdit", true);
+    permissions.set("service_orders.complete", false);
+    const res = mockRes();
+    await completeServiceOrder(
+      req({ ...TECH, params: { id: "o1" }, body: { signature: { name: "Ana Souza", imageDataUrl: PNG } } }),
+      res,
+    );
+    expect(res.statusCode).toBe(403);
+    expect(store.service_orders.o1.status).not.toBe("completed");
+  });
 });
 
 describe("concluir", () => {
@@ -530,6 +553,13 @@ describe("link público e PDF", () => {
     expect(url).toMatch(/^https:\/\/erp\.test\/share\/os\/[A-Za-z0-9_-]{32}$/);
     expect((second.body as { url: string }).url).toBe(url);
     expect(Object.keys(store.shared_service_orders)).toHaveLength(1);
+  });
+
+  it("sem 'Compartilhar', não gera o link nem o PDF", async () => {
+    permissions.set("service_orders.canView", true);
+    permissions.set("service_orders.share", false);
+    const res = await shareLink({ ...TECH });
+    expect(res.statusCode).toBe(403);
   });
 
   it("o técnico não gera link de OS de outro", async () => {
