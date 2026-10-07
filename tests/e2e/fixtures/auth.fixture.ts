@@ -6,6 +6,7 @@ import {
   PERMS_MEMBER_OPERADOR,
   PERMS_MEMBER_RESTRITO,
   PERMS_MEMBER_VENDEDORA,
+  PERMS_MEMBER_ESCOPO,
   type SeedPermissionUser,
 } from "../seed/data/permissions";
 import {
@@ -35,6 +36,8 @@ interface AuthFixtures {
   memberOperador: Page;
   /** MEMBRO vendedora: CRM, propostas, contatos e produtos, sem financeiro. */
   memberVendedora: Page;
+  /** Vendedora com "só as minhas" em propostas e contatos (ondas 2 a 4). */
+  memberEscopo: Page;
   /** MASTER de um tenant Starter — nenhum módulo premium nativo. */
   planStarter: Page;
   /** MASTER de um tenant Pro — financeiro sim, CRM e fiscal não. */
@@ -155,6 +158,11 @@ export const test = base.extend<AuthFixtures>({
 
   memberVendedora: async ({ page }, provide) => {
     await loginAsMember(page, PERMS_MEMBER_VENDEDORA);
+    await provide(page);
+  },
+
+  memberEscopo: async ({ page }, provide) => {
+    await loginAsMember(page, PERMS_MEMBER_ESCOPO);
     await provide(page);
   },
 
