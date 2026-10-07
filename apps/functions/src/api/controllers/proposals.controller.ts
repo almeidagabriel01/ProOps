@@ -11,7 +11,11 @@ import {
 import { enqueueDriveDelivery } from "../services/drive/drive-delivery-queue";
 import { FieldValue, Timestamp } from "firebase-admin/firestore";
 import { getStorage } from "firebase-admin/storage";
-import { resolveUserAndTenant, checkPermission } from "../../lib/auth-helpers";
+import {
+  resolveUserAndTenant,
+  checkPermission,
+  recordInScope,
+} from "../../lib/auth-helpers";
 import {
   assertTenantExists,
   auditSuperAdminCrossTenantWrite,
@@ -167,6 +171,8 @@ export const APPROVED_SYNC_FIELDS = new Set([
   "extraExpense",
   "status",
   "commissions",
+  // O vendedor vai para os lançamentos (recorte "só os das minhas vendas").
+  "sellerId",
 ]);
 
 /**
@@ -627,6 +633,12 @@ export async function syncApprovedProposalTransactions(params: {
   } = params;
   const defaultWalletName =
     await resolveDefaultWalletNameForTenant(proposalTenantId);
+  // O vendedor da proposta vai para os lançamentos dela: é o recorte "só os
+  // das minhas vendas" de Lançamentos (rules e consultas). A comissão fica sem,
+  // porque é despesa da empresa com o parceiro, não receita da venda.
+  const proposalSellerId =
+    typeof proposalData.sellerId === "string" && proposalData.sellerId ? proposalData.sellerId : null;
+  const sellerOf = (draft: { isCommission?: boolean }) => (draft.isCommission ? null : proposalSellerId);
   const { drafts: desiredDrafts, effectiveDownPaymentValue, effectiveInstallmentValue } = buildApprovedProposalTransactionDrafts({
     proposalId,
     proposalData,
@@ -693,6 +705,7 @@ export async function syncApprovedProposalTransactions(params: {
         description: title,
         clientId,
         clientName,
+        sellerId: proposalSellerId,
         updatedAt: now,
       });
     });
@@ -754,6 +767,7 @@ export async function syncApprovedProposalTransactions(params: {
 
       batch.set(db.collection("transactions").doc(), {
         ...draft,
+        sellerId: sellerOf(draft),
         status,
         createdAt: now,
         updatedAt: now,
@@ -818,6 +832,7 @@ export async function syncApprovedProposalTransactions(params: {
       commissionRole: draft.commissionRole ?? null,
       commissionPercentage: draft.commissionPercentage ?? null,
       commissionSourceKey: draft.commissionSourceKey ?? null,
+      sellerId: sellerOf(draft),
       updatedAt: now,
     };
 
@@ -1409,6 +1424,10 @@ export const updateProposal = async (req: Request, res: Response) => {
     const proposalData = proposalSnap.data();
     if (!isSuperAdmin && proposalData?.tenantId !== tenantId)
       return res.status(403).json({ message: "Acesso negado." });
+    // "Só as minhas": a proposta de outro vendedor não existe para quem tem o
+    // alcance restrito, como nas rules.
+    if (!isMaster && !isSuperAdmin && !(await recordInScope(req.user, "proposals", proposalData)))
+      return res.status(404).json({ message: "Proposta não encontrada." });
     const proposalTenantId = String(proposalData?.tenantId || tenantId).trim();
 
     if (!isMaster && !isSuperAdmin) {
@@ -2007,6 +2026,7 @@ export const updateProposal = async (req: Request, res: Response) => {
               clientName: mergedData.clientName || null,
               proposalId: id,
               proposalGroupId: installData.proposalGroupId || null,
+              sellerId: mergedData.sellerId || proposalData?.sellerId || null,
               category: PROPOSAL_INCOME_CATEGORY,
               wallet:
                 mergedData.downPaymentWallet ||
@@ -2210,6 +2230,10 @@ export const deleteProposal = async (req: Request, res: Response) => {
     const proposalData = proposalSnap.data();
     if (!isSuperAdmin && proposalData?.tenantId !== tenantId)
       return res.status(403).json({ message: "Acesso negado." });
+    // "Só as minhas": a proposta de outro vendedor não existe para quem tem o
+    // alcance restrito, como nas rules.
+    if (!isMaster && !isSuperAdmin && !(await recordInScope(req.user, "proposals", proposalData)))
+      return res.status(404).json({ message: "Proposta não encontrada." });
     const proposalTenantId = String(proposalData?.tenantId || tenantId).trim();
 
     if (!isMaster && !isSuperAdmin) {
