@@ -48,6 +48,8 @@ export interface LeadInput {
   nextAction?: string;
   nextActionAt?: string | null;
   lostReason?: string;
+  /** Só na edição, e só com "Trocar dono do lead". */
+  ownerId?: string;
 }
 
 export interface Activity {

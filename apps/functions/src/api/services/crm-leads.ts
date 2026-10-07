@@ -62,6 +62,9 @@ export const LeadUpdateSchema = LeadInputSchema.partial()
   .extend({
     source: z.enum(LEAD_SOURCES).optional(),
     stage: z.enum(LEAD_STAGES).optional(),
+    // Quem cuida do lead: membro da empresa, conferido no controller. Pede
+    // "Trocar dono do lead" (catálogo de permissões, página kanban).
+    ownerId: z.string().trim().min(1).max(128).optional(),
   })
   .strict();
 

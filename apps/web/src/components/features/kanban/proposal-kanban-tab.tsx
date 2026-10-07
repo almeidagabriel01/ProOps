@@ -95,11 +95,12 @@ export function ProposalKanbanTab() {
   //  - arrastar um CARTAO muda o status da PROPOSTA → pageId proposals.
   // Quem so tem "Ver" em kanban navega o quadro; mover proposta exige "Editar"
   // em propostas, que e a permissao que o backend cobra no PUT /v1/proposals.
-  const {
-    canCreate: canCreateColumn,
-    canEdit: canEditColumn,
-    canDelete: canDeleteColumn,
-  } = usePagePermission("kanban");
+  const kanbanPermission = usePagePermission("kanban");
+  // "Colunas" (ausente, vale o Editar) separa mexer no quadro de mexer nos cartões.
+  const canManageColumns = usePermission("kanban", "columns");
+  const canCreateColumn = kanbanPermission.canCreate && canManageColumns;
+  const canEditColumn = kanbanPermission.canEdit && canManageColumns;
+  const canDeleteColumn = kanbanPermission.canDelete && canManageColumns;
   const { canEdit: canEditProposal, canCreate: canCreateProposal } =
     usePagePermission("proposals");
   const canMoveCards = !isDemoReadOnly && canEditProposal;

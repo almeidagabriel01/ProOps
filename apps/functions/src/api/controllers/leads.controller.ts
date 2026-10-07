@@ -150,7 +150,20 @@ export async function updateLead(req: Request, res: Response) {
         .filter(([, v]) => v === "")
         .map(([k]) => [k, null]),
     );
-    const update = compact({ ...parsed.data, ...cleared, updatedAt: new Date().toISOString() });
+    const { ownerId, ...fields } = parsed.data;
+    const ownerFields: Record<string, unknown> = {};
+    if (ownerId !== undefined && ownerId !== (found.data.ownerId ?? null)) {
+      if (!(await hasPagePermission(req.user, "kanban", "reassignLead"))) {
+        return res.status(403).json({ message: "Sem permissão para trocar o dono do lead." });
+      }
+      const owner = await db.collection("users").doc(ownerId).get();
+      if (!owner.exists || owner.data()?.tenantId !== tenantId) {
+        return res.status(400).json({ message: "Escolha uma pessoa da equipe." });
+      }
+      ownerFields.ownerId = ownerId;
+      ownerFields.ownerName = (owner.data()?.name as string | undefined) ?? null;
+    }
+    const update = compact({ ...fields, ...cleared, ...ownerFields, updatedAt: new Date().toISOString() });
     await found.ref.update(update);
 
     return res.json({ lead: toPublicLead(req.params.id, { ...found.data, ...update }) });

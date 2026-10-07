@@ -25,6 +25,8 @@ import { TasksPanel } from "@/components/features/tasks/tasks-panel";
 import { toast } from "@/lib/toast";
 import { formatCurrency } from "@/utils/format";
 import { useTenant } from "@/providers/tenant-provider";
+import { usePermission } from "@/hooks/usePermission";
+import { TeamService, type TeamPerson } from "@/services/team-service";
 import {
   ActivitiesService,
   LeadsService,
@@ -77,9 +79,26 @@ export function LeadDetailSheet({
   const [converting, setConverting] = React.useState(false);
   const [confirmDelete, setConfirmDelete] = React.useState(false);
   const [deleting, setDeleting] = React.useState(false);
+  // "Trocar dono do lead": quem tem escolhe outra pessoa da equipe na ficha.
+  const canReassign = usePermission("kanban", "reassignLead") && canEdit;
+  const [people, setPeople] = React.useState<TeamPerson[]>([]);
+  const [reassigning, setReassigning] = React.useState(false);
 
   const leadId = lead?.id;
   const tenantId = tenant?.id;
+
+  React.useEffect(() => {
+    if (!canReassign || !leadId) return;
+    let cancelled = false;
+    TeamService.people()
+      .then((list) => {
+        if (!cancelled) setPeople(list);
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, [canReassign, leadId]);
 
   React.useEffect(() => {
     if (!leadId || !tenantId) return;
@@ -224,8 +243,37 @@ export function LeadDetailSheet({
                 {lead.notes}
               </p>
             )}
-            {lead.ownerName && (
-              <p className="text-xs text-muted-foreground">Responsável: {lead.ownerName}</p>
+            {canReassign && people.length > 0 ? (
+              <div className="space-y-1.5">
+                <Label htmlFor="lead-owner">Responsável</Label>
+                <Select
+                  id="lead-owner"
+                  value={lead.ownerId ?? ""}
+                  disabled={reassigning}
+                  onChange={async (e) => {
+                    const ownerId = e.target.value;
+                    if (!ownerId || ownerId === lead.ownerId) return;
+                    setReassigning(true);
+                    try {
+                      onChanged(await LeadsService.update(lead.id, { ownerId }));
+                      toast.success("Responsável do lead trocado.");
+                    } catch {
+                      toast.error("Não foi possível trocar o responsável.");
+                    } finally {
+                      setReassigning(false);
+                    }
+                  }}
+                >
+                  {!lead.ownerId && <option value="">Sem responsável</option>}
+                  {people.map((person) => (
+                    <option key={person.id} value={person.id}>
+                      {person.name}
+                    </option>
+                  ))}
+                </Select>
+              </div>
+            ) : (
+              lead.ownerName && <p className="text-xs text-muted-foreground">Responsável: {lead.ownerName}</p>
             )}
           </section>
 
