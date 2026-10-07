@@ -49,6 +49,7 @@ import {
 import { Loader } from "@/components/ui/loader";
 import { useThemeAdjustedColor } from "@/hooks/useThemeAdjustedColor";
 import { Skeleton } from "@/components/ui/skeleton";
+import { PresenceIndicator } from "@/components/admin/presence/presence-indicator";
 
 interface TenantCardProps {
   item: TenantBillingInfo;
@@ -458,6 +459,13 @@ export function TenantCard({
             )}
           </span>
         </div>
+
+        {tenant.presence && (
+          <div className="flex items-start justify-between gap-2 text-xs">
+            <span className="text-muted-foreground">Agora:</span>
+            <PresenceIndicator presence={tenant.presence} className="text-right" />
+          </div>
+        )}
       </CardContent>
 
       <CardFooter className="bg-muted/10 p-4 border-t mt-auto">

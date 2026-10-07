@@ -19,6 +19,7 @@ export const ACTIVITY_CATEGORY_LABELS: Record<ActivityCategory, string> = {
 export const TENANT_ACTIVITY_CATALOG = {
   page_view: { category: "navigation", label: "Abriu a tela", client: true },
   session_started: { category: "navigation", label: "Entrou no ERP", client: false },
+  session_ended: { category: "navigation", label: "Saiu do ERP", client: false },
   demo_write_blocked: { category: "action", label: "Tentou alterar dados na demonstração", client: true },
   route_blocked: { category: "action", label: "Tela bloqueada", client: true },
   upgrade_prompt_shown: { category: "action", label: "Viu o aviso de plano", client: true },

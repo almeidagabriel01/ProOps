@@ -57,6 +57,14 @@ export interface ActivityTypeDefinition {
 export const TENANT_ACTIVITY_CATALOG = {
   page_view: { category: "navigation", label: "Abriu a tela", client: true, meta: {} },
   session_started: { category: "navigation", label: "Entrou no ERP", client: false, meta: {} },
+  // Gravado quando a sessão acaba (os avisos de presença pararam), na hora da
+  // saída: `lib/tenant-presence.ts`.
+  session_ended: {
+    category: "navigation",
+    label: "Saiu do ERP",
+    client: false,
+    meta: { durationMinutes: { kind: "int", min: 0, max: 7 * 24 * 60 } },
+  },
 
   demo_write_blocked: {
     category: "action",

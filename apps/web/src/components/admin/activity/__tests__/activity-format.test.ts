@@ -70,6 +70,14 @@ describe("describeActivity", () => {
     }
   });
 
+  it("sessão encerrada diz quanto tempo a pessoa ficou", () => {
+    const d = describeActivity(event("session_ended", { meta: { durationMinutes: 5 }, route: null }));
+    expect(d).toEqual({ title: "Saiu do ERP", detail: "sessão de 5 min" });
+    expect(describeActivity(event("session_ended", { meta: { durationMinutes: 0 } })).detail).toBe(
+      "sessão de menos de 1 min",
+    );
+  });
+
   it("tela aberta usa o nome da tela", () => {
     expect(describeActivity(event("page_view", { route: "/proposals/[id]" })).title).toBe("Abriu Propostas");
   });

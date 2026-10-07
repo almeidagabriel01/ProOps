@@ -2,6 +2,7 @@ import type { Request, Response } from "express";
 import { recordTenantLastSeen } from "../../lib/tenant-last-seen";
 import { logger } from "../../lib/logger";
 import { recordTenantActivity } from "../../lib/tenant-activity";
+import { recordHeartbeat } from "../../lib/tenant-presence";
 
 /** "Entrou no ERP" conta uma vez a cada meia hora por pessoa, por instancia. */
 export const SESSION_ACTIVITY_DEDUPE_MS = 30 * 60 * 1000;
@@ -56,4 +57,33 @@ export const pingSession = async (req: Request, res: Response) => {
     });
     return res.status(204).send();
   }
+};
+
+/**
+ * `POST /v1/session/heartbeat` — a aba segue aberta (a cada minuto).
+ *
+ * `{ active: true }` quando a pessoa está em uso (aba à vista e mexeu nos
+ * últimos 5 minutos). Alimenta o "Online agora" do painel do super admin
+ * (`lib/tenant-presence.ts`). Super admin, inclusive no "Ver como membro" (em
+ * que a request já vale como o membro), não conta.
+ */
+export const heartbeatSession = async (req: Request, res: Response) => {
+  try {
+    if (req.user && !req.user.isSuperAdmin && !req.user.impersonation) {
+      const userDoc = (req.user.userDoc ?? {}) as Record<string, unknown>;
+      await recordHeartbeat({
+        tenantId: req.user.tenantId,
+        uid: req.user.uid,
+        role: req.user.role,
+        name: typeof userDoc.name === "string" ? userDoc.name : null,
+        email: typeof userDoc.email === "string" ? userDoc.email : (req.user.email ?? null),
+        active: req.body?.active === true,
+      });
+    }
+  } catch (error: unknown) {
+    logger.warn("session_heartbeat_failed", {
+      error: error instanceof Error ? error.message : String(error),
+    });
+  }
+  return res.status(204).send();
 };

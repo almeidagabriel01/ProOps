@@ -28,6 +28,7 @@ src/app/admin/
 ├── analytics/                       # /admin/analytics — KPIs e gráficos
 ├── billing/                         # /admin/billing — faturamento
 ├── observability/                   # /admin/observability — erros agrupados
+├── online/                          # /admin/online — quem está online agora e quem passou hoje
 ├── activity/                        # /admin/activity — atividade das empresas (telas, ações, jornada, erros)
 ├── audit/                           # /admin/audit — eventos de security_audit_events (com a coluna Quem)
 └── setup-mfa/                       # /admin/setup-mfa — MFA do superadmin
@@ -36,7 +37,8 @@ src/components/admin/
 ├── tenant-dialog.tsx                # Criar/editar empresa
 ├── tenant-modules-dialog.tsx        # "Plano e módulos" (substitui o antigo Editar Limites)
 ├── tenant-members-dialog.tsx        # Membros da empresa, com o "Ver como membro"
-└── activity/                        # Linha do tempo da atividade: formato, jornada, painel lateral
+├── activity/                        # Linha do tempo da atividade: formato, jornada, painel lateral
+└── presence/                        # Bolinha e texto de presença (online, ausente, saiu)
 
 src/lib/admin-sections.ts            # Seções do painel: fonte da dock e da tab bar do superadmin
 src/components/layout/impersonation-bar.tsx  # Faixa do "Acessar Painel"
@@ -298,6 +300,44 @@ de toda request. O unico tempo que sobrou e antirrepeticao de 1 min no backend
   gratuita levaria 402 e o caso que originou o pedido nunca seria registrado.
 - Aparece no card e na tabela da Visao geral, destacado acima de 30 dias.
 
+## Online agora (`/admin/online`)
+
+O "Último acesso" só sabe quando alguém ENTROU. Esta parte responde se a
+pessoa continua lá: "entrou 10:15 e continua online" ou "entrou 10:15, saiu
+10:20, ficou 5 min".
+
+- **Aviso de presença:** cada aba do ERP chama `POST /v1/session/heartbeat` a
+  cada minuto (`hooks/use-presence-heartbeat.ts`, montado no shell
+  autenticado), com `active: true` quando a aba está à vista e houve
+  interação nos últimos 5 minutos (`IDLE_AFTER_MS`). Voltar a mexer ou voltar
+  para a aba avisa na hora, com no mínimo 15 s entre avisos.
+- **Três estados**, calculados no backend (`lib/tenant-presence.ts`):
+  - online: um aviso "em uso" nos últimos 2 minutos;
+  - ausente: avisos chegando, mas sem uso (aba em segundo plano ou parada há 5 min);
+  - offline: nenhum aviso há mais de 3 minutos. A sessão termina na hora do último aviso.
+- **Onde fica:** `tenant_presence/{tenantId}` guarda a sessão da empresa, e
+  `tenant_presence/{tenantId}/people/{uid}` a de cada pessoa, com nome e e-mail.
+  Rules negam o navegador, como no último acesso; a exclusão definitiva apaga
+  a subcoleção junto (`recursiveDelete`).
+- **Histórico:** cada sessão encerrada vira `session_ended` na Atividade, na
+  hora da saída e com a duração (id fixo pela sessão, então entra uma vez só).
+  O encerramento é preguiçoso, sem rotina agendada: acontece no próximo aviso
+  da pessoa ou quando o painel lê a presença (`closeStaleSessions`, no máximo
+  uma vez por minuto por instância, chamado pela tela Online e pela lista de
+  empresas). Uma sessão que acabou enquanto ninguém abria o painel entra na
+  Atividade quando o painel abrir, com a hora certa de saída.
+- **Onde aparece:** a tela Online (empresas e pessoas de hoje, primeiro quem
+  está agora, atualiza a cada 30 s com a aba à vista), a linha "Agora:" do card
+  e a coluna de último acesso da Visão geral.
+- **Super admin não conta**, nem no "Ver como membro" (`req.user.impersonation`).
+- `/v1/session/heartbeat` está em `FREE_TIER_ALLOWED_PREFIXES`, pelo mesmo
+  motivo do ping: a conta gratuita também conta.
+- **Custo:** uma transação (duas leituras, duas escritas) por pessoa por minuto
+  enquanto o ERP está aberto, com antirrepetição de 45 s por pessoa contra
+  várias abas. Guards: `apps/functions/src/lib/__tests__/tenant-presence.test.ts`,
+  `hooks/__tests__/use-presence-heartbeat.test.tsx` e
+  `app/admin/online/__tests__/online-page.test.tsx`.
+
 ## Custo
 
 - A lista de empresas **não** dispara sync com o Stripe (o cron diário
@@ -326,6 +366,7 @@ de toda request. O unico tempo que sobrou e antirrepeticao de 1 min no backend
 | `getTenantMembers` | `GET /v1/admin/tenants/:id/members` |
 | `getAuditEvents` | `GET /v1/admin/audit-events` |
 | `getTenantActivity` | `GET /v1/admin/activity` |
+| `getPresence` | `GET /v1/admin/presence` |
 
 Toda mutação do superadmin grava um evento em `security_audit_events`, com
 `await` (no Cloud Run, write sem await se perde).
@@ -362,6 +403,6 @@ desktop não muda, toda diferença é aditiva com prefixo.
 - **Toque:** botões de ícone ganham `max-md:h-10 max-md:w-10`; nada de ação que
   só aparece no hover. Tooltip de informação vira texto visível abaixo de `md`.
 - **Guard:** `tests/e2e/mobile/admin-no-overflow.spec.ts`, logado como super
-  admin, mede as 8 rotas e confere que os filtros da Visão geral aparecem
+  admin, mede as 9 rotas e confere que os filtros da Visão geral aparecem
   inteiros (card com `overflow-hidden` corta em vez de vazar, e a medida de
   overflow sozinha não enxerga isso).

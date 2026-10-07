@@ -5,6 +5,7 @@ import {
   CreditCard,
   History,
   LayoutDashboard,
+  Radio,
   ScrollText,
   ShieldCheck,
   type LucideIcon,
@@ -29,11 +30,14 @@ export interface AdminSection {
  * são as de uso diário E têm rótulo curto: a 360px cada aba tem ~72px, e
  * "Observabilidade" sairia cortado ali, então ela fica no "Mais". "Atividade"
  * (o que as empresas fizeram) entra logo depois da Visão geral por ser a de
- * acompanhar todo dia; com isso Analytics desce para o "Mais".
+ * acompanhar todo dia; com isso Analytics desce para o "Mais". "Online" (quem
+ * está usando o ERP agora) entrou logo depois da Visão geral, e a Auditoria
+ * desceu para o "Mais".
  */
 export const ADMIN_SECTIONS: AdminSection[] = [
   { href: "/admin", label: "Empresas", icon: Building2 },
   { href: "/admin/overview", label: "Visão geral", icon: LayoutDashboard },
+  { href: "/admin/online", label: "Online", icon: Radio },
   { href: "/admin/activity", label: "Atividade", icon: History },
   { href: "/admin/audit", label: "Auditoria", icon: ScrollText },
   { href: "/admin/analytics", label: "Analytics", icon: BarChart3 },

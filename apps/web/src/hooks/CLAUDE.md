@@ -11,7 +11,9 @@ hooks/
 ├── use-before-unload-warning.ts # Confirmação do navegador ao fechar a aba com trabalho não salvo
 ├── use-count-up.ts        # Animação de contagem numérica
 ├── use-horizontal-scroll-affordance.ts # Fileira de abas que rola: centra a ativa e diz de que lado há mais (esmaecido .scroll-fade-x)
+├── use-online-presence.ts # Tela "Online" do painel do super admin: consulta a presença a cada 30 s
 ├── use-prefers-reduced-motion.ts
+├── use-presence-heartbeat.ts # Aviso de presença a cada minuto (em uso ou não), para o "Online agora" do super admin
 ├── use-profile-subject.ts # De quem é o Perfil: a própria conta, ou o dono ou membro visto pelo super admin
 ├── use-price-tables.ts    # Tabelas de preço: lista/CRUD, opções do contato e a tabela de um cliente (proposta)
 ├── use-record-search.ts   # Busca de propostas e contatos para o Ctrl+K (índice searchTokens)

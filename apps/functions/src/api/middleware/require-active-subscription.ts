@@ -39,6 +39,7 @@ const FREE_TIER_ALLOWED_PREFIXES = [
   // Presenca da empresa. Tem que valer para conta gratuita: a pergunta que ele
   // responde e "quem criou a conta e nao assinou voltou a entrar?".
   "/v1/session/ping",
+  "/v1/session/heartbeat",
   "/v1/tenants/", // GET own tenant (multi-tenant isolation is enforced separately)
   "/health",
   "/internal/",

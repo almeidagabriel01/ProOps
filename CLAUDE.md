@@ -329,7 +329,9 @@ a chave principal; `sm` (640px) onde ajuda. Regras ao mexer em UI autenticada:
 ## Observability
 - **Frontend**: Vercel Analytics, Speed Insights. Client errors are captured by error boundaries and reported to the backend observability endpoint (see error observability module).
 - **Backend**: structured logger (`logger.ts`, JSON + `severity` for GCP Cloud Logging), security audit events in Firestore, and the error observability pipeline (grouped error issues in Firestore, surfaced in the superadmin dashboard). No third-party error-monitoring SaaS (no Sentry).
-- **Atividade das empresas**: telas abertas, ações principais, jornada do cadastro à assinatura e erros de cada usuário de empresa, em `tenant_activity` (primeira parte, TTL de 90 dias), exibidos em `/admin/activity` e no botão "Atividade" de cada empresa. O catálogo fechado de tipos é `apps/functions/src/shared/tenant-activity-catalog.ts`; detalhes em `apps/web/src/app/admin/CLAUDE.md`.
+- **Atividade das empresas**: telas abertas, ações principais, jornada do cadastro à assinatura e erros de cada usuário de empresa, em `tenant_activity` (primeira parte, TTL de 90 dias), exibidos em `/admin/activity` e no botão "Atividade" de cada empresa. Quem
+  está online agora (aviso de presença a cada minuto, por pessoa) fica em
+  `/admin/online`, no card e na Visão geral; detalhes em `apps/web/src/app/admin/CLAUDE.md`. O catálogo fechado de tipos é `apps/functions/src/shared/tenant-activity-catalog.ts`; detalhes em `apps/web/src/app/admin/CLAUDE.md`.
 
 ## Module Docs
 Detailed documentation per module lives in CLAUDE.md files within each folder:

@@ -37,6 +37,7 @@ import { StatusBadge } from "./status-badge";
 import { PlanBadge } from "./plan-badge";
 import { CompanyAvatar } from "./company-avatar";
 import { TenantActionsMenu } from "./tenant-actions-menu";
+import { PresenceIndicator } from "@/components/admin/presence/presence-indicator";
 
 interface TenantsTableProps {
   filteredData: TenantBillingInfo[];
@@ -109,6 +110,7 @@ function TenantMobileRow({
         </span>
         {item.tenant.lastSeenAt && <> ({formatLastSeen(item.tenant.lastSeenAt)})</>}
       </p>
+      <PresenceIndicator presence={item.tenant.presence} className="mt-1 text-xs" />
     </li>
   );
 }
@@ -187,6 +189,7 @@ function TenantRow({ item, index, onManageModules, onViewActivity }: TenantRowPr
               {formatLastSeen(item.tenant.lastSeenAt)}
             </span>
           )}
+          <PresenceIndicator presence={item.tenant.presence} className="mt-0.5 text-xs" />
         </div>
       </TableCell>
       <TableCell className="py-4">
