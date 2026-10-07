@@ -21,6 +21,7 @@ import { toast } from "@/lib/toast";
 import { formatCurrency } from "@/utils/format";
 import { FieldService } from "@/services/field-service-service";
 import type { ServiceOrder } from "@/types/field-service";
+import { useSensitiveData } from "@/hooks/usePermission";
 
 interface CompleteDialogProps {
   open: boolean;
@@ -34,6 +35,7 @@ interface CompleteDialogProps {
  * presente, o técnico registra o motivo. Depois de concluída a OS trava.
  */
 export function CompleteDialog({ open, onOpenChange, order, onCompleted }: CompleteDialogProps) {
+  const { canSeeStock } = useSensitiveData();
   const padRef = React.useRef<SignaturePadHandle>(null);
   const [mode, setMode] = React.useState<"sign" | "absent">("sign");
   const [name, setName] = React.useState("");
@@ -71,8 +73,13 @@ export function CompleteDialog({ open, onOpenChange, order, onCompleted }: Compl
         result = await FieldService.complete(order.id, { noSignatureReason: reason.trim() });
       }
       toast.success(`${order.code} concluída.`);
+      // O saldo é dado sensível: sem "Ver estoque" o aviso não traz o número.
       for (const item of result.negative) {
-        toast.warning(`${item.name} ficou com estoque negativo (${item.balance}).`);
+        toast.warning(
+          canSeeStock
+            ? `${item.name} ficou com estoque negativo (${item.balance}).`
+            : `${item.name} ficou com estoque negativo.`,
+        );
       }
       onOpenChange(false);
       onCompleted();

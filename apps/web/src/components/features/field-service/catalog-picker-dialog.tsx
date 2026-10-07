@@ -34,6 +34,7 @@ import type { InventoryUnit } from "@/lib/niches/config-types";
 import { cn } from "@/lib/utils";
 import { formatCurrency } from "@/utils/format";
 import type { ServiceOrderItem } from "@/types/field-service";
+import { useSensitiveData } from "@/hooks/usePermission";
 
 export interface CatalogEntry {
   kind: "product" | "service";
@@ -89,6 +90,7 @@ export function CatalogPickerDialog({
   excludeKeys,
   disabledReason,
 }: CatalogPickerDialogProps) {
+  const { canSeeStock } = useSensitiveData();
   const { tenant } = useTenant();
   const niche = useCurrentNicheConfig();
   const [catalog, setCatalog] = React.useState<CatalogEntry[] | null>(null);
@@ -282,7 +284,7 @@ export function CatalogPickerDialog({
                       </div>
                       <p className="text-sm font-semibold text-primary">{formatCurrency(entry.price)}</p>
                       {blocked && <p className="text-xs text-muted-foreground">{blocked}</p>}
-                      {entry.stock !== null && (
+                      {entry.stock !== null && canSeeStock && (
                         <p className={cn("text-xs", entry.stock <= 0 ? "text-amber-600 dark:text-amber-400" : "text-muted-foreground")}>
                           Em estoque: {entry.stock.toLocaleString("pt-BR")}
                           {stockSuffix ? ` ${stockSuffix}` : ""}
