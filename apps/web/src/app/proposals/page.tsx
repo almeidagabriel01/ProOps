@@ -15,6 +15,7 @@ import { IssueInvoiceButton } from "@/components/features/fiscal/issue-invoice-b
 import { invoiceEditorPath } from "@/lib/fiscal/nfe-form";
 import { useProposalInvoicePrompt } from "@/hooks/use-proposal-invoice-prompt";
 import { isApprovedColumn } from "@/lib/proposal-approval";
+import { usePermission } from "@/hooks/usePermission";
 import { ProposalAttachmentsDialog } from "@/components/features/proposal/proposal-attachments-dialog";
 import { useTenant } from "@/providers/tenant-provider";
 import { useAuth } from "@/providers/auth-provider";
@@ -153,6 +154,9 @@ export default function ProposalsPage() {
   const { user } = useAuth();
   const viewer = useEffectiveViewer();
   const { canCreate, canEdit, canDelete } = usePagePermission("proposals");
+  // Ações finas: aprovar (ou reverter, ou decidir o aceite) e compartilhar.
+  const canApprove = usePermission("proposals", "approve");
+  const canShare = usePermission("proposals", "share");
   // O CRM não está na dock — chega-se a ele por este botão, então é aqui que a
   // permissão de kanban tem que ser checada (o plano é gate separado).
   const { canView: canViewCrm } = usePagePermission("kanban");
@@ -994,6 +998,11 @@ export default function ProposalsPage() {
                         key={col.id}
                         onClick={() => handleStatusChange(proposal.id, col.id)}
                         className={isActive ? "bg-muted" : ""}
+                        disabled={
+                          !canApprove &&
+                          !isActive &&
+                          (isApprovedColumn(col) || isProposalApproved(proposal))
+                        }
                       >
                         <div
                           className="w-3 h-3 rounded-full mr-2"
@@ -1267,6 +1276,7 @@ export default function ProposalsPage() {
                 isSharing={sharingId === proposal.id}
                 isDuplicating={duplicatingId === proposal.id}
                 onShare={() => handleShare(proposal)}
+                canShare={canShare}
                 onDuplicate={() => handleDuplicate(proposal.id)}
                 onAttachments={() => setAttachmentsProposalId(proposal.id)}
               />
@@ -1285,6 +1295,7 @@ export default function ProposalsPage() {
                 isDownloading={downloadingId === proposal.id}
                 isEditing={editingId === proposal.id}
                 onShare={() => handleShare(proposal)}
+                canShare={canShare}
                 onDuplicate={() => handleDuplicate(proposal.id)}
                 onAttachments={() => setAttachmentsProposalId(proposal.id)}
                 showAllActions
@@ -1325,6 +1336,8 @@ export default function ProposalsPage() {
       getStatusLabel,
       kanbanColumns,
       clientResponses,
+      canApprove,
+      canShare,
     ],
   );
 
@@ -1560,7 +1573,7 @@ export default function ProposalsPage() {
           <ClientAcceptanceDialog
             proposalTitle={acceptanceTarget?.title?.trim() || "sem título"}
             acceptance={acceptanceTarget?.clientAcceptance ?? null}
-            canDecide={canEdit && !isReadOnly}
+            canDecide={canEdit && canApprove && !isReadOnly}
             onClose={closeAcceptance}
             onConfirm={confirmAcceptance}
             onAdjust={adjustAcceptance}

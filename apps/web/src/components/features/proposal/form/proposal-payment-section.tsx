@@ -27,7 +27,7 @@ import {
 } from "@/lib/proposal-payment";
 import { countsInProposalTotal, monthlyTotal } from "@/lib/proposal/monthly-lines";
 import { proposalProfit } from "@/lib/proposal/profit";
-import { useSensitiveData } from "@/hooks/usePermission";
+import { usePermission, useSensitiveData } from "@/hooks/usePermission";
 
 interface ProposalPaymentSectionProps {
   formData: Partial<Proposal>;
@@ -56,6 +56,8 @@ export function ProposalPaymentSection({
   errors = {},
   isReadOnly = false,
 }: ProposalPaymentSectionProps) {
+  // "Dar desconto": sem ela, o desconto e o valor combinado ficam só leitura.
+  const canDiscount = usePermission("proposals", "discount");
   const { canSeeCost } = useSensitiveData();
   const CUSTOM_PAYMENT_METHOD_VALUE = "__custom__";
   // Calculate components
@@ -263,6 +265,11 @@ export function ProposalPaymentSection({
               valor combinado com o cliente: o valor final que substituirá o
               total da proposta.
             </p>
+            {!canDiscount && (
+              <p className="text-xs text-purple-700/80 dark:text-purple-300/80 -mt-2 mb-3">
+                O desconto é definido por quem tem a permissão de dar desconto.
+              </p>
+            )}
           </div>
 
           <Tabs
@@ -273,12 +280,14 @@ export function ProposalPaymentSection({
             <TabsList className="grid w-full grid-cols-2 mb-3 bg-purple-500/10">
               <TabsTrigger
                 value="percent"
+                disabled={!canDiscount}
                 className="data-[state=active]:bg-purple-500 data-[state=active]:text-white data-[state=active]:shadow-md"
               >
                 Desconto (%)
               </TabsTrigger>
               <TabsTrigger
                 value="fixed"
+                disabled={!canDiscount}
                 className="data-[state=active]:bg-purple-500 data-[state=active]:text-white data-[state=active]:shadow-md"
               >
                 Valor Combinado
@@ -306,6 +315,7 @@ export function ProposalPaymentSection({
                     }}
                     className="w-full pr-8 bg-background/80 border-purple-500/30 focus-visible:ring-purple-500 focus-visible:border-purple-500"
                     placeholder="0"
+                    disabled={!canDiscount}
                   />
                   <span className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground font-medium">
                     %
@@ -319,6 +329,7 @@ export function ProposalPaymentSection({
                   onChange={onFormChange}
                   placeholder="Ex: 5.000,00"
                   className="w-full bg-background/80 border-purple-500/30 focus-visible:ring-purple-500 focus-visible:border-purple-500"
+                  disabled={!canDiscount}
                 />
               )}
             </div>

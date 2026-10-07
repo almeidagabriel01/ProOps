@@ -307,10 +307,10 @@ export const createShareLink = async (req: Request, res: Response) => {
       req.user,
     );
 
-    // O link abre a proposta inteira, com os valores, para quem o tiver: o
-    // membro precisa poder vê-la, como no PDF.
-    if (!(await hasPagePermission(req.user, "proposals", "canView"))) {
-      return res.status(403).json({ message: "Sem permissão para ver propostas." });
+    // O link abre a proposta inteira, com os valores, para quem o tiver:
+    // "Compartilhar" (que, ausente, vale o "Ver" da página, como no PDF).
+    if (!(await hasPagePermission(req.user, "proposals", "share"))) {
+      return res.status(403).json({ message: "Sem permissão para compartilhar propostas." });
     }
 
     // Buscar proposta

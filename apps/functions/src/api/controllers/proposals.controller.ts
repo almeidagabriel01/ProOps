@@ -63,6 +63,8 @@ import {
 } from "../services/proposal-numbering.service";
 import { approvalTimestampUpdate, resolveSeller } from "../services/sales-goals";
 import { sanitizeProposalProductsInput } from "../services/proposal-products-sanitize";
+import type { CommissionLine } from "../services/proposal-fine-permissions";
+import { checkProposalFineActions } from "../services/proposal-fine-actions";
 import {
   MAX_PARTNER_CONTACTS,
   contactResponsiblesErrorMessage,
@@ -1001,6 +1003,34 @@ export const createProposal = async (req: Request, res: Response) => {
         return res.status(400).json({ message: "Vendedor inválido para esta empresa." });
       }
     }
+    if (!isMaster && !isSuperAdmin) {
+      // Na criação, o automático é o que o formulário põe sozinho: quem cria,
+      // ou o responsável e os parceiros que vêm do cadastro do cliente.
+      const clientSnap = input.clientId ? await db.collection("clients").doc(String(input.clientId)).get() : null;
+      const client = clientSnap?.exists && clientSnap.data()?.tenantId === userCompanyId ? clientSnap.data() : null;
+      const inheritedSeller = (client?.responsibleMemberId as string | undefined) || null;
+      const sellerBase = {
+        sellerId: requestedSellerId && requestedSellerId === inheritedSeller ? inheritedSeller : userId,
+        partnerContactIds: Array.isArray(client?.partnerContactIds) ? client?.partnerContactIds : [],
+      };
+      const commissionsAfter = sanitizeProposalCommissionsInput(input.commissions);
+      const willBeApproved =
+        input.status !== "draft" && (await isStatusApproved(input.status as string | undefined, userCompanyId));
+      const denied = await checkProposalFineActions({
+        userId,
+        tenantId: userCompanyId,
+        current: { ...sellerBase, discount: 0, closedValue: null, commissions: [] },
+        input: {
+          ...input,
+          sellerId: requestedSellerId ?? userId,
+          partnerContactIds: input.partnerContactIds ?? sellerBase.partnerContactIds,
+        } as Record<string, unknown>,
+        commissionsAfter,
+        approvalChanges: willBeApproved,
+        paidOnApproval: willBeApproved && input.initialPaymentStatus === "paid",
+      });
+      if (denied) return res.status(403).json({ message: denied });
+    }
     let partnerContactIds: string[] = [];
     if (Array.isArray(input.partnerContactIds) && input.partnerContactIds.length > 0) {
       try {
@@ -1613,6 +1643,22 @@ export const updateProposal = async (req: Request, res: Response) => {
       safeUpdate,
       approvalTimestampUpdate(isCurrentlyApproved, willBeApproved, new Date().toISOString()),
     );
+
+    if (!isMaster && !isSuperAdmin) {
+      const denied = await checkProposalFineActions({
+        userId,
+        tenantId: proposalTenantId,
+        current: (proposalData ?? null) as Record<string, unknown> | null,
+        input: updateData as Record<string, unknown>,
+        commissionsAfter:
+          typeof updateData.commissions !== "undefined"
+            ? (safeUpdate.commissions as CommissionLine[])
+            : null,
+        approvalChanges: willBeApproved !== isCurrentlyApproved,
+        paidOnApproval: willBeApproved && !isCurrentlyApproved && updateData.initialPaymentStatus === "paid",
+      });
+      if (denied) return res.status(403).json({ message: denied });
+    }
 
     await timed("proposalWriteMs", () => proposalRef.update(safeUpdate));
 

@@ -25,6 +25,8 @@ export interface ProposalActionsDropdownProps {
   isDownloading?: boolean;
   isEditing?: boolean;
   onShare: () => void;
+  /** "Compartilhar" de Propostas; sem ela o item some. */
+  canShare?: boolean;
   onDuplicate: () => void;
   onAttachments: () => void;
   // Optional inline action callbacks — shown inside dropdown on compact screens
@@ -126,6 +128,7 @@ export function ProposalActionsDropdown({
   isDownloading,
   isEditing,
   onShare,
+  canShare = true,
   onDuplicate,
   onAttachments,
   onViewPdf,
@@ -229,11 +232,13 @@ export function ProposalActionsDropdown({
         )}
 
         {/* Compartilhar */}
-        <ShareMenuItem
-          canGeneratePdf={canGeneratePdf}
-          isSharing={isSharing}
-          onShare={onShare}
-        />
+        {canShare && (
+          <ShareMenuItem
+            canGeneratePdf={canGeneratePdf}
+            isSharing={isSharing}
+            onShare={onShare}
+          />
+        )}
 
         {/* Duplicar */}
         {canCreate && (
