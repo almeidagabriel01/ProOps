@@ -58,6 +58,8 @@ export interface SearchItem {
   requiresCreate?: string; // pageId that requires create permission
   /** pageId cuja permissao de visualizacao e exigida para o destino aparecer. */
   requiresView?: string;
+  /** Chave fina do catálogo exigida no `requiresView` (ex.: `viewCommissions`). */
+  requiresKey?: string;
 
 }
 
@@ -301,10 +303,11 @@ export const searchItems: SearchItem[] = [
     description: "Quanto pagar a cada vendedor e arquiteto no mês",
     path: "/commissions",
     icon: Handshake,
-    // Mesmo pageId de Lançamentos: comissão é relatório sobre lançamento.
+    // Mesmo pageId de Lançamentos: comissão é relatório sobre lançamento, e
+    // quanto cada parceiro ganha pede "Ver comissões".
     requiresView: "transactions",
+    requiresKey: "viewCommissions",
     requiresCapability: "financial",
-    masterOnly: true,
     keywords: [
       "comissao",
       "comissões",

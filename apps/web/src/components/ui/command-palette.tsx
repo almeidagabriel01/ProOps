@@ -79,7 +79,7 @@ export function CommandPalette({ className }: CommandPaletteProps) {
   // Vem do provider: normaliza MASTER/ADMIN/SUPERADMIN. Antes era
   // `user?.role === "admin"`, que e falso para o role realmente gravado
   // ("MASTER") — os itens masterOnly sumiam para o proprio master.
-  const { hasPermission, isMaster } = usePermissions();
+  const { hasPermission, hasPermissionKey, isMaster } = usePermissions();
 
   React.useEffect(() => {
     setRecents(readRecentRecords(safeLocalStorage(), userId));
@@ -117,6 +117,8 @@ export function CommandPalette({ className }: CommandPaletteProps) {
       // dock e a guarda de rota exigem. Sem isto o palette era rota de fuga.
       if (item.requiresView && !hasPermission(item.requiresView, "view"))
         return false;
+      if (item.requiresView && item.requiresKey && !hasPermissionKey(item.requiresView, item.requiresKey))
+        return false;
       // Check create permission if required
       if (item.requiresCreate && !hasPermission(item.requiresCreate, "create"))
         return false;
@@ -136,7 +138,7 @@ export function CommandPalette({ className }: CommandPaletteProps) {
 
       return matchesLabel || matchesDescription || matchesKeywords;
     });
-  }, [searchTerm, isMaster, hasPermission, tenant?.niche, nicheSearchItems]);
+  }, [searchTerm, isMaster, hasPermission, hasPermissionKey, tenant?.niche, nicheSearchItems]);
 
   const entries = React.useMemo<PaletteEntry[]>(() => {
     if (!hasTerm) {

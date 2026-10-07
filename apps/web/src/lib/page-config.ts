@@ -21,6 +21,8 @@ export interface PageConfig {
   requiresAuth: boolean; // Does this page require authentication?
   requiredPermission?: "view" | "create" | "edit" | "delete"; // Minimum permission level
   masterOnly?: boolean; // Only MASTER users can access
+  /** Chave fina do catálogo de permissões exigida além do `requiredPermission`. */
+  permissionKey?: string;
   hideForMember?: boolean; // Hide from MEMBERs in navigation
 }
 
@@ -211,10 +213,10 @@ export const PAGE_CONFIG: Record<string, PageConfig> = {
     requiresAuth: true,
     requiredPermission: "view",
   },
-  // Relatório de comissões. `masterOnly` porque quanto cada parceiro ganha não
-  // é dado para todo membro do time. Ressalva honesta: as despesas de comissão
-  // continuam visíveis em /transactions para quem tem permissão financeira —
-  // escondê-las de lá exigiria filtrar a lista, e é decisão à parte.
+  // Relatório de comissões. Quanto cada parceiro ganha não é dado para todo
+  // membro: pede "Ver comissões" (`viewCommissions`), fechado por padrão, que
+  // o dono libera por pessoa. As despesas de comissão também saem da lista de
+  // Lançamentos de quem tem o alcance "Só receitas".
   "/commissions": {
     pageId: "transactions",
     slug: "/commissions",
@@ -222,7 +224,7 @@ export const PAGE_CONFIG: Record<string, PageConfig> = {
     module: "financial",
     requiresAuth: true,
     requiredPermission: "view",
-    masterOnly: true,
+    permissionKey: "viewCommissions",
   },
   // DRE: relatório sobre os lançamentos, com a mesma permissão deles.
   "/dre": {

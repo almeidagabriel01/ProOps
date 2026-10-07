@@ -51,6 +51,8 @@ interface PermissionsContextType {
     pageId: string,
     action: "view" | "create" | "edit" | "delete",
   ) => boolean;
+  /** Uma chave fina do catálogo (`viewCommissions`, `approve`...), com fallback. */
+  hasPermissionKey: (pageId: string, key: string) => boolean;
   isMaster: boolean;
   isMember: boolean;
   /** Free/demo account: gets full UI permissions (writes blocked downstream). */
@@ -62,6 +64,7 @@ export const PermissionsContext = React.createContext<PermissionsContextType>({
   permissions: null,
   isLoading: true,
   hasPermission: () => false,
+  hasPermissionKey: () => false,
   isMaster: false,
   isMember: false,
   isDemo: false,

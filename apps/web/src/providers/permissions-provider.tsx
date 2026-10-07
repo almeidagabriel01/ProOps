@@ -263,12 +263,27 @@ export function PermissionsProvider({
   const isMember = permissions?.role === "MEMBER";
   const isDemo = String(user?.role || "").toLowerCase() === "free";
 
+  // A demonstração segue o mesmo desenho de `usePermission`: vê e abre tudo,
+  // sem criar nem excluir.
+  const hasPermissionKey = React.useCallback(
+    (pageId: string, key: string): boolean => {
+      if (!permissions) return false;
+      if (permissions.role === "MASTER") return true;
+      if (isDemo) {
+        return resolvePermissionKey(pageId, { canView: true, canCreate: false, canEdit: true, canDelete: false }, key);
+      }
+      return resolvePermissionKey(pageId, permissionDocOf(permissions.pages[pageId]), key);
+    },
+    [permissions, isDemo],
+  );
+
   return (
     <PermissionsContext.Provider
       value={{
         permissions,
         isLoading,
         hasPermission,
+        hasPermissionKey,
         isMaster,
         isMember,
         isDemo,

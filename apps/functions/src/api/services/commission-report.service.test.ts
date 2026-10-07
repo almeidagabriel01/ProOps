@@ -39,7 +39,11 @@ jest.mock("../../lib/finance-helpers", () => ({
   checkFinancialPermission: (...args: unknown[]) =>
     checkFinancialPermission(...args),
 }));
-jest.mock("../../lib/auth-helpers", () => ({ resolveUserAndTenant: jest.fn() }));
+const checkPermission = jest.fn();
+jest.mock("../../lib/auth-helpers", () => ({
+  resolveUserAndTenant: jest.fn(),
+  checkPermission: (...args: unknown[]) => checkPermission(...args),
+}));
 
 import { getCommissionReport } from "./commission-report.service";
 
@@ -60,6 +64,8 @@ const BASE = {
 
 beforeEach(() => {
   docs.length = 0;
+  checkPermission.mockReset();
+  checkPermission.mockResolvedValue(false);
   ultimoTenantConsultado = "";
   checkFinancialPermission.mockResolvedValue({
     tenantId: "t1",
@@ -170,7 +176,7 @@ describe("getCommissionReport", () => {
     });
   });
 
-  it("membro com Ver em Lancamentos nao le o relatorio: e so do dono e dos admins", async () => {
+  it("membro com Ver em Lancamentos e sem 'Ver comissoes' nao le o relatorio", async () => {
     docs.push(doc("c1", { ...BASE, amount: 1000 }));
     checkFinancialPermission.mockResolvedValue({
       tenantId: "t1",
@@ -182,6 +188,26 @@ describe("getCommissionReport", () => {
       getCommissionReport("u1", undefined, { month: "2026-10" }),
     ).rejects.toThrow("FORBIDDEN_COMMISSIONS_ADMIN_ONLY");
     expect(ultimoTenantConsultado).toBe("");
+  });
+
+  it("membro com 'Ver comissoes' le o relatorio", async () => {
+    docs.push(doc("c1", { ...BASE, amount: 1000 }));
+    checkFinancialPermission.mockResolvedValue({
+      tenantId: "t1",
+      isMaster: false,
+      isSuperAdmin: false,
+    });
+    checkPermission.mockResolvedValue(true);
+
+    await expect(
+      getCommissionReport("u1", undefined, { month: "2026-10" }),
+    ).resolves.toMatchObject({ month: "2026-10", total: 1000 });
+    expect(checkPermission).toHaveBeenCalledWith("u1", "transactions", "viewCommissions");
+  });
+
+  it("dono nao depende da chave", async () => {
+    await getCommissionReport("u1", undefined, { month: "2026-10" });
+    expect(checkPermission).not.toHaveBeenCalled();
   });
 
   it("superadmin le o relatorio", async () => {

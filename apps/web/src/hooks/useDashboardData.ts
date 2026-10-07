@@ -15,6 +15,7 @@ import {
   getDefaultProposalColumns,
 } from "@/services/kanban-service";
 import { useTenant } from "@/providers/tenant-provider";
+import { usePermission } from "@/hooks/usePermission";
 import { usePagePermission } from "@/hooks/usePagePermission";
 import { usePermissions } from "@/providers/permissions-provider";
 import { toast } from "@/lib/toast";
@@ -99,6 +100,7 @@ export function useDashboardData() {
   // Saldo, alertas, gráficos e lançamentos: as rules só deixam ler a quem vê
   // Lançamentos ou Carteiras, e o painel só consulta para essa pessoa.
   const { isMaster } = usePermissions();
+  const canSeeCommissions = usePermission("transactions", "viewCommissions");
   const transactionsPermission = usePagePermission("transactions");
   const walletPermission = usePagePermission("wallet");
   const isFinancePermissionLoading =
@@ -277,10 +279,10 @@ export function useDashboardData() {
                 console.error("Error fetching dashboard month:", error);
                 return [] as Transaction[];
               }),
-        // Agregado no backend (uma chamada). O relatório é só do dono e dos
-        // administradores, e a conta demo é rejeitada pelo backend: nos dois
-        // casos resolve nulo em vez de derrubar o painel.
-        isDemo || !isMaster
+        // Agregado no backend (uma chamada). O relatório pede "Ver comissões"
+        // (dono e administradores sempre), e a conta demo é rejeitada pelo
+        // backend: nos dois casos resolve nulo em vez de derrubar o painel.
+        isDemo || !(isMaster || canSeeCommissions)
           ? Promise.resolve(null)
           : TransactionService.getCommissionReport(
               tenantId,
@@ -304,6 +306,7 @@ export function useDashboardData() {
     isFinancePermissionLoading,
     canViewFinance,
     isMaster,
+    canSeeCommissions,
   ]);
 
   const overview = React.useMemo(

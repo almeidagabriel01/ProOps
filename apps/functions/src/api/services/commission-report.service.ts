@@ -1,5 +1,5 @@
 import { db } from "../../init";
-import { resolveUserAndTenant } from "../../lib/auth-helpers";
+import { checkPermission, resolveUserAndTenant } from "../../lib/auth-helpers";
 import { checkFinancialPermission } from "../../lib/finance-helpers";
 import type { CommissionRole } from "../controllers/proposal-commissions";
 
@@ -91,11 +91,12 @@ export async function getCommissionReport(
     claims,
   );
 
-  // O relatório diz quanto cada parceiro recebe: a tela /commissions é só do
-  // dono e dos administradores, e a API passa a seguir a mesma regra. Antes,
-  // qualquer membro com "Ver" em Lançamentos o lia (e o painel do Dashboard
-  // mostrava). Cada parceiro continua vendo o próprio em "Minhas comissões".
-  if (!isMaster && !isSuperAdmin) {
+  // O relatório diz quanto cada parceiro recebe: pede "Ver comissões"
+  // (`viewCommissions` no catálogo de permissões), fechado por padrão para o
+  // membro; dono e administradores sempre leem. Antes, qualquer membro com
+  // "Ver" em Lançamentos o lia (e o painel do Dashboard mostrava). Cada
+  // parceiro continua vendo o próprio em "Minhas comissões".
+  if (!isMaster && !isSuperAdmin && !(await checkPermission(userId, "transactions", "viewCommissions"))) {
     throw new Error("FORBIDDEN_COMMISSIONS_ADMIN_ONLY");
   }
 

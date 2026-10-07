@@ -59,6 +59,7 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
     permissions,
     isLoading: isPermLoading,
     hasPermission,
+    hasPermissionKey,
   } = usePermissions();
   const { isLoading: isTenantLoading, isGlobalLoading } = useTenant();
   const router = useRouter();
@@ -157,6 +158,11 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
       if (!hasPermission(pageId, requiredAction)) {
         trackActivity("route_blocked", { meta: { reason: "permission", target: pathname } });
         router.push("/403");
+        return;
+      }
+      if (pageConfig.permissionKey && !hasPermissionKey(pageId, pageConfig.permissionKey)) {
+        trackActivity("route_blocked", { meta: { reason: "permission", target: pathname } });
+        router.push("/403");
       }
     }
   }, [
@@ -170,6 +176,7 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
     isPublic,
     pageConfig,
     hasPermission,
+    hasPermissionKey,
     forceSyncSession,
     getIsLoggingOut,
   ]);
