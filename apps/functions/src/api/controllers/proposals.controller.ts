@@ -74,6 +74,7 @@ import {
   contactResponsiblesErrorMessage,
   resolvePartnerContactIds,
 } from "../services/contact-responsibles";
+import { recordMemberAudit } from "../../lib/member-audit";
 
 const CreateProposalSchema = z.object({
   title: z.string().max(300).trim().optional(),
@@ -1680,6 +1681,14 @@ export const updateProposal = async (req: Request, res: Response) => {
     }
 
     await timed("proposalWriteMs", () => proposalRef.update(safeUpdate));
+    if (willBeApproved !== isCurrentlyApproved) {
+      await recordMemberAudit({
+        tenantId: proposalTenantId,
+        actorUid: userId,
+        action: willBeApproved ? "proposal_approved" : "proposal_reverted",
+        target: { type: "proposal", id, label: String(safeUpdate.title ?? proposalData?.title ?? "") },
+      });
+    }
 
     if (removedAttachmentPaths.length > 0) {
       await deleteStorageObjectsBestEffort(removedAttachmentPaths, {
@@ -2314,6 +2323,13 @@ export const deleteProposal = async (req: Request, res: Response) => {
         proposalId: id,
       });
     }
+
+    await recordMemberAudit({
+      tenantId: proposalTenantId,
+      actorUid: userId,
+      action: "proposal_deleted",
+      target: { type: "proposal", id, label: String(proposalData?.title ?? "") },
+    });
 
     return res.json({ success: true, message: "Proposta excluída." });
   } catch (error: unknown) {

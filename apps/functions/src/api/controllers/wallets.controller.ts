@@ -8,6 +8,7 @@ import {
 } from "../../lib/tenant-plan-policy";
 import { z } from "zod";
 import { sanitizeText, sanitizeRichText } from "../../utils/sanitize";
+import { recordMemberAudit } from "../../lib/member-audit";
 
 const CreateWalletSchema = z.object({
   name: z.string().min(1, "Nome é obrigatório.").max(100).trim(),
@@ -323,6 +324,12 @@ export const deleteWallet = async (req: Request, res: Response) => {
     } while (true);
 
     await walletRef.delete();
+    await recordMemberAudit({
+      tenantId: String(walletData?.tenantId || tenantId),
+      actorUid: userId,
+      action: "wallet_deleted",
+      target: { type: "wallet", id, label: String(walletData?.name || "") },
+    });
 
     return res.json({ success: true, message: "Carteira excluída." });
   } catch (error: unknown) {
@@ -404,6 +411,14 @@ export const transferValues = async (req: Request, res: Response) => {
       });
     });
 
+    await recordMemberAudit({
+      tenantId,
+      actorUid: userId,
+      action: "wallet_transfer",
+      target: { type: "wallet", id: String(fromWalletId) },
+      details: { amount: Number(amount), toWalletId: String(toWalletId) },
+    });
+
     return res.json({ success: true, message: "Transferência realizada." });
   } catch (error: unknown) {
     const message =
@@ -453,6 +468,14 @@ export const adjustBalance = async (req: Request, res: Response) => {
       });
 
       return newBalance;
+    });
+
+    await recordMemberAudit({
+      tenantId,
+      actorUid: userId,
+      action: "wallet_adjusted",
+      target: { type: "wallet", id: String(walletId), label: String(description || "") },
+      details: { amount: Number(amount) },
     });
 
     return res.json({

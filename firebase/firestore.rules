@@ -1023,6 +1023,14 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
+    // Histórico de ações da equipe (aprovar, dar baixa, mudar permissão,
+    // suspender...), lido só pelo dono e pelos administradores via API
+    // (GET /v1/admin/members/audit). Escrita só pelo backend
+    // (`lib/member-audit.ts`).
+    match /member_audit/{entryId} {
+      allow read, write: if false;
+    }
+
     // Armazenamento em uso (bytes + flag de estouro), mantido pelos gatilhos de
     // Storage. A empresa le para mostrar o uso na tela de assinatura e avisar
     // antes do upload; quem barra de fato e a storage.rules, que le a flag.

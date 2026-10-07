@@ -64,6 +64,7 @@ import {
   syncOrderStock,
   toClientOrderView,
 } from "../services/field-service/field-service.service";
+import { recordMemberAudit } from "../../lib/member-audit";
 
 /**
  * Equipamentos do cliente e ordens de serviço. Capacidade `fieldService`,
@@ -778,6 +779,13 @@ export async function reopenServiceOrder(req: Request, res: Response) {
       noSignatureReason: null,
       reopenLog: log,
       updatedAt: now,
+    });
+    await recordMemberAudit({
+      tenantId,
+      actorUid: uid,
+      action: "service_order_reopened",
+      target: { type: "service_order", id: found.ref.id, label: String(found.data.code ?? "") },
+      details: { reason: parsed.data.reason },
     });
     return res.json({ success: true });
   } catch (error) {

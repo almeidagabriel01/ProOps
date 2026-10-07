@@ -28,6 +28,7 @@ import {
   validateContactPriceTable,
 } from "../services/price-tables/contact-price-table";
 import { PriceTableError } from "../services/price-tables/price-tables.service";
+import { recordMemberAudit } from "../../lib/member-audit";
 
 /**
  * Campos fiscais do destinatário.
@@ -805,6 +806,13 @@ export const deleteClient = async (req: Request, res: Response) => {
           updatedAt: Timestamp.now(),
         });
       }
+    });
+
+    await recordMemberAudit({
+      tenantId: String(clientData?.tenantId || tenantId),
+      actorUid: userId,
+      action: "client_deleted",
+      target: { type: "client", id, label: String(clientData?.name ?? "") },
     });
 
     return res.json({ success: true, message: "Cliente removido." });

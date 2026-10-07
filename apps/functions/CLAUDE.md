@@ -120,6 +120,7 @@ npm run test:functions:integration  # (na raiz) integração — sobe o emulador
 |---|---|---|
 | `ai_traces` | ✅ habilitada | ✅ habilitada |
 | `tenant_activity` | ⏳ habilitar no deploy (comando abaixo) | ⏳ idem |
+| `member_audit` | ⏳ habilitar no deploy (comando abaixo) | ⏳ idem |
 | `occurrences` | ❌ não habilitada (e habilitar não resolveria) | ❌ idem |
 
 **A nota de deploy antiga do pipeline de erros está incorreta: habilitar a TTL
@@ -146,6 +147,9 @@ Para `tenant_activity`, por ambiente:
 gcloud firestore fields ttls update expiresAt --collection-group=tenant_activity --enable-ttl --async --project=erp-softcode
 gcloud firestore fields ttls update expiresAt --collection-group=tenant_activity --enable-ttl --async --project=erp-softcode-prod
 ```
+
+Para `member_audit` (histórico da equipe, 365 dias), o mesmo comando com
+`--collection-group=member_audit`, nos dois projetos.
 
 `--async` no comando de TTL importa: sem ele o gcloud bloqueia esperando a
 operação e estoura timeout. Confirme com `ttls list` (passa por `CREATING`

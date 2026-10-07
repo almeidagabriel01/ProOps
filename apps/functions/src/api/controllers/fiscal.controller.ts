@@ -90,6 +90,7 @@ import {
   CORRECTION_TEXT_MIN_LENGTH,
 } from "../services/fiscal/fiscal-provider";
 import type { FiscalDocumentType } from "../services/fiscal/fiscal-types";
+import { recordMemberAudit } from "../../lib/member-audit";
 
 /** Sugestao por IA segue o mesmo gate dos demais recursos de IA. */
 const NCM_AI_PLANS = new Set<string>(["pro", "enterprise"]);
@@ -864,7 +865,14 @@ export const cancelInvoiceHandler = async (req: Request, res: Response): Promise
       return;
     }
 
-    res.status(200).json(await cancelInvoice(invoice.id, justificativa));
+    const canceled = await cancelInvoice(invoice.id, justificativa);
+    await recordMemberAudit({
+      tenantId: ctx.tenantId,
+      actorUid: req.user!.uid,
+      action: "invoice_canceled",
+      target: { type: "invoice", id: invoice.id, label: String((invoice as { numero?: unknown }).numero ?? "") },
+    });
+    res.status(200).json(canceled);
   } catch (error) {
     const err = error as Error;
     if (err.message === "INVOICE_NAO_AUTORIZADA") {
@@ -1396,7 +1404,14 @@ export const correctInvoiceHandler = async (req: Request, res: Response): Promis
       return;
     }
 
-    res.status(200).json(await correctInvoice(invoice.id, texto));
+    const corrected = await correctInvoice(invoice.id, texto);
+    await recordMemberAudit({
+      tenantId: ctx.tenantId,
+      actorUid: req.user!.uid,
+      action: "invoice_corrected",
+      target: { type: "invoice", id: invoice.id, label: String((invoice as { numero?: unknown }).numero ?? "") },
+    });
+    res.status(200).json(corrected);
   } catch (error) {
     const err = error as Error;
     if (err.message === "CCE_APENAS_NFE") {

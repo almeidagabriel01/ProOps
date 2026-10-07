@@ -14,6 +14,7 @@ import { checkCatalogImagesLimit } from "../../lib/catalog-plan-guards";
 import { z } from "zod";
 import { sanitizeText, sanitizeRichText } from "../../utils/sanitize";
 import { sanitizeProductFiscalFields } from "../services/fiscal/fiscal-catalog-fields";
+import { recordMemberAudit } from "../../lib/member-audit";
 
 const CreateProductSchema = z.object({
   name: z.string().min(2, "Nome inválido.").max(200).trim(),
@@ -574,6 +575,13 @@ export const deleteProduct = async (req: Request, res: Response) => {
           updatedAt: Timestamp.now(),
         });
       }
+    });
+
+    await recordMemberAudit({
+      tenantId: String(productData?.tenantId || tenantId),
+      actorUid: userId,
+      action: "product_deleted",
+      target: { type: "product", id, label: String(productData?.name ?? "") },
     });
 
     return res.json({ success: true, message: "Produto e imagens removidos." });

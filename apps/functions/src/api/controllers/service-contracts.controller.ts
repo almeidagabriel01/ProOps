@@ -31,6 +31,7 @@ import {
 import { loadClientSnapshot, loadEquipmentLabels, loadOfTenant, loadTechnician } from "../services/field-service/field-service.service";
 import { notifyTechnician, syncOrderAgenda } from "./field-service.controller";
 import { SERVICE_ORDERS_COLLECTION } from "../services/field-service/field-service-model";
+import { recordMemberAudit } from "../../lib/member-audit";
 
 /**
  * Contratos de manutenção. Capacidade `fieldService` (montada por prefixo em
@@ -396,6 +397,12 @@ export async function activateServiceContract(req: Request, res: Response) {
       updatedAt: new Date().toISOString(),
     });
     await runNow(contract.id, tenantId, uid);
+    await recordMemberAudit({
+      tenantId,
+      actorUid: uid,
+      action: "contract_activated",
+      target: { type: "contract", id: contract.id, label: `${contract.code ?? ""} ${contract.title ?? ""}`.trim() },
+    });
     return res.json({ success: true });
   } catch (error) {
     return fail(res, error, "Erro ao ativar o contrato.", "service_contract_activate_failed");
@@ -470,6 +477,12 @@ export async function endServiceContract(req: Request, res: Response) {
       endedBy: uid,
       endedReason: "manual",
       updatedAt: new Date().toISOString(),
+    });
+    await recordMemberAudit({
+      tenantId,
+      actorUid: uid,
+      action: "contract_ended",
+      target: { type: "contract", id: contract.id, label: `${contract.code ?? ""} ${contract.title ?? ""}`.trim() },
     });
     return res.json({ success: true });
   } catch (error) {

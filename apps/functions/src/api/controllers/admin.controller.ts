@@ -66,6 +66,7 @@ import { detectPriceDrift } from "../../billing/price-drift";
 import { invalidateTenantAudience } from "../services/notification-audience";
 import { isTenantNiche } from "../../shared/niches";
 import { getTenantDocCached } from "../../lib/tenant-doc-cache";
+import { recordMemberAudit } from "../../lib/member-audit";
 
 export function normalizePhoneNumber(value: unknown): string {
   return normalizeBrazilPhoneNumber(value);
@@ -342,6 +343,13 @@ export const createMember = async (req: Request, res: Response) => {
         });
       }
 
+      await recordMemberAudit({
+        tenantId,
+        actorUid: req.user!.uid,
+        action: "member_created",
+        target: { type: "member", id: memberId, label: String(input.name ?? "") },
+      });
+
       return res.status(201).json({
         success: true,
         memberId,
@@ -611,6 +619,13 @@ export const deleteMember = async (req: Request, res: Response) => {
       });
     }
 
+    await recordMemberAudit({
+      tenantId: String(tenantId || ""),
+      actorUid: loggedUserId,
+      action: "member_deleted",
+      target: { type: "member", id, label: String(memberData?.name ?? "") },
+    });
+
     return res.json({ success: true, message: "Membro removido." });
   } catch (error: unknown) {
     const message =
@@ -716,6 +731,20 @@ export const updatePermissions = async (req: Request, res: Response) => {
 
       // Quem recebe cada notificação depende das permissões.
       invalidateTenantAudience(String(memberData?.tenantId || ""));
+      await recordMemberAudit({
+        tenantId: String(memberData?.tenantId || ""),
+        actorUid: masterId,
+        action: "member_permissions_changed",
+        target: { type: "member", id: actualMemberId, label: String(memberData?.name ?? "") },
+        details: {
+          page: pageId,
+          key,
+          before: (existingData as Record<string, unknown> | undefined)?.[key] === undefined
+            ? null
+            : String((existingData as Record<string, unknown>)[key]),
+          after: String(value),
+        },
+      });
       return res.json({ success: true, message: "Permissão atualizada." });
     }
 
@@ -750,6 +779,13 @@ export const updatePermissions = async (req: Request, res: Response) => {
 
     // Quem recebe cada notificação depende das permissões.
     invalidateTenantAudience(String(memberData?.tenantId || ""));
+    await recordMemberAudit({
+      tenantId: String(memberData?.tenantId || ""),
+      actorUid: masterId,
+      action: "member_permissions_changed",
+      target: { type: "member", id: actualMemberId, label: String(memberData?.name ?? "") },
+      details: { pages: Object.keys(permissions).length },
+    });
     return res.json({ success: true, message: "Permissões atualizadas." });
   } catch (error: unknown) {
     const message =

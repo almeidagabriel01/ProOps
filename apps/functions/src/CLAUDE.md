@@ -324,6 +324,7 @@ Funcao HTTP separada (nao faz parte do monolito `api`):
 | `whatsappLogs` | WhatsApp | Audit trail de acoes do bot |
 | `drive_delivery_jobs/{tenantId}_{proposalId}` | Drive | Fila de entrega da proposta no Drive. Admin SDK only |
 | `tenant_activity/{id}` | Admin | Atividade das empresas (telas, acoes, jornada, erros), um doc por evento (`lib/tenant-activity.ts`). Lida pelo painel do super admin via API. TTL 90 dias via `expiresAt`. Admin SDK only |
+| `member_audit/{id}` | Equipe | Historico de acoes da equipe (aprovar, dar baixa, estornar, ajustar saldo, cancelar nota, mudar permissao, suspender...), um doc por acao, pelo catalogo fechado `shared/member-audit-catalog.ts` (`lib/member-audit.ts`, sempre aguardado). Lido so pela API (`GET /v1/admin/members/audit`, dono e admins); do navegador entra so a exportacao (`POST /v1/audit/events`). TTL de 365 dias via `expiresAt` (Timestamp). Admin SDK only |
 | `tenant_presence/{tenantId}` | Admin | Ultimo acesso da empresa (`lastSeenAt`), gravado por `POST /v1/session/ping`. Fora do doc do tenant porque aquele e escutado em tempo real por toda aba aberta. Admin SDK only |
 | `tenant_storage_usage/{tenantId}` | Plano | Armazenamento em uso (`storageBytes`) e `overQuota`, lido pela storage.rules. Subcolecao `events` = dedup de evento do Storage (`expiresAt` para TTL). Tenant le; escrita so Admin SDK |
 | `tenant_purge_jobs/{tenantId}` | Admin | Job de exclusao definitiva de empresa. Escrita so pelo backend; superadmin com MFA le o progresso |

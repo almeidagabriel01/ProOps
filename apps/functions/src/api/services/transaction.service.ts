@@ -13,6 +13,7 @@ import {
 } from "../../lib/finance-helpers";
 import { CreateTransactionDTO } from "../helpers/transaction-validation";
 import { logger } from "../../lib/logger";
+import { recordMemberAudit } from "../../lib/member-audit";
 import {
   assertTenantExists,
   auditSuperAdminCrossTenantWrite,
@@ -1017,6 +1018,7 @@ export class TransactionService {
     const { tenantId, isSuperAdmin, isMaster } = await checkFinancialPermission(userId, "transactions", "canEdit", user);
     const can = await loadFinancialKeys(userId, "transactions", isMaster || isSuperAdmin);
     const inScope = await loadTransactionScope(userId, isMaster || isSuperAdmin);
+    let audit: { key: "settle" | "revert"; tenantId: string; label: string } | null = null;
 
     await db.runTransaction(async (t) => {
       const ref = db.collection(COLLECTION_NAME).doc(id);
@@ -1040,6 +1042,9 @@ export class TransactionService {
       ) {
         throw new Error(FINANCIAL_KEY_MESSAGES.extraCosts);
       }
+      audit = statusKey
+        ? { key: statusKey, tenantId: String(currentData.tenantId || tenantId), label: String(currentData.description || "") }
+        : null;
 
       const nextStatus =
         safeUpdateData.status &&
@@ -1184,6 +1189,16 @@ export class TransactionService {
         else if (op.type === "delete") t.delete(op.ref);
       }
     });
+
+    const done = audit as { key: "settle" | "revert"; tenantId: string; label: string } | null;
+    if (done) {
+      await recordMemberAudit({
+        tenantId: done.tenantId,
+        actorUid: userId,
+        action: done.key === "settle" ? "transaction_settled" : "transaction_reverted",
+        target: { type: "transaction", id, label: done.label },
+      });
+    }
   }
 
   /**
@@ -1211,8 +1226,11 @@ export class TransactionService {
     const { tenantId, isSuperAdmin, isMaster } = await checkFinancialPermission(userId, "transactions", "canEdit", user);
     const can = await loadFinancialKeys(userId, "transactions", isMaster || isSuperAdmin);
     const inScope = await loadTransactionScope(userId, isMaster || isSuperAdmin);
+    const changed = { settle: 0, revert: 0 };
 
-    return await db.runTransaction(async (t) => {
+    const count = await db.runTransaction(async (t) => {
+      changed.settle = 0;
+      changed.revert = 0;
       const now = Timestamp.now();
       const transactionsToUpdateWithData: {
         txRef: FirebaseFirestore.DocumentReference;
@@ -1242,6 +1260,7 @@ export class TransactionService {
         if (!inScope(txData)) throw new Error(OUT_OF_SCOPE_MESSAGE);
         const statusKey = statusChangeKey(txData.status, newStatus);
         if (statusKey && !can(statusKey)) throw new Error(FINANCIAL_KEY_MESSAGES[statusKey]);
+        if (statusKey) changed[statusKey] += 1;
 
         const nextData = {
           ...txData,
@@ -1384,6 +1403,19 @@ export class TransactionService {
 
       return uniqueIds.length;
     });
+
+    // Uma linha por lote no histórico, com quantos lançamentos mudaram.
+    for (const key of ["settle", "revert"] as const) {
+      if (changed[key] === 0) continue;
+      await recordMemberAudit({
+        tenantId,
+        actorUid: userId,
+        action: key === "settle" ? "transaction_settled" : "transaction_reverted",
+        target: { type: "transaction", label: `${changed[key]} lançamento(s) em lote` },
+        details: { count: changed[key] },
+      });
+    }
+    return count;
   }
 
   /**
@@ -1557,6 +1589,7 @@ export class TransactionService {
     const { tenantId, isSuperAdmin, isMaster } = await checkFinancialPermission(userId, "transactions", "canDelete", user);
     const inScope = await loadTransactionScope(userId, isMaster || isSuperAdmin);
 
+    let deletedLabel = "";
     await db.runTransaction(async (t) => {
       const ref = db.collection(COLLECTION_NAME).doc(id);
       const snap = await t.get(ref);
@@ -1566,6 +1599,7 @@ export class TransactionService {
       if (!isSuperAdmin && currentData?.tenantId !== tenantId)
         throw new Error("Acesso negado.");
       if (!inScope(currentData)) throw new Error(OUT_OF_SCOPE_MESSAGE);
+      deletedLabel = String(currentData?.description || "");
 
       // Check if linked to an approved proposal
       if (currentData?.proposalId) {
@@ -1648,6 +1682,12 @@ export class TransactionService {
       }
 
       t.delete(ref);
+    });
+    await recordMemberAudit({
+      tenantId,
+      actorUid: userId,
+      action: "transaction_deleted",
+      target: { type: "transaction", id, label: deletedLabel },
     });
   }
 
@@ -1843,6 +1883,13 @@ export class TransactionService {
         updatedAt: now,
         createdById: userId,
       });
+    });
+    await recordMemberAudit({
+      tenantId,
+      actorUid: userId,
+      action: "transaction_settled",
+      target: { type: "transaction", id, label: "Pagamento parcial" },
+      details: { amount: partialAmount },
     });
   }
 }
