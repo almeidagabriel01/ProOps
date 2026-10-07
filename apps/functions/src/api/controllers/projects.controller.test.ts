@@ -381,6 +381,42 @@ describe("deleteProject", () => {
   });
 });
 
+describe("ações finas de Projetos", () => {
+  const deny = (key: string) =>
+    hasPagePermission.mockImplementation(async (_c: unknown, _p: string, action: string) => action !== key);
+
+  it("sem 'Atribuir', não troca o técnico; reenviar o mesmo passa", async () => {
+    deny("assign");
+    projects.p1.assigneeId = "tec";
+    const troca = fakeRes();
+    await updateProject(fakeReq({ id: "p1" }, { assigneeId: null }), troca);
+    expect(troca.statusCode).toBe(403);
+    expect(projects.p1.assigneeId).toBe("tec");
+
+    const mesmo = fakeRes();
+    await updateProject(fakeReq({ id: "p1" }, { assigneeId: "tec", title: "Casa nova" }), mesmo);
+    expect(mesmo.statusCode).toBe(200);
+  });
+
+  it("sem 'Cancelar', não cancela nem reabre; concluir segue com o Editar", async () => {
+    deny("cancel");
+    const cancelar = fakeRes();
+    await updateProject(fakeReq({ id: "p1" }, { status: "canceled" }), cancelar);
+    expect(cancelar.statusCode).toBe(403);
+
+    const concluir = fakeRes();
+    await updateProject(fakeReq({ id: "p1" }, { status: "completed" }), concluir);
+    expect(concluir.statusCode).toBe(200);
+  });
+
+  it("sem 'Link de entrega', não gera o link", async () => {
+    deny("deliveryLink");
+    const res = fakeRes();
+    await createDeliveryLink(fakeReq({ id: "p1" }), res);
+    expect(res.statusCode).toBe(403);
+  });
+});
+
 describe("createDeliveryLink", () => {
   it("gera o link e marca a entrega como enviada", async () => {
     const res = fakeRes();
@@ -523,12 +559,12 @@ describe("agendar a etapa", () => {
     expect(projectUpdates).toHaveLength(0);
   });
 
-  it("sem editar Projetos: 403; obra de outra empresa: 404; etapa que não existe: 404", async () => {
+  it("sem 'Agendar etapa': 403; obra de outra empresa: 404; etapa que não existe: 404", async () => {
     hasPagePermission.mockResolvedValueOnce(false);
     const denied = fakeRes();
     await scheduleStage(fakeReq({ id: "p1", stageId: "s1" }, visit), denied);
     expect(denied.statusCode).toBe(403);
-    expect(hasPagePermission).toHaveBeenCalledWith(expect.anything(), "projects", "canEdit");
+    expect(hasPagePermission).toHaveBeenCalledWith(expect.anything(), "projects", "schedule");
 
     const other = fakeRes();
     await scheduleStage(fakeReq({ id: "outro", stageId: "s1" }, visit), other);
