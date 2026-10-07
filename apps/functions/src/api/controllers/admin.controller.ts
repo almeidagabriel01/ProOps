@@ -8,6 +8,7 @@ import { FieldValue, Timestamp } from "firebase-admin/firestore";
 import { getStorage } from "firebase-admin/storage";
 import { randomUUID } from "node:crypto";
 import { generateRandomPassword } from "../../lib/admin-helpers";
+import { selectTenantOwnerDocs } from "../../lib/tenant-owner";
 import {
   UserDoc,
   normalizePagePermission,
@@ -948,10 +949,8 @@ export const getAllTenantsBilling = async (req: Request, res: Response) => {
         .limit(300)
         .get();
       const ownerRoles = new Set(["master", "admin", "free"]);
-      docs = byTenant.docs.filter(
-        (d) =>
-          !String(d.get("masterId") || "").trim() &&
-          ownerRoles.has(String(d.get("role") || "").toLowerCase()),
+      docs = selectTenantOwnerDocs(
+        byTenant.docs.filter((d) => ownerRoles.has(String(d.get("role") || "").toLowerCase())),
       );
     } else {
       // Busca usuários MASTER/admin/free (donos de empresa ou contas gratuitas)
@@ -970,8 +969,12 @@ export const getAllTenantsBilling = async (req: Request, res: Response) => {
 
       const usersSnapshot = await usersQuery.get();
       hasMore = usersSnapshot.docs.length > pageSize;
-      docs = hasMore ? usersSnapshot.docs.slice(0, pageSize) : usersSnapshot.docs;
-      nextCursor = hasMore ? docs[docs.length - 1].id : null;
+      const pageDocs = hasMore ? usersSnapshot.docs.slice(0, pageSize) : usersSnapshot.docs;
+      nextCursor = hasMore ? pageDocs[pageDocs.length - 1].id : null;
+      // O papel sozinho não diz quem é o dono: um membro promovido a ADMIN
+      // tem o mesmo papel e é mais novo, então aparecia como o administrador
+      // da empresa na aba Acesso. O cursor segue a página crua.
+      docs = selectTenantOwnerDocs(pageDocs);
     }
 
     logger.info("[getAllTenantsBilling] found users", {

@@ -16,6 +16,12 @@ interface OverviewTabProps {
   tenant: Tenant | null;
   isMaster: boolean;
   planUsageData: UsePlanUsageReturn;
+  /**
+   * O super admin está vendo o perfil de outra pessoa (o dono ou um membro).
+   * Salvar gravaria no doc do próprio super admin (`PUT /v1/profile` usa a
+   * identidade logada), e a troca de senha mudaria a senha dele.
+   */
+  readOnlyPersonalData?: boolean;
 }
 
 export function OverviewTab({
@@ -23,6 +29,7 @@ export function OverviewTab({
   tenant,
   isMaster,
   planUsageData,
+  readOnlyPersonalData = false,
 }: OverviewTabProps) {
   const isFree = user?.role?.toLowerCase() === "free";
   // In demo mode `tenant` is the shared demo dataset — the organization form is
@@ -42,12 +49,14 @@ export function OverviewTab({
     return () => unsubscribe();
   }, []);
 
+  const showPasswordForm = hasPasswordProvider && !readOnlyPersonalData;
+
   return (
     <div className="grid gap-6 md:grid-cols-2 items-start">
       {/* Left Column: Personal Info + Password */}
       <div className="flex flex-col gap-6">
-        <PersonalForm user={user} />
-        {hasPasswordProvider ? (
+        <PersonalForm key={user?.id ?? "none"} user={user} readOnly={readOnlyPersonalData} />
+        {showPasswordForm ? (
           <PasswordForm />
         ) : (
           !isFree && <PlanUsageCard variant="profile" data={planUsageData} />
@@ -56,7 +65,7 @@ export function OverviewTab({
       {/* Right Column: Organization + Plan Usage */}
       <div className="flex flex-col gap-6">
         <OrganizationForm tenant={accountTenant ?? tenant} isMaster={isMaster} />
-        {!isFree && hasPasswordProvider && (
+        {!isFree && showPasswordForm && (
           <PlanUsageCard variant="profile" data={planUsageData} />
         )}
       </div>

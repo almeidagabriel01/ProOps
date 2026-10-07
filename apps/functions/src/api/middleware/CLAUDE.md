@@ -180,7 +180,9 @@ Consequências para quem escreve controller:
   Acessar Painel. Helper novo que confira tenant contra o doc do usuário
   precisa dela também.
 - O dono é o usuário mais antigo sem `masterId` **ou com `masterId` igual ao
-  próprio id** (seeds e contas antigas gravam assim).
+  próprio id** (seeds e contas antigas gravam assim). A regra mora em
+  `lib/tenant-owner.ts` e é a mesma da aba Acesso do painel
+  (`getAllTenantsBilling`) e do Perfil no front.
 - `requirePlanCapability` avalia o plano da empresa vista (em `enforce`), sem o
   bypass de superadmin: o superadmin vê o que o cliente vê.
 - **Pegue o tenant de `req.user.tenantId`.** Ler `x-tenant-id` ou `targetTenantId`

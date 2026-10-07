@@ -4,3 +4,4 @@ export { PlanChangeDialog } from "./PlanChangeDialog";
 export { OverviewTab } from "./OverviewTab";
 export { BillingTab } from "./BillingTab";
 export { MySubscriptionTab } from "./MySubscriptionTab";
+export { ImpersonatedProfileNotice } from "./impersonated-profile-notice";

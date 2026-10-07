@@ -7,6 +7,7 @@ import { useTenant } from "@/providers/tenant-provider";
 import { useDisplayTenant } from "@/hooks/useDisplayTenant";
 import { usePermissions } from "@/providers/permissions-provider";
 import { usePlanChange } from "@/hooks/usePlanChange";
+import { useProfileSubject } from "@/hooks/use-profile-subject";
 import { usePlanUsage } from "@/hooks/usePlanUsage";
 import { usePlanLimits } from "@/hooks/usePlanLimits";
 import {
@@ -15,6 +16,7 @@ import {
   OverviewTab,
   BillingTab,
   MySubscriptionTab,
+  ImpersonatedProfileNotice,
 } from "@/components/profile";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ProfileSkeleton } from "./_components/profile-skeleton";
@@ -35,6 +37,11 @@ function ProfileContent() {
   const { isMaster } = usePermissions();
   const planUsageData = usePlanUsage();
   const { purchasedAddons, purchasedAddonsData, refreshAddons } = usePlanLimits();
+  // De quem é este Perfil: a própria conta, ou o dono ou o membro que o super
+  // admin está vendo. Nome, e-mail e telefone vêm de `subject`; a assinatura,
+  // de `billingUser` (sempre a conta do dono).
+  const profile = useProfileSubject();
+  const isImpersonatedProfile = profile.mode !== "self";
 
   const {
     effectiveUser,
@@ -59,7 +66,10 @@ function ProfileContent() {
     isManualContract,
     billingInterval,
     setBillingInterval,
-  } = usePlanChange(user, tenant);
+  } = usePlanChange(user, tenant, {
+    user: profile.billingUser,
+    ready: !profile.isLoading,
+  });
 
   // Sync state with user's actual interval
   useEffect(() => {
@@ -72,6 +82,7 @@ function ProfileContent() {
   const isPageLoading =
     isLoading ||
     authLoading ||
+    profile.isLoading ||
     planUsageData.isLoading ||
     (user?.role !== "superadmin" && tenantLoading);
 
@@ -116,12 +127,20 @@ function ProfileContent() {
             Voltar ao painel
           </Link>
         )}
+        {profile.mode !== "self" && (
+          <ImpersonatedProfileNotice
+            mode={profile.mode}
+            personName={profile.subject?.name || profile.subject?.email || null}
+            companyName={effectiveTenant?.name || null}
+          />
+        )}
         {/* Header Section */}
         <ProfileHeader
-          user={effectiveUser}
+          user={profile.subject}
           tenant={effectiveTenant}
           userPlan={userPlan}
           isMaster={isMaster}
+          subjectMode={profile.mode}
         />
 
         <Tabs
@@ -187,10 +206,11 @@ function ProfileContent() {
               transition={{ duration: 0.3, ease: "easeOut" }}
             >
               <OverviewTab
-                user={effectiveUser}
+                user={profile.subject}
                 tenant={effectiveTenant}
                 isMaster={isMaster}
                 planUsageData={planUsageData}
+                readOnlyPersonalData={isImpersonatedProfile}
               />
             </motion.div>
           </TabsContent>
