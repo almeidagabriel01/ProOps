@@ -7,6 +7,7 @@ import {
   ResponsibleMemberField,
 } from "@/components/features/responsibles/responsibles-fields";
 import { useContactResponsibles } from "@/hooks/use-contact-responsibles";
+import { usePermission } from "@/hooks/usePermission";
 import type { ClientType } from "@/services/client-service";
 
 /**
@@ -50,6 +51,8 @@ export function ContactResponsiblesSection({
   readOnly,
 }: ContactResponsiblesSectionProps) {
   const { people, partners } = useContactResponsibles();
+  // "Trocar o responsável": sem ela o bloco fica só leitura.
+  const canReassign = usePermission("clients", "reassign");
   if (!showsContactResponsibles(types)) return null;
   const forArchitect = isArchitectRelationship(types);
   // Quem acompanha um arquiteto é vendedor; outro arquiteto não faz sentido ali.
@@ -57,7 +60,7 @@ export function ContactResponsiblesSection({
     ? partners.filter((partner) => (partner.types ?? []).includes("vendedor"))
     : partners;
 
-  if (readOnly) {
+  if (readOnly || !canReassign) {
     const memberName = people.find((p) => p.id === value.responsibleMemberId)?.name;
     const partnerNames = value.partnerContactIds
       .map((id) => partners.find((p) => p.id === id)?.name)

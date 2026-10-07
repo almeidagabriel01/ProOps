@@ -16,6 +16,21 @@ const m = vi.hoisted(() => ({
   revoke: vi.fn(),
 }));
 
+vi.mock("@/hooks/usePermission", () => ({
+  // "Portal do cliente" segue o Editar de Contatos do teste (o fallback do catálogo).
+  usePermission: (pageId: string, key: string) =>
+    pageId === "clients" && key === "portal" ? (m.perm as { canEdit?: boolean }).canEdit === true : true,
+  usePageScope: () => ({ scope: "all", isLoading: false }),
+  useSensitiveData: () => ({
+    isLoading: false,
+    canSeeCost: true,
+    canSeeStock: true,
+    canSeeContractValues: true,
+    canSeeServiceOrderPrices: true,
+    canSeeCommissions: true,
+    canSeeBalance: true,
+  }),
+}));
 vi.mock("@/hooks/usePlanLimits", () => ({ usePlanLimits: () => m.plan }));
 vi.mock("@/hooks/usePagePermission", () => ({
   usePagePermission: (pageId: string) => (pageId === "clients" ? m.perm : (m.pages[pageId] ?? {})),

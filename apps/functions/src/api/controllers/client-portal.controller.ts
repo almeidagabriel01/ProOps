@@ -32,7 +32,9 @@ function fail(res: Response, error: unknown, fallback: string, event: string) {
 
 async function requireClients(
   req: Request,
-  action: "canView" | "canEdit",
+  // "portal" (ação fina de Contatos; ausente, vale o Editar) cria, troca e
+  // desliga o link.
+  action: "canView" | "portal",
   opts: { opensPortal: boolean } = { opensPortal: true },
 ) {
   const tenantId = req.user?.tenantId;
@@ -70,7 +72,7 @@ export async function getClientPortalLink(req: Request, res: Response) {
 /** POST /v1/client-portal/:clientId/link: o link do contato, criado na primeira vez. */
 export async function createClientPortalLink(req: Request, res: Response) {
   try {
-    const { tenantId, uid } = await requireClients(req, "canEdit");
+    const { tenantId, uid } = await requireClients(req, "portal");
     return res.json({ link: await ensurePortalLink(tenantId, String(req.params.clientId), uid) });
   } catch (error) {
     return fail(res, error, "Erro ao criar o portal do cliente.", "client_portal_create_failed");
@@ -80,7 +82,7 @@ export async function createClientPortalLink(req: Request, res: Response) {
 /** POST /v1/client-portal/:clientId/link/rotate: link novo; o anterior para de abrir. */
 export async function rotateClientPortalLink(req: Request, res: Response) {
   try {
-    const { tenantId, uid } = await requireClients(req, "canEdit");
+    const { tenantId, uid } = await requireClients(req, "portal");
     return res.json({ link: await rotatePortalLink(tenantId, String(req.params.clientId), uid) });
   } catch (error) {
     return fail(res, error, "Erro ao gerar um novo link.", "client_portal_rotate_failed");
@@ -90,7 +92,7 @@ export async function rotateClientPortalLink(req: Request, res: Response) {
 /** DELETE /v1/client-portal/:clientId/link */
 export async function revokeClientPortalLink(req: Request, res: Response) {
   try {
-    const { tenantId } = await requireClients(req, "canEdit", { opensPortal: false });
+    const { tenantId } = await requireClients(req, "portal", { opensPortal: false });
     await revokePortalLink(tenantId, String(req.params.clientId));
     return res.json({ success: true });
   } catch (error) {

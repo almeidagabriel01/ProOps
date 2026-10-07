@@ -16,6 +16,7 @@ import { SendLinkPanel } from "@/components/shared/send-link-panel";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { usePlanLimits } from "@/hooks/usePlanLimits";
 import { usePagePermission } from "@/hooks/usePagePermission";
+import { usePermission } from "@/hooks/usePermission";
 import { usePermissions } from "@/providers/permissions-provider";
 import { useTenant } from "@/providers/tenant-provider";
 import { toast } from "@/lib/toast";
@@ -39,7 +40,8 @@ type Pending = "create" | "rotate" | "revoke" | null;
  */
 export function ClientPortalButton({ client }: ClientPortalButtonProps) {
   const { hasClientPortal } = usePlanLimits();
-  const { canEdit } = usePagePermission("clients");
+  // "Portal do cliente" (ação fina de Contatos; ausente, vale o Editar).
+  const canEdit = usePermission("clients", "portal");
   const proposals = usePagePermission("proposals");
   const transactions = usePagePermission("transactions");
   const seesPortalContent = proposals.canView || transactions.canView;

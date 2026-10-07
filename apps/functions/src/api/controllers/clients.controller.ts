@@ -319,6 +319,20 @@ export const createClient = async (req: Request, res: Response) => {
         message: "Comissão e vínculo com a equipe são definidos pelo dono ou por um administrador.",
       });
     }
+    // Ações finas de Contatos (catálogo de permissões): pôr outra pessoa como
+    // responsável e escolher a tabela de preço.
+    if (!isMaster && !isSuperAdmin) {
+      if (
+        input.responsibleMemberId &&
+        input.responsibleMemberId !== userId &&
+        !(await checkPermission(userId, "clients", "reassign"))
+      ) {
+        return res.status(403).json({ message: "Sem permissão para trocar o responsável pelo contato." });
+      }
+      if (input.priceTableId && !(await checkPermission(userId, "clients", "priceTable"))) {
+        return res.status(403).json({ message: "Sem permissão para escolher a tabela de preço do contato." });
+      }
+    }
 
     if (input.linkedMemberId) {
       try {
@@ -518,6 +532,22 @@ export const updateClient = async (req: Request, res: Response) => {
         return res.status(403).json({
           message: "Comissão e vínculo com a equipe são definidos pelo dono ou por um administrador.",
         });
+      }
+      const idsKey = (value: unknown) => (Array.isArray(value) ? value.map(String) : []).sort().join("|");
+      const responsibleChanged =
+        (updateData.responsibleMemberId !== undefined &&
+          (updateData.responsibleMemberId || null) !==
+            ((clientData?.responsibleMemberId as string | undefined) || null)) ||
+        (updateData.partnerContactIds !== undefined &&
+          idsKey(updateData.partnerContactIds) !== idsKey(clientData?.partnerContactIds));
+      if (responsibleChanged && !(await checkPermission(userId, "clients", "reassign"))) {
+        return res.status(403).json({ message: "Sem permissão para trocar o responsável pelo contato." });
+      }
+      const priceTableChanged =
+        updateData.priceTableId !== undefined &&
+        (updateData.priceTableId || null) !== ((clientData?.priceTableId as string | undefined) || null);
+      if (priceTableChanged && !(await checkPermission(userId, "clients", "priceTable"))) {
+        return res.status(403).json({ message: "Sem permissão para escolher a tabela de preço do contato." });
       }
     }
 
