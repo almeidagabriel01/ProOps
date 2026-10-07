@@ -29,6 +29,7 @@ import {
 import * as walletsService from "../../api/services/wallets.service";
 import { changeProposalStatusAsUser } from "../../api/controllers/proposal-status-internal";
 import { buildLiaProposalLine, type LiaProposalItemInput } from "./proposal-items";
+import { projectProductForViewer, projectProposalForViewer } from "./sensitive-projection";
 
 // ─── Phone normalization ─────────────────────────────────────────────────────
 
@@ -100,6 +101,14 @@ export interface ToolCallResult {
  * Converts dd/MM/yyyy to YYYY-MM-DD.
  * Falls back to the original string if format does not match.
  */
+/** Os dados sensíveis do catálogo de permissões para quem conversa com a Lia. */
+function sensitiveAccess(ctx: ToolCallContext) {
+  return {
+    viewCost: resolvePagePermission({ role: ctx.role }, ctx.permissions, "products", "viewCost"),
+    viewStock: resolvePagePermission({ role: ctx.role }, ctx.permissions, "products", "viewStock"),
+  };
+}
+
 function parseBrDate(brDate: string): string {
   const match = brDate.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
   if (!match) return brDate;
@@ -243,7 +252,10 @@ const HANDLERS: Record<string, ToolHandler> = {
       args.proposalId as string,
       ctx.tenantId,
     );
-    return { success: true, data };
+    return {
+      success: true,
+      data: projectProposalForViewer(data as unknown as Record<string, unknown>, sensitiveAccess(ctx)),
+    };
   },
 
   create_proposal: async (args, ctx) => {
@@ -386,7 +398,11 @@ const HANDLERS: Record<string, ToolHandler> = {
       orderBy: args.orderBy as "createdAt" | "name" | "price" | "updatedAt" | undefined,
       direction: args.direction as "asc" | "desc" | undefined,
     });
-    return { success: true, data };
+    const access = sensitiveAccess(ctx);
+    return {
+      success: true,
+      data: data.map((item) => projectProductForViewer(item as unknown as Record<string, unknown>, access)),
+    };
   },
 
   get_product: async (args, ctx) => {
@@ -394,7 +410,10 @@ const HANDLERS: Record<string, ToolHandler> = {
       args.productId as string,
       ctx.tenantId,
     );
-    return { success: true, data };
+    return {
+      success: true,
+      data: projectProductForViewer(data as unknown as Record<string, unknown>, sensitiveAccess(ctx)),
+    };
   },
 
   create_product: async (args, ctx) => {
