@@ -3,6 +3,7 @@
 import { callApi } from "@/lib/api-client";
 import { PlanFeatures } from "@/types";
 import type { ActivityCategory, TenantActivityType } from "@/lib/activity/catalog";
+import type { PresenceInfo, PresenceStatus } from "@/lib/presence-format";
 
 interface AdminCredentialsData {
   userId: string;
@@ -45,6 +46,31 @@ export interface TenantMemberInfo {
       boolean | string | undefined
     >
   >;
+}
+
+/** Uma pessoa na tela "Online" (GET /v1/admin/presence). */
+export interface PresencePerson {
+  uid: string;
+  name: string;
+  email: string;
+  role: string;
+  status: PresenceStatus;
+  sessionStartedAt: string | null;
+  lastHeartbeatAt: string | null;
+  lastActiveAt: string | null;
+}
+
+/** Uma empresa que passou pelo ERP hoje, com cada pessoa. */
+export interface TenantPresenceEntry extends PresenceInfo {
+  tenantId: string;
+  tenantName: string;
+  people: PresencePerson[];
+}
+
+export interface PresenceSnapshot {
+  now: string;
+  since: string;
+  tenants: TenantPresenceEntry[];
 }
 
 export interface AdminAuditActor {
@@ -140,8 +166,10 @@ export interface TenantBillingInfo {
     whatsappEnabled?: boolean;
     /** active | deactivated | purging | purged */
     accountStatus?: string;
-    /** Última vez que alguém da empresa usou o ERP (precisão de 15 min). */
+    /** Última vez que alguém da empresa abriu o ERP. */
     lastSeenAt?: string;
+    /** Online, ausente ou a última sessão da empresa. Ausente se ninguém nunca avisou presença. */
+    presence?: PresenceInfo;
   };
   admin: {
     id: string;
@@ -288,6 +316,12 @@ export const AdminService = {
     search.set("limit", String(params.limit ?? 50));
     const result = await callApi<TenantActivityPage>(`/v1/admin/activity?${search}`, "GET");
     return { events: result.events ?? [], nextCursor: result.nextCursor ?? null };
+  },
+
+  /** Quem está online agora e quem passou pelo ERP hoje. */
+  getPresence: async (): Promise<PresenceSnapshot> => {
+    const result = await callApi<PresenceSnapshot>("/v1/admin/presence", "GET");
+    return { now: result.now, since: result.since, tenants: result.tenants ?? [] };
   },
 
   startImpersonation: async (tenantId: string, memberUid?: string): Promise<void> => {

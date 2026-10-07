@@ -30,6 +30,7 @@ import {
   getTenantsIndex,
 } from "../controllers/admin-tenant-modules.controller";
 import { listTenantActivity } from "../controllers/admin-activity.controller";
+import { listPresence } from "../controllers/admin-presence.controller";
 import { listTenantMembers } from "../controllers/admin-tenant-members.controller";
 import {
   listMemberAudit,
@@ -48,6 +49,7 @@ router.post("/tenants/:tenantId/addons/:addonId", grantCourtesyAddon);
 router.delete("/tenants/:tenantId/addons/:addonId", revokeCourtesyAddon);
 router.get("/audit-events", getAuditEvents);
 router.get("/activity", listTenantActivity);
+router.get("/presence", listPresence);
 router.post("/impersonation/start", startImpersonation);
 router.post("/impersonation/stop", stopImpersonation);
 router.post("/members", createMember);

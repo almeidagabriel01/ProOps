@@ -17,6 +17,9 @@ import { TenantBillingInfo, AdminService } from "@/services/admin-service";
 import * as React from "react";
 import { toast } from "@/lib/toast";
 import { Loader } from "@/components/ui/loader";
+import { PresenceRefresh } from "@/components/admin/presence/presence-refresh";
+import { useOnlinePresence } from "@/hooks/use-online-presence";
+import { withLivePresence } from "@/lib/presence-live";
 
 export default function AdminPage() {
   const {
@@ -46,6 +49,11 @@ export default function AdminPage() {
     goNext,
     goPrev,
   } = useTenantManagement();
+  const presence = useOnlinePresence();
+  const tenants = React.useMemo(
+    () => withLivePresence(filteredTenants, presence.data),
+    [filteredTenants, presence.data],
+  );
 
   const [isCopyDialogOpen, setIsCopyDialogOpen] = React.useState(false);
   const [copySourceTenant, setCopySourceTenant] = React.useState<TenantBillingInfo | null>(null);
@@ -103,22 +111,30 @@ export default function AdminPage() {
       </div>
 
       {/* Filters */}
-      <div className="relative max-w-md">
-        <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-        <Input
-          placeholder="Pesquisar empresas..."
-          className="pl-10 h-10 bg-muted/50"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <div className="relative w-full max-w-md">
+          <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Pesquisar empresas..."
+            className="pl-10 h-10 bg-muted/50"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
+          {isSearching && (
+            <Loader size="sm" className="absolute right-3 top-3" />
+          )}
+        </div>
+        <PresenceRefresh
+          updatedAt={presence.data?.now}
+          isLoading={presence.isLoading}
+          onRefresh={presence.reload}
+          className="self-end sm:self-auto"
         />
-        {isSearching && (
-          <Loader size="sm" className="absolute right-3 top-3" />
-        )}
       </div>
 
       {/* Grid List */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-        {filteredTenants.map((item) => (
+        {tenants.map((item) => (
           <TenantCard
             key={item.tenant.id}
             item={item}

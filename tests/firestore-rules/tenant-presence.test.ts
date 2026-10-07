@@ -8,9 +8,10 @@ import { readFileSync } from "fs";
 import * as path from "path";
 
 /**
- * tenant_presence guarda o ultimo acesso da empresa. So o backend le e grava:
- * o navegador nao deve conseguir forjar o proprio "ultimo acesso", nem ler o
- * de outra empresa.
+ * tenant_presence guarda o ultimo acesso da empresa e, em `people/{uid}`, a
+ * sessao de cada pessoa ("Online agora"). So o backend le e grava: o navegador
+ * nao deve conseguir forjar o proprio "ultimo acesso" ou ficar "online", nem
+ * ler quem esta online em outra empresa.
  */
 
 let testEnv: RulesTestEnvironment;
@@ -35,6 +36,12 @@ beforeEach(async () => {
     await setDoc(doc(ctx.firestore(), "tenant_presence", "t-a"), {
       tenantId: "t-a",
       lastSeenAt: "2026-09-23T10:00:00.000Z",
+    });
+    await setDoc(doc(ctx.firestore(), "tenant_presence", "t-a", "people", "uid-a"), {
+      uid: "uid-a",
+      tenantId: "t-a",
+      lastHeartbeatAt: "2026-09-23T10:00:00.000Z",
+      open: true,
     });
   });
 });
@@ -64,5 +71,15 @@ describe("tenant_presence", () => {
 
   test("anonimo nao le", async () => {
     await assertFails(getDoc(doc(testEnv.unauthenticatedContext().firestore(), "tenant_presence", "t-a")));
+  });
+
+  test("a sessao de cada pessoa tambem fica fechada para o navegador", async () => {
+    await assertFails(getDoc(doc(tenantAdmin(), "tenant_presence", "t-a", "people", "uid-a")));
+    await assertFails(
+      setDoc(doc(tenantAdmin(), "tenant_presence", "t-a", "people", "uid-a"), {
+        lastHeartbeatAt: "2099-01-01T00:00:00.000Z",
+      }),
+    );
+    await assertFails(getDoc(doc(superAdminMfa(), "tenant_presence", "t-a", "people", "uid-a")));
   });
 });

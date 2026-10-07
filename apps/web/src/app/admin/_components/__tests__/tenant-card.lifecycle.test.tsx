@@ -108,4 +108,20 @@ describe("TenantCard: ciclo de vida da empresa", () => {
     renderCard(item());
     expect(screen.getByText("Nunca acessou")).toBeInTheDocument();
   });
+
+  it("online agora: uma linha só, sem um último acesso que pareça contradizer a sessão", () => {
+    const now = Date.now();
+    const base = item(undefined, new Date(now - 30_000).toISOString());
+    base.tenant.presence = {
+      status: "online",
+      sessionStartedAt: new Date(now - 3 * 60_000).toISOString(),
+      lastHeartbeatAt: new Date(now - 10_000).toISOString(),
+    };
+    renderCard(base);
+    expect(screen.getByText("Acesso:")).toBeInTheDocument();
+    expect(screen.getByText("Online agora")).toBeInTheDocument();
+    expect(screen.getByText(/^desde \d{2}:\d{2}$/)).toBeInTheDocument();
+    expect(screen.queryByText("Último acesso:")).not.toBeInTheDocument();
+    expect(screen.queryByText("Agora:")).not.toBeInTheDocument();
+  });
 });

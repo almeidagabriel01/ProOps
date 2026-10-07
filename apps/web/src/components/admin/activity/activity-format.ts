@@ -1,4 +1,5 @@
 import { getPageConfig } from "@/lib/page-config";
+import { formatSessionDuration } from "@/lib/presence-format";
 import {
   ROUTE_BLOCKED_REASON_LABELS,
   SUBSCRIBE_CLICK_SOURCE_LABELS,
@@ -189,6 +190,14 @@ export function describeActivity(event: Pick<TenantActivityEvent, "type" | "rout
       return {
         title: label,
         detail: joinParts([typeof meta.errorType === "string" && meta.errorType, screenName(event.route)]),
+      };
+    case "session_ended":
+      return {
+        title: label,
+        detail:
+          typeof meta.durationMinutes === "number"
+            ? `sessão de ${formatSessionDuration(meta.durationMinutes)}`
+            : undefined,
       };
     case "onboarding_step_completed":
     case "onboarding_exited":

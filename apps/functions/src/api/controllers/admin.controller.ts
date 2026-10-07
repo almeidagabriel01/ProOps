@@ -9,6 +9,7 @@ import { getStorage } from "firebase-admin/storage";
 import { randomUUID } from "node:crypto";
 import { generateRandomPassword } from "../../lib/admin-helpers";
 import { selectTenantOwnerDocs } from "../../lib/tenant-owner";
+import { closeStaleSessions, summarizeTenantPresence } from "../../lib/tenant-presence";
 import {
   UserDoc,
   normalizePagePermission,
@@ -1025,9 +1026,13 @@ export const getAllTenantsBilling = async (req: Request, res: Response) => {
       }
     }
 
-    // Ultimo acesso, da colecao propria (ver lib/tenant-last-seen.ts): uma
-    // leitura por empresa da pagina. Falha aqui nao derruba a listagem.
-    const presenceMap = new Map<string, unknown>();
+    // Ultimo acesso e presenca, da colecao propria (ver lib/tenant-last-seen.ts
+    // e lib/tenant-presence.ts): uma leitura por empresa da pagina. Falha aqui
+    // nao derruba a listagem. Antes de ler, encerra as sessoes que pararam de
+    // avisar, para o card nao mostrar "online" quem ja saiu.
+    const presenceNowMs = Date.now();
+    await closeStaleSessions({ nowMs: presenceNowMs });
+    const presenceMap = new Map<string, Record<string, unknown>>();
     if (tenantIds.size > 0) {
       try {
         const presenceSnaps = await db.getAll(
@@ -1036,7 +1041,7 @@ export const getAllTenantsBilling = async (req: Request, res: Response) => {
           ),
         );
         for (const snap of presenceSnaps) {
-          if (snap.exists) presenceMap.set(snap.id, snap.get("lastSeenAt"));
+          if (snap.exists) presenceMap.set(snap.id, snap.data() ?? {});
         }
       } catch (err) {
         logger.warn("[getAllTenantsBilling] presence fetch failed", {
@@ -1240,9 +1245,11 @@ export const getAllTenantsBilling = async (req: Request, res: Response) => {
             whatsappEnabled: tenantData.whatsappEnabled,
             accountStatus: tenantData.accountStatus || "active",
             lastSeenAt: pickLastSeen(
-              presenceMap.get(tenantId || ""),
+              presenceMap.get(tenantId || "")?.lastSeenAt,
               tenantData.lastSeenAt,
             ),
+            // Online, ausente ou a última sessão (lib/tenant-presence.ts).
+            presence: summarizeTenantPresence(presenceMap.get(tenantId || ""), presenceNowMs),
           },
           admin: {
             id: userDoc.id,

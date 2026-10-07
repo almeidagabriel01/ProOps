@@ -15,6 +15,7 @@ import { usePlanLimits } from "@/hooks/usePlanLimits";
 import { useIsMobile } from "@/hooks/use-is-mobile";
 import { useAuth } from "@/providers/auth-provider";
 import { useSessionPing } from "@/hooks/use-session-ping";
+import { usePresenceHeartbeat } from "@/hooks/use-presence-heartbeat";
 import { useActivityTracking } from "@/hooks/use-activity-tracking";
 import { usePermission } from "@/hooks/usePermission";
 import { trackActivity } from "@/lib/activity/activity-tracker";
@@ -48,6 +49,9 @@ function ProtectedShell({ children }: { children: React.ReactNode }) {
   // Marca o acesso da empresa (uma vez por navegador, por dia). Ver
   // hooks/use-session-ping.ts.
   useSessionPing(user);
+  // Quem está online agora (aviso de minuto em minuto). Ver
+  // hooks/use-presence-heartbeat.ts.
+  usePresenceHeartbeat(user);
   // Telas abertas, para a atividade da empresa no painel do super admin.
   useActivityTracking(user);
 
