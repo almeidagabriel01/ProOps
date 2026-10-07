@@ -75,6 +75,16 @@ describe("dado estruturado", () => {
     expect(empresa).toMatchObject({ "@id": ORGANIZACAO_ID, url: `${APEX_URL}/` });
   });
 
+  it("a empresa declara a razão social e o CNPJ do cartão", () => {
+    const empresa = nos(<InstitucionalJsonLd />).find(
+      (n) => n["@type"] === "Organization",
+    );
+    expect(empresa).toMatchObject({
+      legalName: "PROOPS SOLUTIONS - LTDA.",
+      taxID: "69.504.283/0001-05",
+    });
+  });
+
   it("a empresa declara os dois produtos pelos seus hosts", () => {
     const empresa = nos(<InstitucionalJsonLd />).find(
       (n) => n["@type"] === "Organization",
