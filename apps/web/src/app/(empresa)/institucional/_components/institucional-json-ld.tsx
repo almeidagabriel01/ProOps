@@ -2,6 +2,7 @@ import { INSTAGRAM_HREF } from "@/components/landing/_shared/whatsapp";
 import { ORGANIZACAO_ID } from "@/components/seo/json-ld";
 import { APEX_URL, SITE_URLS } from "@/lib/site/surfaces";
 import { APP_NAME } from "@/lib/site/app-brand";
+import { CNPJ, RAZAO_SOCIAL } from "@/lib/site/empresa";
 
 /**
  * Structured data for the company page.
@@ -32,6 +33,8 @@ export function InstitucionalJsonLd() {
     "@type": "Organization",
     "@id": ORGANIZACAO_ID,
     name: "ProOps",
+    legalName: RAZAO_SOCIAL,
+    taxID: CNPJ,
     url: `${APEX_URL}/`,
     logo: `${APEX_URL}/icons/icon-512.png`,
     description:
