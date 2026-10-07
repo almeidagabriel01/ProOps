@@ -43,13 +43,33 @@ silêncio, e o histórico do projeto tem um caso real de cada:
 **Decida:** este módulo tem uma página que o master possa conceder ou negar por
 membro? Se sim, ele precisa de um `pageId`.
 
-- [ ] `pageId` acrescentado a `PERMISSION_PAGES` em
-      `apps/web/src/lib/permissions/pages.ts` — **fonte canônica**, consumida
-      pelas duas telas da área de Equipe.
+- [ ] `pageId` acrescentado ao `PERMISSION_CATALOG` em
+      `apps/functions/src/shared/permission-catalog.ts` (**fonte única**:
+      `PERMISSION_PAGES` do front e `ASSIGNABLE_PERMISSION_PAGE_IDS` derivam
+      dele) e copiado para o espelho `apps/web/src/lib/permissions/catalog.ts`.
+      O backend recusa gravar página ou chave fora do catálogo. Paridade:
+      `permission-pages-parity.test.ts`.
+- [ ] Ação de peso diferente do "Editar" (aprovar, dar baixa, cancelar,
+      compartilhar para fora) vira **ação fina** no catálogo, com `fallback`
+      na ação básica que a cobria até então: assim nada muda no dia para quem
+      já era membro. Dado que nem todo membro deve ver (custo, saldo, valores)
+      vira **dado sensível**, lido por `useSensitiveData()` na tela e cortado
+      na resposta da API e da Lia.
+- [ ] Coleção cujo registro tem dono (vendedor, responsável, técnico) e que
+      a empresa pode querer recortar ganha **alcance** (`scope`): regra no
+      `firestore.rules` (`memberSeesAll`/`memberOwns`), `ownerFilter` em todo
+      service do SDK que a liste (`lib/permissions/query-scope.ts`; sem ele a
+      lista de quem tem "own" é recusada inteira), `recordInScope` nos
+      controllers e o campo em `SCOPE_OWNER_FIELD` dos dois lados.
 - [ ] Controller checa: `hasPagePermission(claims, pageId, action)` (padrão
       novo) ou o bloco `if (!isMaster && !isSuperAdmin) checkPermission(...)`
       (controllers antigos que já têm o contexto resolvido em mãos).
-- [ ] Página usa `usePagePermission(pageId)` para esconder ação sem permissão.
+- [ ] Página usa `usePagePermission(pageId)` (ações básicas) e
+      `usePermission(pageId, chave)` (ações finas) para esconder ação sem
+      permissão.
+- [ ] Ação que mude dinheiro, documento fiscal ou acesso grava no histórico
+      da equipe (`recordMemberAudit`, catálogo fechado em
+      `shared/member-audit-catalog.ts`, rótulo espelhado no front).
 - [ ] Item de menu declara `pageId` em `navigation-config.tsx`.
 - [ ] Ferramenta da Lia que toque o módulo declara
       `permission: { pageId, action }` em `ai/tools/index.ts`.

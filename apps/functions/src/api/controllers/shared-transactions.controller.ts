@@ -1,7 +1,7 @@
 import { Request, Response } from "express";
 import { tenantHasCapability } from "../../lib/tenant-capabilities";
 import { SharedTransactionService } from "../services/shared-transactions.service";
-import { resolveUserAndTenant } from "../../lib/auth-helpers";
+import { hasPagePermission, resolveUserAndTenant } from "../../lib/auth-helpers";
 import { db } from "../../init";
 import { resolveClientIp } from "../../lib/client-ip";
 
@@ -56,6 +56,13 @@ export const createShareLink = async (req: Request, res: Response) => {
 
     const expireDays: ValidExpireDays = rawExpireDays;
 
+    // O link é público e abre o Pix e o boleto do Asaas: criá-lo (ou trocar a
+    // validade) é alterar o lançamento: "Compartilhar" (ausente, vale o
+    // Editar). Antes bastava ser da empresa.
+    if (!(await hasPagePermission(req.user, "transactions", "share"))) {
+      return res.status(403).json({ message: "Sem permissão para compartilhar o lançamento." });
+    }
+
     const { tenantId, isSuperAdmin } = await resolveUserAndTenant(userId, req.user);
 
     const transactionRef = db.collection("transactions").doc(transactionId);
@@ -106,6 +113,10 @@ export const getShareLinkInfo = async (req: Request, res: Response) => {
 
     if (!transactionId) {
       return res.status(400).json({ message: "ID do lancamento e obrigatorio" });
+    }
+
+    if (!(await hasPagePermission(req.user, "transactions", "canView"))) {
+      return res.status(403).json({ message: "Sem permissão para ver o lançamento." });
     }
 
     const { tenantId, isSuperAdmin } = await resolveUserAndTenant(userId, req.user);

@@ -12,7 +12,7 @@ import { checkAiLimit, reserveAiMessage, finalizeTokenUsage, refundAiMessage, ge
 import { loadConversation, saveConversation } from "./conversation-store";
 import { buildSystemPrompt } from "./context-builder";
 import { buildAvailableTools } from "./tools/index";
-import { loadPagePermissions } from "../lib/auth-helpers";
+import { hasPagePermission, loadPagePermissions } from "../lib/auth-helpers";
 import { executeToolCall, type ToolCallContext } from "./tools/executor";
 import type { AiChatSession } from "./providers/index";
 import { runToolLoop } from "./tool-loop";
@@ -100,6 +100,17 @@ router.post("/chat", async (req: Request, res: Response): Promise<void> => {
   }
 
   const planTier = planProfile.tier;
+
+  // 3c. A Lia é uma permissão de membro ("Lia (assistente)" na tela de
+  // Equipe): ligada por padrão, o dono a desliga por pessoa. Dono e
+  // administradores sempre usam.
+  if (!(await hasPagePermission(user, "lia", "canView"))) {
+    res.status(403).json({
+      message: "O dono da empresa não liberou a Lia para você.",
+      code: "AI_MEMBER_NOT_ALLOWED",
+    });
+    return;
+  }
 
   // Capacidades EFETIVAS (tier + add-ons comprados). Sem isto a Lia recusava
   // ferramenta de um modulo que o tenant tinha pago avulso, porque olhava so

@@ -52,6 +52,18 @@ export interface AdjustBalanceInput {
   description: string;
 }
 
+/**
+ * Carteira para um seletor (proposta, contrato): sem saldo. Vem de
+ * `GET /v1/wallets/options`, porque as rules só deixam ler o documento da
+ * carteira quem vê Lançamentos ou Carteiras.
+ */
+export interface WalletOption {
+  id: string;
+  name: string;
+  isDefault: boolean;
+  status: "active" | "archived";
+}
+
 export interface WalletSummary {
   totalBalance: number;
   walletCount: number;
@@ -93,6 +105,12 @@ export const WalletService = {
       console.error("Error fetching wallets:", error);
       throw error;
     }
+  },
+
+  /** Carteiras para um seletor, sem saldo (ver `WalletOption`). */
+  getWalletOptions: async (): Promise<WalletOption[]> => {
+    const result = await callApi<{ wallets?: WalletOption[] }>("v1/wallets/options", "GET");
+    return result?.wallets ?? [];
   },
 
   /**

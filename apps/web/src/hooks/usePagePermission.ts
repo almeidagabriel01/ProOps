@@ -1,4 +1,5 @@
-import { usePermissions } from "@/providers/permissions-provider";
+import { permissionDocOf, usePermissions } from "@/providers/permissions-context";
+import { getPermissionPageDef, resolvePermissionKey } from "@/lib/permissions/catalog";
 
 export function usePagePermission(pageId: string) {
   const { permissions, isMaster, isDemo, isLoading } = usePermissions();
@@ -42,6 +43,18 @@ export function usePagePermission(pageId: string) {
   }
 
   const page = permissions?.pages?.[pageId];
+  // Página do catálogo passa pela mesma leitura do backend (a Lia vale sem
+  // doc gravado); a página fora dele é lida crua.
+  if (getPermissionPageDef(pageId)) {
+    const doc = permissionDocOf(page);
+    return {
+      isLoading: false,
+      canView: resolvePermissionKey(pageId, doc, "canView"),
+      canCreate: resolvePermissionKey(pageId, doc, "canCreate"),
+      canEdit: resolvePermissionKey(pageId, doc, "canEdit"),
+      canDelete: resolvePermissionKey(pageId, doc, "canDelete"),
+    };
+  }
 
   return {
     isLoading: false,

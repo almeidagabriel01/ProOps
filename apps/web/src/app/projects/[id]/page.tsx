@@ -43,6 +43,7 @@ import {
   type OverlayField,
   type ProjectOverlay,
 } from "../_lib/project-overlay";
+import { usePermission } from "@/hooks/usePermission";
 
 /** A obra: etapas com checklist e fotos, responsável, prazo e a entrega. */
 export default function ProjectDetailPage() {
@@ -107,6 +108,11 @@ export default function ProjectDetailPage() {
     [],
   );
   const canEdit = canEditPerm && !isReadOnly;
+  // Ações finas de Projetos (ausentes, valem o Editar).
+  const canAssign = usePermission("projects", "assign") && canEdit;
+  const canCancel = usePermission("projects", "cancel") && canEdit;
+  const canDeliveryLink = usePermission("projects", "deliveryLink") && canEdit;
+  const canSchedule = usePermission("projects", "schedule") && canEdit;
   const canDelete = canDeletePerm && !isReadOnly;
 
   React.useEffect(() => {
@@ -289,7 +295,11 @@ export default function ProjectDetailPage() {
               disableSort
             >
               {(Object.keys(PROJECT_STATUS_LABELS) as ProjectStatus[]).map((status) => (
-                <option key={status} value={status}>
+                <option
+                  key={status}
+                  value={status}
+                  disabled={!canCancel && status !== project.status && (status === "canceled" || project.status === "canceled")}
+                >
                   {PROJECT_STATUS_LABELS[status]}
                 </option>
               ))}
@@ -301,7 +311,7 @@ export default function ProjectDetailPage() {
 
         <div className="space-y-1.5">
           <Label htmlFor="project-assignee">Técnico responsável</Label>
-          {canEdit ? (
+          {canAssign ? (
             <Select
               id="project-assignee"
               value={project.assigneeId ?? ""}
@@ -361,6 +371,7 @@ export default function ProjectDetailPage() {
               stage={stage}
               index={index}
               canEdit={canEdit}
+              canSchedule={canSchedule}
               assigneeName={project.assigneeName}
               onToggleItem={(itemId, done) => toggleItem(stage.id, itemId, done)}
               onStageStatus={(status) => setStageStatus(stage.id, status)}
@@ -369,7 +380,7 @@ export default function ProjectDetailPage() {
         </div>
 
         <div className="space-y-4">
-          <DeliveryCard project={project} companyName={tenant?.name} canEdit={canEdit} />
+          <DeliveryCard project={project} companyName={tenant?.name} canEdit={canDeliveryLink} />
 
           {hasFieldService && canCreateEquipment && !isReadOnly && project.clientId && (
             <section aria-label="Equipamentos instalados" className="space-y-2 rounded-xl border bg-card p-4">

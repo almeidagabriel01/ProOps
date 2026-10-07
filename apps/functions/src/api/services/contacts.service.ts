@@ -4,6 +4,7 @@ import { sanitizeText, sanitizeRichText } from "../../utils/sanitize";
 import { buildClientSearchTokens, matchesAllWords, parseSearchQuery } from "../../lib/search-tokens";
 import { INDEXED_SEARCH_SCAN_LIMIT, sortDocsByField } from "../../lib/indexed-search";
 import { cpf, cnpj } from "cpf-cnpj-validator";
+import { isClientUsed } from "./proposal-usage.service";
 
 // CRITICAL: collection name is "clients", not "contacts"
 const CLIENTS_COLLECTION = "clients";
@@ -71,6 +72,8 @@ export async function listContacts(
     limit?: number;
     orderBy?: "createdAt" | "name" | "updatedAt";
     direction?: "asc" | "desc";
+    /** "Só os meus": só igualdade no dono, e o resto na memória. */
+    owner?: { field: string; uid: string };
   },
 ): Promise<ContactListItem[]> {
   const maxLimit = Math.min(opts?.limit || 10, 50);
@@ -81,6 +84,27 @@ export async function listContacts(
   // recentes: antes, "ache o João" falhava sempre que o João não estava entre
   // os 50 últimos contatos.
   const parsed = opts?.search ? parseSearchQuery(opts.search) : null;
+  if (opts?.owner) {
+    const own = await db
+      .collection(CLIENTS_COLLECTION)
+      .where("tenantId", "==", tenantId)
+      .where(opts.owner.field, "==", opts.owner.uid)
+      .limit(500)
+      .get();
+    const matched = own.docs.filter((doc) => {
+      const data = doc.data();
+      if (!parsed) return true;
+      return parsed.digits
+        ? String(data.phone || "").replace(/\D/g, "").includes(parsed.digits)
+        : matchesAllWords(parsed.words, [data.name, data.email, data.phone]);
+    });
+    return sortDocsByField(matched, orderField, orderDir)
+      .slice(0, maxLimit)
+      .map((doc) => {
+        const data = doc.data();
+        return { id: doc.id, name: data.name || "", email: data.email || "", phone: data.phone || "" };
+      });
+  }
   if (parsed) {
     const found = await db
       .collection(CLIENTS_COLLECTION)
@@ -264,6 +288,11 @@ export async function deleteContact(
   }
 
   const name = data.name || "";
+
+  // Como na tela e na API: contato que está numa proposta não se exclui.
+  if (await isClientUsed(tenantId, contactId)) {
+    throw new Error("Este contato está em uma proposta e não pode ser excluído.");
+  }
 
   await db.collection(CLIENTS_COLLECTION).doc(contactId).delete();
 

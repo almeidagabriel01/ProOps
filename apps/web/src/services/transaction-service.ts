@@ -14,6 +14,7 @@ import {
   getDoc,
 } from "firebase/firestore";
 import type { QueryDocumentSnapshot } from "firebase/firestore";
+import { transactionScope, transactionScopeWhere } from "@/lib/permissions/query-scope";
 
 export type TransactionType = "income" | "expense";
 export type TransactionStatus = "paid" | "pending" | "overdue";
@@ -164,6 +165,15 @@ const COLLECTION_NAME = "transactions";
 const GROUPS_COLLECTION_NAME = "transaction_groups";
 
 /**
+ * O alcance de Lançamentos de quem consulta entra em TODA consulta da coleção
+ * (`transactionScopeWhere`, em `lib/permissions/query-scope.ts`), porque as
+ * rules recusam a lista que não traga o filtro. Os índices compostos (`type`
+ * ou `sellerId` antes do campo de faixa ou de ordem) estão em
+ * `firebase/firestore.indexes.json`.
+ */
+const scopeWhere = transactionScopeWhere;
+
+/**
  * Doc-resumo de transaction_groups (espelho do tipo backend em
  * apps/functions/src/lib/transaction-group-summary.ts) + id do doc.
  * Mantido pelo trigger onTransactionTotals — client só lê (rules negam write).
@@ -224,6 +234,7 @@ export const TransactionService = {
       const q = query(
         collection(db, COLLECTION_NAME),
         where("tenantId", "==", tenantId),
+        ...(await scopeWhere()),
       );
       const querySnapshot = await getDocs(q);
       const transactions = querySnapshot.docs.map((doc) => {
@@ -267,6 +278,7 @@ export const TransactionService = {
       query(
         collection(db, COLLECTION_NAME),
         where("tenantId", "==", tenantId),
+        ...(await scopeWhere()),
         where("clientId", "==", clientId),
         limit(max),
       ),
@@ -290,6 +302,7 @@ export const TransactionService = {
       query(
         collection(db, COLLECTION_NAME),
         where("tenantId", "==", tenantId),
+        ...(await scopeWhere()),
         where("status", "in", ["pending", "overdue"]),
         limit(max),
       ),
@@ -310,6 +323,7 @@ export const TransactionService = {
           query(
             col,
             where("tenantId", "==", tenantId),
+            ...(await scopeWhere()),
             where("status", "in", ["pending", "overdue"]),
           ),
         ),
@@ -317,6 +331,7 @@ export const TransactionService = {
           query(
             col,
             where("tenantId", "==", tenantId),
+            ...(await scopeWhere()),
             where("dueDate", ">=", period.start),
             where("dueDate", "<=", period.end),
           ),
@@ -325,6 +340,7 @@ export const TransactionService = {
           query(
             col,
             where("tenantId", "==", tenantId),
+            ...(await scopeWhere()),
             where("date", ">=", period.start),
             where("date", "<=", period.end),
           ),
@@ -386,6 +402,7 @@ export const TransactionService = {
           query(
             collection(db, COLLECTION_NAME),
             where("tenantId", "==", tenantId),
+            ...(await scopeWhere()),
             where(field, "in", chunk),
           ),
         );
@@ -565,7 +582,7 @@ export const TransactionService = {
     tenantId?: string,
   ): Promise<Transaction[]> => {
     try {
-      const constraints = [where("installmentGroupId", "==", groupId)];
+      const constraints = [where("installmentGroupId", "==", groupId), ...(await scopeWhere())];
       if (tenantId) {
         constraints.push(where("tenantId", "==", tenantId));
       }
@@ -590,7 +607,7 @@ export const TransactionService = {
     tenantId?: string,
   ): Promise<Transaction[]> => {
     try {
-      const constraints = [where("recurringGroupId", "==", groupId)];
+      const constraints = [where("recurringGroupId", "==", groupId), ...(await scopeWhere())];
       if (tenantId) {
         constraints.push(where("tenantId", "==", tenantId));
       }
@@ -647,6 +664,7 @@ export const TransactionService = {
           query(
             col,
             where("tenantId", "==", tenantId),
+            ...(await scopeWhere()),
             where("date", ">=", normalizedDay),
             where("date", "<=", dayEnd),
           ),
@@ -655,6 +673,7 @@ export const TransactionService = {
           query(
             col,
             where("tenantId", "==", tenantId),
+            ...(await scopeWhere()),
             where("dueDate", ">=", normalizedDay),
             where("dueDate", "<=", dayEnd),
           ),
@@ -693,6 +712,7 @@ export const TransactionService = {
         query(
           collection(db, COLLECTION_NAME),
           where("tenantId", "==", tenantId),
+          ...(await scopeWhere()),
           where("paidAt", ">=", startIso),
           where("paidAt", "<", endIso),
         ),
@@ -716,6 +736,7 @@ export const TransactionService = {
         query(
           collection(db, COLLECTION_NAME),
           where("tenantId", "==", tenantId),
+          ...(await scopeWhere()),
           orderBy("date", "desc"),
           limit(count),
         ),
@@ -746,6 +767,8 @@ export const TransactionService = {
   }> => {
     try {
       const pageSize = opts.pageSize ?? DEFAULT_GROUPS_PAGE_SIZE;
+      // Os resumos somam lançamentos de todo alcance: só para quem vê tudo.
+      if ((await transactionScope()) !== "all") return { groups: [], nextCursor: null };
       const constraints = [
         where("tenantId", "==", tenantId),
         orderBy("lastDueDate", "desc"),
@@ -788,6 +811,7 @@ export const TransactionService = {
       const pageSize = opts.pageSize ?? DEFAULT_GROUPS_PAGE_SIZE;
       const constraints = [
         where("tenantId", "==", tenantId),
+        ...(await scopeWhere()),
         where("grouped", "==", false),
         orderBy("date", "desc"),
         ...(opts.cursor ? [startAfter(opts.cursor)] : []),
@@ -833,6 +857,7 @@ export const TransactionService = {
           query(
             collection(db, COLLECTION_NAME),
             where("tenantId", "==", tenantId),
+            ...(await scopeWhere()),
             where("proposalGroupId", "==", proposalGroupId),
           ),
         );

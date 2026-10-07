@@ -6,11 +6,14 @@ import { Button } from "@/components/ui/button";
 import { Select } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
-import { useWalletsData } from "@/app/wallets/_hooks/useWalletsData";
+import { toast } from "@/lib/toast";
+import { useTenant } from "@/providers/tenant-provider";
+import { useWalletOptions } from "@/hooks/useWalletOptions";
 import { WalletFormDialog } from "@/app/wallets/_components/wallet-form-dialog";
 import {
   CreateWalletInput,
   UpdateWalletInput,
+  WalletService,
 } from "@/services/wallet-service";
 
 interface WalletSelectProps extends Omit<
@@ -37,7 +40,9 @@ export function WalletSelect({
   icon,
   ...props
 }: WalletSelectProps) {
-  const { wallets, createWallet, isLoading } = useWalletsData();
+  // Sem saldo: quem monta a proposta escolhe a carteira sem ver o financeiro.
+  const { tenant } = useTenant();
+  const { wallets, isLoading, refresh } = useWalletOptions();
   const [isDialogOpen, setIsDialogOpen] = React.useState(false);
   const hasAutoSelected = React.useRef(false);
 
@@ -80,7 +85,18 @@ export function WalletSelect({
     data: CreateWalletInput | UpdateWalletInput,
   ): Promise<boolean> => {
     // We know it's CreateWalletInput because we only use it for creation here
-    const newId = await createWallet(data as CreateWalletInput);
+    let newId: string | null = null;
+    try {
+      const result = await WalletService.createWallet({
+        ...(data as CreateWalletInput),
+        targetTenantId: tenant?.id,
+      });
+      newId = result.walletId;
+      await refresh();
+      toast.success("Carteira criada com sucesso!");
+    } catch (error: unknown) {
+      toast.error(error instanceof Error ? error.message : "Erro ao criar carteira");
+    }
     if (newId) {
       // Refresh is handled by createWallet, but we need to find the new wallet to select it
       // Since createWallet returns ID, we need to fetch or wait for refresh to get the name if we are storing name

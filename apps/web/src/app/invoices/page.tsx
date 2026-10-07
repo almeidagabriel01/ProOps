@@ -33,6 +33,8 @@ import { SegmentedControl } from "@/components/ui/segmented-control";
 import { ReceivedInvoicesPanel } from "./_components/received-invoices-panel";
 import { CancelInvoiceButton } from "@/components/features/fiscal/cancel-invoice-button";
 import { usePagePermission } from "@/hooks/usePagePermission";
+import { usePermission } from "@/hooks/usePermission";
+import { usePermissions } from "@/providers/permissions-provider";
 import { usePlanLimits } from "@/hooks/usePlanLimits";
 import { UpgradeRequired } from "@/components/ui/upgrade-required";
 import { RejectionDetailButton } from "@/components/features/fiscal/rejection-detail-button";
@@ -111,7 +113,12 @@ function StatusBadge({ status }: { status: FiscalInvoiceStatus }) {
 export default function InvoicesPage() {
   // Cancelar uma nota autorizada e o "excluir" deste modulo: a nota nao sai do
   // acervo (guarda legal de 5 anos), mas deixa de valer.
-  const { canDelete: canCancel, canCreate } = usePagePermission("invoices");
+  const { canCreate } = usePagePermission("invoices");
+  // Ações finas de Notas Fiscais (ausentes, valem o Excluir e o Editar de antes).
+  const canCancel = usePermission("invoices", "cancel");
+  const canCorrect = usePermission("invoices", "correct");
+  // A configuração fiscal (CNPJ, certificado, série) é só do dono.
+  const { isMaster } = usePermissions();
   const {
     hasFiscal,
     hasFiscalReceiving,
@@ -345,7 +352,7 @@ export default function InvoicesPage() {
                 )}
                 {/* Só NF-e: a NFS-e não tem carta de correção — lá o caminho
                     é cancelar e substituir, e cada prefeitura tem sua regra. */}
-                {invoice.type === "nfe" && (
+                {invoice.type === "nfe" && canCorrect && (
                   <CorrectInvoiceButton
                     invoice={invoice}
                     onCorrected={(updated) =>
@@ -400,7 +407,7 @@ export default function InvoicesPage() {
         },
       },
     ],
-    [refresh, refreshingId, canCancel],
+    [refresh, refreshingId, canCancel, canCorrect],
   );
 
   // Gate de plano ANTES do de configuração: sem ele, um assinante sem o módulo
@@ -431,12 +438,18 @@ export default function InvoicesPage() {
                 digital para começar a emitir.
               </p>
             </div>
-            <Button asChild>
-              <Link href="/settings/fiscal">
-                <Settings className="mr-2 h-4 w-4" />
-                Configurar notas fiscais
-              </Link>
-            </Button>
+            {isMaster ? (
+              <Button asChild>
+                <Link href="/settings/fiscal">
+                  <Settings className="mr-2 h-4 w-4" />
+                  Configurar notas fiscais
+                </Link>
+              </Button>
+            ) : (
+              <p className="text-sm text-muted-foreground">
+                Peça ao dono da empresa para configurar a emissão.
+              </p>
+            )}
           </CardContent>
         </Card>
       </div>
@@ -498,12 +511,14 @@ export default function InvoicesPage() {
               ]}
             />
           )}
-          <Button variant="outline" asChild>
-            <Link href="/settings/fiscal">
-              <Settings className="mr-2 h-4 w-4" />
-              Configuração fiscal
-            </Link>
-          </Button>
+          {isMaster && (
+            <Button variant="outline" asChild>
+              <Link href="/settings/fiscal">
+                <Settings className="mr-2 h-4 w-4" />
+                Configuração fiscal
+              </Link>
+            </Button>
+          )}
           {/* A nota sem venda: remessa para conserto, devolução, retorno. A
               de venda continua saindo da proposta. */}
           {canCreate && (

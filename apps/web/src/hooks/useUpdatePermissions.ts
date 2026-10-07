@@ -1,13 +1,18 @@
 import { useState } from "react";
 import { toast } from '@/lib/toast';
 import { callApi } from "@/lib/api-client";
+import type { MemberPermissions } from "@/lib/permissions/pages";
 
 export function useUpdatePermissions() {
   const [loading, setLoading] = useState(false);
 
+  /**
+   * Grava o conjunto inteiro das páginas mandadas (cada doc é substituído):
+   * é o que "Aplicar perfil" e "Copiar de outro membro" usam.
+   */
   const updatePermissions = async (
     targetUserId: string,
-    permissions: string[],
+    permissions: MemberPermissions,
   ): Promise<boolean> => {
     setLoading(true);
     try {
@@ -35,7 +40,7 @@ export function useUpdatePermissions() {
     targetUserId: string,
     pageId: string,
     key: string,
-    value: boolean,
+    value: boolean | string,
   ) => {
     setLoading(true);
     try {

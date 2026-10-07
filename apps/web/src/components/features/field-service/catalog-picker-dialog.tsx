@@ -34,6 +34,7 @@ import type { InventoryUnit } from "@/lib/niches/config-types";
 import { cn } from "@/lib/utils";
 import { formatCurrency } from "@/utils/format";
 import type { ServiceOrderItem } from "@/types/field-service";
+import { useSensitiveData } from "@/hooks/usePermission";
 
 export interface CatalogEntry {
   kind: "product" | "service";
@@ -65,6 +66,8 @@ interface CatalogPickerDialogProps {
   excludeKeys?: ReadonlySet<string>;
   /** Motivo de um item não poder ser escolhido; o cartão aparece desabilitado. */
   disabledReason?: (entry: CatalogEntry) => string | null;
+  /** Sem o preço no cartão: quem escolhe não vê valores (OS do técnico, contrato sem "Ver valores"). */
+  hidePrices?: boolean;
 }
 
 type Filter = "all" | "product" | "service";
@@ -88,7 +91,9 @@ export function CatalogPickerDialog({
   pickMode = "quantity",
   excludeKeys,
   disabledReason,
+  hidePrices = false,
 }: CatalogPickerDialogProps) {
+  const { canSeeStock } = useSensitiveData();
   const { tenant } = useTenant();
   const niche = useCurrentNicheConfig();
   const [catalog, setCatalog] = React.useState<CatalogEntry[] | null>(null);
@@ -238,7 +243,7 @@ export function CatalogPickerDialog({
                     tabIndex={blocked ? -1 : 0}
                     aria-pressed={selected}
                     aria-disabled={blocked ? true : undefined}
-                    aria-label={`${entry.name}, ${formatCurrency(entry.price)}`}
+                    aria-label={hidePrices ? entry.name : `${entry.name}, ${formatCurrency(entry.price)}`}
                     onClick={press}
                     onKeyDown={(e) => {
                       if (e.key === "Enter" || e.key === " ") {
@@ -280,9 +285,11 @@ export function CatalogPickerDialog({
                           {entry.kind === "service" ? "Serviço" : "Produto"}
                         </Badge>
                       </div>
-                      <p className="text-sm font-semibold text-primary">{formatCurrency(entry.price)}</p>
+                      {!hidePrices && (
+                        <p className="text-sm font-semibold text-primary">{formatCurrency(entry.price)}</p>
+                      )}
                       {blocked && <p className="text-xs text-muted-foreground">{blocked}</p>}
-                      {entry.stock !== null && (
+                      {entry.stock !== null && canSeeStock && (
                         <p className={cn("text-xs", entry.stock <= 0 ? "text-amber-600 dark:text-amber-400" : "text-muted-foreground")}>
                           Em estoque: {entry.stock.toLocaleString("pt-BR")}
                           {stockSuffix ? ` ${stockSuffix}` : ""}

@@ -26,8 +26,10 @@ jest.mock("firebase-admin/firestore", () => ({
 // sem gate de permissao), entao o mock e do checkFinancialPermission — que
 // devolve o mesmo shape do resolveUserAndTenant para tenantId/isSuperAdmin.
 const resolveUserAndTenantMock = jest.fn();
+const getPageScopeMock = jest.fn(async (..._args: unknown[]) => "all");
 jest.mock("../../lib/auth-helpers", () => ({
   resolveUserAndTenant: (...args: unknown[]) => resolveUserAndTenantMock(...args),
+  getPageScope: (...args: unknown[]) => getPageScopeMock(...args),
 }));
 jest.mock("../../lib/finance-helpers", () => ({
   checkFinancialPermission: (...args: unknown[]) =>
@@ -38,6 +40,7 @@ import { getTransactionsSummary } from "./transaction-summary.service";
 
 beforeEach(() => {
   jest.clearAllMocks();
+  getPageScopeMock.mockResolvedValue("all");
   whereChain.where.mockReturnValue(whereChain);
   whereChain.aggregate.mockReturnValue({ get: aggregateGetMock });
 });
@@ -131,5 +134,35 @@ describe("getTransactionsSummary", () => {
       totalExpense: 0,
       pendingExpense: 0,
     });
+  });
+
+  it("'só receitas' não soma despesa nenhuma", async () => {
+    resolveUserAndTenantMock.mockResolvedValue({ tenantId: "t1", isSuperAdmin: false, isMaster: false });
+    getPageScopeMock.mockResolvedValue("income");
+    aggregateGetMock.mockResolvedValueOnce({ data: () => ({ paid: 1000, pending: 250 }) });
+
+    const summary = await getTransactionsSummary("uid-1", { uid: "uid-1", role: "MEMBER" });
+
+    expect(summary).toEqual({ totalIncome: 1000, pendingIncome: 250, totalExpense: 0, pendingExpense: 0 });
+    expect(whereChain.where).not.toHaveBeenCalledWith("type", "==", "expense");
+  });
+
+  it("'só as minhas vendas' soma pelo vendedor", async () => {
+    resolveUserAndTenantMock.mockResolvedValue({ tenantId: "t1", isSuperAdmin: false, isMaster: false });
+    getPageScopeMock.mockResolvedValue("mine");
+    aggregateGetMock.mockResolvedValue({ data: () => ({ paid: 10, pending: 5 }) });
+
+    await getTransactionsSummary("uid-1", { uid: "uid-1", role: "MEMBER" });
+
+    expect(whereChain.where).toHaveBeenCalledWith("sellerId", "==", "uid-1");
+  });
+
+  it("o dono não depende do alcance", async () => {
+    resolveUserAndTenantMock.mockResolvedValue({ tenantId: "t1", isSuperAdmin: false, isMaster: true });
+    aggregateGetMock.mockResolvedValue({ data: () => ({ paid: 0, pending: 0 }) });
+
+    await getTransactionsSummary("uid-1", { uid: "uid-1", role: "MASTER" });
+
+    expect(getPageScopeMock).not.toHaveBeenCalled();
   });
 });

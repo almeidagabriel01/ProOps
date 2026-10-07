@@ -30,6 +30,7 @@ import {
 } from "@/services/transaction-service";
 import { formatCurrency } from "@/utils/format";
 import { formatDateBR } from "@/utils/date-format";
+import { useSensitiveData } from "@/hooks/usePermission";
 
 interface WalletHistoryDialogProps {
   wallet: Wallet | null;
@@ -166,6 +167,7 @@ export function WalletHistoryDialog({
   open,
   onOpenChange,
 }: WalletHistoryDialogProps) {
+  const { canSeeBalance } = useSensitiveData();
   const [historyItems, setHistoryItems] = React.useState<HistoryItem[]>([]);
   const [isLoading, setIsLoading] = React.useState(false);
 
@@ -317,6 +319,7 @@ export function WalletHistoryDialog({
             </div>
             <div>
               <span>Histórico - {wallet.name}</span>
+              {canSeeBalance && (
               <p className="text-sm font-normal text-muted-foreground">
                 Saldo atual:{" "}
                 <span
@@ -327,6 +330,7 @@ export function WalletHistoryDialog({
                   {formatCurrency(wallet.balance)}
                 </span>
               </p>
+              )}
             </div>
           </DialogTitle>
         </DialogHeader>

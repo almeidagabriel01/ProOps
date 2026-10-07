@@ -16,7 +16,7 @@ import { resolveTenantOwnerUid } from "../middleware/impersonation";
 
 const MAX_TENANT_USERS = 200;
 
-type PermissionMap = Record<string, Record<string, boolean>>;
+type PermissionMap = Record<string, Record<string, boolean | string>>;
 
 function toIso(value: unknown): string | null {
   if (!value) return null;
@@ -31,7 +31,7 @@ async function loadPermissions(uid: string): Promise<PermissionMap> {
   const snap = await db.collection("users").doc(uid).collection("permissions").get();
   const map: PermissionMap = {};
   for (const doc of snap.docs) {
-    map[doc.id] = normalizePagePermission(doc.data() as Record<string, boolean>);
+    map[doc.id] = normalizePagePermission(doc.id, doc.data() as Record<string, unknown>);
   }
   return map;
 }

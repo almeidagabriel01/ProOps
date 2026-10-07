@@ -22,6 +22,17 @@ interface ItemsEditorProps {
   /** Rótulo e sufixo do total: "Mensalidade" e "/mês" no contrato. */
   totalLabel?: string;
   totalSuffix?: string;
+  /**
+   * O técnico lança peças, mas o valor é de quem coordena (o backend mantém o
+   * valor gravado e usa o do catálogo nas peças novas): o campo fica só leitura.
+   */
+  lockPrices?: boolean;
+  /**
+   * Quem não vê valores ("Ver preços" da OS, "Ver valores" do contrato): some
+   * o valor unitário, o total da linha e o total geral. O backend descarta o
+   * preço que viesse dessa pessoa.
+   */
+  hidePrices?: boolean;
 }
 
 function newId(): string {
@@ -108,7 +119,12 @@ export function ItemsEditor({
   emptyText = "Nenhuma peça ou serviço lançado.",
   totalLabel = "Total",
   totalSuffix = "",
+  lockPrices = false,
+  hidePrices = false,
 }: ItemsEditorProps) {
+  const gridCols = hidePrices
+    ? "md:grid-cols-[minmax(0,1fr)_9.5rem_2.5rem]"
+    : "md:grid-cols-[minmax(0,1fr)_9.5rem_10rem_8.5rem_2.5rem]";
   const [pickerOpen, setPickerOpen] = React.useState(false);
 
   const update = (id: string, patch: Partial<ServiceOrderItem>) =>
@@ -142,11 +158,16 @@ export function ItemsEditor({
         </p>
       ) : (
         <div className="overflow-hidden rounded-lg border">
-          <div className="hidden grid-cols-[minmax(0,1fr)_9.5rem_10rem_8.5rem_2.5rem] gap-4 border-b bg-muted/40 px-3 py-2 text-xs font-medium text-muted-foreground md:grid">
+          <div
+            className={cn(
+              "hidden gap-4 border-b bg-muted/40 px-3 py-2 text-xs font-medium text-muted-foreground md:grid",
+              gridCols,
+            )}
+          >
             <span>Item</span>
             <span className="text-center">Quantidade</span>
-            <span>Valor unitário</span>
-            <span className="text-right">Total</span>
+            {!hidePrices && <span>Valor unitário</span>}
+            {!hidePrices && <span className="text-right">Total</span>}
             <span />
           </div>
           <ul className="divide-y">
@@ -155,7 +176,7 @@ export function ItemsEditor({
               return (
                 <li
                   key={item.id}
-                  className="grid grid-cols-2 gap-3 p-3 md:grid-cols-[minmax(0,1fr)_9.5rem_10rem_8.5rem_2.5rem] md:items-center md:gap-4"
+                  className={cn("grid grid-cols-2 gap-3 p-3 md:items-center md:gap-4", gridCols)}
                 >
                   <div className="col-span-2 space-y-1.5 md:col-span-1">
                     <div className="flex items-center gap-2">
@@ -190,21 +211,25 @@ export function ItemsEditor({
                       disabled={disabled}
                     />
                   </div>
-                  <div className="space-y-1 md:space-y-0">
-                    <span className="text-xs text-muted-foreground md:hidden">Valor unitário</span>
-                    <CurrencyInput
-                      aria-label={`Valor unitário de ${item.name}`}
-                      value={item.unitPrice}
-                      onChange={(e) => update(item.id, { unitPrice: Number(e.target.value) || 0 })}
-                      placeholder="0,00"
-                      disabled={disabled}
-                      className="h-9 py-0 pl-10"
-                    />
-                  </div>
-                  <p className="self-center whitespace-nowrap text-left text-sm font-semibold tabular-nums md:pl-2 md:text-right">
-                    <span className="mr-1 text-xs font-normal text-muted-foreground md:hidden">Total</span>
-                    {formatCurrency(item.quantity * item.unitPrice)}
-                  </p>
+                  {!hidePrices && (
+                    <>
+                      <div className="space-y-1 md:space-y-0">
+                        <span className="text-xs text-muted-foreground md:hidden">Valor unitário</span>
+                        <CurrencyInput
+                          aria-label={`Valor unitário de ${item.name}`}
+                          value={item.unitPrice}
+                          onChange={(e) => update(item.id, { unitPrice: Number(e.target.value) || 0 })}
+                          placeholder="0,00"
+                          disabled={disabled || lockPrices}
+                          className="h-9 py-0 pl-10"
+                        />
+                      </div>
+                      <p className="self-center whitespace-nowrap text-left text-sm font-semibold tabular-nums md:pl-2 md:text-right">
+                        <span className="mr-1 text-xs font-normal text-muted-foreground md:hidden">Total</span>
+                        {formatCurrency(item.quantity * item.unitPrice)}
+                      </p>
+                    </>
+                  )}
                   <div className="flex justify-end">
                     {!disabled && (
                       <Button
@@ -240,7 +265,7 @@ export function ItemsEditor({
         ) : (
           <span />
         )}
-        {items.length > 0 && (
+        {items.length > 0 && !hidePrices && (
           <p className={cn("text-sm")}>
             {totalLabel}{" "}
             <span className="ml-1 text-base font-semibold">
@@ -251,7 +276,12 @@ export function ItemsEditor({
         )}
       </div>
 
-      <CatalogPickerDialog open={pickerOpen} onOpenChange={setPickerOpen} onConfirm={addFromCatalog} />
+      <CatalogPickerDialog
+        open={pickerOpen}
+        onOpenChange={setPickerOpen}
+        onConfirm={addFromCatalog}
+        hidePrices={hidePrices}
+      />
     </div>
   );
 }

@@ -25,6 +25,8 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { FormContainer, FormHeader } from "@/components/ui/form-components";
 import { Users, Shield, UserPlus, X } from "lucide-react";
+import { SegmentedControl } from "@/components/ui/segmented-control";
+import { MemberAuditPanel } from "./member-audit-panel";
 import { toast } from "@/lib/toast";
 import {
   TeamMember,
@@ -34,6 +36,8 @@ import {
 } from "@/components/features/team";
 import { useInfiniteScroll } from "@/hooks/useInfiniteScroll";
 import { Loader } from "@/components/ui/loader";
+import { applyPermissionChange } from "@/lib/permissions/editor";
+import type { MemberPermissions } from "@/lib/permissions/pages";
 
 export function TeamManagement() {
   const { user, isLoading: authLoading } = useAuth();
@@ -47,6 +51,7 @@ export function TeamManagement() {
   const [isLoading, setIsLoading] = React.useState(true);
   const [isCreatingMember, setIsCreatingMember] = React.useState(false);
   const [updatingKey, setUpdatingKey] = React.useState<string | null>(null);
+  const [view, setView] = React.useState<"members" | "history">("members");
 
   // Infinite scroll
   const {
@@ -103,6 +108,7 @@ export function TeamManagement() {
               role: data.role || "MEMBER",
               createdAt: data.createdAt || new Date().toISOString(),
               permissions,
+              status: data.status === "suspended" ? "suspended" : "active",
             };
           }),
         );
@@ -127,53 +133,31 @@ export function TeamManagement() {
     fetchMembers();
   }, [fetchMembers]);
 
-  // Update permission using Cloud Function
+  // Grava uma chave (ação, chave fina ou alcance) pelo modo single do backend,
+  // que aplica a mesma cascata de applyPermissionChange.
   const updatePermission = async (
     memberId: string,
     pageId: string,
     key: string,
-    value: boolean,
+    value: boolean | string,
   ) => {
     const member = members.find((m) => m.id === memberId);
     if (!member) return;
 
-    const currentPerms = member.permissions[pageId] || { canView: false };
-    const newPerms = { ...currentPerms, [key]: value };
-
-    // If turning off canView, turn off everything else
-    if (key === "canView" && !value) {
-      newPerms.canCreate = false;
-      newPerms.canEdit = false;
-      newPerms.canDelete = false;
-    }
+    const newPerms = applyPermissionChange(pageId, member.permissions[pageId], key, value);
 
     const keyId = `${memberId}-${pageId}-${key}`;
     setUpdatingKey(keyId);
 
     try {
-      // Call Cloud Function via hook
-      const result = await updateSinglePermission(
-        memberId,
-        pageId,
-        key as "canView" | "canEdit" | "canCreate" | "canDelete",
-        value,
-      );
+      const result = await updateSinglePermission(memberId, pageId, key, value);
 
       // Update local state only on success
       if (result?.success) {
         setMembers((prev) =>
-          prev.map((m) => {
-            if (m.id === memberId) {
-              return {
-                ...m,
-                permissions: {
-                  ...m.permissions,
-                  [pageId]: newPerms,
-                },
-              };
-            }
-            return m;
-          }),
+          prev.map((m) =>
+            m.id === memberId ? { ...m, permissions: { ...m.permissions, [pageId]: newPerms } } : m,
+          ),
         );
       } else {
         // The hook already displays a toast; this is a fallback for unexpected responses
@@ -190,6 +174,11 @@ export function TeamManagement() {
       setUpdatingKey(null);
     }
   };
+
+  const replacePermissions = (memberId: string, permissions: MemberPermissions) =>
+    setMembers((prev) =>
+      prev.map((m) => (m.id === memberId ? { ...m, permissions: { ...m.permissions, ...permissions } } : m)),
+    );
 
   // Drive the settings chrome skeleton (title + sidebar) while team data loads.
   useReportSettingsLoading(permLoading || isLoading || authLoading);
@@ -253,7 +242,28 @@ export function TeamManagement() {
         </div>
       )}
 
-      {/* Content Wrapper */}
+      {/* A conta de demonstração não tem histórico de verdade: fica na lista. */}
+      {!isDemo && (
+        <SegmentedControl
+          id="team-view"
+          value={view}
+          onChange={(next) => setView(next as "members" | "history")}
+          options={[
+            { value: "members", label: "Membros" },
+            { value: "history", label: "Histórico" },
+          ]}
+        />
+      )}
+
+      {view === "history" && !isDemo ? (
+        <MemberAuditPanel
+          people={[
+            ...(user?.id ? [{ id: user.id, name: user.name || "Você" }] : []),
+            ...members.map((m) => ({ id: m.id, name: m.name })),
+          ]}
+        />
+      ) : (
+      /* Content Wrapper */
       <div className="flex flex-col gap-4 flex-1">
         {/* Members List */}
         <div className="space-y-4">
@@ -268,7 +278,9 @@ export function TeamManagement() {
                   <MemberCard
                     key={member.id}
                     member={member}
+                    otherMembers={members.filter((m) => m.id !== member.id)}
                     onUpdatePermission={updatePermission}
+                    onPermissionsReplaced={replacePermissions}
                     saving={savingPermissions}
                     updatingKey={updatingKey}
                     onRefresh={() => fetchMembers(true)}
@@ -307,6 +319,7 @@ export function TeamManagement() {
           )}
         </div>
       </div>
+      )}
     </FormContainer>
   );
 }

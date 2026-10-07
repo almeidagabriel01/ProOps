@@ -19,6 +19,7 @@ import {
   transferValues,
   adjustBalance,
 } from "../controllers/wallets.controller";
+import { listWalletOptions } from "../controllers/wallet-options.controller";
 import {
   createShareLink as createTransactionShareLink,
   getShareLinkInfo,
@@ -78,6 +79,9 @@ router.put("/transactions/:id", updateTransaction);
 router.put("/transactions/:id/installments", updateTransactionWithInstallments);
 router.delete("/transactions/group/:groupId", deleteTransactionGroup);
 router.delete("/transactions/:id", deleteTransaction);
+// Seletor de carteira da proposta e do contrato: nome sem saldo, para quem
+// nao ve o financeiro. Antes das rotas /wallets/:id.
+router.get("/wallets/options", listWalletOptions);
 router.post("/transactions/:id/partial-payment", registerPartialPayment);
 // Download autenticado do PDF de recibo (não cria share link público)
 router.get("/transactions/:id/pdf", pdfRateLimiter, downloadTransactionPdf);

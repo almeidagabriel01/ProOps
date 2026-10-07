@@ -1,4 +1,4 @@
-import { Eye, Edit3, Shield, User, Settings, Wrench } from "lucide-react";
+import { Eye, Edit3, Shield, User, Settings, Wrench, Briefcase, Wallet } from "lucide-react";
 
 export const roleConfig = {
   viewer: {
@@ -24,6 +24,22 @@ export const roleConfig = {
     lightBg: "bg-purple-500/10",
     borderColor: "border-purple-500",
     textColor: "text-purple-600 dark:text-purple-400",
+  },
+  seller: {
+    icon: Briefcase,
+    color: "from-rose-500 to-pink-500",
+    bgColor: "bg-rose-500",
+    lightBg: "bg-rose-500/10",
+    borderColor: "border-rose-500",
+    textColor: "text-rose-600 dark:text-rose-400",
+  },
+  finance: {
+    icon: Wallet,
+    color: "from-lime-500 to-green-600",
+    bgColor: "bg-lime-600",
+    lightBg: "bg-lime-500/10",
+    borderColor: "border-lime-600",
+    textColor: "text-lime-700 dark:text-lime-400",
   },
   technician: {
     icon: Wrench,

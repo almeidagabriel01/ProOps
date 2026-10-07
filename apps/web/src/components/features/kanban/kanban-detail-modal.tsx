@@ -99,7 +99,9 @@ function KanbanProposalProductLineDetail({
   }
   return (
     <>
-      {product.quantity}x {formatCurrency(product.unitPrice)}
+      {/* `unitPrice` da linha é o custo: o modal mostra o unitário de venda,
+          como as outras linhas e o PDF. */}
+      {product.quantity}x {formatCurrency(getProposalLineUnitSellingPrice(product))}
     </>
   );
 }

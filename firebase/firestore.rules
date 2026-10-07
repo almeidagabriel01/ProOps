@@ -359,20 +359,39 @@ service cloud.firestore {
              || memberCanViewPage('kanban');
     }
 
+    // "Só os meus" (o alcance do catálogo de permissões, campo `scope` no doc
+    // da página): sem o doc, ou sem o campo, vale "all", o de sempre. Dono e
+    // administradores veem tudo. Quem tem "own" lê só o registro em que é o
+    // dono (`ownerField`), e a consulta dele precisa trazer esse filtro: regra
+    // não é filtro, e a lista sem o `where` é recusada inteira.
+    function memberScopeOf(pageId) {
+      let permissionPath = /databases/$(database)/documents/users/$(request.auth.uid)/permissions/$(pageId);
+      return exists(permissionPath) ? get(permissionPath).data.get('scope', 'all') : 'all';
+    }
+
+    function memberSeesAll(pageId) {
+      return hasTenantAdminRole() || memberScopeOf(pageId) == 'all';
+    }
+
+    function memberOwns(ownerField) {
+      return resource.data.get(ownerField, '') == request.auth.uid;
+    }
+
     match /proposals/{proposalId} {
       allow read: if isSuperAdmin()
                   || isDemoRead(resource.data.tenantId)
                   || (isAuthenticated()
                       && belongsToTenant(resource.data.tenantId)
                       && tenantSubscriptionAllowsRead(resource.data.tenantId)
-                      && canReadTenantProposals());
+                      && canReadTenantProposals()
+                      && (memberSeesAll('proposals') || memberOwns('sellerId')));
       allow write: if false; // Managed by Cloud Functions (limits, validation)
       allow delete: if isSuperAdmin(); // Super admin can delete for tenant cleanup
     }
 
     // CLIENTS
     match /clients/{clientId} {
-      allow read: if isSuperAdmin() || isDemoRead(resource.data.tenantId) || (isAuthenticated() && belongsToTenant(resource.data.tenantId) && tenantSubscriptionAllowsRead(resource.data.tenantId));
+      allow read: if isSuperAdmin() || isDemoRead(resource.data.tenantId) || (isAuthenticated() && belongsToTenant(resource.data.tenantId) && tenantSubscriptionAllowsRead(resource.data.tenantId) && (memberSeesAll('clients') || memberOwns('responsibleMemberId')));
       allow write: if false; // Managed by Cloud Functions (limits)
       allow delete: if isSuperAdmin(); // Super admin can delete for tenant cleanup
     }
@@ -399,16 +418,41 @@ service cloud.firestore {
       allow write: if false; // Managed by Cloud Functions
     }
 
+    // O financeiro (lançamentos, resumos de grupo, carteiras e o histórico
+    // delas) exige "Ver" em Lançamentos ou em Carteiras, além de ser da
+    // empresa. Até 2026-10 bastava ser da empresa: o membro que só tinha o CRM
+    // lia, pelo SDK, o aluguel e o saldo das carteiras. Quem vê Carteiras lê
+    // também os lançamentos, porque o histórico da carteira os mostra.
+    //
+    // Telas de membro que precisam de algo do financeiro sem os valores passam
+    // pela API: o seletor de carteira da proposta e do contrato
+    // (GET /v1/wallets/options, só id e nome).
+    function canReadTenantFinance() {
+      return hasTenantAdminRole()
+             || memberCanViewPage('transactions')
+             || memberCanViewPage('wallet');
+    }
+
+    // Alcance de Lançamentos: "all" (o de sempre), "income" (só receitas) ou
+    // "mine" (os das vendas dele: `sellerId`, copiado da proposta).
+    function memberSeesTransaction() {
+      let scope = hasTenantAdminRole() ? 'all' : memberScopeOf('transactions');
+      return scope == 'all'
+             || (scope == 'income' && resource.data.get('type', '') == 'income')
+             || (scope == 'mine' && memberOwns('sellerId'));
+    }
+
     // TRANSACTIONS (Financial)
     match /transactions/{transactionId} {
-      allow read: if isSuperAdmin() || isDemoRead(resource.data.tenantId) || (isAuthenticated() && belongsToTenant(resource.data.tenantId) && tenantSubscriptionAllowsRead(resource.data.tenantId));
+      allow read: if isSuperAdmin() || isDemoRead(resource.data.tenantId) || (isAuthenticated() && belongsToTenant(resource.data.tenantId) && tenantSubscriptionAllowsRead(resource.data.tenantId) && canReadTenantFinance() && memberSeesTransaction());
       allow write: if false; // Managed by Cloud Functions (calculations)
     }
 
     // TRANSACTION GROUPS (resumos desnormalizados da aba Agrupados —
     // 1 doc por grupo, mantidos pelo trigger onTransactionTotals)
+    // Agrupados soma lançamentos de todo alcance: só para quem vê tudo.
     match /transaction_groups/{groupDocId} {
-      allow read: if isSuperAdmin() || isDemoRead(resource.data.tenantId) || (isAuthenticated() && belongsToTenant(resource.data.tenantId) && tenantSubscriptionAllowsRead(resource.data.tenantId));
+      allow read: if isSuperAdmin() || isDemoRead(resource.data.tenantId) || (isAuthenticated() && belongsToTenant(resource.data.tenantId) && tenantSubscriptionAllowsRead(resource.data.tenantId) && canReadTenantFinance() && memberSeesAll('transactions'));
       allow write: if false; // Admin SDK only (trigger)
     }
 
@@ -426,13 +470,13 @@ service cloud.firestore {
 
     // WALLETS
     match /wallets/{walletId} {
-      allow read: if isSuperAdmin() || isDemoRead(resource.data.tenantId) || (isAuthenticated() && belongsToTenant(resource.data.tenantId) && tenantSubscriptionAllowsRead(resource.data.tenantId));
+      allow read: if isSuperAdmin() || isDemoRead(resource.data.tenantId) || (isAuthenticated() && belongsToTenant(resource.data.tenantId) && tenantSubscriptionAllowsRead(resource.data.tenantId) && canReadTenantFinance());
       allow write: if false; // Managed by Cloud Functions
     }
 
     // WALLET TRANSACTIONS (audit log)
     match /wallet_transactions/{transactionId} {
-      allow read: if isSuperAdmin() || isDemoRead(resource.data.tenantId) || (isAuthenticated() && belongsToTenant(resource.data.tenantId) && tenantSubscriptionAllowsRead(resource.data.tenantId));
+      allow read: if isSuperAdmin() || isDemoRead(resource.data.tenantId) || (isAuthenticated() && belongsToTenant(resource.data.tenantId) && tenantSubscriptionAllowsRead(resource.data.tenantId) && canReadTenantFinance());
       allow write: if false; // Managed by Cloud Functions
     }
 
@@ -500,7 +544,7 @@ service cloud.firestore {
     // Leads e atividades do CRM (Onda 2): leitura direta pelo client, como o
     // resto do CRM; escrita so pela API (permissao kanban + capacidade crm).
     match /leads/{leadId} {
-      allow read: if isSuperAdmin() || isDemoRead(resource.data.tenantId) || (isAuthenticated() && belongsToTenant(resource.data.tenantId) && tenantSubscriptionAllowsRead(resource.data.tenantId));
+      allow read: if isSuperAdmin() || isDemoRead(resource.data.tenantId) || (isAuthenticated() && belongsToTenant(resource.data.tenantId) && tenantSubscriptionAllowsRead(resource.data.tenantId) && (memberSeesAll('kanban') || memberOwns('ownerId')));
       allow write: if false; // Managed by Cloud Functions
     }
 
@@ -512,7 +556,7 @@ service cloud.firestore {
     // Projetos de instalação (Onda 3): leitura direta pelo client, como o CRM;
     // escrita só pela API (permissão projects + capacidade projects).
     match /projects/{projectId} {
-      allow read: if isSuperAdmin() || isDemoRead(resource.data.tenantId) || (isAuthenticated() && belongsToTenant(resource.data.tenantId) && tenantSubscriptionAllowsRead(resource.data.tenantId));
+      allow read: if isSuperAdmin() || isDemoRead(resource.data.tenantId) || (isAuthenticated() && belongsToTenant(resource.data.tenantId) && tenantSubscriptionAllowsRead(resource.data.tenantId) && (memberSeesAll('projects') || memberOwns('assigneeId')));
       allow write: if false; // Managed by Cloud Functions
     }
 
@@ -612,11 +656,14 @@ service cloud.firestore {
     // Quem pode ver o Calendario e decidido pela permissao "calendar" na tela
     // de Equipe, que a API cobra; aqui a regra e a mesma das outras colecoes
     // do tenant. Escrita segue exclusiva das Cloud Functions.
+    // A Agenda (inclusive o que veio do Google: título, descrição, local)
+    // exige "Ver" na Agenda. A tela lê pela API; ninguém precisa do SDK aqui.
     match /calendar_events/{eventId} {
       allow read: if isSuperAdmin()
                   || (isAuthenticated()
                       && belongsToTenant(resource.data.tenantId)
-                      && tenantSubscriptionAllowsRead(resource.data.tenantId));
+                      && tenantSubscriptionAllowsRead(resource.data.tenantId)
+                      && (hasTenantAdminRole() || memberCanViewPage('calendar')));
       allow write: if false; // Managed by Cloud Functions
     }
 
@@ -704,7 +751,7 @@ service cloud.firestore {
 
     // SPREADSHEETS
     match /spreadsheets/{spreadsheetId} {
-      allow read: if isSuperAdmin() || isDemoRead(resource.data.get('tenantId', '')) || (isAuthenticated() && belongsToTenant(resource.data.get('tenantId', '')) && tenantSubscriptionAllowsRead(resource.data.get('tenantId', '')));
+      allow read: if isSuperAdmin() || isDemoRead(resource.data.get('tenantId', '')) || (isAuthenticated() && belongsToTenant(resource.data.get('tenantId', '')) && tenantSubscriptionAllowsRead(resource.data.get('tenantId', '')) && (memberSeesAll('spreadsheets') || memberOwns('createdById')));
       // Criacao so pelo backend (POST /v1/spreadsheets), que aplica o teto de
       // planilhas do plano. As rules nao conhecem plano: com create aberto ao
       // client, o limite se contornava com uma escrita direta.
@@ -923,12 +970,15 @@ service cloud.firestore {
     // Notas de ENTRADA — emitidas contra o CNPJ do tenant. Mesmo molde de
     // invoices: o tenant le (a UI lista), so a Cloud Function escreve. A
     // manifestacao e ato formal perante a Receita e nao pode partir do client.
+    // Notas (emitidas e de entrada) levam CPF/CNPJ e valores: exigem "Ver"
+    // em Notas Fiscais. A tela lê pela API.
     match /received_invoices/{docId} {
       allow read: if isSuperAdmin()
                   || isDemoRead(resource.data.tenantId)
                   || (isAuthenticated()
                       && belongsToTenant(resource.data.tenantId)
-                      && tenantSubscriptionAllowsRead(resource.data.tenantId));
+                      && tenantSubscriptionAllowsRead(resource.data.tenantId)
+                      && (hasTenantAdminRole() || memberCanViewPage('invoices')));
       allow write: if false;
     }
 
@@ -942,7 +992,8 @@ service cloud.firestore {
                   || isDemoRead(resource.data.tenantId)
                   || (isAuthenticated()
                       && belongsToTenant(resource.data.tenantId)
-                      && tenantSubscriptionAllowsRead(resource.data.tenantId));
+                      && tenantSubscriptionAllowsRead(resource.data.tenantId)
+                      && (hasTenantAdminRole() || memberCanViewPage('invoices')));
       allow write: if false;
     }
 
@@ -969,6 +1020,14 @@ service cloud.firestore {
     // painel do super admin via API (GET /v1/admin/activity). Escrita so pelo
     // backend (POST /v1/activity/events e eventos do servidor).
     match /tenant_activity/{eventId} {
+      allow read, write: if false;
+    }
+
+    // Histórico de ações da equipe (aprovar, dar baixa, mudar permissão,
+    // suspender...), lido só pelo dono e pelos administradores via API
+    // (GET /v1/admin/members/audit). Escrita só pelo backend
+    // (`lib/member-audit.ts`).
+    match /member_audit/{entryId} {
       allow read, write: if false;
     }
 

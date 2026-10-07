@@ -11,6 +11,10 @@ const m = vi.hoisted(() => ({
   wallets: vi.fn(),
 }));
 
+vi.mock("@/hooks/usePermission", () => ({
+  usePermission: () => true,
+  usePageScope: () => ({ scope: "all", isLoading: false }),
+}));
 vi.mock("next/dynamic", () => ({ default: () => () => <div data-testid="cash-flow-chart" /> }));
 vi.mock("@/hooks/usePlanLimits", () => ({ usePlanLimits: () => m.plan }));
 vi.mock("@/providers/tenant-provider", () => ({ useTenant: () => ({ tenant: { id: "t1" }, isLoading: false }) }));

@@ -30,6 +30,7 @@ import {
 import { Wallet, WalletType } from "@/types";
 import { formatCurrency } from "@/utils/format";
 import { useTenant } from "@/providers/tenant-provider";
+import { usePermission, useSensitiveData } from "@/hooks/usePermission";
 
 interface WalletCardProps {
   wallet: Wallet;
@@ -72,6 +73,11 @@ export function WalletCard({
   onSetDefault,
   onViewHistory,
 }: WalletCardProps) {
+  const { canSeeBalance } = useSensitiveData();
+  // Ações finas de Carteiras (ausentes, valem o Editar).
+  const canTransfer = usePermission("wallet", "transfer");
+  const canAdjust = usePermission("wallet", "adjustBalance");
+  const canArchive = usePermission("wallet", "archive");
   const { isReadOnly } = useTenant();
   const Icon = typeIcons[wallet.type] || WalletIcon;
 
@@ -136,14 +142,14 @@ export function WalletCard({
                 {canEdit && (
                   <>
                     <DropdownMenuItem
-                      disabled={isReadOnly}
+                      disabled={isReadOnly || !canTransfer}
                       onClick={() => onTransfer(wallet)}
                     >
                       <ArrowRightLeft className="w-4 h-4 mr-2" />
                       Transferir
                     </DropdownMenuItem>
                     <DropdownMenuItem
-                      disabled={isReadOnly}
+                      disabled={isReadOnly || !canAdjust}
                       onClick={() => onAdjust(wallet)}
                     >
                       <Plus className="w-4 h-4 mr-2" />
@@ -162,7 +168,7 @@ export function WalletCard({
                       Editar
                     </DropdownMenuItem>
                     <DropdownMenuItem
-                      disabled={isReadOnly}
+                      disabled={isReadOnly || !canArchive}
                       onClick={() => onArchive(wallet)}
                     >
                       {wallet.status === "archived" ? (
@@ -204,6 +210,7 @@ export function WalletCard({
         </div>
 
         {/* Balance */}
+        {canSeeBalance && (
         <div className="mt-4">
           <p className="text-sm text-muted-foreground mb-1">Saldo Atual</p>
           <p
@@ -214,6 +221,7 @@ export function WalletCard({
             {formatCurrency(wallet.balance)}
           </p>
         </div>
+        )}
 
         {/* Description */}
         {wallet.description && (

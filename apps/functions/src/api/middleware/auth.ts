@@ -153,6 +153,16 @@ export const validateFirebaseIdToken = async (
       });
     }
 
+    // Membro suspenso pelo dono: a conta do Firebase já fica desativada (e a
+    // revogação derruba a sessão em até 60s), e o status no doc fecha a janela
+    // entre uma coisa e outra em toda instância.
+    if (authContext.userDoc && (authContext.userDoc as { status?: unknown }).status === "suspended") {
+      return res.status(403).json({
+        error: "Seu acesso a esta empresa está suspenso. Fale com o responsável pela conta.",
+        code: "MEMBER_SUSPENDED",
+      });
+    }
+
     return next();
   } catch (error) {
     const message = error instanceof Error ? error.message : "UNAUTHENTICATED";

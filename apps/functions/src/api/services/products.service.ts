@@ -1,13 +1,19 @@
 import { db } from "../../init";
 import { Timestamp } from "firebase-admin/firestore";
 import { sanitizeText, sanitizeRichText } from "../../utils/sanitize";
+import { parsePricingNumber } from "../../shared/dimension-pricing";
+import { catalogSellingPrice } from "../../shared/catalog-selling-price";
 
 // ===== Interfaces =====
 
 export interface ProductListItem {
   id: string;
   name: string;
+  /** CUSTO do produto (o campo `price` do cadastro). */
   price: number;
+  markup: number;
+  /** O preço que entra na proposta: custo mais markup. */
+  sellingPrice: number;
   category: string;
 }
 
@@ -84,6 +90,8 @@ export async function listProducts(
       id: doc.id,
       name: data.name || "",
       price: data.price || 0,
+      markup: parsePricingNumber(data.markup),
+      sellingPrice: catalogSellingPrice("product", data as Record<string, unknown>),
       category: data.category || "",
     };
   });

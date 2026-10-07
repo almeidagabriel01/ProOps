@@ -120,6 +120,7 @@ npm run test:functions:integration  # (na raiz) integração — sobe o emulador
 |---|---|---|
 | `ai_traces` | ✅ habilitada | ✅ habilitada |
 | `tenant_activity` | ⏳ habilitar no deploy (comando abaixo) | ⏳ idem |
+| `member_audit` | ⏳ habilitar no deploy (comando abaixo) | ⏳ idem |
 | `occurrences` | ❌ não habilitada (e habilitar não resolveria) | ❌ idem |
 
 **A nota de deploy antiga do pipeline de erros está incorreta: habilitar a TTL
@@ -146,6 +147,9 @@ Para `tenant_activity`, por ambiente:
 gcloud firestore fields ttls update expiresAt --collection-group=tenant_activity --enable-ttl --async --project=erp-softcode
 gcloud firestore fields ttls update expiresAt --collection-group=tenant_activity --enable-ttl --async --project=erp-softcode-prod
 ```
+
+Para `member_audit` (histórico da equipe, 365 dias), o mesmo comando com
+`--collection-group=member_audit`, nos dois projetos.
 
 `--async` no comando de TTL importa: sem ele o gcloud bloqueia esperando a
 operação e estoura timeout. Confirme com `ttls list` (passa por `CREATING`
@@ -610,6 +614,9 @@ as notas fiscais dele. Pro e Enterprise (`clientPortal`).
   anterior para de abrir na hora; desligar apaga o doc. A empresa lê e grava
   por `/v1/client-portal/:clientId/link`, com a permissão de Contatos
   (`clients`: ver para ler o link, editar para criar, trocar ou desligar).
+  Ler, criar e trocar pedem também "Ver" em Propostas ou Lançamentos (desde
+  2026-10): o portal abre as propostas e os pagamentos do contato, e quem só
+  tinha Contatos os entregava pelo link. Desligar pede só Contatos.
 - **Abrir o portal é leitura pura.** Ele não cria link nenhum: cada item leva
   à página pública que já existe (proposta, lançamento, obra), e o link dela só
   é obtido ou criado quando o cliente clica (`POST /v1/share/portal/:token/open`,
@@ -662,7 +669,13 @@ nichos: chamado de alarme, manutenção de ar-condicionado, suporte de automaç�
 - **A OS é do técnico.** Membro sem a permissão de escopo `service_orders_all`
   (não é tela: `scopeOf` em `PERMISSION_PAGES`) só alcança as OS em que está em
   `technicianUids`, e só mexe na execução (`ExecutionUpdateSchema`: checklist,
-  peças, relatório). As rules aplicam a mesma regra na leitura; a lista dele
+  peças, relatório). **Valor não é dele** (desde 2026-10): a peça que já estava
+  mantém o valor gravado, a nova do catálogo entra com o preço de venda do
+  catálogo e a digitada à mão entra zerada (`lockTechnicianItemPrices`,
+  `loadCatalogPrices`). O total é o que o cliente assina e o que vai para o
+  financeiro. A mesma trava vale para quem coordena sem "Ver preços"
+  (`service_orders.viewPrices`, aberta por padrão), cuja tela não mostra
+  valor nenhum da OS. As rules aplicam a mesma regra na leitura; a lista dele
   filtra por `technicianUids` (índice `tenantId` + `technicianUids`). O preset
   "Técnico" da tela de Equipe nasce sem o escopo.
 - **Cliente copiado na OS** (nome, telefone, endereço): o técnico não tem acesso
@@ -727,6 +740,18 @@ capacidade `fieldService`, pageId `contracts`, rotas em `/v1/service-contracts`.
   pede a data de início (até 31 dias no passado) e o financeiro no plano
   (402): a primeira cobrança é o primeiro dia de cobrança (1 a 28) a partir do
   início. Só o rascunho se exclui; o resto se encerra.
+- **Ligar a cobrança pede o financeiro, não só Contratos** (desde 2026-10).
+  Ativar e retomar exigem criar em Lançamentos, e o contrato com `issueNfse`
+  exige também emitir em Notas Fiscais (`assertBillingPermission`). Num
+  contrato que já cobra, mudar linhas, dia, carteira ou NFS-e segue a mesma
+  regra; o formulário reenvia tudo, então vale o VALOR mudado
+  (`billingChanges`), não a presença do campo. Suspender e encerrar só param
+  de cobrar e seguem com "Editar" em Contratos.
+- **"Ver valores"** (`contracts.viewValues`, aberta por padrão): sem ela a tela
+  não mostra a mensalidade, o MRR nem o valor das linhas; criar contrato é
+  recusado (a mensalidade nasce na criação) e a edição descarta as `lines`
+  enviadas, mantendo as gravadas. O contrato é lido pelo SDK, então o valor
+  continua no documento: é a tela e a escrita que a chave cobre.
 - **A rotina diária cobra** (`processServiceContracts`, 06:00,
   `contract-billing-run.ts`): cada vencimento que entrou na janela de 10 dias
   vira um lançamento `pending` na categoria "Contratos", com id

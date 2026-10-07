@@ -16,6 +16,8 @@ const txUpdates: Array<{ id: string; data: Record<string, unknown> }> = [];
 const batchDeletes: string[] = [];
 
 jest.mock("../../lib/auth-helpers", () => ({
+  recordInScope: async () => true,
+  getPageScope: async () => "all",
   hasPagePermission: (...a: unknown[]) => hasPagePermission(...a),
 }));
 jest.mock("../../lib/tenant-plan-policy", () => ({
@@ -64,7 +66,16 @@ jest.mock("../../init", () => {
           return { doc: (id: string) => ({ id: `company:${id}` }) };
         }
         if (name === "users") {
-          return { doc: () => ({ get: async () => ({ data: () => ({ name: "Ana Vendas" }) }) }) };
+          const team: Record<string, Record<string, unknown>> = {
+            u1: { name: "Ana Vendas", tenantId: "t1" },
+            u2: { name: "Bruno Vendas", tenantId: "t1" },
+            x9: { name: "De fora", tenantId: "t2" },
+          };
+          return {
+            doc: (id: string) => ({
+              get: async () => ({ exists: !!team[id], data: () => team[id] ?? { name: "Ana Vendas" } }),
+            }),
+          };
         }
         if (name === "activities") {
           const q = {
@@ -207,6 +218,30 @@ describe("updateLead", () => {
     await updateLead(fakeReq({ id: "l1" }, { phone: "", nextActionAt: null }), res);
     expect(res.statusCode).toBe(200);
     expect(updates[0].data).toMatchObject({ phone: null, nextActionAt: null });
+  });
+
+  it("trocar o dono pede 'Trocar dono do lead' e uma pessoa da equipe", async () => {
+    leads.l2.ownerId = "u1";
+    hasPagePermission.mockImplementation(async (_c: unknown, _p: string, key: string) => key !== "reassignLead");
+    const negado = fakeRes();
+    await updateLead(fakeReq({ id: "l2" }, { ownerId: "u2" }), negado);
+    expect(negado.statusCode).toBe(403);
+    expect(updates).toHaveLength(0);
+
+    // O formulário reenvia o dono de sempre: isso não é troca.
+    const mesmo = fakeRes();
+    await updateLead(fakeReq({ id: "l2" }, { ownerId: "u1", stage: "contato" }), mesmo);
+    expect(mesmo.statusCode).toBe(200);
+
+    hasPagePermission.mockResolvedValue(true);
+    const fora = fakeRes();
+    await updateLead(fakeReq({ id: "l2" }, { ownerId: "x9" }), fora);
+    expect(fora.statusCode).toBe(400);
+
+    const ok = fakeRes();
+    await updateLead(fakeReq({ id: "l2" }, { ownerId: "u2" }), ok);
+    expect(ok.statusCode).toBe(200);
+    expect(updates.at(-1)?.data).toMatchObject({ ownerId: "u2", ownerName: "Bruno Vendas" });
   });
 
   it("não deixa marcar como convertido sem passar pela conversão", async () => {

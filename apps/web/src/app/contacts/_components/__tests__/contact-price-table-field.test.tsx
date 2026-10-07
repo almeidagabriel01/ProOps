@@ -14,6 +14,19 @@ const m = vi.hoisted(() => ({
   optionsEnabled: [] as boolean[],
 }));
 
+vi.mock("@/hooks/usePermission", () => ({
+  usePermission: () => true,
+  usePageScope: () => ({ scope: "all", isLoading: false }),
+  useSensitiveData: () => ({
+    isLoading: false,
+    canSeeCost: true,
+    canSeeStock: true,
+    canSeeContractValues: true,
+    canSeeServiceOrderPrices: true,
+    canSeeCommissions: true,
+    canSeeBalance: true,
+  }),
+}));
 vi.mock("@/hooks/usePlanLimits", () => ({ usePlanLimits: () => m.plan }));
 vi.mock("@/hooks/use-price-tables", () => ({
   usePriceTableOptions: (enabled: boolean) => {

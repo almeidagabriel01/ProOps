@@ -14,26 +14,37 @@ import {
   ChevronDown,
   ChevronUp,
   Check,
+  Copy,
+  Ban,
+  LogOut,
+  RotateCcw,
 } from "lucide-react";
-import { TeamMember, AVAILABLE_PAGES } from "./team-types";
-import { PagePermissionRow } from "./page-permission-row";
+import { ConfirmDialog } from "@/components/shared/confirm-dialog";
+import { toast } from "@/lib/toast";
+import { MemberAccessService } from "@/services/member-access-service";
+import { TeamMember } from "./team-types";
+import { PermissionEditor } from "./permission-editor";
+import { ApplyPermissionsDialog } from "./apply-permissions-dialog";
+import type { MemberPermissions } from "@/lib/permissions/pages";
 import {
   EditMemberModal,
   DeleteMemberDialog,
   ResetMfaDialog,
 } from "./member-modals";
 import { usePlanLimits } from "@/hooks/usePlanLimits";
-import { useTenant } from "@/providers/tenant-provider";
-import { getPermissionPageName } from "@/lib/permissions/pages";
 
 interface MemberCardProps {
   member: TeamMember;
+  /** Os outros membros: a origem de "Copiar de outro membro". */
+  otherMembers: TeamMember[];
   onUpdatePermission: (
     memberId: string,
     pageId: string,
     key: string,
-    value: boolean,
+    value: boolean | string,
   ) => void;
+  /** Depois de aplicar um perfil ou copiar, o mapa inteiro novo. */
+  onPermissionsReplaced: (memberId: string, permissions: MemberPermissions) => void;
   saving: boolean;
   updatingKey: string | null;
   onRefresh: () => void;
@@ -41,7 +52,9 @@ interface MemberCardProps {
 
 export function MemberCard({
   member,
+  otherMembers,
   onUpdatePermission,
+  onPermissionsReplaced,
   saving,
   updatingKey,
   onRefresh,
@@ -50,8 +63,36 @@ export function MemberCard({
   const [showEdit, setShowEdit] = React.useState(false);
   const [showDelete, setShowDelete] = React.useState(false);
   const [showResetMfa, setShowResetMfa] = React.useState(false);
+  const [showApply, setShowApply] = React.useState(false);
+  const [access, setAccess] = React.useState<"suspend" | "reactivate" | "revoke" | null>(null);
+  const [accessPending, setAccessPending] = React.useState(false);
   const { hasFinancial } = usePlanLimits();
-  const { tenant } = useTenant();
+  const suspended = member.status === "suspended";
+
+  // Suspender, reativar e "sair de todos os aparelhos": a API desativa a
+  // conta e derruba as sessões; a revogação vale em até um minuto.
+  const runAccess = async () => {
+    if (!access) return;
+    setAccessPending(true);
+    try {
+      if (access === "suspend") await MemberAccessService.suspend(member.id);
+      else if (access === "reactivate") await MemberAccessService.reactivate(member.id);
+      else await MemberAccessService.revokeSessions(member.id);
+      toast.success(
+        access === "suspend"
+          ? `O acesso de ${member.name} foi suspenso. A sessão cai em até um minuto.`
+          : access === "reactivate"
+            ? `${member.name} pode entrar de novo.`
+            : `As sessões de ${member.name} foram encerradas em todos os aparelhos.`,
+      );
+      setAccess(null);
+      onRefresh();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Não foi possível concluir.");
+    } finally {
+      setAccessPending(false);
+    }
+  };
 
   return (
     <>
@@ -81,10 +122,17 @@ export function MemberCard({
           </button>
 
           <div className="flex w-full shrink-0 items-center justify-end gap-3 md:w-auto">
-            <Badge variant="secondary" className="gap-1">
-              <Users className="w-3 h-3" />
-              Membro
-            </Badge>
+            {suspended ? (
+              <Badge variant="destructive" className="gap-1">
+                <Ban className="w-3 h-3" />
+                Suspenso
+              </Badge>
+            ) : (
+              <Badge variant="secondary" className="gap-1">
+                <Users className="w-3 h-3" />
+                Membro
+              </Badge>
+            )}
 
             {/* Actions */}
             <div className="flex items-center gap-1 border-l pl-3 ml-2">
@@ -104,6 +152,28 @@ export function MemberCard({
                 onClick={() => setShowResetMfa(true)}
               >
                 <ShieldOff className="w-4 h-4" />
+              </Button>
+              {!suspended && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 text-neutral-500 hover:text-blue-600"
+                  title="Sair de todos os aparelhos"
+                  aria-label={`Encerrar as sessões de ${member.name}`}
+                  onClick={() => setAccess("revoke")}
+                >
+                  <LogOut className="w-4 h-4" />
+                </Button>
+              )}
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 text-neutral-500 hover:text-amber-600"
+                title={suspended ? "Reativar o acesso" : "Suspender o acesso"}
+                aria-label={suspended ? `Reativar ${member.name}` : `Suspender ${member.name}`}
+                onClick={() => setAccess(suspended ? "reactivate" : "suspend")}
+              >
+                {suspended ? <RotateCcw className="w-4 h-4" /> : <Ban className="w-4 h-4" />}
               </Button>
               <Button
                 variant="ghost"
@@ -128,33 +198,24 @@ export function MemberCard({
         {/* Permissions Panel */}
         {isExpanded && (
           <div className="border-t bg-muted/20 p-4">
-            <h4 className="font-medium mb-4 flex items-center gap-2 text-sm">
-              <Shield className="w-4 h-4" />
-              Permissões por página
-            </h4>
-
-            <div className="space-y-2">
-              {AVAILABLE_PAGES.map((page) => {
-                // Hide financial pages if tenant doesn't have the module
-                if (page.requiresFinancial && !hasFinancial) return null;
-
-                return (
-                  <PagePermissionRow
-                    key={page.id}
-                    page={{ ...page, name: getPermissionPageName(page, tenant?.niche) }}
-                    permission={
-                      member.permissions[page.id] || { canView: false }
-                    }
-                    onUpdate={(key, value) =>
-                      onUpdatePermission(member.id, page.id, key, value)
-                    }
-                    saving={saving}
-                    updatingKey={updatingKey}
-                    memberId={member.id}
-                  />
-                );
-              })}
+            <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+              <h4 className="flex items-center gap-2 text-sm font-medium">
+                <Shield className="w-4 h-4" />
+                Permissões
+              </h4>
+              <Button variant="outline" size="sm" onClick={() => setShowApply(true)} className="w-full sm:w-auto">
+                <Copy className="mr-2 h-4 w-4" />
+                Aplicar perfil ou copiar
+              </Button>
             </div>
+
+            <PermissionEditor
+              permissions={member.permissions}
+              onChange={(pageId, key, value) => onUpdatePermission(member.id, pageId, key, value)}
+              hasFinancial={hasFinancial}
+              disabled={saving}
+              busyKey={updatingKey?.startsWith(`${member.id}-`) ? updatingKey.slice(member.id.length + 1) : null}
+            />
 
             <p className="text-xs text-muted-foreground mt-4 flex items-center gap-1">
               <Check className="w-3 h-3" />
@@ -176,11 +237,42 @@ export function MemberCard({
         onOpenChange={setShowDelete}
         onSuccess={onRefresh}
       />
+      <ApplyPermissionsDialog
+        member={member}
+        otherMembers={otherMembers}
+        hasFinancial={hasFinancial}
+        open={showApply}
+        onOpenChange={setShowApply}
+        onApplied={(permissions) => onPermissionsReplaced(member.id, permissions)}
+      />
       <ResetMfaDialog
         member={member}
         open={showResetMfa}
         onOpenChange={setShowResetMfa}
         onSuccess={onRefresh}
+      />
+      <ConfirmDialog
+        open={access !== null}
+        onOpenChange={(open) => !open && !accessPending && setAccess(null)}
+        title={
+          access === "suspend"
+            ? `Suspender ${member.name}?`
+            : access === "reactivate"
+              ? `Reativar ${member.name}?`
+              : `Encerrar as sessões de ${member.name}?`
+        }
+        description={
+          access === "suspend"
+            ? "A pessoa sai de todos os aparelhos e não entra mais até você reativar. A vaga continua ocupada e o histórico fica."
+            : access === "reactivate"
+              ? "A pessoa volta a entrar com a mesma senha e as mesmas permissões."
+              : "A pessoa sai de todos os aparelhos em até um minuto e pode entrar de novo com a senha."
+        }
+        confirmLabel={access === "suspend" ? "Suspender" : access === "reactivate" ? "Reativar" : "Encerrar sessões"}
+        pendingLabel="Aguarde..."
+        destructive={access === "suspend"}
+        isPending={accessPending}
+        onConfirm={runAccess}
       />
     </>
   );

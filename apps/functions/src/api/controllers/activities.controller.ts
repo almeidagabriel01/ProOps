@@ -160,17 +160,27 @@ export async function updateActivity(req: Request, res: Response) {
   }
 }
 
-/** DELETE /v1/activities/:id */
+/**
+ * DELETE /v1/activities/:id
+ *
+ * Excluir é "Excluir" no CRM; quem só edita apaga só a atividade que ele
+ * mesmo registrou. Até 2026-10 bastava editar, e qualquer um apagava o
+ * histórico de contato que outro vendedor tinha registrado.
+ */
 export async function deleteActivity(req: Request, res: Response) {
   try {
     const tenantId = req.user?.tenantId;
     if (!tenantId) return res.status(403).json({ message: "Tenant não identificado." });
-    if (!(await hasPagePermission(req.user, "kanban", "canEdit"))) {
+    const canDelete = await hasPagePermission(req.user, "kanban", "canDelete");
+    if (!canDelete && !(await hasPagePermission(req.user, "kanban", "canEdit"))) {
       return res.status(403).json({ message: "Sem permissão para excluir atividades." });
     }
 
     const found = await loadActivityOfTenant(req.params.id, tenantId);
     if (!found) return res.status(404).json({ message: "Atividade não encontrada." });
+    if (!canDelete && found.data.createdBy !== req.user?.uid) {
+      return res.status(403).json({ message: "Você só exclui as atividades que registrou." });
+    }
 
     await found.ref.delete();
     return res.json({ success: true });

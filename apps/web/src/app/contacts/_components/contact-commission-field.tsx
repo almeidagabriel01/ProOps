@@ -4,6 +4,7 @@ import * as React from "react";
 import { FormItem } from "@/components/ui/form-components";
 import { Input } from "@/components/ui/input";
 import { isCommissionPartner } from "@/lib/contacts/commission-partner";
+import { usePermissions } from "@/providers/permissions-provider";
 import type { ClientType } from "@/services/client-service";
 
 interface ContactCommissionFieldProps {
@@ -29,19 +30,23 @@ interface ContactCommissionFieldProps {
  *
  * Compartilhado pelo cadastro e pela edição, como o seletor de tipos: uma
  * segunda cópia divergiria na primeira mudança.
+ *
+ * O percentual é o que a empresa paga ao parceiro: só o dono e os
+ * administradores o definem (o backend recusa a mudança vinda de um membro).
  */
 export function ContactCommissionField({
   types,
   value,
   onChange,
 }: ContactCommissionFieldProps) {
+  const { isMaster } = usePermissions();
   if (!isCommissionPartner({ types })) return null;
 
   return (
     <FormItem
       label="Comissão padrão"
       htmlFor="commissionPercentage"
-      hint="Pode mudar por proposta"
+      hint={isMaster ? "Pode mudar por proposta" : "Definida pelo dono"}
     >
       <Input
         id="commissionPercentage"
@@ -60,6 +65,7 @@ export function ContactCommissionField({
           onChange(raw === "" ? null : Number(raw));
         }}
         suffix={<span className="text-sm">%</span>}
+        disabled={!isMaster}
       />
     </FormItem>
   );

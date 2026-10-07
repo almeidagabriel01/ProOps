@@ -11,7 +11,11 @@ import {
 import { enqueueDriveDelivery } from "../services/drive/drive-delivery-queue";
 import { FieldValue, Timestamp } from "firebase-admin/firestore";
 import { getStorage } from "firebase-admin/storage";
-import { resolveUserAndTenant, checkPermission } from "../../lib/auth-helpers";
+import {
+  resolveUserAndTenant,
+  checkPermission,
+  recordInScope,
+} from "../../lib/auth-helpers";
 import {
   assertTenantExists,
   auditSuperAdminCrossTenantWrite,
@@ -63,11 +67,14 @@ import {
 } from "../services/proposal-numbering.service";
 import { approvalTimestampUpdate, resolveSeller } from "../services/sales-goals";
 import { sanitizeProposalProductsInput } from "../services/proposal-products-sanitize";
+import type { CommissionLine } from "../services/proposal-fine-permissions";
+import { checkProposalFineActions } from "../services/proposal-fine-actions";
 import {
   MAX_PARTNER_CONTACTS,
   contactResponsiblesErrorMessage,
   resolvePartnerContactIds,
 } from "../services/contact-responsibles";
+import { recordMemberAudit } from "../../lib/member-audit";
 
 const CreateProposalSchema = z.object({
   title: z.string().max(300).trim().optional(),
@@ -165,6 +172,8 @@ export const APPROVED_SYNC_FIELDS = new Set([
   "extraExpense",
   "status",
   "commissions",
+  // O vendedor vai para os lançamentos (recorte "só os das minhas vendas").
+  "sellerId",
 ]);
 
 /**
@@ -625,6 +634,12 @@ export async function syncApprovedProposalTransactions(params: {
   } = params;
   const defaultWalletName =
     await resolveDefaultWalletNameForTenant(proposalTenantId);
+  // O vendedor da proposta vai para os lançamentos dela: é o recorte "só os
+  // das minhas vendas" de Lançamentos (rules e consultas). A comissão fica sem,
+  // porque é despesa da empresa com o parceiro, não receita da venda.
+  const proposalSellerId =
+    typeof proposalData.sellerId === "string" && proposalData.sellerId ? proposalData.sellerId : null;
+  const sellerOf = (draft: { isCommission?: boolean }) => (draft.isCommission ? null : proposalSellerId);
   const { drafts: desiredDrafts, effectiveDownPaymentValue, effectiveInstallmentValue } = buildApprovedProposalTransactionDrafts({
     proposalId,
     proposalData,
@@ -691,6 +706,7 @@ export async function syncApprovedProposalTransactions(params: {
         description: title,
         clientId,
         clientName,
+        sellerId: proposalSellerId,
         updatedAt: now,
       });
     });
@@ -752,6 +768,7 @@ export async function syncApprovedProposalTransactions(params: {
 
       batch.set(db.collection("transactions").doc(), {
         ...draft,
+        sellerId: sellerOf(draft),
         status,
         createdAt: now,
         updatedAt: now,
@@ -816,6 +833,7 @@ export async function syncApprovedProposalTransactions(params: {
       commissionRole: draft.commissionRole ?? null,
       commissionPercentage: draft.commissionPercentage ?? null,
       commissionSourceKey: draft.commissionSourceKey ?? null,
+      sellerId: sellerOf(draft),
       updatedAt: now,
     };
 
@@ -1000,6 +1018,34 @@ export const createProposal = async (req: Request, res: Response) => {
       if (requestedSellerId) {
         return res.status(400).json({ message: "Vendedor inválido para esta empresa." });
       }
+    }
+    if (!isMaster && !isSuperAdmin) {
+      // Na criação, o automático é o que o formulário põe sozinho: quem cria,
+      // ou o responsável e os parceiros que vêm do cadastro do cliente.
+      const clientSnap = input.clientId ? await db.collection("clients").doc(String(input.clientId)).get() : null;
+      const client = clientSnap?.exists && clientSnap.data()?.tenantId === userCompanyId ? clientSnap.data() : null;
+      const inheritedSeller = (client?.responsibleMemberId as string | undefined) || null;
+      const sellerBase = {
+        sellerId: requestedSellerId && requestedSellerId === inheritedSeller ? inheritedSeller : userId,
+        partnerContactIds: Array.isArray(client?.partnerContactIds) ? client?.partnerContactIds : [],
+      };
+      const commissionsAfter = sanitizeProposalCommissionsInput(input.commissions);
+      const willBeApproved =
+        input.status !== "draft" && (await isStatusApproved(input.status as string | undefined, userCompanyId));
+      const denied = await checkProposalFineActions({
+        userId,
+        tenantId: userCompanyId,
+        current: { ...sellerBase, discount: 0, closedValue: null, commissions: [] },
+        input: {
+          ...input,
+          sellerId: requestedSellerId ?? userId,
+          partnerContactIds: input.partnerContactIds ?? sellerBase.partnerContactIds,
+        } as Record<string, unknown>,
+        commissionsAfter,
+        approvalChanges: willBeApproved,
+        paidOnApproval: willBeApproved && input.initialPaymentStatus === "paid",
+      });
+      if (denied) return res.status(403).json({ message: denied });
     }
     let partnerContactIds: string[] = [];
     if (Array.isArray(input.partnerContactIds) && input.partnerContactIds.length > 0) {
@@ -1379,6 +1425,10 @@ export const updateProposal = async (req: Request, res: Response) => {
     const proposalData = proposalSnap.data();
     if (!isSuperAdmin && proposalData?.tenantId !== tenantId)
       return res.status(403).json({ message: "Acesso negado." });
+    // "Só as minhas": a proposta de outro vendedor não existe para quem tem o
+    // alcance restrito, como nas rules.
+    if (!isMaster && !isSuperAdmin && !(await recordInScope(req.user, "proposals", proposalData)))
+      return res.status(404).json({ message: "Proposta não encontrada." });
     const proposalTenantId = String(proposalData?.tenantId || tenantId).trim();
 
     if (!isMaster && !isSuperAdmin) {
@@ -1614,7 +1664,31 @@ export const updateProposal = async (req: Request, res: Response) => {
       approvalTimestampUpdate(isCurrentlyApproved, willBeApproved, new Date().toISOString()),
     );
 
+    if (!isMaster && !isSuperAdmin) {
+      const denied = await checkProposalFineActions({
+        userId,
+        tenantId: proposalTenantId,
+        current: (proposalData ?? null) as Record<string, unknown> | null,
+        input: updateData as Record<string, unknown>,
+        commissionsAfter:
+          typeof updateData.commissions !== "undefined"
+            ? (safeUpdate.commissions as CommissionLine[])
+            : null,
+        approvalChanges: willBeApproved !== isCurrentlyApproved,
+        paidOnApproval: willBeApproved && !isCurrentlyApproved && updateData.initialPaymentStatus === "paid",
+      });
+      if (denied) return res.status(403).json({ message: denied });
+    }
+
     await timed("proposalWriteMs", () => proposalRef.update(safeUpdate));
+    if (willBeApproved !== isCurrentlyApproved) {
+      await recordMemberAudit({
+        tenantId: proposalTenantId,
+        actorUid: userId,
+        action: willBeApproved ? "proposal_approved" : "proposal_reverted",
+        target: { type: "proposal", id, label: String(safeUpdate.title ?? proposalData?.title ?? "") },
+      });
+    }
 
     if (removedAttachmentPaths.length > 0) {
       await deleteStorageObjectsBestEffort(removedAttachmentPaths, {
@@ -1961,6 +2035,7 @@ export const updateProposal = async (req: Request, res: Response) => {
               clientName: mergedData.clientName || null,
               proposalId: id,
               proposalGroupId: installData.proposalGroupId || null,
+              sellerId: mergedData.sellerId || proposalData?.sellerId || null,
               category: PROPOSAL_INCOME_CATEGORY,
               wallet:
                 mergedData.downPaymentWallet ||
@@ -2164,6 +2239,10 @@ export const deleteProposal = async (req: Request, res: Response) => {
     const proposalData = proposalSnap.data();
     if (!isSuperAdmin && proposalData?.tenantId !== tenantId)
       return res.status(403).json({ message: "Acesso negado." });
+    // "Só as minhas": a proposta de outro vendedor não existe para quem tem o
+    // alcance restrito, como nas rules.
+    if (!isMaster && !isSuperAdmin && !(await recordInScope(req.user, "proposals", proposalData)))
+      return res.status(404).json({ message: "Proposta não encontrada." });
     const proposalTenantId = String(proposalData?.tenantId || tenantId).trim();
 
     if (!isMaster && !isSuperAdmin) {
@@ -2244,6 +2323,13 @@ export const deleteProposal = async (req: Request, res: Response) => {
         proposalId: id,
       });
     }
+
+    await recordMemberAudit({
+      tenantId: proposalTenantId,
+      actorUid: userId,
+      action: "proposal_deleted",
+      target: { type: "proposal", id, label: String(proposalData?.title ?? "") },
+    });
 
     return res.json({ success: true, message: "Proposta excluída." });
   } catch (error: unknown) {

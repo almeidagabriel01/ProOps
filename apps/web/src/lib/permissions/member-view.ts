@@ -45,6 +45,7 @@ export function buildMemberViewPermissions(member: TenantMemberInfo): UserPermis
       canCreate: perm.canCreate === true,
       canEdit: perm.canEdit === true,
       canDelete: perm.canDelete === true,
+      raw: perm as Record<string, unknown>,
     };
   }
   if (!pages["profile"]) {

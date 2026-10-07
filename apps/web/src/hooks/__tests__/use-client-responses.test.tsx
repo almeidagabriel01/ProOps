@@ -5,7 +5,7 @@
  */
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { act, renderHook } from "@testing-library/react";
+import { act, renderHook, waitFor } from "@testing-library/react";
 
 type Listener = {
   filters: string[];
@@ -13,7 +13,12 @@ type Listener = {
   unsubscribe: ReturnType<typeof vi.fn>;
 };
 
-const fs = vi.hoisted(() => ({ listeners: [] as Listener[] }));
+const fs = vi.hoisted(() => ({
+  listeners: [] as Listener[],
+  owner: null as null | { field: string; uid: string },
+}));
+
+vi.mock("@/lib/permissions/query-scope", () => ({ ownerFilter: async () => fs.owner }));
 
 vi.mock("@/lib/firebase", () => ({ db: {} }));
 vi.mock("firebase/firestore", () => ({
@@ -42,20 +47,23 @@ const snap = (ids: string[]) => ({
 
 beforeEach(() => {
   fs.listeners = [];
+  fs.owner = null;
 });
 
 describe("useClientResponses", () => {
-  it("escuta só o que está em aberto, filtrado pela empresa", () => {
+  it("escuta só o que está em aberto, filtrado pela empresa", async () => {
     renderHook(() => useClientResponses("t1"));
+    await waitFor(() => expect(fs.listeners).toHaveLength(2));
     expect(fs.listeners.map((l) => l.filters)).toEqual([
       ["tenantId=t1", "clientAcceptance.status=pending"],
       ["tenantId=t1", "clientChangeRequest.status=open"],
     ]);
   });
 
-  it("fica pronto quando os dois respondem, e atualiza com a tela aberta", () => {
+  it("fica pronto quando os dois respondem, e atualiza com a tela aberta", async () => {
     const { result } = renderHook(() => useClientResponses("t1"));
     expect(result.current.ready).toBe(false);
+    await waitFor(() => expect(fs.listeners).toHaveLength(2));
 
     act(() => {
       fs.listeners[0].next(snap([]));
@@ -71,12 +79,20 @@ describe("useClientResponses", () => {
     expect(result.current.changeRequests.get("p2")).toMatchObject({ id: "p2" });
   });
 
-  it("sem empresa não escuta nada; ao sair, desliga os listeners", () => {
+  it("sem empresa não escuta nada; ao sair, desliga os listeners", async () => {
     renderHook(() => useClientResponses(undefined));
     expect(fs.listeners).toHaveLength(0);
 
     const { unmount } = renderHook(() => useClientResponses("t1"));
+    await waitFor(() => expect(fs.listeners).toHaveLength(2));
     unmount();
     expect(fs.listeners.every((l) => l.unsubscribe.mock.calls.length === 1)).toBe(true);
+  });
+
+  it("quem vê só as próprias escuta só as propostas dela", async () => {
+    fs.owner = { field: "sellerId", uid: "vend" };
+    renderHook(() => useClientResponses("t1"));
+    await waitFor(() => expect(fs.listeners).toHaveLength(2));
+    expect(fs.listeners[0].filters).toEqual(["tenantId=t1", "sellerId=vend", "clientAcceptance.status=pending"]);
   });
 });

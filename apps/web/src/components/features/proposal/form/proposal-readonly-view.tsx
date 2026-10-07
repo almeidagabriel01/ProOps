@@ -12,6 +12,8 @@ import {
 } from "@/lib/product-pricing";
 import { compareConfiguredDisplayItem } from "@/lib/sort-text";
 import { formatDateBR } from "@/utils/date-format";
+import { useSensitiveData } from "@/hooks/usePermission";
+import { proposalLineDisplayUnitPrice } from "@/lib/proposal/catalog-picker-price";
 
 interface ProposalReadOnlyViewProps {
   formData: Partial<Proposal>;
@@ -28,6 +30,7 @@ export function ProposalReadOnlyView({
   calculateDiscount,
   calculateTotal,
 }: ProposalReadOnlyViewProps) {
+  const { canSeeCost } = useSensitiveData();
   const { pricing } = useCurrentNicheConfig();
   return (
     <div className="space-y-6">
@@ -118,7 +121,7 @@ export function ProposalReadOnlyView({
                     </div>
                     <div className="text-xs text-muted-foreground">
                       {getProposalProductMeasurementLabel(product, pricing)} | R${" "}
-                      {product.unitPrice.toFixed(2)} /{" "}
+                      {proposalLineDisplayUnitPrice(product, canSeeCost).toFixed(2)} /{" "}
                       {getProposalProductUnitLabel(product)}
                     </div>
                   </div>

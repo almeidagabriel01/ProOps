@@ -57,6 +57,8 @@ import {
 import { createLineItemId, ensureAmbienteProductLineItemId } from "@/lib/proposal-product";
 import { dimensionModeLabel, linearPriceUnit, measureTerms } from "@/lib/pricing/dimension-mode-labels";
 import { Loader } from "@/components/ui/loader";
+import { useSensitiveData } from "@/hooks/usePermission";
+import { catalogPickerPrice } from "@/lib/proposal/catalog-picker-price";
 
 interface AmbienteEditorProps {
   ambiente: Ambiente | null;
@@ -119,6 +121,7 @@ export function AmbienteEditor({
   onSave,
   isReadOnly = false,
 }: AmbienteEditorProps) {
+  const { canSeeCost } = useSensitiveData();
   const { tenant } = useTenant();
   const nicheConfig = useCurrentNicheConfig();
   const v = nicheConfig.vocabulary;
@@ -1268,11 +1271,11 @@ export function AmbienteEditor({
                           <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
                             <div className="rounded-md bg-muted/25 px-2.5 py-2">
                               <p className="text-[10px] uppercase tracking-wide text-muted-foreground">
-                                Preço base
+                                {canSeeCost ? "Preço base" : "Preço de venda"}
                               </p>
                               <p className="text-xs font-semibold text-foreground">
-                                {hasCatalogPrice
-                                  ? `R$ ${catalogPrice.toFixed(2)}`
+                                {hasCatalogPrice && catalogItem
+                                  ? `R$ ${(canSeeCost ? catalogPrice : catalogPickerPrice(catalogItem, false)).toFixed(2)}`
                                   : "Não informado"}
                               </p>
                             </div>

@@ -197,9 +197,24 @@ Três consequências para esta pasta:
   `_lib/__tests__/proposal-transaction.test.ts`.
 
 O relatório por parceiro fica em `/commissions`, alimentado por
-`GET /v1/transactions/commissions`. Ele é `masterOnly` no menu, mas **as
-despesas de comissão continuam visíveis nesta lista** para quem tem permissão
-de Lançamentos: escondê-las daqui exigiria filtrar a lista, e é decisão à parte.
+`GET /v1/transactions/commissions`. Ele pede **"Ver comissões"**
+(`transactions.viewCommissions`, fechada por padrão para o membro; dono e
+administradores sempre veem), no menu, na rota, no painel do Dashboard e na
+API. As despesas de comissão continuam nesta lista para quem vê todos os
+lançamentos; quem tem o alcance "só receitas" não as vê, porque são despesas.
+
+### Alcance e ações finas (2026-10)
+
+- **Alcance** (`scope` de `transactions`): "tudo" (padrão), "só receitas"
+  (`type == income`) ou "só os das minhas vendas" (`sellerId`, copiado da
+  proposta por `syncApprovedProposalTransactions`; backfill
+  `scripts/backfill-transaction-seller.ts`). Toda consulta do
+  `transaction-service` leva o filtro (`transactionScopeWhere`). Para quem não
+  vê tudo, somem a aba Agrupados, o saldo das carteiras, o DRE e o fluxo de
+  caixa (o backend recusa o DRE), e o resumo soma só o alcance.
+- **Ações finas**: dar baixa (`settle`), estornar o pago (`revert`), custos
+  extras (`extraCosts`), compartilhar (`share`) e exportar (`export`). O
+  `TransactionService` confere a chave por lançamento, inclusive nos lotes.
 
 ## Exclusão com "Desfazer" e ações em massa (2026-09-25)
 

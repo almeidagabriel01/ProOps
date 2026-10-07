@@ -23,8 +23,19 @@ import { Proposal } from "@/types/proposal";
 import { PaginatedResult } from "./client-service";
 import { isEnvironmentProposalSystemInstance } from "@/lib/proposal-environment-utils";
 import { firstSearchToken, normalizeSearchWords } from "@/lib/search-term";
+import { ownerFilter } from "@/lib/permissions/query-scope";
+import { comparableValue, fetchOwnDocs, pageAfter, sortSnapshots } from "./own-scope";
 
 const COLLECTION_NAME = "proposals";
+
+/**
+ * As propostas de quem tem "só as minhas" (`sellerId`), ou null quando a
+ * pessoa vê todas. Ver `lib/permissions/query-scope.ts`.
+ */
+async function ownProposalDocs(tenantId: string) {
+  const owner = await ownerFilter("proposals");
+  return owner ? fetchOwnDocs(COLLECTION_NAME, tenantId, owner) : null;
+}
 
 export * from "@/types/proposal";
 
@@ -246,6 +257,8 @@ export const ProposalService = {
 
   getProposals: async (tenantId: string): Promise<Proposal[]> => {
     try {
+      const own = await ownProposalDocs(tenantId);
+      if (own) return own.map(mapProposalDoc);
       const q = query(
         collection(db, COLLECTION_NAME),
         where("tenantId", "==", tenantId),
@@ -261,6 +274,8 @@ export const ProposalService = {
 
   /** Contagem server-side (aggregation) — 1 leitura por 1000 docs. */
   countProposals: async (tenantId: string): Promise<number> => {
+    const own = await ownProposalDocs(tenantId);
+    if (own) return own.length;
     const snap = await getCountFromServer(
       query(collection(db, COLLECTION_NAME), where("tenantId", "==", tenantId)),
     );
@@ -277,6 +292,8 @@ export const ProposalService = {
   ): Promise<number> => {
     const unique = Array.from(new Set(statuses.filter(Boolean)));
     if (unique.length === 0) return 0;
+    const own = await ownProposalDocs(tenantId);
+    if (own) return own.filter((d) => unique.includes(String(d.data().status))).length;
     const CHUNK = 30;
     let total = 0;
     for (let i = 0; i < unique.length; i += CHUNK) {
@@ -303,6 +320,14 @@ export const ProposalService = {
     end: string,
     max = 500,
   ): Promise<Proposal[]> => {
+    const own = await ownProposalDocs(tenantId);
+    if (own) {
+      const inRange = own.filter((d) => {
+        const at = String(d.data().approvedAt ?? "");
+        return at >= start && at < end;
+      });
+      return sortSnapshots(inRange, "approvedAt", "asc").slice(0, max).map(mapProposalDoc);
+    }
     const snap = await getDocs(
       query(
         collection(db, COLLECTION_NAME),
@@ -327,6 +352,15 @@ export const ProposalService = {
     const unique = Array.from(new Set(statuses.filter(Boolean)));
     const CHUNK = 30;
     const result = { count: 0, total: 0 };
+    const own = await ownProposalDocs(tenantId);
+    if (own) {
+      for (const d of own) {
+        if (!unique.includes(String(d.data().status))) continue;
+        result.count += 1;
+        result.total += Number(d.data().totalValue) || 0;
+      }
+      return result;
+    }
     for (let i = 0; i < unique.length; i += CHUNK) {
       const q = query(
         collection(db, COLLECTION_NAME),
@@ -358,6 +392,14 @@ export const ProposalService = {
     max = 50,
   ): Promise<Proposal[]> => {
     const unique = Array.from(new Set(statuses.filter(Boolean)));
+    const own = await ownProposalDocs(tenantId);
+    if (own) {
+      const matching = own.filter((d) => {
+        const until = String(d.data().validUntil ?? "");
+        return unique.includes(String(d.data().status)) && until >= fromDay && until <= `${toDay}\uf8ff`;
+      });
+      return sortSnapshots(matching, "validUntil", "asc").slice(0, max).map(mapProposalDoc);
+    }
     const CHUNK = 30;
     const found: Proposal[] = [];
     for (let i = 0; i < unique.length; i += CHUNK) {
@@ -388,6 +430,16 @@ export const ProposalService = {
     max = 50,
   ): Promise<Proposal[]> => {
     const unique = Array.from(new Set(statuses.filter(Boolean)));
+    const own = await ownProposalDocs(tenantId);
+    if (own) {
+      const limitMs = before.getTime();
+      const matching = own.filter((d) => {
+        const at = comparableValue(d.data().updatedAt);
+        const ms = typeof at === "number" ? at : Date.parse(String(at));
+        return unique.includes(String(d.data().status)) && Number.isFinite(ms) && ms < limitMs;
+      });
+      return sortSnapshots(matching, "updatedAt", "asc").slice(0, max).map(mapProposalDoc);
+    }
     const CHUNK = 30;
     const found: Proposal[] = [];
     for (let i = 0; i < unique.length; i += CHUNK) {
@@ -411,6 +463,8 @@ export const ProposalService = {
     tenantId: string,
     count = 5,
   ): Promise<Proposal[]> => {
+    const own = await ownProposalDocs(tenantId);
+    if (own) return sortSnapshots(own, "createdAt", "desc").slice(0, count).map(mapProposalDoc);
     const snap = await getDocs(
       query(
         collection(db, COLLECTION_NAME),
@@ -435,6 +489,12 @@ export const ProposalService = {
       // Filtro de status da lista: índices (tenantId, status, campo) existem
       // para todo campo ordenável da tela em firestore.indexes.json.
       const statusFilter = status ? [where("status", "==", status)] : [];
+
+      const own = await ownProposalDocs(tenantId);
+      if (own) {
+        const filtered = status ? own.filter((d) => d.data().status === status) : own;
+        return pageAfter(sortSnapshots(filtered, sortField, sortDirection), cursor, pageSize, mapProposalDoc);
+      }
 
       // primarySystem/primaryEnvironment são desnormalizados no doc
       // (computeProposalSortFields + backfill-proposal-sort-fields) — o sort
@@ -492,6 +552,17 @@ export const ProposalService = {
     max = 500,
   ): Promise<Proposal[]> => {
     if (!tenantId || !filter.id) return [];
+    const own = await ownProposalDocs(tenantId);
+    if (own) {
+      return own
+        .filter((d) =>
+          filter.kind === "member"
+            ? d.data().sellerId === filter.id
+            : Array.isArray(d.data().partnerContactIds) && d.data().partnerContactIds.includes(filter.id),
+        )
+        .slice(0, max)
+        .map(mapProposalDoc);
+    }
     const snap = await getDocs(
       query(
         collection(db, COLLECTION_NAME),
@@ -513,17 +584,22 @@ export const ProposalService = {
     const token = firstSearchToken(term);
     if (!token) return [];
 
-    const snap = await getDocs(
-      query(
-        collection(db, COLLECTION_NAME),
-        where("tenantId", "==", tenantId),
-        where("searchTokens", "array-contains", token),
-        limit(max),
-      ),
-    );
+    const own = await ownProposalDocs(tenantId);
+    const docs = own
+      ? own.filter((d) => Array.isArray(d.data().searchTokens) && d.data().searchTokens.includes(token)).slice(0, max)
+      : (
+          await getDocs(
+            query(
+              collection(db, COLLECTION_NAME),
+              where("tenantId", "==", tenantId),
+              where("searchTokens", "array-contains", token),
+              limit(max),
+            ),
+          )
+        ).docs;
 
     const words = normalizeSearchWords(term);
-    return snap.docs.map(mapProposalDoc).filter((proposal) => {
+    return docs.map(mapProposalDoc).filter((proposal) => {
       const haystacks = [proposal.title || "", proposal.clientName || ""].map(
         (value) => normalizeSearchWords(value).join(" "),
       );
@@ -543,15 +619,20 @@ export const ProposalService = {
     clientId: string,
     max = 50,
   ): Promise<Proposal[]> => {
-    const snap = await getDocs(
-      query(
-        collection(db, COLLECTION_NAME),
-        where("tenantId", "==", tenantId),
-        where("clientId", "==", clientId),
-        limit(max),
-      ),
-    );
-    return snap.docs
+    const own = await ownProposalDocs(tenantId);
+    const docs = own
+      ? own.filter((d) => d.data().clientId === clientId).slice(0, max)
+      : (
+          await getDocs(
+            query(
+              collection(db, COLLECTION_NAME),
+              where("tenantId", "==", tenantId),
+              where("clientId", "==", clientId),
+              limit(max),
+            ),
+          )
+        ).docs;
+    return docs
       .map(mapProposalDoc)
       .sort((a, b) =>
         String(b.createdAt ?? "").localeCompare(String(a.createdAt ?? "")),

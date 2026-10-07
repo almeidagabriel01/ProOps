@@ -14,6 +14,7 @@ import { checkCatalogImagesLimit } from "../../lib/catalog-plan-guards";
 import { z } from "zod";
 import { sanitizeText, sanitizeRichText } from "../../utils/sanitize";
 import { sanitizeProductFiscalFields } from "../services/fiscal/fiscal-catalog-fields";
+import { recordMemberAudit } from "../../lib/member-audit";
 
 const CreateProductSchema = z.object({
   name: z.string().min(2, "Nome inválido.").max(200).trim(),
@@ -173,13 +174,20 @@ export const createProduct = async (req: Request, res: Response) => {
     const { masterRef, tenantId, isMaster, isSuperAdmin } =
       await resolveUserAndTenant(userId, req.user);
 
-    // Permission Check
+    // Permission Check. O produto nasce do custo e do markup: sem "Ver custo"
+    // o membro não cadastra (a tela esconde o botão do mesmo jeito).
     if (!isMaster && !isSuperAdmin) {
       const canCreate = await checkPermission(userId, "products", "canCreate");
       if (!canCreate) {
         return res
           .status(403)
           .json({ message: "Sem permissão para criar produtos." });
+      }
+      if (!(await checkPermission(userId, "products", "viewCost"))) {
+        return res.status(403).json({
+          code: "PRODUCT_COST_PERMISSION_REQUIRED",
+          message: "Cadastrar produto pede ver o custo, e o dono não liberou isso para você.",
+        });
       }
     }
 
@@ -323,7 +331,7 @@ export const updateProduct = async (req: Request, res: Response) => {
       const firstError = parseResult.error.issues[0]?.message || "Dados inválidos.";
       return res.status(400).json({ message: firstError });
     }
-    const updateData = req.body;
+    const updateData = { ...req.body };
 
     // Sanitize text fields
     if (typeof updateData.name === "string") updateData.name = sanitizeText(updateData.name);
@@ -351,6 +359,8 @@ export const updateProduct = async (req: Request, res: Response) => {
     }
 
     // Permission Check
+    let canChangePrice = true;
+    let canChangeStock = true;
     if (!isMaster && !isSuperAdmin) {
       const canEdit = await checkPermission(userId, "products", "canEdit");
       if (!canEdit) {
@@ -358,6 +368,17 @@ export const updateProduct = async (req: Request, res: Response) => {
           .status(403)
           .json({ message: "Sem permissão para editar produtos." });
       }
+      // Preço (custo, markup, faixas) e estoque são do catálogo de permissões:
+      // quem não pode mexer neles edita o resto do cadastro, e esses campos
+      // são descartados (a tela nem os mostra editáveis).
+      const [viewCost, editPrice, viewStock, adjustStock] = await Promise.all([
+        checkPermission(userId, "products", "viewCost"),
+        checkPermission(userId, "products", "editPrice"),
+        checkPermission(userId, "products", "viewStock"),
+        checkPermission(userId, "products", "adjustStock"),
+      ]);
+      canChangePrice = viewCost && editPrice;
+      canChangeStock = viewStock && adjustStock;
     }
 
     if (Array.isArray(updateData.images)) {
@@ -382,6 +403,15 @@ export const updateProduct = async (req: Request, res: Response) => {
     const normalizedInventoryValue = parseInventoryValue(
       updateData.inventoryValue ?? updateData.stock,
     );
+    if (!canChangePrice) {
+      delete updateData.price;
+      delete updateData.markup;
+      delete updateData.pricingModel;
+    }
+    if (!canChangeStock) {
+      delete updateData.inventoryValue;
+      delete updateData.stock;
+    }
     const pricingModel =
       updateData.pricingModel !== undefined
         ? sanitizePricingModel(updateData.pricingModel)
@@ -545,6 +575,13 @@ export const deleteProduct = async (req: Request, res: Response) => {
           updatedAt: Timestamp.now(),
         });
       }
+    });
+
+    await recordMemberAudit({
+      tenantId: String(productData?.tenantId || tenantId),
+      actorUid: userId,
+      action: "product_deleted",
+      target: { type: "product", id, label: String(productData?.name ?? "") },
     });
 
     return res.json({ success: true, message: "Produto e imagens removidos." });

@@ -642,6 +642,8 @@ export function useLoginForm(): UseLoginFormReturn {
           // even after the bounded retry. Surface a real, retryable error instead
           // of hanging on the loader.
           setError("Não foi possível concluir o login. Tente novamente.");
+        } else if (result.code === "account-disabled") {
+          setError("Seu acesso está suspenso. Fale com o responsável pela conta da empresa.");
         } else {
           setError("Falha no login. Verifique suas credenciais.");
         }

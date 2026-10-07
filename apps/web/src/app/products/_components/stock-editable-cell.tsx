@@ -14,6 +14,8 @@ interface InventoryEditableCellProps {
   onUpdate: (newValue: string) => Promise<boolean>;
   inventory: InventoryDefinition;
   className?: string;
+  /** Sem "Editar" em Produtos o estoque só é mostrado: o backend recusaria. */
+  readOnly?: boolean;
 }
 
 export function InventoryEditableCell({
@@ -21,6 +23,7 @@ export function InventoryEditableCell({
   onUpdate,
   inventory,
   className,
+  readOnly = false,
 }: InventoryEditableCellProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [value, setValue] = useState(String(initialValue));
@@ -99,6 +102,19 @@ export function InventoryEditableCell({
   const parsedValue = parseInventoryValue(value);
   const isLowValue = parsedValue < inventory.lowValueThreshold;
   const isZeroValue = parsedValue === 0;
+  const tone = isZeroValue
+    ? "text-destructive font-bold"
+    : isLowValue
+      ? "text-orange-500 font-medium"
+      : "text-muted-foreground";
+
+  if (readOnly) {
+    return (
+      <div className={cn("px-2 py-1 min-w-12 w-fit text-center", tone, className)}>
+        {formatInventoryValue(parsedValue, inventory)}
+      </div>
+    );
+  }
 
   return (
     <div

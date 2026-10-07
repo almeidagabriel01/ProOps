@@ -35,6 +35,7 @@ vi.mock("next/navigation", () => ({
 }));
 vi.mock("@/providers/tenant-provider", () => ({ useTenant: () => ({ tenant: { id: "t1" } }) }));
 vi.mock("@/hooks/usePlanLimits", () => ({ usePlanLimits: () => m.plan }));
+vi.mock("@/hooks/use-effective-viewer", () => ({ useEffectiveViewer: () => ({ uid: "u1" }) }));
 vi.mock("@/hooks/usePagePermission", () => ({
   usePagePermission: (page: string) => m.perms[page] ?? { canView: false, canEdit: false },
 }));

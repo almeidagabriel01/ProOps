@@ -1,7 +1,9 @@
 /**
  * `invoices` differs deliberately from `fiscal_settings`: the tenant CAN read
- * it. The UI follows authorization live with `onSnapshot`, and there is no
- * secret in the document — only the tenant's own fiscal data.
+ * it, and there is no secret in the document, only the tenant's own fiscal
+ * data. A MEMBER needs "Ver" em Notas Fiscais (users/{uid}/permissions/invoices):
+ * the note carries the client's CPF/CNPJ and the amounts, and until 2026-10
+ * any member read it through the SDK.
  *
  * Writing stays exclusive to Cloud Functions, because numbering and status are
  * fiscal state: a client able to rewrite `numero` or flip `status` to
@@ -63,6 +65,27 @@ function tenantBetaDb() {
     .firestore();
 }
 
+function memberDb(uid: string) {
+  return testEnv
+    .authenticatedContext(uid, {
+      tenantId: TENANT_ALPHA,
+      role: 'MEMBER',
+      masterId: 'uid-alpha',
+      subscriptionStatus: 'active',
+    })
+    .firestore();
+}
+
+async function seedMember(uid: string, pages: Record<string, Record<string, boolean>>) {
+  await testEnv.withSecurityRulesDisabled(async (ctx) => {
+    const db = ctx.firestore();
+    await setDoc(doc(db, 'users', uid), { tenantId: TENANT_ALPHA, role: 'MEMBER', masterId: 'uid-alpha' });
+    for (const [pageId, flags] of Object.entries(pages)) {
+      await setDoc(doc(db, 'users', uid, 'permissions', pageId), flags);
+    }
+  });
+}
+
 function unauthDb() {
   return testEnv.unauthenticatedContext().firestore();
 }
@@ -103,6 +126,32 @@ describe('invoices — leitura', () => {
   it('nega leitura a outro tenant', async () => {
     await seed();
     await assertFails(getDoc(doc(tenantBetaDb(), 'invoices', INVOICE_ID)));
+  });
+
+  it("membro sem 'Ver' em Notas Fiscais nao le a nota nem a de entrada", async () => {
+    await seed();
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), 'received_invoices', `${TENANT_ALPHA}_chave`), {
+        tenantId: TENANT_ALPHA,
+        valorTotal: 900,
+      });
+    });
+    await seedMember('vend', { proposals: { canView: true }, transactions: { canView: true } });
+    await assertFails(getDoc(doc(memberDb('vend'), 'invoices', INVOICE_ID)));
+    await assertFails(getDoc(doc(memberDb('vend'), 'received_invoices', `${TENANT_ALPHA}_chave`)));
+  });
+
+  it("membro com 'Ver' em Notas Fiscais le a nota e a de entrada", async () => {
+    await seed();
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), 'received_invoices', `${TENANT_ALPHA}_chave`), {
+        tenantId: TENANT_ALPHA,
+        valorTotal: 900,
+      });
+    });
+    await seedMember('fiscal', { invoices: { canView: true } });
+    await assertSucceeds(getDoc(doc(memberDb('fiscal'), 'invoices', INVOICE_ID)));
+    await assertSucceeds(getDoc(doc(memberDb('fiscal'), 'received_invoices', `${TENANT_ALPHA}_chave`)));
   });
 
   it('nega leitura a usuario nao autenticado', async () => {

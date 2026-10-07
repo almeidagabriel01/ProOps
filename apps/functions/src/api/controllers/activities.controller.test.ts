@@ -194,4 +194,28 @@ describe("updateActivity / deleteActivity", () => {
     await deleteActivity(fakeReq({ params: { id: "a1" } }), res);
     expect(deleted).toEqual(["a1"]);
   });
+
+  it("quem só edita o CRM não apaga a atividade de outro vendedor", async () => {
+    hasPagePermission.mockImplementation(async (_c: unknown, _p: string, action: string) => action !== "canDelete");
+    docs.activities.a1.createdBy = "outro";
+    const res = fakeRes();
+    await deleteActivity(fakeReq({ params: { id: "a1" } }), res);
+    expect(res.statusCode).toBe(403);
+    expect(deleted).toHaveLength(0);
+  });
+
+  it("quem só edita o CRM apaga a atividade que registrou", async () => {
+    hasPagePermission.mockImplementation(async (_c: unknown, _p: string, action: string) => action !== "canDelete");
+    docs.activities.a1.createdBy = "u1";
+    const res = fakeRes();
+    await deleteActivity(fakeReq({ params: { id: "a1" } }), res);
+    expect(deleted).toEqual(["a1"]);
+  });
+
+  it("com 'Excluir' no CRM apaga a de qualquer um", async () => {
+    docs.activities.a1.createdBy = "outro";
+    const res = fakeRes();
+    await deleteActivity(fakeReq({ params: { id: "a1" } }), res);
+    expect(deleted).toEqual(["a1"]);
+  });
 });

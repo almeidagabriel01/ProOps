@@ -1,5 +1,11 @@
 import { db } from "../init";
 import { isTenantAdminRole } from "./auth-context";
+import {
+  getPermissionPageDef,
+  normalizePermissionDoc,
+  resolvePermissionKey,
+  resolvePermissionScope,
+} from "../shared/permission-catalog";
 
 export interface UserDoc {
   role: string;
@@ -177,10 +183,17 @@ export const resolveUserAndTenant = async (
   };
 };
 
+/**
+ * Lê uma chave de permissão do membro. Para as páginas do catálogo
+ * (`shared/permission-catalog.ts`) a leitura passa por `resolvePermissionKey`:
+ * ações finas e dados sensíveis sem valor gravado valem o fallback do
+ * catálogo, e sem "Ver" nenhuma ação vale. Página fora do catálogo (o doc
+ * antigo `customers`) é lida crua, como sempre foi.
+ */
 export const checkPermission = async (
   userId: string,
   permissionDoc: string, // e.g., 'products'
-  requiredField: string, // e.g., 'canCreate'
+  requiredField: string, // e.g., 'canCreate' ou uma chave fina, 'approve'
 ): Promise<boolean> => {
   const permRef = db
     .collection("users")
@@ -188,9 +201,12 @@ export const checkPermission = async (
     .collection("permissions")
     .doc(permissionDoc);
   const permSnap = await permRef.get();
+  const data = permSnap.exists ? (permSnap.data() as Record<string, unknown>) : null;
 
-  if (!permSnap.exists) return false;
-  return permSnap.data()?.[requiredField] === true;
+  if (getPermissionPageDef(permissionDoc)) {
+    return resolvePermissionKey(permissionDoc, data, requiredField);
+  }
+  return data?.[requiredField] === true;
 };
 
 export type PermissionAction =
@@ -198,6 +214,9 @@ export type PermissionAction =
   | "canCreate"
   | "canEdit"
   | "canDelete";
+
+/** Uma ação básica ou uma chave fina do catálogo (`approve`, `viewCost`...). */
+export type PermissionKey = PermissionAction | (string & {});
 
 /**
  * Gate de permissão por página, com o bypass de master já aplicado.
@@ -216,7 +235,7 @@ export type PermissionAction =
 export const hasPagePermission = async (
   claims: { uid?: string; role?: string } | undefined,
   pageId: string,
-  action: PermissionAction,
+  action: PermissionKey,
 ): Promise<boolean> => {
   const uid = claims?.uid;
   if (!uid) return false;
@@ -224,7 +243,63 @@ export const hasPagePermission = async (
   return checkPermission(uid, pageId, action);
 };
 
-export type PagePermissionMap = Record<string, Record<string, boolean>>;
+/**
+ * O escopo do membro numa página com "só os meus" (`scope` no catálogo). Dono
+ * e administradores veem tudo: devolve o valor mais amplo, `"all"`.
+ */
+export const getPageScope = async (
+  claims: { uid?: string; role?: string } | undefined,
+  pageId: string,
+): Promise<string> => {
+  const uid = claims?.uid;
+  if (!uid) return getPermissionPageDef(pageId)?.scope?.narrowest ?? "all";
+  if (isTenantAdminRole(normalizeRole(claims?.role))) return "all";
+  const snap = await db.collection("users").doc(uid).collection("permissions").doc(pageId).get();
+  const data = snap.exists ? (snap.data() as Record<string, unknown>) : null;
+  return resolvePermissionScope(pageId, data) ?? "all";
+};
+
+/** O campo do dono de cada página com "só os meus" (o mesmo das rules). */
+export const SCOPE_OWNER_FIELD: Record<string, string> = {
+  proposals: "sellerId",
+  clients: "responsibleMemberId",
+  kanban: "ownerId",
+  projects: "assigneeId",
+  spreadsheets: "createdById",
+};
+
+/**
+ * Se o registro está no alcance de quem pede: com "own", só o registro em que
+ * a pessoa é o dono (o campo de `SCOPE_OWNER_FIELD`). É a mesma regra das
+ * rules, para a API não abrir pelo id o que o SDK recusa. Dono e
+ * administradores alcançam tudo.
+ */
+export const recordInScope = async (
+  claims: { uid?: string; role?: string } | undefined,
+  pageId: string,
+  data: Record<string, unknown> | undefined,
+): Promise<boolean> => {
+  const scope = await getPageScope(claims, pageId);
+  if (scope === "all") return true;
+  const field = SCOPE_OWNER_FIELD[pageId];
+  return Boolean(field && claims?.uid && data?.[field] === claims.uid);
+};
+
+/**
+ * O mesmo para Lançamentos, que têm três alcances: tudo, só receitas e só os
+ * das minhas vendas (`sellerId`).
+ */
+export const transactionInScope = async (
+  claims: { uid?: string; role?: string } | undefined,
+  data: Record<string, unknown> | undefined,
+): Promise<boolean> => {
+  const scope = await getPageScope(claims, "transactions");
+  if (scope === "all") return true;
+  if (scope === "income") return data?.type === "income";
+  return Boolean(claims?.uid && data?.sellerId === claims.uid);
+};
+
+export type PagePermissionMap = Record<string, Record<string, unknown>>;
 
 /**
  * Le a subcolecao de permissoes inteira de uma vez.
@@ -251,7 +326,7 @@ export const loadPagePermissions = async (
 
   const map: PagePermissionMap = {};
   snap.forEach((doc) => {
-    map[doc.id] = doc.data() as Record<string, boolean>;
+    map[doc.id] = doc.data() as Record<string, unknown>;
   });
   return map;
 };
@@ -261,10 +336,12 @@ export const resolvePagePermission = (
   claims: { role?: string } | undefined,
   permissions: PagePermissionMap | undefined,
   pageId: string,
-  action: PermissionAction,
+  action: PermissionKey,
 ): boolean => {
   if (isTenantAdminRole(normalizeRole(claims?.role))) return true;
-  return permissions?.[pageId]?.[action] === true;
+  const doc = permissions?.[pageId];
+  if (getPermissionPageDef(pageId)) return resolvePermissionKey(pageId, doc ?? null, action);
+  return doc?.[action] === true;
 };
 
 /**
@@ -274,12 +351,6 @@ export const resolvePagePermission = (
  * `canView: false`, gravando um estado que nenhuma tela consegue produzir e
  * que a UI nao sabe representar.
  */
-export function normalizePagePermission(perms: Record<string, boolean>) {
-  const canView = perms.canView ?? false;
-  return {
-    canView,
-    canCreate: canView ? (perms.canCreate ?? false) : false,
-    canEdit: canView ? (perms.canEdit ?? false) : false,
-    canDelete: canView ? (perms.canDelete ?? false) : false,
-  };
+export function normalizePagePermission(pageId: string, perms: Record<string, unknown>) {
+  return normalizePermissionDoc(pageId, perms);
 }

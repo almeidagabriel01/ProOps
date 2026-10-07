@@ -8,7 +8,11 @@ Gerenciamento de membros da equipe do tenant. Exclusivo para usuários `MASTER` 
 - Criar novos membros com email/senha e definir permissões por página
 - Editar nome, email e senha de membros existentes
 - Excluir membros
-- Ajustar permissões granulares por página em tempo real
+- Ajustar permissões por página em tempo real: as quatro ações, as ações
+  finas, os dados sensíveis e o alcance ("só os meus")
+- Aplicar um perfil pronto ou copiar as permissões de outra pessoa, com prévia
+- Suspender, reativar e encerrar as sessões de um membro
+- Ler o histórico de ações da equipe (aba Histórico)
 
 Membros sem role `MASTER` veem uma tela de "Acesso Restrito" ao acessar esta rota.
 
@@ -51,9 +55,12 @@ Ao criar um membro, o usuário escolhe um preset que define as permissões inici
 
 | Preset (UI) | `roleType` | Permissões iniciais |
 |-------------|------------|---------------------|
-| Visualizador | `viewer` | `canView: true` em todas as páginas disponíveis |
+| Visualizador | `viewer` | `canView` em todas as páginas, **menos o financeiro** |
+| Vendedor | `seller` | CRM, propostas e contatos com escrita e alcance "só os meus"; catálogo sem custo nem estoque; sem financeiro; não troca responsável nem mexe em comissão |
 | Editor | `editor` | `canView + canCreate + canEdit` em todas as páginas |
-| Administrador | `admin` | Permissões completas (`canView + canCreate + canEdit + canDelete`) |
+| Financeiro | `finance` | Lançamentos completos (com "Ver comissões"), carteiras sem excluir, notas sem cancelar, consulta a contatos, propostas e contratos |
+| Técnico | `technician` | OS atribuídas (sem ver preços nem reabrir), obras, equipamentos e agenda |
+| Acesso completo às telas | `admin` | Tudo, inclusive as ações finas que nascem fechadas (reabrir OS) e as comissões. Continua só do dono: Equipe, Configurações e assinatura |
 
 A função `getDefaultPermissions(roleType, hasFinancial)` em
 `src/lib/permissions/pages.ts` retorna o mapa correspondente, derivando-o da
@@ -119,8 +126,47 @@ users/{userId}/permissions/{pageId}/  # Subcoleção de permissões
   canCreate?: boolean
   canEdit?: boolean
   canDelete?: boolean
+  <acaoFina>?: boolean                # approve, settle, transfer... (catálogo)
+  <dadoSensivel>?: boolean            # viewCost, viewStock, viewBalance...
+  scope?: string                      # "all" | "own" (Lançamentos: "all" | "income" | "mine")
   pageSlug: string
+
+users/{userId}.status                 # "suspended" quando o dono suspendeu o acesso
 ```
+
+### O catálogo (`lib/permissions/catalog.ts`)
+
+Espelho de `apps/functions/src/shared/permission-catalog.ts`, com paridade em
+`__tests__/permission-pages-parity.test.ts`. Cada página declara:
+
+- **ações finas** (`kind: "action"`): aprovar, compartilhar, dar desconto,
+  dar baixa, estornar, transferir, cancelar nota, reabrir OS...;
+- **dados sensíveis** (`kind: "data"`): custo e markup, estoque, valores do
+  contrato, preços da OS, comissões, saldo. Valem em TODA tela onde o dado
+  aparece, mesmo sem a página;
+- **alcance** (`scope`): "só os meus" por dono do registro (`sellerId`,
+  `responsibleMemberId`, `ownerId`, `assigneeId`, `createdById`).
+
+**Chave ausente vale o `fallback`**, que é a ação básica de antes (ou `false`
+para o que era só do dono, como reabrir OS e ver comissões). É o que garante
+que nada muda para quem já era membro no dia do deploy, sem backfill de
+permissão. Leitura no front: `usePermission(pageId, chave)`,
+`usePageScope(pageId)` e `useSensitiveData()` (`hooks/usePermission.ts`); no
+backend, `checkPermission`/`hasPagePermission` resolvem pelo catálogo e
+`recordInScope`/`transactionInScope` aplicam o alcance.
+
+### "Só os meus" nas consultas (`lib/permissions/query-scope.ts`)
+
+As rules recortam pelo alcance, e regra não é filtro: a lista de quem tem
+"own" sem o `where` do dono é recusada inteira. O `PermissionsProvider`
+publica o alcance na renderização; os services (`proposal-service`,
+`client-service`, `kanban-board-service`, `leads-service`, `projects-service`,
+`spreadsheet-service`, `transaction-service`) esperam por ele enquanto as
+permissões carregam. Quem vê só os próprios registros recebe a lista montada
+na memória a partir de uma consulta de igualdade (`services/own-scope.ts`);
+Lançamentos acrescentam `type == income` ou `sellerId == uid` em toda
+consulta, com os índices compostos em `firestore.indexes.json`. **Service novo
+que liste uma dessas coleções tem que passar pelo `ownerFilter`.**
 
 ### `PermissionsProvider` (`src/providers/permissions-provider.tsx`)
 
@@ -198,14 +244,16 @@ Antes de submeter, `usePlanLimits` é consultado. Se o limite de membros do plan
 
 ## Atualização de permissões em tempo real
 
-Ao alterar um toggle em `PagePermissionRow`, o fluxo é:
+Ao alterar uma chave no `PermissionEditor`, o fluxo é:
 
 1. `MemberCard` chama `onUpdatePermission(memberId, pageId, key, value)`
 2. `TeamManagement` delega para `updateSinglePermission` de `useUpdatePermissions`
 3. Chamada: `PUT /v1/admin/members/permissions` com `{ targetUserId, pageId, key, value, mode: "single" }`
 4. Em caso de sucesso, o estado local `members` é atualizado otimisticamente
 
-Regra de cascata: ao desativar `canView`, os campos `canCreate`, `canEdit` e `canDelete` são automaticamente zerados (lógica no `updatePermission` de `team-management.tsx`).
+Regra de cascata (`applyPermissionChange`, em `lib/permissions/editor.ts`, a
+mesma do backend): desligar `canView` zera as ações básicas e finas e põe o
+alcance no mais restrito; dado sensível fica como estava.
 
 ---
 
@@ -239,9 +287,11 @@ O backend usa os custom claims para autorização rápida sem precisar buscar o 
 | `team-types.ts` | tipos | `TeamMember`, `Permission`, `AVAILABLE_PAGES`, `ROLE_PRESETS` |
 | `team-constants.tsx` | constantes | `roleConfig` (estilos por papel), `steps` (wizard) |
 | `create-member-section.tsx` | `CreateMemberSection` | Container do wizard de criação |
-| `member-card.tsx` | `MemberCard` | Card expansível com info + painel de permissões |
+| `member-card.tsx` | `MemberCard` | Card expansível com info, selo de suspenso, suspender/reativar, sair de todos os aparelhos e o editor de permissões |
 | `member-modals.tsx` | `EditMemberModal`, `DeleteMemberDialog` | Modais de edição e exclusão |
-| `page-permission-row.tsx` | `PagePermissionRow` | Linha de permissão por página (toggles) |
+| `permission-editor.tsx` | `PermissionEditor` | Uma aba por área (Geral, Comercial, Catálogo, Operação, Financeiro, com Notas Fiscais dentro do Financeiro), cada uma com quantas páginas o membro vê; a busca mostra o resultado de todas as áreas. As quatro ações e "Mais opções" (ações finas, dados sensíveis, alcance). Mostra o valor EFETIVO, com o fallback |
+| `apply-permissions-dialog.tsx` | `ApplyPermissionsDialog` | Aplicar perfil ou copiar de outro membro, com a prévia do que muda |
+| `member-audit-panel.tsx` | `MemberAuditPanel` | Aba Histórico: filtros por pessoa, ação e período |
 | `permission-toggle.tsx` | `PermissionToggle` | Toggle individual de permissão |
 | `steps/` | — | Componentes dos 3 passos do wizard |
 | `hooks/` | — | Hooks internos da feature |
@@ -263,6 +313,24 @@ A listagem usa `useInfiniteScroll(members, 6)` (`src/hooks/useInfiniteScroll.ts`
 | Excluir membro | `useMemberActions.deleteMember` | `DELETE /v1/admin/members/:id` |
 | Atualizar permissão | `useUpdatePermissions.updateSinglePermission` | `PUT /v1/admin/members/permissions` |
 | Atualizar permissões em lote | `useUpdatePermissions.updatePermissions` | `PUT /v1/admin/members/permissions` |
+| Suspender / reativar | `MemberAccessService.suspend` / `reactivate` | `POST /v1/admin/members/:id/suspend` / `reactivate` |
+| Sair de todos os aparelhos | `MemberAccessService.revokeSessions` | `POST /v1/admin/members/:id/revoke-sessions` |
+| Histórico | `MemberAccessService.listAudit` | `GET /v1/admin/members/audit` |
+| Registrar exportação | `MemberAccessService.reportExport` | `POST /v1/audit/events` |
+
+### Histórico e suspensão
+
+- **Histórico** (`member_audit`, TTL de 365 dias): catálogo fechado em
+  `apps/functions/src/shared/member-audit-catalog.ts`, rótulos espelhados em
+  `lib/team/member-audit-labels.ts` (paridade testada). Gravado pelo backend
+  em cada ação (aprovar, dar baixa, estornar, ajustar saldo, cancelar nota,
+  mudar permissão, suspender...). A exportação é a única que vem do navegador.
+  Rules negam tudo: nem o dono lê pelo SDK.
+- **Suspender** desativa a conta no Firebase Auth, revoga os tokens e grava
+  `users/{uid}.status = "suspended"`; o middleware de auth responde 403
+  `MEMBER_SUSPENDED`, e o login mostra "Seu acesso está suspenso". A vaga
+  continua ocupada. A revogação leva até 60s para derrubar a sessão em outra
+  instância (`lib/token-revocation.ts`).
 
 Todas as operações são implementadas como chamadas HTTP ao proxy `/api/backend/*` via `callApi` de `src/lib/api-client.ts`.
 

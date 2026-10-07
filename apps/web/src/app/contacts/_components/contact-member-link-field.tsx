@@ -7,6 +7,7 @@ import { usePlanLimits } from "@/hooks/usePlanLimits";
 import { SalesGoalsService, type SalesGoalsPerson } from "@/services/sales-goals-service";
 import type { ClientType } from "@/services/client-service";
 import { isCommissionPartner } from "@/lib/contacts/commission-partner";
+import { usePermissions } from "@/providers/permissions-provider";
 
 /**
  * Se o campo aparece. A página usa isto para decidir o layout (ao lado do
@@ -31,9 +32,13 @@ interface ContactMemberLinkFieldProps {
  *
  * Só nos planos com metas, onde existe o responsável pela venda. O parceiro
  * externo fica em "Não".
+ *
+ * Só o dono e os administradores ligam: um membro que se ligasse a um
+ * parceiro passaria a ler as comissões dele (o backend recusa).
  */
 export function ContactMemberLinkField({ types, value, onChange }: ContactMemberLinkFieldProps) {
   const { hasSalesGoals } = usePlanLimits();
+  const { isMaster } = usePermissions();
   const visible = showsMemberLink(types, hasSalesGoals);
   const [people, setPeople] = React.useState<SalesGoalsPerson[]>([]);
 
@@ -63,7 +68,7 @@ export function ContactMemberLinkField({ types, value, onChange }: ContactMember
           aria-label="É da equipe?"
           value={value ?? ""}
           onChange={(e) => onChange(e.target.value || null)}
-          disabled={people.length === 0}
+          disabled={people.length === 0 || !isMaster}
           disableSort
         >
           <option value="">Não, é parceiro externo</option>

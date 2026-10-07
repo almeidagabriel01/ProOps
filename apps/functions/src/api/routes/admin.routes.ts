@@ -31,6 +31,12 @@ import {
 } from "../controllers/admin-tenant-modules.controller";
 import { listTenantActivity } from "../controllers/admin-activity.controller";
 import { listTenantMembers } from "../controllers/admin-tenant-members.controller";
+import {
+  listMemberAudit,
+  reactivateMember,
+  revokeMemberSessions,
+  suspendMember,
+} from "../controllers/member-access.controller";
 
 const router = Router();
 
@@ -47,6 +53,11 @@ router.post("/impersonation/stop", stopImpersonation);
 router.post("/members", createMember);
 // IMPORTANT: Specific routes must come BEFORE parameterized routes
 router.put("/members/permissions", updatePermissions);
+// Histórico e acesso da equipe (dono e administradores).
+router.get("/members/audit", listMemberAudit);
+router.post("/members/:id/suspend", suspendMember);
+router.post("/members/:id/reactivate", reactivateMember);
+router.post("/members/:id/revoke-sessions", revokeMemberSessions);
 router.put("/members/:id", updateMember);
 router.delete("/members/:id", deleteMember);
 router.post("/members/:uid/reset-mfa", resetMemberMfa);

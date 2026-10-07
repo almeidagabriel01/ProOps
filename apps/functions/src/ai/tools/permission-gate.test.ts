@@ -15,6 +15,7 @@
 
 jest.mock("../../init", () => ({ db: {} }));
 
+import { permissionKeysOf } from "../../shared/permission-catalog";
 import { executeToolCall } from "./executor";
 import { TOOL_REGISTRY, buildAvailableTools } from "./index";
 import { resolvePlanCapabilities } from "../../shared/plan-capabilities";
@@ -44,9 +45,10 @@ describe("toda ferramenta de dominio declara a permissao que exige", () => {
     const entry = TOOL_REGISTRY.find((e) => e.declaration.name === name);
     expect(entry?.permission).not.toBeNull();
     expect(entry?.permission?.pageId).toBeTruthy();
-    expect(entry?.permission?.action).toMatch(
-      /^can(View|Create|Edit|Delete)$/,
-    );
+    // Ação básica ou chave fina do catálogo daquela página.
+    const pageId = entry?.permission?.pageId as string;
+    const action = entry?.permission?.action as string;
+    expect(permissionKeysOf(pageId)).toContain(action);
   });
 });
 

@@ -36,11 +36,11 @@ vi.mock("@/services/service-service", () => ({
 
 import { ItemsEditor } from "../items-editor";
 
-function Harness({ initial = [] as ServiceOrderItem[] }) {
+function Harness({ initial = [] as ServiceOrderItem[], hidePrices = false }) {
   const [items, setItems] = React.useState<ServiceOrderItem[]>(initial);
   return (
     <>
-      <ItemsEditor items={items} onChange={setItems} />
+      <ItemsEditor items={items} onChange={setItems} hidePrices={hidePrices} />
       <output data-testid="state">{JSON.stringify(items.map((i) => [i.refId, i.quantity]))}</output>
     </>
   );
@@ -80,5 +80,33 @@ describe("peças e serviços da OS", () => {
     fireEvent.blur(input);
     expect(screen.getByTestId("state").textContent).toBe(JSON.stringify([["p1", 2.5]]));
     expect(screen.getAllByText("R$ 30,00", { exact: false }).length).toBeGreaterThan(0);
+  });
+});
+
+describe("sem ver valores", () => {
+  const ITEM: ServiceOrderItem = {
+    id: "i1",
+    kind: "product",
+    refId: "p1",
+    name: "Compressor",
+    quantity: 2,
+    unitPrice: 480,
+    fromStock: true,
+  };
+
+  it("com os valores, mostra unitário, total da linha e total geral", () => {
+    render(<Harness initial={[ITEM]} />);
+    expect(screen.getByLabelText("Valor unitário de Compressor")).toBeInTheDocument();
+    expect(screen.getAllByText(/960,00/).length).toBeGreaterThan(0);
+  });
+
+  it("hidePrices tira o unitário, os totais e o preço do catálogo", async () => {
+    render(<Harness initial={[ITEM]} hidePrices />);
+    expect(screen.queryByLabelText("Valor unitário de Compressor")).not.toBeInTheDocument();
+    expect(screen.queryByText(/960,00/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Total/)).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: /Adicionar do catálogo/ }));
+    await waitFor(() => expect(screen.getByRole("button", { name: "Produto 00" })).toBeInTheDocument());
+    expect(screen.queryByText(/R\$/)).not.toBeInTheDocument();
   });
 });

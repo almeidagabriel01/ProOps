@@ -8,7 +8,10 @@ import userEvent from "@testing-library/user-event";
 const m = vi.hoisted(() => ({
   plan: { hasSalesGoals: true },
   sellers: vi.fn(),
+  perms: { isMaster: true },
 }));
+
+vi.mock("@/providers/permissions-provider", () => ({ usePermissions: () => m.perms }));
 
 vi.mock("@/hooks/usePlanLimits", () => ({ usePlanLimits: () => m.plan }));
 vi.mock("@/services/sales-goals-service", () => ({
@@ -20,10 +23,19 @@ import { ContactMemberLinkField } from "../contact-member-link-field";
 beforeEach(() => {
   vi.clearAllMocks();
   m.plan = { hasSalesGoals: true };
+  m.perms = { isMaster: true };
   m.sellers.mockResolvedValue([{ id: "u-ana", name: "Ana" }]);
 });
 
 describe("É da equipe?", () => {
+  it("membro não liga o contato a ninguém: um vínculo abriria as comissões do parceiro", async () => {
+    m.perms = { isMaster: false };
+    render(<ContactMemberLinkField types={["vendedor"]} value={null} onChange={vi.fn()} />);
+    const select = await screen.findByLabelText("É da equipe?");
+    await screen.findByText("Sim: Ana");
+    expect(select).toBeDisabled();
+  });
+
   it("vendedor: liga a um membro da equipe", async () => {
     const onChange = vi.fn();
     render(<ContactMemberLinkField types={["vendedor"]} value={null} onChange={onChange} />);

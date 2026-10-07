@@ -85,6 +85,8 @@ export type SubMenuItem = {
    */
   showInDemo?: boolean;
   pageId?: string;
+  /** Chave fina do catálogo de permissões exigida no `pageId` (além do "Ver"). */
+  permissionKey?: string;
   /**
    * Sobrepõe pageId na checagem de nicho, como em MenuItem. Ambientes divide o
    * pageId "solutions" com Soluções para a permissão, mas tem porta de nicho
@@ -159,12 +161,10 @@ export const menuItems: MenuItem[] = [
         icon: Handshake,
         label: "Comissões",
         href: "/commissions",
-        // Mesmo pageId de Lançamentos: as comissões SÃO lançamentos, e uma
-        // chave nova que a tela de Equipe não grave negaria todo mundo.
-        // `masterOnly` porque o valor que cada parceiro recebe não é dado para
-        // todo membro.
+        // Mesmo pageId de Lançamentos: as comissões SÃO lançamentos. O valor
+        // que cada parceiro recebe pede "Ver comissões", que o dono libera.
         pageId: "transactions",
-        masterOnly: true,
+        permissionKey: "viewCommissions",
       },
       {
         icon: BarChart3,
@@ -356,6 +356,8 @@ export type NavigationViewer = {
   isMaster: boolean;
   isDemo: boolean;
   hasPermission: (pageId: string, action: "view") => boolean;
+  /** Chave fina do catálogo (com fallback); ausente, a chave não filtra. */
+  hasPermissionKey?: (pageId: string, key: string) => boolean;
   /** `isPageEnabledForNiche` já ligado ao nicho do tenant. */
   isPageEnabled: (pageId?: string | null) => boolean;
 };
@@ -386,6 +388,11 @@ export function filterVisibleChildren(
     if (!viewer.isPageEnabled(availKey)) return false;
     if (child.masterOnly && !viewer.isMaster) {
       if (!(child.showInDemo && viewer.isDemo)) return false;
+    }
+    // Chave fina (ex.: "Ver comissões") vale também para a demonstração, que
+    // segue o doc de demonstração do catálogo; sem como conferir, some.
+    if (child.permissionKey && child.pageId && !viewer.isMaster) {
+      if (!(viewer.hasPermissionKey?.(child.pageId, child.permissionKey) ?? false)) return false;
     }
     if (child.pageId && !viewer.isMaster && !viewer.isDemo) {
       if (!viewer.hasPermission(child.pageId, "view")) return false;

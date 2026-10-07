@@ -262,6 +262,24 @@ describe("grupo Agenda: Calendário, Tarefas e Link de agendamento", () => {
     expect(hrefs(AGENDA, "demo")).toContain("/booking");
   });
 
+  it("Comissões segue a chave 'Ver comissões' para o membro", () => {
+    const comChave = filterVisibleChildren(FINANCEIRO_REAL, {
+      ...viewer("membro"),
+      hasPermissionKey: (pageId: string, key: string) =>
+        pageId === "transactions" && key === "viewCommissions",
+    }).map((child) => child.href);
+    const semChave = filterVisibleChildren(FINANCEIRO_REAL, {
+      ...viewer("membro"),
+      hasPermissionKey: () => false,
+    }).map((child) => child.href);
+
+    expect(comChave).toContain("/commissions");
+    expect(semChave).not.toContain("/commissions");
+    expect(semChave).toContain("/transactions");
+    // Sem como conferir a chave, o item some (o lado seguro).
+    expect(hrefs(FINANCEIRO_REAL, "membro")).not.toContain("/commissions");
+  });
+
   it("a exceção da demonstração não abre Comissões nem Metas", () => {
     const financeiro = hrefs(FINANCEIRO_REAL, "demo");
     expect(financeiro).not.toContain("/commissions");

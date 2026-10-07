@@ -4,6 +4,11 @@ import * as React from "react";
 import { describe, expect, it, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+const perm = vi.hoisted(() => ({ denied: new Set<string>() }));
+vi.mock("@/hooks/usePermission", () => ({
+  usePermission: (_pageId: string, key: string) => !perm.denied.has(key),
+}));
+
 import { BulkActionsBar } from "../bulk-actions-bar";
 
 function renderBar(props: Partial<React.ComponentProps<typeof BulkActionsBar>> = {}) {
@@ -80,5 +85,16 @@ describe("BulkActionsBar", () => {
   it("esconde marcar como pago quando todos já estão pagos", () => {
     renderBar({ payableCount: 0 });
     expect(screen.queryByRole("button", { name: /marcar como pago/i })).toBeNull();
+  });
+
+  it("sem 'Dar baixa' some o marcar como pago; sem 'Exportar' some o Excel", () => {
+    perm.denied = new Set(["settle", "export"]);
+    try {
+      renderBar();
+      expect(screen.queryByRole("button", { name: /marcar como pago/i })).not.toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: /exportar excel/i })).not.toBeInTheDocument();
+    } finally {
+      perm.denied = new Set();
+    }
   });
 });

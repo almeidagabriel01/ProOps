@@ -2,7 +2,7 @@ import { Request, Response } from "express";
 import { randomUUID } from "node:crypto";
 import { db } from "../../init";
 import { logger } from "../../lib/logger";
-import { hasPagePermission } from "../../lib/auth-helpers";
+import { hasPagePermission, getPageScope } from "../../lib/auth-helpers";
 import { isTenantAdminRole } from "../../lib/auth-context";
 import { isStatusApproved } from "./proposals.controller";
 import {
@@ -66,7 +66,8 @@ import {
  * ficam só as escritas.
  */
 
-type Action = "canView" | "canCreate" | "canEdit" | "canDelete";
+// Ação básica ou fina do catálogo (`assign`, `cancel`, `deliveryLink`, `schedule`).
+type Action = "canView" | "canCreate" | "canEdit" | "canDelete" | "assign" | "cancel" | "deliveryLink" | "schedule";
 
 class HttpError extends Error {
   constructor(
@@ -83,6 +84,15 @@ async function requireProjectAccess(req: Request, action: Action): Promise<{ ten
   if (!tenantId || !uid) throw new HttpError(403, "Tenant não identificado.");
   if (!(await hasPagePermission(req.user, "projects", action))) {
     throw new HttpError(403, "Sem permissão para esta ação em Projetos.");
+  }
+  // "Só os meus" (o técnico da obra): o projeto de outra pessoa não existe
+  // para quem tem o alcance restrito, como nas rules. Toda rota com :id aqui
+  // é de um projeto.
+  if (req.params?.id && (await getPageScope(req.user, "projects")) !== "all") {
+    const snap = await db.collection("projects").doc(String(req.params.id)).get();
+    if (snap.exists && snap.data()?.assigneeId !== uid) {
+      throw new HttpError(404, "Projeto não encontrado.");
+    }
   }
   return { tenantId, uid };
 }
@@ -182,6 +192,17 @@ export async function updateProject(req: Request, res: Response) {
     const { tenantId } = await requireProjectAccess(req, "canEdit");
     const found = await loadProjectOfTenant(req.params.id, tenantId);
     if (!found) return res.status(404).json({ message: "Projeto não encontrado." });
+
+    // Ações finas: trocar o técnico ("Atribuir") e cancelar ou reabrir a obra
+    // ("Cancelar"). Vale a mudança, não a presença do campo.
+    const assigneeChanges =
+      parsed.data.assigneeId !== undefined && (parsed.data.assigneeId ?? null) !== (found.data.assigneeId ?? null);
+    if (assigneeChanges) await requireProjectAccess(req, "assign");
+    const cancelChanges =
+      parsed.data.status !== undefined &&
+      parsed.data.status !== found.data.status &&
+      (parsed.data.status === "canceled" || found.data.status === "canceled");
+    if (cancelChanges) await requireProjectAccess(req, "cancel");
 
     const update: Record<string, unknown> = { updatedAt: new Date().toISOString() };
     for (const key of ["title", "status", "startDate", "dueDate", "notes", "address"] as const) {
@@ -411,7 +432,7 @@ export async function deleteStagePhoto(req: Request, res: Response) {
 /** POST /v1/projects/:id/delivery-link */
 export async function createDeliveryLink(req: Request, res: Response) {
   try {
-    const { tenantId, uid } = await requireProjectAccess(req, "canEdit");
+    const { tenantId, uid } = await requireProjectAccess(req, "deliveryLink");
     const found = await loadProjectOfTenant(req.params.id, tenantId);
     if (!found) return res.status(404).json({ message: "Projeto não encontrado." });
     const delivery = found.data.delivery as ProjectDelivery | undefined;
@@ -545,7 +566,7 @@ export async function scheduleStage(req: Request, res: Response) {
   const parsed = ScheduleStageSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ message: firstIssue(parsed.error) });
   try {
-    const { tenantId, uid } = await requireProjectAccess(req, "canEdit");
+    const { tenantId, uid } = await requireProjectAccess(req, "schedule");
     const found = await loadProjectOfTenant(req.params.id, tenantId);
     if (!found) return res.status(404).json({ message: "Projeto não encontrado." });
     const project = found.data;
@@ -632,7 +653,7 @@ export async function scheduleStage(req: Request, res: Response) {
 /** DELETE /v1/projects/:id/stages/:stageId/schedule: desmarca a visita. */
 export async function unscheduleStage(req: Request, res: Response) {
   try {
-    const { tenantId } = await requireProjectAccess(req, "canEdit");
+    const { tenantId } = await requireProjectAccess(req, "schedule");
     const eventId = await mutateStages(req.params.id, tenantId, (current) => {
       const index = findStage(current, req.params.stageId);
       const copy = [...current];

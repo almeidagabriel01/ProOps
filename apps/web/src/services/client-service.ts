@@ -23,6 +23,8 @@ import {
   normalizeSearchWords,
   phoneSearchDigits,
 } from "@/lib/search-term";
+import { ownerFilter } from "@/lib/permissions/query-scope";
+import { comparableValue, fetchOwnDocs, pageAfter, sortSnapshots } from "./own-scope";
 
 export type ClientSource = "manual" | "proposal" | "financial" | "import";
 
@@ -97,6 +99,15 @@ export interface PaginatedResult<T> {
 
 const COLLECTION_NAME = "clients";
 
+/**
+ * Os contatos de quem tem "só os meus" (`responsibleMemberId`), ou null
+ * quando a pessoa vê todos. Ver `lib/permissions/query-scope.ts`.
+ */
+async function ownClientDocs(tenantId: string) {
+  const owner = await ownerFilter("clients");
+  return owner ? fetchOwnDocs(COLLECTION_NAME, tenantId, owner) : null;
+}
+
 function mapClientDoc(d: QueryDocumentSnapshot<DocumentData>): Client {
   const data = d.data();
   return {
@@ -118,6 +129,8 @@ function sortClientsByName(clients: Client[]): Client[] {
 export const ClientService = {
   getClients: async (tenantId: string): Promise<Client[]> => {
     try {
+      const own = await ownClientDocs(tenantId);
+      if (own) return sortClientsByName(own.map(mapClientDoc));
       const q = query(
         collection(db, COLLECTION_NAME),
         where("tenantId", "==", tenantId),
@@ -147,14 +160,21 @@ export const ClientService = {
     const token = digits ?? firstSearchToken(term);
     if (!token) return [];
 
-    const snap = await getDocs(
-      query(
-        collection(db, COLLECTION_NAME),
-        where("tenantId", "==", tenantId),
-        where("searchTokens", "array-contains", token),
-        limit(max),
-      ),
-    );
+    const own = await ownClientDocs(tenantId);
+    const snap = {
+      docs: own
+        ? own.filter((d) => Array.isArray(d.data().searchTokens) && d.data().searchTokens.includes(token)).slice(0, max)
+        : (
+            await getDocs(
+              query(
+                collection(db, COLLECTION_NAME),
+                where("tenantId", "==", tenantId),
+                where("searchTokens", "array-contains", token),
+                limit(max),
+              ),
+            )
+          ).docs,
+    };
 
     if (digits) {
       return sortClientsByName(
@@ -192,6 +212,18 @@ export const ClientService = {
   ): Promise<Client[]> => {
     const wanted = Array.from(new Set(types.filter(Boolean))).slice(0, 30);
     if (!tenantId || wanted.length === 0) return [];
+    const own = await ownClientDocs(tenantId);
+    if (own) {
+      return sortClientsByName(
+        own
+          .filter((d) => {
+            const types = Array.isArray(d.data().types) ? (d.data().types as string[]) : ["cliente"];
+            return types.some((type) => wanted.includes(type));
+          })
+          .slice(0, max)
+          .map(mapClientDoc),
+      );
+    }
     const snap = await getDocs(
       query(
         collection(db, COLLECTION_NAME),
@@ -213,6 +245,19 @@ export const ClientService = {
     max = 500,
   ): Promise<Client[]> => {
     if (!tenantId || !filter.id) return [];
+    const own = await ownClientDocs(tenantId);
+    if (own) {
+      return sortClientsByName(
+        own
+          .filter((d) =>
+            filter.kind === "member"
+              ? d.data().responsibleMemberId === filter.id
+              : Array.isArray(d.data().partnerContactIds) && d.data().partnerContactIds.includes(filter.id),
+          )
+          .slice(0, max)
+          .map(mapClientDoc),
+      );
+    }
     const snap = await getDocs(
       query(
         collection(db, COLLECTION_NAME),
@@ -228,6 +273,8 @@ export const ClientService = {
 
   /** Contagem server-side (aggregation) — 1 leitura por 1000 docs. */
   countClients: async (tenantId: string): Promise<number> => {
+    const own = await ownClientDocs(tenantId);
+    if (own) return own.length;
     const snap = await getCountFromServer(
       query(collection(db, COLLECTION_NAME), where("tenantId", "==", tenantId)),
     );
@@ -245,6 +292,14 @@ export const ClientService = {
     start: Date,
     end: Date,
   ): Promise<number> => {
+    const own = await ownClientDocs(tenantId);
+    if (own) {
+      return own.filter((d) => {
+        const at = comparableValue(d.data().createdAt);
+        const ms = typeof at === "number" ? at : Date.parse(String(at));
+        return Number.isFinite(ms) && ms >= start.getTime() && ms < end.getTime();
+      }).length;
+    }
     const col = collection(db, COLLECTION_NAME);
     const [timestampSnap, stringSnap] = await Promise.all([
       getCountFromServer(
@@ -276,6 +331,9 @@ export const ClientService = {
     try {
       const sortField = sortConfig?.key || "createdAt";
       const sortDirection = sortConfig?.direction || "desc";
+
+      const own = await ownClientDocs(tenantId);
+      if (own) return pageAfter(sortSnapshots(own, sortField, sortDirection), cursor, pageSize, mapClientDoc);
 
       const q = cursor
         ? query(
@@ -338,9 +396,11 @@ export const ClientService = {
     email: string,
   ): Promise<Client | null> => {
     try {
+      const owner = await ownerFilter("clients");
       const q = query(
         collection(db, COLLECTION_NAME),
         where("tenantId", "==", tenantId),
+        ...(owner ? [where(owner.field, "==", owner.uid)] : []),
         where("email", "==", email.toLowerCase().trim()),
       );
       const querySnapshot = await getDocs(q);
@@ -362,9 +422,11 @@ export const ClientService = {
     name: string,
   ): Promise<Client | null> => {
     try {
+      const owner = await ownerFilter("clients");
       const q = query(
         collection(db, COLLECTION_NAME),
         where("tenantId", "==", tenantId),
+        ...(owner ? [where(owner.field, "==", owner.uid)] : []),
         where("name", "==", name.trim()),
       );
       const querySnapshot = await getDocs(q);

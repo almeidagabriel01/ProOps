@@ -10,10 +10,19 @@ type Doc = Record<string, unknown>;
 let store: Record<string, Record<string, Doc>>;
 let autoId = 0;
 const permissions = new Map<string, boolean>();
+// O mapa vira o doc da página e passa pelo catálogo: chave fina ausente vale o
+// fallback ("Ver preços" ausente é true), como no backend de verdade.
+const { resolvePermissionKey } = jest.requireActual("../../shared/permission-catalog");
 const hasPagePermission = jest.fn(
-  async (claims: { role?: string } | undefined, pageId: string, action: string) =>
-    ["MASTER", "ADMIN"].includes(String(claims?.role ?? "").toUpperCase()) ||
-    permissions.get(`${pageId}.${action}`) === true,
+  async (claims: { role?: string } | undefined, pageId: string, action: string) => {
+    if (["MASTER", "ADMIN"].includes(String(claims?.role ?? "").toUpperCase())) return true;
+    const doc: Record<string, boolean> = {};
+    for (const [key, value] of permissions) {
+      const [page, field] = key.split(".");
+      if (page === pageId) doc[field] = value;
+    }
+    return resolvePermissionKey(pageId, doc, action) as boolean;
+  },
 );
 const savedFiles: string[] = [];
 const deletedFiles: string[] = [];
@@ -323,11 +332,93 @@ describe("técnico", () => {
     expect(cancelar.statusCode).toBe(403);
   });
 
+  it("lança peças mas não muda valor: o total é o que o cliente assina", async () => {
+    store.products.p2 = { tenantId: "t1", name: "Gás R410", price: "100", markup: "50" };
+    store.services = { s9: { tenantId: "t1", name: "Limpeza", price: "80" } };
+    const items = [
+      // Já estava na OS: o técnico tenta baixar o valor de 30 para 1.
+      { id: "i1", kind: "product", refId: "p1", name: "Capacitor", quantity: 3, unitPrice: 1, fromStock: true },
+      { id: "i2", kind: "service", refId: "s1", name: "Visita", quantity: 1, unitPrice: 150, fromStock: false },
+      // Novo do catálogo, com valor inventado: entra o preço de venda do catálogo.
+      { id: "n1", kind: "product", refId: "p2", name: "Gás R410", quantity: 1, unitPrice: 9999, fromStock: true },
+      { id: "n2", kind: "service", refId: "s9", name: "Limpeza", quantity: 1, unitPrice: 0, fromStock: false },
+      // Digitado à mão: entra zerado, para quem coordena precificar.
+      { id: "n3", kind: "service", refId: null, name: "Mão de obra", quantity: 2, unitPrice: 500, fromStock: false },
+      // Produto de outra empresa: não vale preço nenhum.
+      { id: "n4", kind: "product", refId: "alheio", name: "X", quantity: 1, unitPrice: 300, fromStock: false },
+    ];
+    store.products.alheio = { tenantId: "t2", name: "X", price: "300", markup: "0" };
+
+    const res = mockRes();
+    await updateServiceOrder(req({ ...TECH, params: { id: "o1" }, body: { items } }), res);
+    expect(res.statusCode).toBe(200);
+
+    const saved = store.service_orders.o1.items as Array<{ id: string; unitPrice: number; quantity: number }>;
+    expect(Object.fromEntries(saved.map((i) => [i.id, i.unitPrice]))).toEqual({
+      i1: 30,
+      i2: 150,
+      n1: 150,
+      n2: 80,
+      n3: 0,
+      n4: 0,
+    });
+    // A quantidade continua do técnico.
+    expect(saved.find((i) => i.id === "i1")?.quantity).toBe(3);
+  });
+
+  it("quem coordena (escopo de todas as OS) continua precificando", async () => {
+    permissions.set("service_orders_all.canView", true);
+    const items = [
+      { id: "i1", kind: "product", refId: "p1", name: "Capacitor", quantity: 2, unitPrice: 45, fromStock: true },
+    ];
+    const res = mockRes();
+    await updateServiceOrder(req({ ...TECH, params: { id: "o1" }, body: { items } }), res);
+    expect(res.statusCode).toBe(200);
+    expect((store.service_orders.o1.items as Array<{ unitPrice: number }>)[0].unitPrice).toBe(45);
+  });
+
+  it("quem coordena sem 'Ver preços' não muda valor", async () => {
+    permissions.set("service_orders_all.canView", true);
+    permissions.set("service_orders.viewPrices", false);
+    const items = [
+      { id: "i1", kind: "product", refId: "p1", name: "Capacitor", quantity: 2, unitPrice: 45, fromStock: true },
+    ];
+    const res = mockRes();
+    await updateServiceOrder(req({ ...TECH, params: { id: "o1" }, body: { items } }), res);
+    expect(res.statusCode).toBe(200);
+    const saved = store.service_orders.o1.items as Array<{ unitPrice: number; quantity: number }>;
+    expect(saved[0].unitPrice).toBe(30);
+    expect(saved[0].quantity).toBe(2);
+  });
+
   it("não reabre OS concluída", async () => {
     store.service_orders.o1.status = "completed";
     const res = mockRes();
     await reopenServiceOrder(req({ ...TECH, params: { id: "o1" }, body: { reason: "Faltou peça" } }), res);
     expect(res.statusCode).toBe(403);
+  });
+
+  it("com 'Reabrir' liberado pelo dono, o membro reabre", async () => {
+    store.service_orders.o1.status = "completed";
+    permissions.set("service_orders.canView", true);
+    permissions.set("service_orders.reopen", true);
+    const res = mockRes();
+    await reopenServiceOrder(req({ ...TECH, params: { id: "o1" }, body: { reason: "Faltou peça" } }), res);
+    expect(res.statusCode).toBe(200);
+    expect(store.service_orders.o1.status).toBe("in_progress");
+  });
+
+  it("sem 'Concluir', o técnico atende mas não fecha a OS", async () => {
+    permissions.set("service_orders.canView", true);
+    permissions.set("service_orders.canEdit", true);
+    permissions.set("service_orders.complete", false);
+    const res = mockRes();
+    await completeServiceOrder(
+      req({ ...TECH, params: { id: "o1" }, body: { signature: { name: "Ana Souza", imageDataUrl: PNG } } }),
+      res,
+    );
+    expect(res.statusCode).toBe(403);
+    expect(store.service_orders.o1.status).not.toBe("completed");
   });
 });
 
@@ -462,6 +553,13 @@ describe("link público e PDF", () => {
     expect(url).toMatch(/^https:\/\/erp\.test\/share\/os\/[A-Za-z0-9_-]{32}$/);
     expect((second.body as { url: string }).url).toBe(url);
     expect(Object.keys(store.shared_service_orders)).toHaveLength(1);
+  });
+
+  it("sem 'Compartilhar', não gera o link nem o PDF", async () => {
+    permissions.set("service_orders.canView", true);
+    permissions.set("service_orders.share", false);
+    const res = await shareLink({ ...TECH });
+    expect(res.statusCode).toBe(403);
   });
 
   it("o técnico não gera link de OS de outro", async () => {

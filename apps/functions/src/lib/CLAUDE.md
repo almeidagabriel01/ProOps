@@ -175,12 +175,28 @@ Verifica uma permissao granular para um membro:
 const canCreate = await checkPermission(userId, "products", "canCreate");
 ```
 
-Busca `users/{userId}/permissions/{permissionDoc}` e retorna `data[requiredField] === true`. Retorna `false` se o doc nao existir.
+Busca `users/{userId}/permissions/{permissionDoc}` e resolve a chave pelo
+catalogo (`shared/permission-catalog.ts`, `resolvePermissionKey`): as quatro
+acoes leem o valor gravado, como sempre; a acao fina (`approve`, `settle`,
+`transfer`...) e o dado sensivel (`viewCost`, `viewBalance`...) ausentes valem
+o `fallback` do catalogo. Retorna `false` se o doc nao existir e a chave nao
+tiver fallback verdadeiro. `checkFinancialPermission` (`finance-helpers.ts`)
+segue a mesma regra.
 
-**Docs de permissao conhecidos** — a lista canonica vive no frontend, em
-`apps/web/src/lib/permissions/pages.ts` (`PERMISSION_PAGES`), que e a MESMA
-consumida pelas duas telas da area de Equipe. Consulte a lista la; ela nao e
-copiada aqui.
+**Docs de permissao conhecidos** — a fonte unica e o catalogo do backend
+(`shared/permission-catalog.ts`), espelhado no front em
+`apps/web/src/lib/permissions/catalog.ts`, com paridade testada. Consulte a
+lista la; ela nao e copiada aqui.
+
+### Alcance "so os meus": `getPageScope`, `recordInScope`, `transactionInScope`
+
+O `scope` do doc de permissao ("all" por padrao, "own", e em Lancamentos
+"income" ou "mine"). `recordInScope(claims, pageId, data)` aplica a mesma
+regra das rules pelo campo do dono (`SCOPE_OWNER_FIELD`), e
+`transactionInScope` a de Lancamentos. Os controllers respondem 404 ao
+registro fora do alcance, para a API nao abrir pelo id o que o SDK recusa.
+No `TransactionService` o alcance vem de `loadTransactionScope`
+(`finance-helpers.ts`), lido uma vez por request.
 
 **Nunca inventar uma chave aqui.** `checkFinancialPermission` lia um doc
 `financial` cravado no codigo que nenhum caminho de escrita jamais criou — a

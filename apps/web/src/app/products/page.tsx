@@ -42,6 +42,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { DataTable, DataTableColumn } from "@/components/ui/data-table";
 import { usePagePermission } from "@/hooks/usePagePermission";
+import { usePermission, useSensitiveData } from "@/hooks/usePermission";
 import { useSort } from "@/hooks/use-sort";
 import { QueryDocumentSnapshot, DocumentData } from "firebase/firestore";
 import { ProductsSkeleton } from "./_components/products-skeleton";
@@ -101,7 +102,14 @@ function buildDimensionBalanceTooltipContent(
 export default function ProductsPage() {
   const { tenant, isLoading: tenantLoading } = useTenant();
   const { user } = useAuth();
-  const { canCreate, canDelete, canEdit } = usePagePermission("products");
+  const { canCreate: canCreatePage, canDelete, canEdit } = usePagePermission("products");
+  // Custo, markup e estoque são dados sensíveis (catálogo de permissões): sem
+  // eles o membro vê só o preço final. Cadastrar e importar pedem o custo,
+  // porque o produto nasce dele (o backend recusa do mesmo jeito).
+  const { canSeeCost, canSeeStock } = useSensitiveData();
+  const canImport = usePermission("products", "import") && canSeeCost;
+  const canAdjustStock = usePermission("products", "adjustStock");
+  const canCreate = canCreatePage && canSeeCost;
   const nicheConfig = useCurrentNicheConfig();
   const inventoryConfig = nicheConfig.productCatalog.inventory;
   const { hasPriceTables } = usePlanLimits();
@@ -390,7 +398,7 @@ export default function ProductsPage() {
     : [];
 
   const productToDelete = (allProducts ?? []).find((p) => p.id === deleteId);
-  const hideInventoryColumn = showsDimensionBalance;
+  const hideInventoryColumn = showsDimensionBalance || !canSeeStock;
   
   const columns: DataTableColumn<Product>[] = [
     {
@@ -455,6 +463,7 @@ export default function ProductsPage() {
           initialValue={getProductInventoryValue(product)}
           inventory={inventoryDefinitionFor(inventoryConfig, productInventoryUnit(product))}
           onUpdate={(val) => handleInventoryUpdate(product, val)}
+          readOnly={!canEdit || !canAdjustStock}
         />
       ),
     }] as DataTableColumn<Product>[])),
@@ -468,11 +477,13 @@ export default function ProductsPage() {
           <span className="text-sm font-medium">
             {getProductPricingSummary(product, nicheConfig.pricing)}
           </span>
-          <span className="text-xs text-muted-foreground">
-            Base: R$ {getProductBasePrice(product).toFixed(2)}
-            {getProductMarkup(product) > 0 &&
-              ` (+${getProductMarkup(product).toFixed(0)}% markup)`}
-          </span>
+          {canSeeCost && (
+            <span className="text-xs text-muted-foreground">
+              Base: R$ {getProductBasePrice(product).toFixed(2)}
+              {getProductMarkup(product) > 0 &&
+                ` (+${getProductMarkup(product).toFixed(0)}% markup)`}
+            </span>
+          )}
         </div>
       ),
     },
@@ -599,15 +610,17 @@ export default function ProductsPage() {
                     },
                   ]}
                 />
-                {canCreate && view === "catalog" && (
+                {(canCreate || canImport) && view === "catalog" && (
                   <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
-                    <ImportButton onClick={() => setImportOpen(true)} />
-                    <Link href="/products/new" className="block w-full sm:w-auto">
-                      <Button size="lg" className="gap-2 w-full sm:w-auto">
-                        <Plus className="w-5 h-5" />
-                        {nicheConfig.productCatalog.newTitle}
-                      </Button>
-                    </Link>
+                    {canImport && <ImportButton onClick={() => setImportOpen(true)} />}
+                    {canCreate && (
+                      <Link href="/products/new" className="block w-full sm:w-auto">
+                        <Button size="lg" className="gap-2 w-full sm:w-auto">
+                          <Plus className="w-5 h-5" />
+                          {nicheConfig.productCatalog.newTitle}
+                        </Button>
+                      </Link>
+                    )}
                   </div>
                 )}
               </div>
@@ -627,8 +640,9 @@ export default function ProductsPage() {
             {/* O catálogo continua montado na outra aba: a carga da tabela e
                 o skeleton da página dependem dele. */}
             <div className="flex flex-col gap-6" hidden={view !== "catalog"}>
-            {showsDimensionBalance ? (
+            {!canSeeStock ? null : showsDimensionBalance ? (
               <div className="grid gap-4 md:grid-cols-2">
+                {canSeeCost && (
                 <Card className="relative overflow-hidden transition-all duration-300 hover:shadow-lg hover:-translate-y-1 border-l-4 border-l-amber-500 bg-linear-to-br from-background to-amber-50/30 dark:to-amber-950/10 hover:border-amber-500/50">
                   <CardContent className="flex items-start justify-between gap-4 p-6">
                     <div className="space-y-2">
@@ -675,6 +689,7 @@ export default function ProductsPage() {
                     </div>
                   </CardContent>
                 </Card>
+                )}
 
                 <Card className="relative overflow-hidden transition-all duration-300 hover:shadow-lg hover:-translate-y-1 border-l-4 border-l-emerald-500 bg-linear-to-br from-background to-emerald-50/30 dark:to-emerald-950/10 hover:border-emerald-500/50">
                   <CardContent className="flex items-start justify-between gap-4 p-6">
@@ -725,6 +740,7 @@ export default function ProductsPage() {
               </div>
             ) : (
               <div className="grid gap-4 md:grid-cols-2">
+                {canSeeCost && (
                 <Card className="relative overflow-hidden transition-all duration-300 hover:shadow-lg hover:-translate-y-1 border-l-4 border-l-amber-500 bg-linear-to-br from-background to-amber-50/30 dark:to-amber-950/10 hover:border-amber-500/50">
                   <CardContent className="flex items-start justify-between gap-4 p-6">
                     <div className="space-y-2">
@@ -747,6 +763,7 @@ export default function ProductsPage() {
                     </div>
                   </CardContent>
                 </Card>
+                )}
 
                 <Card className="relative overflow-hidden transition-all duration-300 hover:shadow-lg hover:-translate-y-1 border-l-4 border-l-emerald-500 bg-linear-to-br from-background to-emerald-50/30 dark:to-emerald-950/10 hover:border-emerald-500/50">
                   <CardContent className="flex items-start justify-between gap-4 p-6">

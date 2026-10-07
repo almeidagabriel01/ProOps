@@ -30,6 +30,7 @@ import type {
   ServiceOrderPhoto,
   ServiceOrderStatus,
 } from "@/types/field-service";
+import { transactionScopeWhere } from "@/lib/permissions/query-scope";
 
 const EQUIPMENT = "customer_equipment";
 const ORDERS = "service_orders";
@@ -298,6 +299,7 @@ export const FieldService = {
       query(
         collection(db, "transactions"),
         where("tenantId", "==", tenantId),
+        ...(await transactionScopeWhere()),
         where("serviceContractId", "==", contractId),
         limit(120),
       ),

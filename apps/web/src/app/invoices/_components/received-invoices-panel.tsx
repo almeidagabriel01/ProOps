@@ -10,6 +10,9 @@ import { Loader } from "@/components/ui/loader";
 import { DataTable, type DataTableColumn } from "@/components/ui/data-table";
 import { useSort } from "@/hooks/use-sort";
 import { toast } from "@/lib/toast";
+import { usePagePermission } from "@/hooks/usePagePermission";
+import { usePermission } from "@/hooks/usePermission";
+import { usePermissions } from "@/providers/permissions-provider";
 import { ManifestInvoiceDialog } from "@/components/features/fiscal/manifest-invoice-dialog";
 import { ReceivedInvoiceDetailsDialog } from "@/components/features/fiscal/received-invoice-details-dialog";
 import { LaunchReceivedInvoiceButton } from "@/components/features/fiscal/launch-received-invoice-button";
@@ -71,6 +74,14 @@ export function ReceivedInvoicesPanel({
     null,
   );
   const [viewing, setViewing] = React.useState<ReceivedInvoice | null>(null);
+  // Buscar, responder (manifestação) e lançar são "Editar" em Notas Fiscais,
+  // como no backend; lançar como despesa pede também criar em Lançamentos.
+  const { canEdit } = usePagePermission("invoices");
+  // Ações finas: responder a nota (manifestação) e lançar no financeiro.
+  const canManifest = usePermission("invoices", "manifest");
+  const canLaunch = usePermission("invoices", "launchReceived");
+  const { canCreate: canCreateTransaction } = usePagePermission("transactions");
+  const { isMaster } = usePermissions();
 
   const { items: sorted, requestSort, sortConfig } = useSort(invoices);
 
@@ -235,25 +246,29 @@ export function ReceivedInvoicesPanel({
             </Button>
             {invoice.status !== "cancelada" && (
               <>
-                <LaunchReceivedInvoiceButton
-                  invoice={invoice}
-                  onLaunched={replace}
-                />
-                <Button
-                  variant={invoice.manifestacao ? "ghost" : "outline"}
-                  size="sm"
-                  className="h-8"
-                  onClick={() => setManifesting(invoice)}
-                >
-                  {invoice.manifestacao ? "Rever" : "Responder"}
-                </Button>
+                {canLaunch && canCreateTransaction && (
+                  <LaunchReceivedInvoiceButton
+                    invoice={invoice}
+                    onLaunched={replace}
+                  />
+                )}
+                {canManifest && (
+                  <Button
+                    variant={invoice.manifestacao ? "ghost" : "outline"}
+                    size="sm"
+                    className="h-8"
+                    onClick={() => setManifesting(invoice)}
+                  >
+                    {invoice.manifestacao ? "Rever" : "Responder"}
+                  </Button>
+                )}
               </>
             )}
           </div>
         ),
       },
     ],
-    [replace],
+    [replace, canLaunch, canManifest, canCreateTransaction],
   );
 
   if (!enabled) {
@@ -270,12 +285,14 @@ export function ReceivedInvoicesPanel({
               produto para emitir nota.
             </p>
           </div>
-          <Button variant="outline" asChild>
-            <Link href="/settings/fiscal">
-              <Settings className="mr-2 h-4 w-4" />
-              Configuração fiscal
-            </Link>
-          </Button>
+          {isMaster && (
+            <Button variant="outline" asChild>
+              <Link href="/settings/fiscal">
+                <Settings className="mr-2 h-4 w-4" />
+                Configuração fiscal
+              </Link>
+            </Button>
+          )}
         </CardContent>
       </Card>
     );
@@ -287,19 +304,21 @@ export function ReceivedInvoicesPanel({
         <p className="text-sm text-muted-foreground">
           Notas emitidas contra o seu CNPJ. Atualizam sozinhas de hora em hora.
         </p>
-        <Button
-          variant="outline"
-          size="sm"
-          disabled={isSyncing}
-          onClick={() => void handleSync()}
-        >
-          {isSyncing ? (
-            <Loader size="sm" variant="button" className="mr-2" />
-          ) : (
-            <RefreshCw className="mr-2 h-4 w-4" />
-          )}
-          Buscar agora
-        </Button>
+        {canEdit && (
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={isSyncing}
+            onClick={() => void handleSync()}
+          >
+            {isSyncing ? (
+              <Loader size="sm" variant="button" className="mr-2" />
+            ) : (
+              <RefreshCw className="mr-2 h-4 w-4" />
+            )}
+            Buscar agora
+          </Button>
+        )}
       </div>
 
       {isLoading ? (
