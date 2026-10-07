@@ -33,6 +33,7 @@ import { SegmentedControl } from "@/components/ui/segmented-control";
 import { ReceivedInvoicesPanel } from "./_components/received-invoices-panel";
 import { CancelInvoiceButton } from "@/components/features/fiscal/cancel-invoice-button";
 import { usePagePermission } from "@/hooks/usePagePermission";
+import { usePermission } from "@/hooks/usePermission";
 import { usePermissions } from "@/providers/permissions-provider";
 import { usePlanLimits } from "@/hooks/usePlanLimits";
 import { UpgradeRequired } from "@/components/ui/upgrade-required";
@@ -112,7 +113,10 @@ function StatusBadge({ status }: { status: FiscalInvoiceStatus }) {
 export default function InvoicesPage() {
   // Cancelar uma nota autorizada e o "excluir" deste modulo: a nota nao sai do
   // acervo (guarda legal de 5 anos), mas deixa de valer.
-  const { canDelete: canCancel, canCreate, canEdit: canCorrect } = usePagePermission("invoices");
+  const { canCreate } = usePagePermission("invoices");
+  // Ações finas de Notas Fiscais (ausentes, valem o Excluir e o Editar de antes).
+  const canCancel = usePermission("invoices", "cancel");
+  const canCorrect = usePermission("invoices", "correct");
   // A configuração fiscal (CNPJ, certificado, série) é só do dono.
   const { isMaster } = usePermissions();
   const {

@@ -18,6 +18,16 @@ const m = vi.hoisted(() => ({
 vi.mock("@/hooks/usePagePermission", () => ({
   usePagePermission: (pageId: string) => m.pages[pageId] ?? {},
 }));
+// As ações finas seguem o catálogo de verdade: ausentes, valem o Editar.
+vi.mock("@/hooks/usePermission", async () => {
+  const { resolvePermissionKey } = await vi.importActual<typeof import("@/lib/permissions/catalog")>(
+    "@/lib/permissions/catalog",
+  );
+  return {
+    usePermission: (pageId: string, key: string) =>
+      m.isMaster || resolvePermissionKey(pageId, (m.pages[pageId] ?? null) as never, key),
+  };
+});
 vi.mock("@/providers/permissions-provider", () => ({ usePermissions: () => ({ isMaster: m.isMaster }) }));
 vi.mock("@/lib/toast", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 vi.mock("@/components/features/fiscal/manifest-invoice-dialog", () => ({ ManifestInvoiceDialog: () => null }));
@@ -78,5 +88,18 @@ describe("notas de entrada: ações por permissão", () => {
     m.pages = { invoices: { canView: true, canEdit: true }, transactions: { canCreate: true } };
     render(<ReceivedInvoicesPanel enabled />);
     expect((await screen.findAllByText("Lançar despesa")).length).toBeGreaterThan(0);
+  });
+
+  it("sem 'Manifestar' não responde; sem 'Lançar nota de entrada' não lança", async () => {
+    m.pages = {
+      invoices: { canView: true, canEdit: true, manifest: false, launchReceived: false },
+      transactions: { canCreate: true },
+    };
+    render(<ReceivedInvoicesPanel enabled />);
+    expect((await screen.findAllByText("Fornecedor")).length).toBeGreaterThan(0);
+    expect(screen.queryAllByText("Responder")).toHaveLength(0);
+    expect(screen.queryAllByText("Lançar despesa")).toHaveLength(0);
+    // Buscar as notas continua com o Editar.
+    expect(screen.getByText("Buscar agora")).toBeInTheDocument();
   });
 });

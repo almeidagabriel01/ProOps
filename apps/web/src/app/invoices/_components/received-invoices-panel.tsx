@@ -11,6 +11,7 @@ import { DataTable, type DataTableColumn } from "@/components/ui/data-table";
 import { useSort } from "@/hooks/use-sort";
 import { toast } from "@/lib/toast";
 import { usePagePermission } from "@/hooks/usePagePermission";
+import { usePermission } from "@/hooks/usePermission";
 import { usePermissions } from "@/providers/permissions-provider";
 import { ManifestInvoiceDialog } from "@/components/features/fiscal/manifest-invoice-dialog";
 import { ReceivedInvoiceDetailsDialog } from "@/components/features/fiscal/received-invoice-details-dialog";
@@ -76,6 +77,9 @@ export function ReceivedInvoicesPanel({
   // Buscar, responder (manifestação) e lançar são "Editar" em Notas Fiscais,
   // como no backend; lançar como despesa pede também criar em Lançamentos.
   const { canEdit } = usePagePermission("invoices");
+  // Ações finas: responder a nota (manifestação) e lançar no financeiro.
+  const canManifest = usePermission("invoices", "manifest");
+  const canLaunch = usePermission("invoices", "launchReceived");
   const { canCreate: canCreateTransaction } = usePagePermission("transactions");
   const { isMaster } = usePermissions();
 
@@ -240,29 +244,31 @@ export function ReceivedInvoicesPanel({
             >
               <FileSearch className="h-4 w-4" />
             </Button>
-            {invoice.status !== "cancelada" && canEdit && (
+            {invoice.status !== "cancelada" && (
               <>
-                {canCreateTransaction && (
+                {canLaunch && canCreateTransaction && (
                   <LaunchReceivedInvoiceButton
                     invoice={invoice}
                     onLaunched={replace}
                   />
                 )}
-                <Button
-                  variant={invoice.manifestacao ? "ghost" : "outline"}
-                  size="sm"
-                  className="h-8"
-                  onClick={() => setManifesting(invoice)}
-                >
-                  {invoice.manifestacao ? "Rever" : "Responder"}
-                </Button>
+                {canManifest && (
+                  <Button
+                    variant={invoice.manifestacao ? "ghost" : "outline"}
+                    size="sm"
+                    className="h-8"
+                    onClick={() => setManifesting(invoice)}
+                  >
+                    {invoice.manifestacao ? "Rever" : "Responder"}
+                  </Button>
+                )}
               </>
             )}
           </div>
         ),
       },
     ],
-    [replace, canEdit, canCreateTransaction],
+    [replace, canLaunch, canManifest, canCreateTransaction],
   );
 
   if (!enabled) {

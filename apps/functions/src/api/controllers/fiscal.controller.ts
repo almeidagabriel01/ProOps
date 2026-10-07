@@ -3,7 +3,7 @@ import { cnpj as cnpjValidator } from "cpf-cnpj-validator";
 import {
   checkPermission,
   resolveUserAndTenant,
-  type PermissionAction,
+  type PermissionKey,
 } from "../../lib/auth-helpers";
 import { logger } from "../../lib/logger";
 import { describeFocusError } from "../services/fiscal/focus-error";
@@ -220,7 +220,8 @@ async function requireFiscalAdmin(
 async function requireInvoiceAccess(
   req: Request,
   res: Response,
-  action: PermissionAction,
+  // Ação básica ou fina do catálogo (`cancel`, `correct`; ausentes, valem a básica).
+  action: PermissionKey,
 ): Promise<{ tenantId: string; isSuperAdmin: boolean } | null> {
   const userId = req.user?.uid;
   if (!userId) {
@@ -838,7 +839,7 @@ export const issueInvoiceHandler = async (req: Request, res: Response): Promise<
 // POST /v1/fiscal/invoices/:id/cancel
 export const cancelInvoiceHandler = async (req: Request, res: Response): Promise<void> => {
   try {
-    const ctx = await requireInvoiceAccess(req, res, "canDelete");
+    const ctx = await requireInvoiceAccess(req, res, "cancel");
     if (!ctx) return;
 
     const invoice = await getInvoice(String(req.params.id || ""));
@@ -1365,7 +1366,7 @@ export const downloadCorrectionDocumentHandler = async (
 // NCM nem CFOP; para esses o caminho é cancelar e reemitir.
 export const correctInvoiceHandler = async (req: Request, res: Response): Promise<void> => {
   try {
-    const ctx = await requireInvoiceAccess(req, res, "canEdit");
+    const ctx = await requireInvoiceAccess(req, res, "correct");
     if (!ctx) return;
 
     const invoice = await getInvoice(String(req.params.id || ""));

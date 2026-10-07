@@ -2,7 +2,7 @@ import { Request, Response } from "express";
 import {
   checkPermission,
   resolveUserAndTenant,
-  type PermissionAction,
+  type PermissionKey,
 } from "../../lib/auth-helpers";
 import { logger } from "../../lib/logger";
 import { describeFocusError } from "../services/fiscal/focus-error";
@@ -35,7 +35,7 @@ const VALID_MANIFESTATIONS: ManifestationType[] = [
 async function requireTenant(
   req: Request,
   res: Response,
-  action: PermissionAction,
+  action: PermissionKey,
 ): Promise<{ tenantId: string } | null> {
   const userId = req.user?.uid;
   if (!userId) {
@@ -101,7 +101,7 @@ export const manifestReceivedInvoiceHandler = async (
   res: Response,
 ): Promise<void> => {
   try {
-    const ctx = await requireTenant(req, res, "canEdit");
+    const ctx = await requireTenant(req, res, "manifest");
     if (!ctx) return;
 
     const chave = String(req.params.chave || "").replace(/\D/g, "");
@@ -177,7 +177,7 @@ export const launchReceivedInvoiceHandler = async (
   res: Response,
 ): Promise<void> => {
   try {
-    const ctx = await requireTenant(req, res, "canEdit");
+    const ctx = await requireTenant(req, res, "launchReceived");
     if (!ctx) return;
 
     const chave = String(req.params.chave || "").replace(/\D/g, "");
