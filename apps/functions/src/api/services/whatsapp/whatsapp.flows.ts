@@ -364,8 +364,8 @@ export async function handleSendTransactionLink(
 
   // O link é público e abre o Pix e o boleto do Asaas: gerá-lo é alterar o
   // lançamento, como no ERP. Antes qualquer número vinculado o gerava, para
-  // qualquer id que chegasse na resposta.
-  if (!(await hasPagePermission({ uid: userId, role }, "transactions", "canEdit"))) {
+  // qualquer id que chegasse na resposta. "Compartilhar" (ausente, vale o Editar).
+  if (!(await hasPagePermission({ uid: userId, role }, "transactions", "share"))) {
     await sendWhatsAppMessage(
       to,
       "Você não tem permissão para gerar o link do lançamento pelo WhatsApp.",

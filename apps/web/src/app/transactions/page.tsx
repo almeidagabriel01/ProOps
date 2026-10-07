@@ -51,13 +51,14 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { useSort } from "@/hooks/use-sort";
 import { SelectTenantState } from "@/components/shared/select-tenant-state";
-import { useSensitiveData } from "@/hooks/usePermission";
+import { usePermission, useSensitiveData } from "@/hooks/usePermission";
 
 export default function FinancialPage() {
   const { tenant, isLoading: tenantLoading } = useTenant();
   const { user } = useAuth();
   const { canCreate, canEdit, canDelete } = usePagePermission("transactions");
   const { canSeeBalance } = useSensitiveData();
+  const canExport = usePermission("transactions", "export");
   // Carteiras e CRM não estão na dock — chega-se a elas por estes botões, então
   // é aqui que a permissão de cada uma tem que ser checada.
   const { canView: canViewCrm } = usePagePermission("kanban");
@@ -733,7 +734,7 @@ export default function FinancialPage() {
                 </Button>
               ))}
 
-            {viewMode === "byDueDate" && (
+            {viewMode === "byDueDate" && canExport && (
               <ExportMenu
                 size="lg"
                 onExport={handleExportPeriod}

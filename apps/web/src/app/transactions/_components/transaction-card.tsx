@@ -36,6 +36,7 @@ import { Loader } from "@/components/ui/loader";
 import { TransactionProposalGroupExpanded } from "./transaction-proposal-group-expanded";
 import { TransactionStandaloneExpanded } from "./transaction-standalone-expanded";
 import { useTenant } from "@/providers/tenant-provider";
+import { usePermission } from "@/hooks/usePermission";
 
 interface TransactionCardProps {
   transaction: Transaction;
@@ -174,6 +175,16 @@ export function TransactionCard({
     onToggleExpand,
     forceExpandable,
   });
+
+  // Ações finas de Lançamentos (ausentes, valem o Editar): dar baixa,
+  // estornar o pago, compartilhar o link e custos extras.
+  const canSettle = usePermission("transactions", "settle");
+  const canRevert = usePermission("transactions", "revert");
+  const canShareLink = usePermission("transactions", "share");
+  const canEditExtraCosts = usePermission("transactions", "extraCosts");
+  const statusBlocked = (target: string, current: string | undefined) =>
+    target !== current &&
+    ((target === "paid" && !canSettle) || (current === "paid" && target !== "paid" && !canRevert));
 
   return (
     <div
@@ -518,6 +529,9 @@ export function TransactionCard({
                                   handleStatusChange(option.id);
                                 }}
                                 className="gap-2 cursor-pointer"
+                                disabled={
+                                  (option.id === "paid" && !canSettle) || (option.id !== "paid" && !canRevert)
+                                }
                               >
                                 <option.icon className="h-4 w-4" />
                                 <span>{option.label}</span>
@@ -536,6 +550,7 @@ export function TransactionCard({
                                 handleStatusChange(option.id);
                               }}
                               className="gap-2 cursor-pointer"
+                              disabled={statusBlocked(option.id, transaction.status)}
                             >
                               <option.icon className="h-4 w-4" />
                               <span>{option.label}</span>
@@ -569,8 +584,8 @@ export function TransactionCard({
               onClick={(e) => e.stopPropagation()}
             >
               {/* O link é público e abre o Pix e o boleto: gerá-lo exige
-                  editar lançamentos, como no backend. */}
-              {canEdit && (
+                  "Compartilhar" (ausente, vale o Editar), como no backend. */}
+              {canShareLink && (
                 <Button
                   variant="ghost"
                   size="icon"
@@ -582,7 +597,7 @@ export function TransactionCard({
                   <Share2 className="w-4 h-4" />
                 </Button>
               )}
-              {canEdit && !transaction.proposalId && onUpdate && (
+              {canEdit && canEditExtraCosts && !transaction.proposalId && onUpdate && (
                 <Button
                   variant="ghost"
                   size="icon"

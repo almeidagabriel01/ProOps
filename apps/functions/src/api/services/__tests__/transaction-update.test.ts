@@ -8,6 +8,11 @@ jest.mock("../../../lib/logger", () => ({
 
 // Mock checking financial permission
 jest.mock("../../../lib/finance-helpers", () => ({
+  // As regras das ações finas são as de verdade; quem age aqui pode tudo.
+  statusChangeKey: jest.requireActual("../../../lib/finance-helpers").statusChangeKey,
+  extraCostsChanged: jest.requireActual("../../../lib/finance-helpers").extraCostsChanged,
+  FINANCIAL_KEY_MESSAGES: jest.requireActual("../../../lib/finance-helpers").FINANCIAL_KEY_MESSAGES,
+  loadFinancialKeys: jest.fn(async () => () => true),
   checkFinancialPermission: jest.fn(() => ({ tenantId: "tenant-1", isSuperAdmin: false })),
   resolveWalletRef: jest.fn(() => ({ ref: { id: "wallet-1" } })),
   addMonths: jest.fn((date, offset) => {

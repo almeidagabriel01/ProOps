@@ -57,8 +57,9 @@ export const createShareLink = async (req: Request, res: Response) => {
     const expireDays: ValidExpireDays = rawExpireDays;
 
     // O link é público e abre o Pix e o boleto do Asaas: criá-lo (ou trocar a
-    // validade) é alterar o lançamento. Antes bastava ser da empresa.
-    if (!(await hasPagePermission(req.user, "transactions", "canEdit"))) {
+    // validade) é alterar o lançamento: "Compartilhar" (ausente, vale o
+    // Editar). Antes bastava ser da empresa.
+    if (!(await hasPagePermission(req.user, "transactions", "share"))) {
       return res.status(403).json({ message: "Sem permissão para compartilhar o lançamento." });
     }
 

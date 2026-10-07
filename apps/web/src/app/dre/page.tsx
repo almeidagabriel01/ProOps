@@ -21,6 +21,7 @@ import { CategoriesDialog } from "./_components/categories-dialog";
 import { DreSkeleton } from "./_components/dre-skeleton";
 import { AccountantLinkButton } from "./_components/accountant-link-button";
 import { ExportMenu } from "@/components/shared/export-menu";
+import { usePermission } from "@/hooks/usePermission";
 import { downloadSheet, type SheetFormat } from "@/lib/export/sheet";
 import { buildDreSheet } from "@/lib/finance/dre-export";
 
@@ -39,6 +40,7 @@ export default function DrePage() {
   const { user } = useAuth();
   const { isDemo } = usePermissions();
   const { hasFinancial, isLoading: planLoading } = usePlanLimits();
+  const canExport = usePermission("transactions", "export");
   const [preset, setPreset] = React.useState<DrePeriodPreset>("last_6");
   const [basis, setBasis] = React.useState<DreBasis>("cash");
   const [dre, setDre] = React.useState<DreResult | null>(null);
@@ -105,7 +107,7 @@ export default function DrePage() {
         </div>
         <div className="flex flex-col gap-2 sm:flex-row">
           <AccountantLinkButton />
-          <ExportMenu onExport={exportDre} disabled={!dre || dre.count === 0} />
+          {canExport && <ExportMenu onExport={exportDre} disabled={!dre || dre.count === 0} />}
           <Button type="button" variant="outline" onClick={() => setCategoriesOpen(true)}>
             <Tags className="mr-2 h-4 w-4" />
             Categorias

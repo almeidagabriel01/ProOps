@@ -2,6 +2,10 @@ import { db } from "../../init";
 import { FieldValue, Timestamp } from "firebase-admin/firestore";
 import {
   checkFinancialPermission,
+  extraCostsChanged,
+  FINANCIAL_KEY_MESSAGES,
+  loadFinancialKeys,
+  statusChangeKey,
   resolveWalletRef,
   addMonths,
 } from "../../lib/finance-helpers";
@@ -1008,7 +1012,8 @@ export class TransactionService {
       (updateData || {}) as Record<string, unknown>,
     );
 
-    const { tenantId, isSuperAdmin } = await checkFinancialPermission(userId, "transactions", "canEdit", user);
+    const { tenantId, isSuperAdmin, isMaster } = await checkFinancialPermission(userId, "transactions", "canEdit", user);
+    const can = await loadFinancialKeys(userId, "transactions", isMaster || isSuperAdmin);
 
     await db.runTransaction(async (t) => {
       const ref = db.collection(COLLECTION_NAME).doc(id);
@@ -1020,6 +1025,17 @@ export class TransactionService {
 
       if (!isSuperAdmin && currentData.tenantId !== tenantId)
         throw new Error("Acesso negado.");
+
+      // Ações finas de Lançamentos: dar baixa, estornar e custos extras.
+      const statusKey = statusChangeKey(currentData.status, safeUpdateData.status);
+      if (statusKey && !can(statusKey)) throw new Error(FINANCIAL_KEY_MESSAGES[statusKey]);
+      if (
+        safeUpdateData.extraCosts !== undefined &&
+        extraCostsChanged(currentData.extraCosts, safeUpdateData.extraCosts) &&
+        !can("extraCosts")
+      ) {
+        throw new Error(FINANCIAL_KEY_MESSAGES.extraCosts);
+      }
 
       const nextStatus =
         safeUpdateData.status &&
@@ -1188,7 +1204,8 @@ export class TransactionService {
       );
     }
 
-    const { tenantId, isSuperAdmin } = await checkFinancialPermission(userId, "transactions", "canEdit", user);
+    const { tenantId, isSuperAdmin, isMaster } = await checkFinancialPermission(userId, "transactions", "canEdit", user);
+    const can = await loadFinancialKeys(userId, "transactions", isMaster || isSuperAdmin);
 
     return await db.runTransaction(async (t) => {
       const now = Timestamp.now();
@@ -1217,6 +1234,8 @@ export class TransactionService {
         if (!isSuperAdmin && txData.tenantId !== tenantId) {
           throw new Error("Acesso negado.");
         }
+        const statusKey = statusChangeKey(txData.status, newStatus);
+        if (statusKey && !can(statusKey)) throw new Error(FINANCIAL_KEY_MESSAGES[statusKey]);
 
         const nextData = {
           ...txData,
@@ -1378,7 +1397,8 @@ export class TransactionService {
       );
     }
 
-    const { tenantId, isSuperAdmin } = await checkFinancialPermission(userId, "transactions", "canEdit", user);
+    const { tenantId, isSuperAdmin, isMaster } = await checkFinancialPermission(userId, "transactions", "canEdit", user);
+    const can = await loadFinancialKeys(userId, "transactions", isMaster || isSuperAdmin);
 
     return await db.runTransaction(async (t) => {
       const now = Timestamp.now();
@@ -1403,6 +1423,15 @@ export class TransactionService {
         if (!isSuperAdmin && current.tenantId !== tenantId) throw new Error("Acesso negado.");
 
         const safeUpdate = sanitizeTransactionUpdateData(data);
+        const statusKey = statusChangeKey(current.status, safeUpdate.status);
+        if (statusKey && !can(statusKey)) throw new Error(FINANCIAL_KEY_MESSAGES[statusKey]);
+        if (
+          safeUpdate.extraCosts !== undefined &&
+          extraCostsChanged(current.extraCosts, safeUpdate.extraCosts) &&
+          !can("extraCosts")
+        ) {
+          throw new Error(FINANCIAL_KEY_MESSAGES.extraCosts);
+        }
         const next = { ...current, ...safeUpdate };
 
         const oldImpacts = getWalletImpacts(current);
@@ -1739,7 +1768,10 @@ export class TransactionService {
     partialAmount: number,
     date: string,
   ) {
-    const { tenantId, isSuperAdmin } = await checkFinancialPermission(userId, "transactions", "canEdit", user);
+    const { tenantId, isSuperAdmin, isMaster } = await checkFinancialPermission(userId, "transactions", "canEdit", user);
+    // Pagamento parcial é uma baixa: pede "Dar baixa".
+    const can = await loadFinancialKeys(userId, "transactions", isMaster || isSuperAdmin);
+    if (!can("settle")) throw new Error(FINANCIAL_KEY_MESSAGES.settle);
 
     await db.runTransaction(async (t) => {
       const ref = db.collection(COLLECTION_NAME).doc(id);
