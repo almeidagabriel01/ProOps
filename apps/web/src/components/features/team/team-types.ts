@@ -12,6 +12,8 @@ export interface TeamMember {
   createdAt: string;
   phoneNumber?: string;
   permissions: Record<string, Permission>;
+  /** "suspended" quando o dono suspendeu o acesso (a conta fica desativada). */
+  status?: "active" | "suspended";
 }
 
 /** O doc de uma página, com as chaves finas e o escopo do catálogo. */

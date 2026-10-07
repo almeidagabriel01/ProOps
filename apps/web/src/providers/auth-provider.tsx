@@ -1055,6 +1055,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       console.error("Login failed", error);
       explicitSignInInProgressRef.current = false;
       setIsLoading(false);
+      // Conta desativada: o dono suspendeu o acesso do membro (ou a empresa
+      // foi desativada). Mostrar "credenciais inválidas" faria a pessoa
+      // trocar a senha à toa.
+      if ((error as { code?: string })?.code === "auth/user-disabled") {
+        return { success: false, code: "account-disabled" };
+      }
       return { success: false, code: "invalid-credentials" };
     }
   };

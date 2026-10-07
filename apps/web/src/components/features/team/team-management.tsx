@@ -25,6 +25,8 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { FormContainer, FormHeader } from "@/components/ui/form-components";
 import { Users, Shield, UserPlus, X } from "lucide-react";
+import { SegmentedControl } from "@/components/ui/segmented-control";
+import { MemberAuditPanel } from "./member-audit-panel";
 import { toast } from "@/lib/toast";
 import {
   TeamMember,
@@ -49,6 +51,7 @@ export function TeamManagement() {
   const [isLoading, setIsLoading] = React.useState(true);
   const [isCreatingMember, setIsCreatingMember] = React.useState(false);
   const [updatingKey, setUpdatingKey] = React.useState<string | null>(null);
+  const [view, setView] = React.useState<"members" | "history">("members");
 
   // Infinite scroll
   const {
@@ -105,6 +108,7 @@ export function TeamManagement() {
               role: data.role || "MEMBER",
               createdAt: data.createdAt || new Date().toISOString(),
               permissions,
+              status: data.status === "suspended" ? "suspended" : "active",
             };
           }),
         );
@@ -238,7 +242,28 @@ export function TeamManagement() {
         </div>
       )}
 
-      {/* Content Wrapper */}
+      {/* A conta de demonstração não tem histórico de verdade: fica na lista. */}
+      {!isDemo && (
+        <SegmentedControl
+          id="team-view"
+          value={view}
+          onChange={(next) => setView(next as "members" | "history")}
+          options={[
+            { value: "members", label: "Membros" },
+            { value: "history", label: "Histórico" },
+          ]}
+        />
+      )}
+
+      {view === "history" && !isDemo ? (
+        <MemberAuditPanel
+          people={[
+            ...(user?.id ? [{ id: user.id, name: user.name || "Você" }] : []),
+            ...members.map((m) => ({ id: m.id, name: m.name })),
+          ]}
+        />
+      ) : (
+      /* Content Wrapper */
       <div className="flex flex-col gap-4 flex-1">
         {/* Members List */}
         <div className="space-y-4">
@@ -294,6 +319,7 @@ export function TeamManagement() {
           )}
         </div>
       </div>
+      )}
     </FormContainer>
   );
 }

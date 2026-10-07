@@ -13,6 +13,7 @@ const m = vi.hoisted(() => ({
   list: vi.fn(),
 }));
 
+vi.mock("@/services/member-access-service", () => ({ MemberAccessService: { reportExport: async () => undefined } }));
 vi.mock("@/hooks/usePermission", () => ({
   usePermission: () => true,
   usePageScope: () => ({ scope: "all", isLoading: false }),

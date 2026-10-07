@@ -22,6 +22,7 @@ import { DreSkeleton } from "./_components/dre-skeleton";
 import { AccountantLinkButton } from "./_components/accountant-link-button";
 import { ExportMenu } from "@/components/shared/export-menu";
 import { usePageScope, usePermission } from "@/hooks/usePermission";
+import { MemberAccessService } from "@/services/member-access-service";
 import { downloadSheet, type SheetFormat } from "@/lib/export/sheet";
 import { buildDreSheet } from "@/lib/finance/dre-export";
 
@@ -104,6 +105,7 @@ export default function DrePage() {
       sheetName: "DRE",
       ...sheet,
     });
+    await MemberAccessService.reportExport(`DRE ${range.from} a ${range.to}`);
   };
 
   const net = dre?.totals.netRevenue.total ?? 0;

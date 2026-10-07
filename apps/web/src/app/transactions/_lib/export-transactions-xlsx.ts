@@ -1,5 +1,6 @@
 import { DATE_FORMAT, MONEY_FORMAT, downloadSheet, type SheetColumn, type SheetFormat } from "@/lib/export/sheet";
 import type { ExportRow } from "./bulk-actions";
+import { MemberAccessService } from "@/services/member-access-service";
 
 const COLUMNS: SheetColumn<ExportRow>[] = [
   { header: "Descrição", key: "descricao", width: 40 },
@@ -21,6 +22,8 @@ export async function downloadTransactions(
   format: SheetFormat = "xlsx",
 ): Promise<void> {
   await downloadSheet({ format, fileName, sheetName: "Lançamentos", columns: COLUMNS, rows });
+  // A exportação acontece no navegador: o histórico da equipe só a vê por aqui.
+  await MemberAccessService.reportExport(`Lançamentos (${rows.length})`);
 }
 
 export async function downloadTransactionsXlsx(rows: ExportRow[], fileName: string): Promise<void> {
