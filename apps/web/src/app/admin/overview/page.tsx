@@ -18,6 +18,9 @@ import {
   SubscriptionSyncCard,
 } from "./_components";
 import { m as motion } from "motion/react";
+import { PresenceRefresh } from "@/components/admin/presence/presence-refresh";
+import { useOnlinePresence } from "@/hooks/use-online-presence";
+import { withLivePresence } from "@/lib/presence-live";
 
 export default function AdminOverviewPage() {
   const router = useRouter();
@@ -32,6 +35,11 @@ export default function AdminOverviewPage() {
   } = useTenantsData();
   const [modulesTarget, setModulesTarget] = React.useState<TenantBillingInfo | null>(null);
   const [activityTarget, setActivityTarget] = React.useState<ActivityTenantTarget | null>(null);
+  const presence = useOnlinePresence();
+  const tenants = React.useMemo(
+    () => withLivePresence(filteredData, presence.data),
+    [filteredData, presence.data],
+  );
 
   if (isLoading) {
     return <AdminOverviewSkeleton />;
@@ -68,7 +76,12 @@ export default function AdminOverviewPage() {
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <PresenceRefresh
+            updatedAt={presence.data?.now}
+            isLoading={presence.isLoading}
+            onRefresh={presence.reload}
+          />
           <Button
             variant="outline"
             size="sm"
@@ -98,7 +111,7 @@ export default function AdminOverviewPage() {
 
       {/* Tenants Table */}
       <TenantsTable
-        filteredData={filteredData}
+        filteredData={tenants}
         searchTerm={searchTerm}
         onSearchChange={setSearchTerm}
         filterStatus={filterStatus}

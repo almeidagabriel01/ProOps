@@ -330,6 +330,14 @@ pessoa continua lá: "entrou 10:15 e continua online" ou "entrou 10:15, saiu
 - **Onde aparece:** a tela Online (empresas e pessoas de hoje, primeiro quem
   está agora, atualiza a cada 30 s com a aba à vista) e a linha "Acesso" do
   card e da Visão geral.
+- **O card e a Visão geral também se atualizam sozinhos.** A presença que vem
+  com a lista de empresas é uma foto da carga; as duas páginas fazem a mesma
+  consulta da tela Online (`useOnlinePresence`, 30 s, só com a aba à vista) e
+  a aplicam por cima da lista com `withLivePresence` (`lib/presence-live.ts`),
+  sem recarregar o billing. Empresa fora da resposta (nada desde a meia-noite)
+  que a foto marcava como online ou ausente vira offline. O botão ao lado
+  ("Presença atualizada às HH:MM", `PresenceRefresh`) consulta na hora. Antes
+  era preciso F5 ou abrir a tela Online para ver alguém ficar ausente ou sair.
 - **Uma linha só para acesso e presença** (`describeAccess` em
   `lib/presence-format.ts`, desenhada por `AccessSummary`): "Online agora,
   desde 17:16", "Ausente, entrou 17:16" ou, depois de sair, a hora da saída
