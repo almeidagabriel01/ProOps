@@ -30,6 +30,7 @@ import {
 import { Wallet, WalletType } from "@/types";
 import { formatCurrency } from "@/utils/format";
 import { useTenant } from "@/providers/tenant-provider";
+import { useSensitiveData } from "@/hooks/usePermission";
 
 interface WalletCardProps {
   wallet: Wallet;
@@ -72,6 +73,7 @@ export function WalletCard({
   onSetDefault,
   onViewHistory,
 }: WalletCardProps) {
+  const { canSeeBalance } = useSensitiveData();
   const { isReadOnly } = useTenant();
   const Icon = typeIcons[wallet.type] || WalletIcon;
 
@@ -204,6 +206,7 @@ export function WalletCard({
         </div>
 
         {/* Balance */}
+        {canSeeBalance && (
         <div className="mt-4">
           <p className="text-sm text-muted-foreground mb-1">Saldo Atual</p>
           <p
@@ -214,6 +217,7 @@ export function WalletCard({
             {formatCurrency(wallet.balance)}
           </p>
         </div>
+        )}
 
         {/* Description */}
         {wallet.description && (

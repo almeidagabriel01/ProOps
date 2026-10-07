@@ -51,11 +51,13 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { useSort } from "@/hooks/use-sort";
 import { SelectTenantState } from "@/components/shared/select-tenant-state";
+import { useSensitiveData } from "@/hooks/usePermission";
 
 export default function FinancialPage() {
   const { tenant, isLoading: tenantLoading } = useTenant();
   const { user } = useAuth();
   const { canCreate, canEdit, canDelete } = usePagePermission("transactions");
+  const { canSeeBalance } = useSensitiveData();
   // Carteiras e CRM não estão na dock — chega-se a elas por estes botões, então
   // é aqui que a permissão de cada uma tem que ser checada.
   const { canView: canViewCrm } = usePagePermission("kanban");
@@ -749,6 +751,7 @@ export default function FinancialPage() {
             )}
           </div>
 
+          {canSeeBalance && (
           <div className="text-center sm:text-right">
             <div className="flex items-center gap-2 text-muted-foreground mb-1 justify-center sm:justify-end">
               <Wallet className="w-4 h-4" />
@@ -762,6 +765,7 @@ export default function FinancialPage() {
               {formatCurrency(balance)}
             </div>
           </div>
+          )}
         </div>
       </div>
 

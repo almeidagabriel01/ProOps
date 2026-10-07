@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Layers, TrendingUp, ArrowRightLeft } from "lucide-react";
 import { formatCurrency } from "@/utils/format";
 import { Wallet } from "@/types";
+import { useSensitiveData } from "@/hooks/usePermission";
 
 interface WalletsSummaryCardsProps {
   summary: {
@@ -18,6 +19,7 @@ export function WalletsSummaryCards({
   activeWallets,
   onOpenTransfer,
 }: WalletsSummaryCardsProps) {
+  const { canSeeBalance } = useSensitiveData();
   return (
     <div className="grid gap-4 md:grid-cols-3">
       <Card>
@@ -43,7 +45,7 @@ export function WalletsSummaryCards({
             <div>
               <p className="text-sm text-muted-foreground">Saldo Consolidado</p>
               <p className="text-2xl font-bold">
-                {formatCurrency(summary.totalBalance)}
+                {canSeeBalance ? formatCurrency(summary.totalBalance) : "Oculto"}
               </p>
             </div>
           </div>

@@ -16,6 +16,7 @@ import { AlertTriangle } from "lucide-react";
 import { Wallet } from "@/types";
 import { formatCurrency } from "@/utils/format";
 import { Loader } from "@/components/ui/loader";
+import { useSensitiveData } from "@/hooks/usePermission";
 
 interface DeleteWalletDialogProps {
   open: boolean;
@@ -32,6 +33,7 @@ export function DeleteWalletDialog({
   onConfirm,
   isDeleting,
 }: DeleteWalletDialogProps) {
+  const { canSeeBalance } = useSensitiveData();
   const [forceConfirmed, setForceConfirmed] = React.useState(false);
   const hasBalance = wallet ? wallet.balance !== 0 : false;
 
@@ -61,8 +63,9 @@ export function DeleteWalletDialog({
                     <AlertTriangle className="w-5 h-5 text-destructive flex-shrink-0 mt-0.5" />
                     <div className="space-y-2">
                       <p className="text-destructive font-semibold">
-                        Esta carteira possui saldo de{" "}
-                        {formatCurrency(wallet?.balance || 0)}
+                        {canSeeBalance
+                          ? `Esta carteira possui saldo de ${formatCurrency(wallet?.balance || 0)}`
+                          : "Esta carteira possui saldo"}
                       </p>
                       <p className="text-sm text-destructive/90">
                         Ao excluir esta carteira, o saldo será perdido
