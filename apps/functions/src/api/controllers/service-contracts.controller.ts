@@ -40,7 +40,8 @@ import { SERVICE_ORDERS_COLLECTION } from "../services/field-service/field-servi
  * adiantam a primeira execução para o contrato em questão.
  */
 
-type Action = "canView" | "canCreate" | "canEdit" | "canDelete";
+// Ação básica ou fina do catálogo de permissões (`lifecycle`, `editBilling`).
+type Action = "canView" | "canCreate" | "canEdit" | "canDelete" | "lifecycle" | "editBilling";
 
 class HttpError extends Error {
   constructor(
@@ -281,7 +282,13 @@ export async function updateServiceContract(req: Request, res: Response) {
     // é lançado daqui para a frente. No rascunho, a ativação confere.
     if (contract.status !== "draft") {
       const billing = billingChanges(contract, input);
-      if (billing.changed) await assertBillingPermission(req, billing.issueNfse);
+      if (billing.changed) {
+        // "Editar a cobrança" (ausente, vale o Editar) e o financeiro.
+        if (!(await hasPagePermission(req.user, "contracts", "editBilling"))) {
+          throw new HttpError(403, "Sem permissão para mudar a cobrança do contrato.");
+        }
+        await assertBillingPermission(req, billing.issueNfse);
+      }
     }
 
     const update: Record<string, unknown> = { updatedAt: new Date().toISOString() };
@@ -349,7 +356,7 @@ export async function activateServiceContract(req: Request, res: Response) {
   const parsed = ActivateContractSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ message: firstIssue(parsed.error) });
   try {
-    const { tenantId, uid } = await requireAccess(req, "canEdit");
+    const { tenantId, uid } = await requireAccess(req, "lifecycle");
     await assertFinancial(tenantId);
     const { ref, contract } = await loadContract(req, tenantId);
     assertTransition(contract.status, "active");
@@ -398,7 +405,7 @@ export async function activateServiceContract(req: Request, res: Response) {
 /** POST /v1/service-contracts/:id/suspend. A mensalidade para de ser lançada. */
 export async function suspendServiceContract(req: Request, res: Response) {
   try {
-    const { tenantId, uid } = await requireAccess(req, "canEdit");
+    const { tenantId, uid } = await requireAccess(req, "lifecycle");
     const { ref, contract } = await loadContract(req, tenantId);
     assertTransition(contract.status, "suspended");
     await ref.update({
@@ -422,7 +429,7 @@ export async function suspendServiceContract(req: Request, res: Response) {
  */
 export async function resumeServiceContract(req: Request, res: Response) {
   try {
-    const { tenantId, uid } = await requireAccess(req, "canEdit");
+    const { tenantId, uid } = await requireAccess(req, "lifecycle");
     await assertFinancial(tenantId);
     if (!(await tenantHasCapability(tenantId, "fieldService"))) {
       throw new HttpError(402, "O seu plano não inclui contratos de manutenção.");
@@ -454,7 +461,7 @@ export async function resumeServiceContract(req: Request, res: Response) {
 /** POST /v1/service-contracts/:id/end. Mensalidades já lançadas ficam no financeiro. */
 export async function endServiceContract(req: Request, res: Response) {
   try {
-    const { tenantId, uid } = await requireAccess(req, "canEdit");
+    const { tenantId, uid } = await requireAccess(req, "lifecycle");
     const { ref, contract } = await loadContract(req, tenantId);
     assertTransition(contract.status, "ended");
     await ref.update({

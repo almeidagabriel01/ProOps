@@ -18,7 +18,7 @@ import { PmocItemsEditor } from "@/components/features/field-service/pmoc-items-
 import { useTenant } from "@/providers/tenant-provider";
 import { useCurrentNicheConfig } from "@/hooks/useCurrentNicheConfig";
 import { usePlanLimits } from "@/hooks/usePlanLimits";
-import { useSensitiveData } from "@/hooks/usePermission";
+import { usePermission, useSensitiveData } from "@/hooks/usePermission";
 import { toast } from "@/lib/toast";
 import { FormContainer, FormHeader } from "@/components/ui/form-components";
 import { FormStepCard } from "@/components/ui/form-step-card";
@@ -147,6 +147,10 @@ export function ContractForm({ contract }: ContractFormProps) {
   const niche = useCurrentNicheConfig();
   const { hasFiscal } = usePlanLimits();
   const { canSeeContractValues } = useSensitiveData();
+  // "Editar a cobrança": num contrato que já cobra, linhas, dia, carteira e
+  // NFS-e ficam só leitura sem ela (o rascunho não cobra, então segue livre).
+  const canEditBilling = usePermission("contracts", "editBilling");
+  const billingLocked = Boolean(contract && contract.status !== "draft" && !canEditBilling);
   const defaults = React.useMemo(
     () => ({ type: niche.fieldService.defaultContractType, checklist: niche.fieldService.preventiveChecklist }),
     [niche.fieldService.defaultContractType, niche.fieldService.preventiveChecklist],
@@ -377,7 +381,7 @@ export function ContractForm({ contract }: ContractFormProps) {
             <ItemsEditor
               items={form.items}
               onChange={(items) => set("items", items)}
-              disabled={saving || !canSeeContractValues}
+              disabled={saving || !canSeeContractValues || billingLocked}
               hidePrices={!canSeeContractValues}
               stock={false}
               emptyText="Nenhum item na mensalidade."
@@ -401,7 +405,7 @@ export function ContractForm({ contract }: ContractFormProps) {
                 value={String(form.billingDay)}
                 onChange={(e) => set("billingDay", Number(e.target.value))}
                 disableSort
-                disabled={saving}
+                disabled={saving || billingLocked}
               >
                 {BILLING_DAYS.map((day) => (
                   <option key={day} value={day}>
@@ -416,7 +420,7 @@ export function ContractForm({ contract }: ContractFormProps) {
                 id="contractWallet"
                 value={form.wallet}
                 onChange={(e) => set("wallet", e.target.value)}
-                disabled={saving}
+                disabled={saving || billingLocked}
               >
                 {wallets.map((w) => (
                   <option key={w.id} value={w.id}>
@@ -453,7 +457,7 @@ export function ContractForm({ contract }: ContractFormProps) {
               id="contractNfse"
               checked={form.issueNfse}
               onCheckedChange={(checked) => set("issueNfse", checked)}
-              disabled={saving || (!hasFiscal && !form.issueNfse)}
+              disabled={saving || billingLocked || (!hasFiscal && !form.issueNfse)}
             />
           </div>
 

@@ -38,8 +38,10 @@ async function loadPmocContract(req: Request) {
   const tenantId = req.user?.tenantId;
   const uid = req.user?.uid;
   if (!tenantId || !uid) throw new HttpError(403, "Tenant não identificado.");
-  if (!(await hasPagePermission(req.user, "contracts", "canView"))) {
-    throw new HttpError(403, "Sem permissão para ver os contratos.");
+  // O link e o PDF do PMOC vão para fora da empresa: "Compartilhar o PMOC"
+  // (ausente, vale o Ver de Contratos).
+  if (!(await hasPagePermission(req.user, "contracts", "pmocShare"))) {
+    throw new HttpError(403, "Sem permissão para compartilhar o PMOC.");
   }
   const found = await loadOfTenant(SERVICE_CONTRACTS_COLLECTION, req.params.id, tenantId);
   if (!found) throw new HttpError(404, "Contrato não encontrado.");

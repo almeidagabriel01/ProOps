@@ -365,6 +365,40 @@ describe("ativar", () => {
 describe("cobrança exige o financeiro, não só Contratos", () => {
   const member = (body: Doc = {}, params: Doc = {}) => req({ role: "MEMBER", uid: "m1", params, body });
 
+  it("sem 'Ativar, suspender e encerrar', o membro com financeiro não ativa nem suspende", async () => {
+    const id = await createContract();
+    permissions.set("contracts.canView", true);
+    permissions.set("contracts.canEdit", true);
+    permissions.set("contracts.lifecycle", false);
+    permissions.set("transactions.canCreate", true);
+    const activateRes = mockRes();
+    await activateServiceContract(member({ startDate: "2026-10-05" }, { id }), activateRes);
+    expect(activateRes.statusCode).toBe(403);
+
+    await activate(id, "2026-10-05");
+    const suspendRes = mockRes();
+    await suspendServiceContract(member({}, { id }), suspendRes);
+    expect(suspendRes.statusCode).toBe(403);
+    expect(store.service_contracts[id].status).toBe("active");
+  });
+
+  it("sem 'Editar a cobrança', o contrato ativo não muda de valor; o título segue", async () => {
+    const id = await createContract();
+    await activate(id, "2026-10-05");
+    permissions.set("contracts.canView", true);
+    permissions.set("contracts.canEdit", true);
+    permissions.set("contracts.editBilling", false);
+    permissions.set("transactions.canCreate", true);
+    const price = mockRes();
+    await updateServiceContract(member({ lines: [{ ...LINES[0], unitPrice: 200 }] }, { id }), price);
+    expect(price.statusCode).toBe(403);
+    expect(store.service_contracts[id].monthlyAmount).toBe(129);
+
+    const title = mockRes();
+    await updateServiceContract(member({ title: "Monitoramento novo", lines: LINES }, { id }), title);
+    expect(title.statusCode).toBe(200);
+  });
+
   it("membro só com Contratos não ativa: ativar cria lançamento", async () => {
     const id = await createContract();
     permissions.set("contracts.canEdit", true);

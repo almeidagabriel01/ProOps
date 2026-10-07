@@ -25,7 +25,7 @@ import { useTenant } from "@/providers/tenant-provider";
 import { useAuth } from "@/providers/auth-provider";
 import { usePlanLimits } from "@/hooks/usePlanLimits";
 import { usePagePermission } from "@/hooks/usePagePermission";
-import { useSensitiveData } from "@/hooks/usePermission";
+import { usePermission, useSensitiveData } from "@/hooks/usePermission";
 import { useServiceOrderScope } from "@/hooks/useServiceOrders";
 import { toast } from "@/lib/toast";
 import { formatCurrency } from "@/utils/format";
@@ -57,6 +57,9 @@ export default function ContractDetailPage() {
   const { canEdit, canDelete } = usePagePermission("contracts");
   const financial = usePagePermission("transactions");
   const { canSeeContractValues } = useSensitiveData();
+  // Ações finas de Contratos: ativar, suspender, retomar e encerrar; e o PMOC.
+  const canLifecycle = usePermission("contracts", "lifecycle");
+  const canSharePmoc = usePermission("contracts", "pmocShare");
   const scope = useServiceOrderScope();
   const allowed = hasFieldService || user?.role === "superadmin";
 
@@ -194,13 +197,13 @@ export default function ContractDetailPage() {
           <div className="flex flex-wrap gap-2">
             {/* Ativar e retomar ligam a cobrança: criam lançamentos (e a
                 NFS-e, se ligada), então pedem o financeiro, como o backend. */}
-            {contract.status === "draft" && financial.canCreate && (
+            {contract.status === "draft" && canLifecycle && financial.canCreate && (
               <Button onClick={() => setActivateOpen(true)}>
                 <Play className="mr-2 h-4 w-4" />
                 Ativar
               </Button>
             )}
-            {contract.status === "suspended" && financial.canCreate && (
+            {contract.status === "suspended" && canLifecycle && financial.canCreate && (
               <Button
                 onClick={() => run(() => FieldService.resumeContract(contract.id), "Contrato retomado.")}
                 disabled={busy}
@@ -215,13 +218,13 @@ export default function ContractDetailPage() {
                 Editar
               </Button>
             )}
-            {contract.status === "active" && (
+            {contract.status === "active" && canLifecycle && (
               <Button variant="outline" onClick={() => setConfirm("suspend")}>
                 <Pause className="mr-2 h-4 w-4" />
                 Suspender
               </Button>
             )}
-            {contract.status !== "ended" && contract.status !== "draft" && (
+            {contract.status !== "ended" && contract.status !== "draft" && canLifecycle && (
               <Button variant="outline" onClick={() => setConfirm("end")}>
                 <Power className="mr-2 h-4 w-4" />
                 Encerrar
@@ -319,7 +322,7 @@ export default function ContractDetailPage() {
       </div>
 
       {contract.type === "pmoc" && tenant?.id && (
-        <PmocCard contract={contract} tenantId={tenant.id} showSettingsLink={writable} canShare={!isReadOnly} />
+        <PmocCard contract={contract} tenantId={tenant.id} showSettingsLink={writable} canShare={!isReadOnly && canSharePmoc} />
       )}
 
       <Card>
