@@ -44,7 +44,7 @@ const ViewingMemberContext = React.createContext<ViewingMemberContextType>({
 });
 
 export function ViewingMemberProvider({ children }: { children: React.ReactNode }) {
-  const { user } = useAuth();
+  const { user, isLoading: isAuthLoading } = useAuth();
   const isSuperAdmin = String(user?.role || "").toLowerCase() === "superadmin";
   const [member, setMember] = React.useState<TenantMemberInfo | null>(null);
   const [pendingId, setPendingId] = React.useState<string | null>(null);
@@ -58,7 +58,10 @@ export function ViewingMemberProvider({ children }: { children: React.ReactNode 
 
   // Reidrata depois de recarregar a aba: a sessão só guarda o id.
   React.useEffect(() => {
-    if (!hydrated) return;
+    // Logo depois de recarregar o usuário ainda não chegou: decidir "não é
+    // superadmin" aqui apagava o membro da sessão, e toda troca pelo seletor
+    // da faixa (que recarrega a página) voltava para a visão do dono.
+    if (!hydrated || isAuthLoading) return;
     if (!isSuperAdmin) {
       if (pendingId || member) {
         writeViewingMemberId(null);
@@ -91,7 +94,7 @@ export function ViewingMemberProvider({ children }: { children: React.ReactNode 
     return () => {
       cancelled = true;
     };
-  }, [hydrated, isSuperAdmin, pendingId, member]);
+  }, [hydrated, isAuthLoading, isSuperAdmin, pendingId, member]);
 
   const setViewingMember = React.useCallback(async (next: TenantMemberInfo) => {
     const tenantId = readViewingTenantId();
@@ -129,12 +132,15 @@ export function ViewingMemberProvider({ children }: { children: React.ReactNode 
   const value = React.useMemo(
     () => ({
       member: isSuperAdmin ? member : null,
+      // Com um membro na sessão, carregar o login também é carregar o membro:
+      // sem isso a tela abriria um instante na visão do dono.
       isLoading:
-        isSuperAdmin && (!hydrated || (Boolean(pendingId) && member?.id !== pendingId)),
+        (isAuthLoading && (!hydrated || Boolean(pendingId))) ||
+        (isSuperAdmin && (!hydrated || (Boolean(pendingId) && member?.id !== pendingId))),
       setViewingMember,
       clearViewingMember,
     }),
-    [hydrated, isSuperAdmin, member, pendingId, setViewingMember, clearViewingMember],
+    [hydrated, isAuthLoading, isSuperAdmin, member, pendingId, setViewingMember, clearViewingMember],
   );
 
   return <ViewingMemberContext.Provider value={value}>{children}</ViewingMemberContext.Provider>;

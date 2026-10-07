@@ -202,6 +202,11 @@ responde. **Sempre somente leitura**, sem "Habilitar edição".
   membro em `sessionStorage` junto da empresa (`tenantId:uid`, então trocar de
   empresa descarta o membro). `buildImpersonationHeaders` manda
   `x-view-as-member` e, com membro, nunca o cabeçalho de escrita.
+- **Recarga:** o provider só decide "não é superadmin, apaga o membro" depois
+  que o login carregou (`isLoading` do `useAuth`). Até 2026-10 decidia antes,
+  com o usuário ainda vazio, e toda troca pelo seletor da faixa (que recarrega
+  a página) e todo F5 voltavam para a visão do dono. Guard:
+  `providers/__tests__/viewing-member-provider.reload.test.tsx`.
 - **Permissões:** o `PermissionsProvider` usa o papel e o mapa do membro
   (`buildMemberViewPermissions`, `lib/permissions/member-view.ts`). Ele cai no
   início que teria no login (`resolveMemberViewHome`).
