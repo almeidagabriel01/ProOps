@@ -28,6 +28,7 @@ import type {
   StageScheduleInput,
   StageStatus,
 } from "@/types/project";
+import { ownerFilter } from "@/lib/permissions/query-scope";
 
 const COLLECTION = "projects";
 const MAX_PROJECTS = 300;
@@ -71,8 +72,15 @@ export function toProject(id: string, data: DocumentData): Project {
 export const ProjectsService = {
   async list(tenantId: string): Promise<Project[]> {
     if (!tenantId) return [];
+    // "Só os meus" (o técnico da obra): as rules recusam a lista sem o filtro.
+    const owner = await ownerFilter("projects");
     const snap = await getDocs(
-      query(collection(db, COLLECTION), where("tenantId", "==", tenantId), limit(MAX_PROJECTS)),
+      query(
+        collection(db, COLLECTION),
+        where("tenantId", "==", tenantId),
+        ...(owner ? [where(owner.field, "==", owner.uid)] : []),
+        limit(MAX_PROJECTS),
+      ),
     );
     return snap.docs
       .map((d) => toProject(d.id, d.data()))

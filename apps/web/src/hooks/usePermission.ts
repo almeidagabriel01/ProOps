@@ -48,6 +48,10 @@ export function usePageScope(pageId: string): { scope: string; isLoading: boolea
  */
 export function useSensitiveData() {
   const { isLoading } = usePermissions();
+  // O saldo das carteiras soma lançamentos de todo alcance: com "só receitas"
+  // ou "só as minhas vendas" em Lançamentos, ele revelaria o que a lista esconde.
+  const { scope: transactionsScope } = usePageScope("transactions");
+  const viewBalance = usePermission("wallet", "viewBalance");
   return {
     isLoading,
     canSeeCost: usePermission("products", "viewCost"),
@@ -55,6 +59,6 @@ export function useSensitiveData() {
     canSeeContractValues: usePermission("contracts", "viewValues"),
     canSeeServiceOrderPrices: usePermission("service_orders", "viewPrices"),
     canSeeCommissions: usePermission("transactions", "viewCommissions"),
-    canSeeBalance: usePermission("wallet", "viewBalance"),
+    canSeeBalance: viewBalance && transactionsScope === "all",
   };
 }

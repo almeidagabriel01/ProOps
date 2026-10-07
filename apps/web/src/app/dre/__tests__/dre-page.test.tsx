@@ -13,6 +13,10 @@ const m = vi.hoisted(() => ({
   list: vi.fn(),
 }));
 
+vi.mock("@/hooks/usePermission", () => ({
+  usePermission: () => true,
+  usePageScope: () => ({ scope: "all", isLoading: false }),
+}));
 vi.mock("@/hooks/usePlanLimits", () => ({ usePlanLimits: () => m.plan }));
 vi.mock("@/providers/permissions-provider", () => ({ usePermissions: () => m.perms }));
 vi.mock("@/hooks/usePagePermission", () => ({ usePagePermission: () => m.perm }));

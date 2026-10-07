@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { BarChart3, Tags } from "lucide-react";
+import { BarChart3, EyeOff, Tags } from "lucide-react";
 import { PageViewSwitcher } from "@/components/layout/page-view-switcher";
 import { Button } from "@/components/ui/button";
 import { Select } from "@/components/ui/select";
@@ -21,7 +21,7 @@ import { CategoriesDialog } from "./_components/categories-dialog";
 import { DreSkeleton } from "./_components/dre-skeleton";
 import { AccountantLinkButton } from "./_components/accountant-link-button";
 import { ExportMenu } from "@/components/shared/export-menu";
-import { usePermission } from "@/hooks/usePermission";
+import { usePageScope, usePermission } from "@/hooks/usePermission";
 import { downloadSheet, type SheetFormat } from "@/lib/export/sheet";
 import { buildDreSheet } from "@/lib/finance/dre-export";
 
@@ -41,6 +41,9 @@ export default function DrePage() {
   const { isDemo } = usePermissions();
   const { hasFinancial, isLoading: planLoading } = usePlanLimits();
   const canExport = usePermission("transactions", "export");
+  // O DRE soma a empresa inteira: é de quem vê todos os lançamentos (o backend recusa os demais).
+  const { scope: transactionsScope, isLoading: scopeLoading } = usePageScope("transactions");
+  const seesAll = !scopeLoading && transactionsScope === "all";
   const [preset, setPreset] = React.useState<DrePeriodPreset>("last_6");
   const [basis, setBasis] = React.useState<DreBasis>("cash");
   const [dre, setDre] = React.useState<DreResult | null>(null);
@@ -52,7 +55,7 @@ export default function DrePage() {
   const range = React.useMemo(() => presetRange(preset), [preset]);
 
   React.useEffect(() => {
-    if (!hasFinancial || !tenant) return;
+    if (!hasFinancial || !tenant || !seesAll) return;
     let cancelled = false;
     setLoading(true);
     setError(null);
@@ -69,7 +72,7 @@ export default function DrePage() {
     return () => {
       cancelled = true;
     };
-  }, [hasFinancial, tenant, range, basis, version]);
+  }, [hasFinancial, tenant, range, basis, version, seesAll]);
 
   if (!isTenantLoading && !tenant && user?.role === "superadmin") return <SelectTenantState />;
 
@@ -78,6 +81,16 @@ export default function DrePage() {
       <UpgradeRequired
         feature="DRE"
         description="O DRE mostra quanto sobrou em cada mês: receitas menos impostos, custos e despesas, pelas categorias dos lançamentos. Faça upgrade para o plano Profissional ou adquira o módulo Financeiro."
+      />
+    );
+  }
+
+  if (!scopeLoading && transactionsScope !== "all") {
+    return (
+      <EmptyState
+        icon={EyeOff}
+        title="Disponível para quem vê todos os lançamentos"
+        description="Seu acesso a Lançamentos mostra só uma parte deles (só receitas ou só os das suas vendas). Este relatório soma a empresa inteira, então fica com quem vê tudo."
       />
     );
   }

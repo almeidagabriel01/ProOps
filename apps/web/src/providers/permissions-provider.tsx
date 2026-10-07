@@ -18,10 +18,17 @@ import {
   normalizeRole,
 } from "@/lib/permissions/member-view";
 import { db } from "@/lib/firebase";
+import {
+  SCOPE_OWNER_FIELD,
+  publishViewerScope,
+  type ScopedPageId,
+  type ViewerScope,
+} from "@/lib/permissions/query-scope";
 import { collection, getDocs, doc, getDoc } from "firebase/firestore";
 import {
   getPermissionPageDef,
   resolvePermissionKey,
+  resolvePermissionScope,
 } from "@/lib/permissions/catalog";
 
 import {
@@ -276,6 +283,22 @@ export function PermissionsProvider({
     },
     [permissions, isDemo],
   );
+
+  // "Só os meus" nas consultas do SDK (`lib/permissions/query-scope.ts`):
+  // publicado na renderização, antes dos efeitos das telas, para nenhuma lista
+  // sair sem o filtro do dono que as rules exigem. Na visão de membro do
+  // superadmin, o dono é o membro visto.
+  const scopeUid = viewingMember?.id ?? user?.id ?? null;
+  const viewerScope = React.useMemo<ViewerScope | null>(() => {
+    if (isLoading || isViewingMemberLoading) return null;
+    if (!permissions || permissions.role === "MASTER" || isDemo) return { uid: scopeUid, byPage: {} };
+    const byPage: ViewerScope["byPage"] = {};
+    for (const pageId of Object.keys(SCOPE_OWNER_FIELD) as ScopedPageId[]) {
+      byPage[pageId] = resolvePermissionScope(pageId, permissionDocOf(permissions.pages[pageId])) ?? "all";
+    }
+    return { uid: scopeUid, byPage };
+  }, [isLoading, isViewingMemberLoading, permissions, isDemo, scopeUid]);
+  publishViewerScope(user?.id ? viewerScope : { uid: null, byPage: {} });
 
   return (
     <PermissionsContext.Provider

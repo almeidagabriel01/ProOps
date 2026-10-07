@@ -5,6 +5,7 @@ import { collection, onSnapshot, query, where, limit } from "firebase/firestore"
 import { db } from "@/lib/firebase";
 import { mapProposalDoc } from "@/services/proposal-service";
 import { isFirestorePermissionError } from "@/lib/firestore-error";
+import { ownerFilter } from "@/lib/permissions/query-scope";
 import type { Proposal } from "@/types/proposal";
 
 export interface ClientResponses {
@@ -35,8 +36,11 @@ export function useClientResponses(tenantId: string | undefined | null): ClientR
     if (!tenantId) return;
     setAcceptances(null);
     setChangeRequests(null);
+    let cancelled = false;
+    let stop = () => {};
 
     const listen = (
+      owner: { field: string; uid: string } | null,
       field: string,
       value: string,
       set: (map: Map<string, Proposal>) => void,
@@ -45,6 +49,8 @@ export function useClientResponses(tenantId: string | undefined | null): ClientR
         query(
           collection(db, "proposals"),
           where("tenantId", "==", tenantId),
+          // "Só as minhas": as rules recusam a lista sem o filtro do dono.
+          ...(owner ? [where(owner.field, "==", owner.uid)] : []),
           where(field, "==", value),
           limit(MAX_OPEN_RESPONSES),
         ),
@@ -58,11 +64,18 @@ export function useClientResponses(tenantId: string | undefined | null): ClientR
         },
       );
 
-    const stopAcceptances = listen("clientAcceptance.status", "pending", setAcceptances);
-    const stopChanges = listen("clientChangeRequest.status", "open", setChangeRequests);
+    void ownerFilter("proposals").then((owner) => {
+      if (cancelled) return;
+      const stopAcceptances = listen(owner, "clientAcceptance.status", "pending", setAcceptances);
+      const stopChanges = listen(owner, "clientChangeRequest.status", "open", setChangeRequests);
+      stop = () => {
+        stopAcceptances();
+        stopChanges();
+      };
+    });
     return () => {
-      stopAcceptances();
-      stopChanges();
+      cancelled = true;
+      stop();
     };
   }, [tenantId]);
 

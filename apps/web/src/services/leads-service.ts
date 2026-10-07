@@ -3,6 +3,7 @@
 import { collection, getDocs, limit, query, where } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { callApi } from "@/lib/api-client";
+import { ownerFilter } from "@/lib/permissions/query-scope";
 
 export type LeadStage = "novo" | "contato" | "qualificado" | "convertido" | "perdido";
 export type LeadSource =
@@ -119,8 +120,15 @@ const newestFirst = <T extends { createdAt: string | null }>(a: T, b: T) =>
 export const LeadsService = {
   async list(tenantId: string): Promise<Lead[]> {
     if (!tenantId) return [];
+    // "Só os meus" no CRM: as rules recusam a lista sem o filtro do dono.
+    const owner = await ownerFilter("kanban");
     const snap = await getDocs(
-      query(collection(db, "leads"), where("tenantId", "==", tenantId), limit(MAX_LEADS)),
+      query(
+        collection(db, "leads"),
+        where("tenantId", "==", tenantId),
+        ...(owner ? [where(owner.field, "==", owner.uid)] : []),
+        limit(MAX_LEADS),
+      ),
     );
     return snap.docs.map((d) => toLead(d.id, d.data())).sort(newestFirst);
   },
