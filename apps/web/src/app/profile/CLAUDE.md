@@ -295,7 +295,8 @@ Se status === "past_due" E currentPeriodEnd + 7 dias > hoje → add-on ainda ati
 
 | Hook | Responsabilidade |
 |---|---|
-| `usePlanChange(user, tenant)` | Gerencia upgrade/downgrade, dialogs, preview de mudança de plano |
+| `useProfileSubject()` | De quem é o perfil (própria conta, dono ou membro visto pelo super admin) |
+| `usePlanChange(user, tenant, billing)` | Gerencia upgrade/downgrade, dialogs, preview de mudança de plano, sobre a conta de `billing` |
 | `usePlanUsage()` | Carrega uso atual vs. limites (propostas, clientes, produtos, usuários) |
 | `usePlanLimits()` | Carrega features do plano + add-ons contratados |
 | `useStripePrices()` | Busca preços dinâmicos de add-ons do Stripe |
@@ -316,9 +317,26 @@ Se status === "past_due" E currentPeriodEnd + 7 dias > hoje → add-on ainda ati
 
 ## Considerações multi-tenant
 
-- A página de perfil sempre usa o usuário e tenant **ativos** dos providers
-- Para superadmins que estão impersonando um tenant (`setViewingTenant`), a aba de assinatura exibe os dados do tenant visualizado
-- O `usePlanChange` resolve o `effectiveUser` para o usuário admin do tenant quando necessário (via `UserService.getTenantAdminUser()`)
+- A página de perfil sempre usa o tenant **ativo** dos providers.
+- **De quem é o perfil** sai de `useProfileSubject()` (`hooks/use-profile-subject.ts`):
+  - `self`: a própria conta (todo usuário, e o super admin fora do Acessar Painel);
+  - `owner`: no Acessar Painel, o dono da empresa vista, pela mesma regra do
+    backend (`UserService.getTenantOwnerUser`, o "Dono" da lista de membros e o
+    administrador da aba Acesso);
+  - `member`: no Ver como membro, o membro visto.
+  Nome, e-mail e telefone vêm de `subject`; a aba Minha Assinatura e o
+  `usePlanChange` recebem `billingUser`, que é sempre o dono.
+- **Fora de `self` os dados pessoais ficam somente leitura** (`readOnlyPersonalData`
+  no `OverviewTab`): o `PersonalForm` perde editar e salvar, e o `PasswordForm`
+  some. `PUT /v1/profile` e a troca de senha usam a identidade LOGADA, então
+  gravariam no doc e na senha do próprio super admin. O aviso no topo
+  (`ImpersonatedProfileNotice`) diz de quem é o perfil e manda para a aba Acesso.
+- Até 2026-10 o `usePlanChange` resolvia a pessoa por `getTenantAdminUser`
+  (`role == "admin"`, minúsculo) e, sem achar, devolvia qualquer usuário da
+  empresa: o Perfil da AWA mostrava o e-mail de um membro. Guards:
+  `services/__tests__/user-service.owner.test.ts`,
+  `hooks/__tests__/use-profile-subject.test.tsx` e
+  `components/profile/__tests__/overview-tab.impersonation.test.tsx`.
 
 ---
 
@@ -327,6 +345,7 @@ Se status === "past_due" E currentPeriodEnd + 7 dias > hoje → add-on ainda ati
 A página mostra `ProfileSkeleton` enquanto qualquer um dos seguintes está carregando:
 
 - `usePlanChange.isLoading`
+- `useProfileSubject().isLoading` (dono ou membro ainda sendo buscados)
 - `useAuth().isLoading`
 - `usePlanUsage().isLoading`
 - `useTenant().isLoading` (exceto para superadmin)

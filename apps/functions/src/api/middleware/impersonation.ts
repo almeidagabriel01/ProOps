@@ -3,6 +3,7 @@ import { db } from "../../init";
 import { assertTenantExists } from "../../lib/tenant-resolution";
 import { writeSecurityAuditEvent } from "../../lib/security-observability";
 import { logger } from "../../lib/logger";
+import { compareByCreatedAt, isTenantOwnerCandidate } from "../../lib/tenant-owner";
 import type { ImpersonationContext } from "../../lib/auth-context";
 
 /**
@@ -131,15 +132,7 @@ export async function resolveTenantOwnerUid(tenantId: string): Promise<string | 
     // de membros do painel; o resultado fica 60s em cache.
     .limit(200)
     .get();
-  const owners = snap.docs
-    .filter((doc) => {
-      const masterId = String(doc.get("masterId") || "").trim();
-      return !masterId || masterId === doc.id;
-    })
-    .filter((doc) => String(doc.get("role") || "").toUpperCase() !== "SUPERADMIN")
-    .sort((a, b) =>
-      String(a.get("createdAt") || "").localeCompare(String(b.get("createdAt") || "")),
-    );
+  const owners = snap.docs.filter(isTenantOwnerCandidate).sort(compareByCreatedAt);
   const ownerUid = owners[0]?.id ?? null;
 
   ownerCache.set(tenantId, { ownerUid, expiresAt: Date.now() + OWNER_CACHE_TTL_MS });

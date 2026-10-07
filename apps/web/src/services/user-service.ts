@@ -9,50 +9,46 @@ import {
   updateDoc,
 } from "firebase/firestore";
 import { User, UserOnboardingState } from "@/types";
+import { AdminService } from "@/services/admin-service";
+
+const TENANT_OWNER_CACHE_TTL_MS = 5 * 60 * 1000;
+const tenantOwnerCache = new Map<
+  string,
+  { promise: Promise<User | null>; expiresAt: number }
+>();
+
+export function clearTenantOwnerCacheForTest(): void {
+  tenantOwnerCache.clear();
+}
 
 export const UserService = {
   /**
-   * Get admin user for a specific tenant
-   * Returns the first admin or any user if no admin found
+   * Dono da empresa vista pelo super admin no "Acessar Painel".
+   *
+   * Usa a mesma regra do backend (`resolveTenantOwnerUid`, que marca o "Dono"
+   * na lista de membros do painel) e lê o doc completo dele, que a aba de
+   * assinatura precisa. Sem dono, devolve null: nunca outra pessoa da empresa
+   * no lugar dele. A versão antiga buscava `role == "admin"` (o dono costuma
+   * estar gravado como ADMIN ou MASTER) e, sem achar, devolvia qualquer usuário
+   * do tenant, e o Perfil mostrava o e-mail de um membro.
    */
-  getTenantAdminUser: async (tenantId: string): Promise<User | null> => {
-    try {
-      // First try to find admin user
-      const adminQuery = query(
-        collection(db, "users"),
-        where("tenantId", "==", tenantId),
-        where("role", "==", "admin"),
-      );
-      const adminSnap = await getDocs(adminQuery);
+  getTenantOwnerUser: (tenantId: string): Promise<User | null> => {
+    const cached = tenantOwnerCache.get(tenantId);
+    if (cached && cached.expiresAt > Date.now()) return cached.promise;
 
-      if (!adminSnap.empty) {
-        const userData = adminSnap.docs[0].data();
-        return {
-          id: adminSnap.docs[0].id,
-          ...userData,
-        } as User;
-      }
-
-      // Fallback: get any user from tenant
-      const usersQuery = query(
-        collection(db, "users"),
-        where("tenantId", "==", tenantId),
-      );
-      const usersSnap = await getDocs(usersQuery);
-
-      if (!usersSnap.empty) {
-        const userData = usersSnap.docs[0].data();
-        return {
-          id: usersSnap.docs[0].id,
-          ...userData,
-        } as User;
-      }
-
-      return null;
-    } catch (error) {
-      console.error("Error fetching tenant admin user:", error);
-      return null;
-    }
+    const promise = (async () => {
+      const members = await AdminService.getTenantMembers(tenantId);
+      const owner = members.find((member) => member.isOwner);
+      if (!owner) return null;
+      return UserService.getUserById(owner.id);
+    })();
+    tenantOwnerCache.set(tenantId, {
+      promise,
+      expiresAt: Date.now() + TENANT_OWNER_CACHE_TTL_MS,
+    });
+    // Falha não fica em cache: a próxima tela tenta de novo.
+    promise.catch(() => tenantOwnerCache.delete(tenantId));
+    return promise;
   },
 
   /**

@@ -39,6 +39,7 @@ import { getUserColor, getInitials } from "@/lib/avatar-utils";
 import { ImpersonationBar } from "@/components/layout/impersonation-bar";
 import { MemberViewSwitcher } from "@/components/layout/member-view-switcher";
 import { useViewingMember } from "@/providers/viewing-member-provider";
+import { useTenantOwner } from "@/hooks/use-tenant-owner";
 import { useOptionalOnboarding } from "@/components/onboarding/onboarding-provider";
 import { HelpPanel } from "@/components/layout/help-panel";
 import { InstallAppDialog } from "@/components/layout/install-app-dialog";
@@ -112,6 +113,14 @@ export function Header({}: HeaderProps) {
   const router = useRouter();
   const { hasWhatsApp } = usePlanLimits();
   const { member: viewingMember } = useViewingMember();
+  const isSuperAdminViewing = isViewingAsTenant && user?.role === "superadmin";
+  const viewedOwner = useTenantOwner(isSuperAdminViewing ? tenant?.id : null);
+  const viewedOwnerName = viewedOwner?.name || viewedOwner?.email || null;
+  const viewingMemberName = viewingMember
+    ? viewingMember.name || viewingMember.email || "Membro"
+    : null;
+  // De quem é o painel aberto pelo super admin: o membro visto ou o dono.
+  const viewedPersonName = viewingMemberName ?? viewedOwnerName;
 
   const isHeaderBlocked =
     isAuthLoading || isPermLoading || isTenantLoading || isGlobalLoading;
@@ -133,16 +142,15 @@ export function Header({}: HeaderProps) {
     >
       <div className="flex min-w-0 items-center gap-4">
         <CommandPalette />
-        {isViewingAsTenant && user?.role === "superadmin" && (
+        {isSuperAdminViewing && (
           <ImpersonationBar
             companyName={companyName || tenant?.name || "Empresa"}
             planLabel={isPlanLabelLoading ? null : planLabel}
             writeEnabled={impersonationWriteEnabled}
             onToggleWrite={setImpersonationWriteEnabled}
             onExit={handleBackToAdmin}
-            memberName={
-              viewingMember ? viewingMember.name || viewingMember.email || "Membro" : null
-            }
+            memberName={viewingMemberName}
+            ownerName={viewedOwnerName}
             memberSwitcher={<MemberViewSwitcher />}
           />
         )}
@@ -199,20 +207,44 @@ export function Header({}: HeaderProps) {
               <DropdownMenuLabel className="font-normal">
                 <div className="flex flex-col space-y-1">
                   <p className="text-sm font-medium leading-none">
-                    {user ? user.name : "Visitante"}
+                    {isSuperAdminViewing
+                      ? "Você (super admin)"
+                      : user
+                        ? user.name
+                        : "Visitante"}
                   </p>
                   <p className="text-xs leading-none text-muted-foreground">
                     {user ? user.email : ""}
                   </p>
                 </div>
               </DropdownMenuLabel>
+              {/* No Acessar Painel o nome no botão é o da empresa vista, e o
+                  e-mail acima é o do super admin: sem esta linha não dá para
+                  saber se o painel é o do dono ou o de um membro. */}
+              {isSuperAdminViewing && (
+                <DropdownMenuLabel
+                  className="pt-0 text-xs font-normal text-muted-foreground"
+                  data-testid="user-menu-viewing"
+                >
+                  Vendo: {companyName || tenant?.name || "Empresa"}
+                  {viewingMemberName
+                    ? `, membro ${viewingMemberName}`
+                    : viewedOwnerName
+                      ? `, dono ${viewedOwnerName}`
+                      : ", painel do dono"}
+                </DropdownMenuLabel>
+              )}
               <DropdownMenuSeparator />
               <DropdownMenuItem
                 onClick={() => router.push("/profile")}
                 className="cursor-pointer"
               >
                 <UserIcon className="mr-2 h-4 w-4" />
-                <span>Meu Perfil</span>
+                <span>
+                  {isSuperAdminViewing && viewedPersonName
+                    ? `Perfil de ${viewedPersonName}`
+                    : "Meu Perfil"}
+                </span>
               </DropdownMenuItem>
               <DropdownMenuItem
                 onClick={() => router.push("/settings")}

@@ -31,22 +31,25 @@ import { cn } from "@/lib/utils";
 export function MemberViewSwitcher() {
   const { tenant } = useTenant();
   const { member, setViewingMember, clearViewingMember } = useViewingMember();
-  const [members, setMembers] = React.useState<TenantMemberInfo[] | null>(null);
+  const [people, setPeople] = React.useState<TenantMemberInfo[] | null>(null);
   const [isLoading, setIsLoading] = React.useState(false);
   const tenantId = tenant?.id;
 
   React.useEffect(() => {
-    setMembers(null);
+    setPeople(null);
   }, [tenantId]);
 
+  const owner = people?.find((m) => m.isOwner) ?? null;
+  const members = people ? people.filter((m) => !m.isOwner) : null;
+
   const loadMembers = React.useCallback(() => {
-    if (!tenantId || members || isLoading) return;
+    if (!tenantId || people || isLoading) return;
     setIsLoading(true);
     AdminService.getTenantMembers(tenantId)
-      .then((list) => setMembers(list.filter((m) => !m.isOwner)))
+      .then(setPeople)
       .catch(() => toast.error("Não foi possível carregar os membros desta empresa."))
       .finally(() => setIsLoading(false));
-  }, [tenantId, members, isLoading]);
+  }, [tenantId, people, isLoading]);
 
   const viewCompany = async () => {
     if (!member) return;
@@ -82,9 +85,15 @@ export function MemberViewSwitcher() {
           </DropdownMenuLabel>
           <DropdownMenuItem
             onClick={() => void viewCompany()}
-            className={cn(!member && "font-semibold")}
+            className={cn("flex-col items-start", !member && "font-semibold")}
+            data-testid="member-view-switcher-owner"
           >
-            Empresa (visão completa)
+            <span className="truncate">
+              {owner ? owner.name || owner.email || "Dono" : "Dono da empresa"}
+            </span>
+            <span className="truncate text-xs font-normal text-muted-foreground">
+              Dono, visão completa da empresa
+            </span>
           </DropdownMenuItem>
           <DropdownMenuSeparator />
           {isLoading && (

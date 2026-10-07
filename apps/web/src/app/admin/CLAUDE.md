@@ -173,6 +173,19 @@ free (`canAccessTenantPanel`) e para empresa desativada.
   (`super_admin_tenant_write`) e saída (`super_admin_impersonation_stopped`,
   inclusive a implícita ao entrar em `/admin`).
 - Sair: botão "Sair" da faixa, ou abrir qualquer rota `/admin`.
+- **De quem é o painel:** a faixa leva o selo "Dono" (e "painel de {dono}") ou
+  "Membro", em qualquer largura, e o menu do avatar diz "Vendo: {empresa}, dono
+  {nome}" ou "membro {nome}", com "Perfil de {nome}" no lugar de "Meu Perfil".
+  O e-mail do menu continua sendo o do super admin.
+- **Uma regra de dono só:** `lib/tenant-owner.ts` no backend, usada por
+  `resolveTenantOwnerUid` (o "Dono" da lista de membros) e pela aba Acesso
+  (`getAllTenantsBilling`). No front, `UserService.getTenantOwnerUser` lê o dono
+  dessa lista. Até 2026-10 eram quatro regras: o Perfil buscava
+  `role == "admin"` e, sem achar, mostrava qualquer usuário da empresa (o
+  e-mail de um membro, no caso da AWA), e a aba Acesso podia mostrar um membro
+  promovido a ADMIN como administrador.
+- **Perfil:** mostra o dono, ou o membro visto, em somente leitura
+  (`useProfileSubject`; ver `app/profile/CLAUDE.md`).
 
 ### "Ver como membro"
 

@@ -7,12 +7,15 @@ import { getRoleLabel, getRoleBadgeVariant } from "@/utils/format";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { formatDateBR } from "@/utils/date-format";
 import { usePermissions } from "@/providers/permissions-provider";
+import type { ProfileSubjectMode } from "@/hooks/use-profile-subject";
 
 interface ProfileHeaderProps {
   user: User | null;
   tenant: Tenant | null;
   userPlan?: UserPlan | null;
   isMaster: boolean;
+  /** Dono ou membro visto pelo super admin; `self` é a própria conta. */
+  subjectMode?: ProfileSubjectMode;
 }
 
 export function ProfileHeader({
@@ -20,11 +23,25 @@ export function ProfileHeader({
   tenant,
   userPlan,
   isMaster,
+  subjectMode = "self",
 }: ProfileHeaderProps) {
   const { isDemo } = usePermissions();
   // Demo/free accounts own their tenant, so they are shown as the account
   // administrator (with everything read-only elsewhere).
   const showAsMaster = isMaster || isDemo;
+  // Na visão do super admin o selo diz de quem é o perfil, e não o papel de
+  // quem está olhando.
+  const roleBadge =
+    subjectMode === "owner"
+      ? { label: "Dono da empresa", variant: "default" as const }
+      : subjectMode === "member"
+        ? { label: "Membro da equipe", variant: "secondary" as const }
+        : showAsMaster
+          ? { label: "Administrador", variant: "default" as const }
+          : {
+              label: getRoleLabel(user?.role || "user"),
+              variant: getRoleBadgeVariant(user?.role || "user"),
+            };
   return (
     <div className="flex flex-col md:flex-row gap-6 items-center p-6 bg-gradient-to-r from-background to-muted/20 border rounded-xl shadow-sm">
       <div className="relative">
@@ -66,13 +83,12 @@ export function ProfileHeader({
 
         <div className="flex flex-wrap items-center justify-center md:justify-start gap-2 pt-2">
           <Badge
-            variant={
-              showAsMaster ? "default" : getRoleBadgeVariant(user?.role || "user")
-            }
+            variant={roleBadge.variant}
             className="gap-1.5"
+            data-testid="profile-role-badge"
           >
             <Shield className="w-3 h-3" />
-            {showAsMaster ? "Administrador" : getRoleLabel(user?.role || "user")}
+            {roleBadge.label}
           </Badge>
 
           {tenant && (

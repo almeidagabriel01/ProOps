@@ -12,12 +12,14 @@ hooks/
 ├── use-count-up.ts        # Animação de contagem numérica
 ├── use-horizontal-scroll-affordance.ts # Fileira de abas que rola: centra a ativa e diz de que lado há mais (esmaecido .scroll-fade-x)
 ├── use-prefers-reduced-motion.ts
+├── use-profile-subject.ts # De quem é o Perfil: a própria conta, ou o dono ou membro visto pelo super admin
 ├── use-price-tables.ts    # Tabelas de preço: lista/CRUD, opções do contato e a tabela de um cliente (proposta)
 ├── use-record-search.ts   # Busca de propostas e contatos para o Ctrl+K (índice searchTokens)
 ├── use-sort.ts            # Ordenação de listas
 ├── use-tenant-activity.ts # Atividade das empresas no painel do super admin, paginada por cursor
 ├── use-task-reader.ts     # Como a pessoa lê as tarefas (empresa inteira ou só as dela)
 ├── use-tasks.ts           # Tarefas (lista ou de um contato/proposta/lead), pessoas e concluir otimista
+├── use-tenant-owner.ts    # Dono da empresa vista pelo super admin (mesma regra do backend)
 ├── use-window-focus.ts    # Detecção de foco da janela
 ├── useAiChat.ts           # Chat com a IA Lia
 ├── useClientActions.ts    # Ações CRUD de clientes

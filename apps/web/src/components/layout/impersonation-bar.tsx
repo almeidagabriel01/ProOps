@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { Eye, LogOut, PencilLine } from "lucide-react";
+import { Eye, LogOut, PencilLine, UserRound } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   AlertDialog,
@@ -23,6 +23,8 @@ interface ImpersonationBarProps {
   onExit: () => void;
   /** Nome do membro no "Ver como membro". Sempre somente leitura. */
   memberName?: string | null;
+  /** Nome do dono da empresa, mostrado no modo empresa (a visão dele). */
+  ownerName?: string | null;
   /** Seletor "Ver como" (empresa ou um membro). */
   memberSwitcher?: React.ReactNode;
 }
@@ -43,6 +45,7 @@ export function ImpersonationBar({
   onToggleWrite,
   onExit,
   memberName,
+  ownerName,
   memberSwitcher,
 }: ImpersonationBarProps) {
   const [confirmOpen, setConfirmOpen] = React.useState(false);
@@ -56,16 +59,34 @@ export function ImpersonationBar({
         data-mode={isMemberView ? "member" : writeEnabled ? "write" : "read"}
         className={cn(
           "flex min-w-0 items-center gap-2 rounded-full border px-3 py-1.5 text-xs shadow-sm animate-in fade-in slide-in-from-top-1 duration-300",
-          writeEnabled
-            ? "border-amber-500/50 bg-amber-500/10"
-            : "border-border/60 bg-background/50 backdrop-blur-sm",
+          isMemberView
+            ? "border-sky-500/50 bg-sky-500/10"
+            : writeEnabled
+              ? "border-amber-500/50 bg-amber-500/10"
+              : "border-border/60 bg-background/50 backdrop-blur-sm",
         )}
       >
-        {writeEnabled ? (
+        {isMemberView ? (
+          <UserRound className="h-3.5 w-3.5 shrink-0 text-sky-600 dark:text-sky-400" aria-hidden />
+        ) : writeEnabled ? (
           <PencilLine className="h-3.5 w-3.5 shrink-0 text-amber-600" aria-hidden />
         ) : (
           <Eye className="h-3.5 w-3.5 shrink-0 text-muted-foreground" aria-hidden />
         )}
+        {/* Diz em qualquer largura de quem é o painel: o do dono (a empresa
+            inteira) ou o de um membro, que vê só o que as permissões dele
+            abrem. */}
+        <span
+          data-testid="impersonation-view-badge"
+          className={cn(
+            "shrink-0 rounded-full px-2 py-0.5 font-semibold",
+            isMemberView
+              ? "bg-sky-500/20 text-sky-700 dark:text-sky-300"
+              : "bg-foreground/10 text-foreground",
+          )}
+        >
+          {isMemberView ? "Membro" : "Dono"}
+        </span>
         {isMemberView ? (
           <span className="min-w-0 truncate font-medium text-foreground/90">
             <span className="hidden sm:inline">Vendo como </span>
@@ -78,6 +99,11 @@ export function ImpersonationBar({
           <span className="min-w-0 truncate font-medium text-foreground/90">
             <span className="hidden sm:inline">Visualizando </span>
             {companyName}
+            {ownerName && (
+              <span className="hidden font-normal text-muted-foreground sm:inline">
+                {" "}· painel de {ownerName}
+              </span>
+            )}
           </span>
         )}
         {planLabel && (
@@ -88,12 +114,12 @@ export function ImpersonationBar({
         <span
           className={cn(
             "hidden shrink-0 rounded-full px-2 py-0.5 font-medium md:inline",
-            writeEnabled
+            writeEnabled && !isMemberView
               ? "bg-amber-500/20 text-amber-700 dark:text-amber-300"
               : "bg-muted text-muted-foreground",
           )}
         >
-          {writeEnabled ? "Edição habilitada" : "Somente leitura"}
+          {writeEnabled && !isMemberView ? "Edição habilitada" : "Somente leitura"}
         </span>
 
         {memberSwitcher && (

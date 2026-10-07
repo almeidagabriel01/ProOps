@@ -21,9 +21,11 @@ import { Loader } from "@/components/ui/loader";
 
 interface PersonalFormProps {
   user: User | null;
+  /** Só exibe: sem o botão de editar e sem salvar. */
+  readOnly?: boolean;
 }
 
-export function PersonalForm({ user }: PersonalFormProps) {
+export function PersonalForm({ user, readOnly = false }: PersonalFormProps) {
   const [name, setName] = useState(user?.name || "");
   const [phoneNumber, setPhoneNumber] = useState(user?.phoneNumber || "");
   const [isLoading, setIsLoading] = useState(false);
@@ -34,7 +36,7 @@ export function PersonalForm({ user }: PersonalFormProps) {
     phoneNumber !== (user?.phoneNumber || "");
 
   const handleSave = async () => {
-    if (!user || !hasChanges) return;
+    if (readOnly || !user || !hasChanges) return;
 
     setIsLoading(true);
     try {
@@ -65,32 +67,36 @@ export function PersonalForm({ user }: PersonalFormProps) {
             Informações Pessoais
           </CardTitle>
           <CardDescription>
-            Gerencie seus dados de identificação e segurança.
+            {readOnly
+              ? "Dados de identificação desta pessoa, somente leitura."
+              : "Gerencie seus dados de identificação e segurança."}
           </CardDescription>
         </div>
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={() => setIsEditing(!isEditing)}
-          className="shrink-0"
-        >
-          <div className="sr-only">Editar</div>
-          <Palette className="w-4 h-4 hidden" />{" "}
-          {/* Dummy to keep import if needed, or better use Pencil */}
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            className="w-4 h-4"
+        {!readOnly && (
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => setIsEditing(!isEditing)}
+            className="shrink-0"
           >
-            <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
-            <path d="m15 5 4 4" />
-          </svg>
-        </Button>
+            <div className="sr-only">Editar</div>
+            <Palette className="w-4 h-4 hidden" />{" "}
+            {/* Dummy to keep import if needed, or better use Pencil */}
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className="w-4 h-4"
+            >
+              <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
+              <path d="m15 5 4 4" />
+            </svg>
+          </Button>
+        )}
       </CardHeader>
       <CardContent className="flex flex-col gap-6">
         <div className="flex flex-col gap-4">
@@ -133,7 +139,7 @@ export function PersonalForm({ user }: PersonalFormProps) {
           />
         </div>
       </CardContent>
-      {isEditing && (
+      {isEditing && !readOnly && (
         <CardFooter className="border-t bg-muted/10 px-6 py-4">
           <div className="flex w-full justify-end gap-2">
             <Button variant="ghost" onClick={() => setIsEditing(false)}>

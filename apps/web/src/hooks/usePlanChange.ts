@@ -6,7 +6,6 @@ import { toast } from '@/lib/toast';
 import { UserPlan, User, Tenant, BillingInterval } from "@/types";
 import { PlanPreview } from "@/types/plan";
 import { PlanService } from "@/services/plan-service";
-import { UserService } from "@/services/user-service";
 import { trackActivity } from "@/lib/activity/activity-tracker";
 import { isManualContractWithoutStripe } from "@/lib/billing/manual-contract";
 
@@ -52,6 +51,11 @@ interface UsePlanChangeReturn {
 export function usePlanChange(
   user: User | null,
   tenant?: Tenant | null,
+  /**
+   * Conta que carrega a assinatura, resolvida por `useProfileSubject`: a do
+   * próprio usuário, ou a do dono da empresa vista pelo super admin.
+   */
+  billing?: { user: User | null; ready: boolean },
 ): UsePlanChangeReturn {
   const searchParams = useSearchParams();
 
@@ -60,8 +64,8 @@ export function usePlanChange(
   const [allPlans, setAllPlans] = useState<UserPlan[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Effective user (for superadmin viewing tenant)
-  const [effectiveUser, setEffectiveUser] = useState<User | null>(null);
+  const effectiveUser = billing ? billing.user : user;
+  const effectiveUserReady = billing ? billing.ready : Boolean(user);
 
   // Processing state
   const [upgradingPlan, setUpgradingPlan] = useState<string | null>(null);
@@ -115,22 +119,6 @@ export function usePlanChange(
     [normalizePlanKey],
   );
 
-  // Determine effective user (for superadmin viewing tenant)
-  useEffect(() => {
-    const fetchEffectiveUser = async () => {
-      // If superadmin is viewing another tenant, fetch that tenant's admin user
-      if (user?.role === "superadmin" && tenant) {
-        const tenantAdmin = await UserService.getTenantAdminUser(tenant.id);
-        setEffectiveUser(tenantAdmin);
-      } else {
-        // Regular user or no tenant viewing
-        setEffectiveUser(user);
-      }
-    };
-
-    fetchEffectiveUser();
-  }, [user, tenant]);
-
   // Handle success/canceled from Stripe redirect
   useEffect(() => {
     // Wait for loading to complete before showing toasts
@@ -178,8 +166,9 @@ export function usePlanChange(
   // Load plans based on effective user
   useEffect(() => {
     const loadPlans = async () => {
-      // Wait for effectiveUser to be determined
-      if (!effectiveUser) return;
+      // Espera saber de quem é a assinatura. Sem dono resolvido (empresa sem
+      // dono), os planos carregam do mesmo jeito, só sem o plano atual.
+      if (!effectiveUserReady) return;
 
       let storedPlan: UserPlan | null = null;
 
@@ -231,7 +220,7 @@ export function usePlanChange(
     };
 
     loadPlans();
-  }, [effectiveUser, resolvePlanFromCollection]);
+  }, [effectiveUser, effectiveUserReady, resolvePlanFromCollection]);
 
   const isManualContract = isManualContractWithoutStripe(tenant, effectiveUser);
 
