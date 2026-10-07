@@ -34,15 +34,15 @@ export const BASE_PERMISSION_ACTIONS: readonly BasePermissionAction[] = [
   "canDelete",
 ];
 
-export type PermissionArea = "geral" | "comercial" | "catalogo" | "operacao" | "financeiro" | "fiscal";
+export type PermissionArea = "geral" | "comercial" | "catalogo" | "operacao" | "financeiro";
 
 export const PERMISSION_AREAS: ReadonlyArray<{ id: PermissionArea; label: string }> = [
   { id: "geral", label: "Geral" },
   { id: "comercial", label: "Comercial" },
   { id: "catalogo", label: "Catálogo" },
   { id: "operacao", label: "Operação" },
+  // Notas Fiscais fica dentro do Financeiro: na tela de Equipe é uma aba por área.
   { id: "financeiro", label: "Financeiro" },
-  { id: "fiscal", label: "Fiscal" },
 ];
 
 export interface PermissionExtra {
@@ -530,7 +530,7 @@ export const PERMISSION_CATALOG: readonly PermissionPageDef[] = [
     id: "invoices",
     name: "Notas Fiscais",
     description: "Emissão e acompanhamento de notas.",
-    area: "fiscal",
+    area: "financeiro",
     requiresFinancial: true,
     extras: [
       {

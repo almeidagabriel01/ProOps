@@ -6,9 +6,15 @@ import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Loader } from "@/components/ui/loader";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 import { useTenant } from "@/providers/tenant-provider";
-import { PERMISSION_AREAS, type PermissionExtra, type PermissionPageDef } from "@/lib/permissions/catalog";
+import {
+  PERMISSION_AREAS,
+  type PermissionArea,
+  type PermissionExtra,
+  type PermissionPageDef,
+} from "@/lib/permissions/catalog";
 import {
   PERMISSION_PAGES,
   getPermissionPageName,
@@ -27,9 +33,11 @@ export interface PermissionEditorProps {
 }
 
 /**
- * O editor de permissões de um membro, igual na criação e na edição: páginas
- * agrupadas por área, com busca, as quatro ações e, em "Mais opções", as ações
- * finas, os dados sensíveis e o alcance ("só os meus").
+ * O editor de permissões de um membro, igual na criação e na edição: uma aba
+ * por área (Geral, Comercial, Catálogo, Operação, Financeiro), com busca, as
+ * quatro ações e, em "Mais opções", as ações finas, os dados sensíveis e o
+ * alcance ("só os meus"). Com termo na busca, as abas dão lugar ao resultado
+ * de todas as áreas, para a chave ser achada sem saber onde ela mora.
  *
  * Cada chave mostra o valor EFETIVO (com o fallback do catálogo): o dono vê o
  * que o membro pode hoje, mesmo numa chave que nunca foi gravada.
@@ -38,6 +46,7 @@ export function PermissionEditor({ permissions, onChange, hasFinancial, disabled
   const { tenant } = useTenant();
   const [search, setSearch] = React.useState("");
   const [expanded, setExpanded] = React.useState<Set<string>>(new Set());
+  const [area, setArea] = React.useState<PermissionArea>(PERMISSION_AREAS[0].id);
 
   const name = React.useCallback(
     (page: PermissionPageDef) => getPermissionPageName(page, tenant?.niche),
@@ -45,6 +54,16 @@ export function PermissionEditor({ permissions, onChange, hasFinancial, disabled
   );
   const visible = PERMISSION_PAGES.filter((page) => matchesPermissionSearch(page, name(page), search));
   const searching = search.trim().length > 0;
+  // Quantas páginas da área o membro vê: a aba mostra o número, para o dono
+  // enxergar onde há acesso sem abrir cada uma.
+  const tabs = PERMISSION_AREAS.map((item) => ({
+    value: item.id,
+    label: item.label,
+    count: PERMISSION_PAGES.filter(
+      (page) => page.area === item.id && effectiveValue(page.id, permissions[page.id], "canView"),
+    ).length,
+  }));
+  const areasShown = searching ? PERMISSION_AREAS : PERMISSION_AREAS.filter((item) => item.id === area);
 
   const toggleExpanded = (pageId: string) =>
     setExpanded((current) => {
@@ -67,16 +86,39 @@ export function PermissionEditor({ permissions, onChange, hasFinancial, disabled
         />
       </div>
 
-      {visible.length === 0 && (
+      {!searching && (
+        <Tabs value={area} onValueChange={(next) => setArea(next as PermissionArea)}>
+          <TabsList aria-label="Áreas de permissão" className="w-full md:w-auto">
+            {tabs.map((tab) => (
+              <TabsTrigger key={tab.value} value={tab.value} className="gap-1.5">
+                {tab.label}
+                <span
+                  className={cn(
+                    "rounded-full px-1.5 text-[11px] tabular-nums",
+                    tab.count > 0 ? "bg-primary/10 text-primary" : "bg-muted-foreground/10 text-muted-foreground",
+                  )}
+                  aria-label={`${tab.count} com acesso`}
+                >
+                  {tab.count}
+                </span>
+              </TabsTrigger>
+            ))}
+          </TabsList>
+        </Tabs>
+      )}
+
+      {searching && visible.length === 0 && (
         <p className="py-6 text-center text-sm text-muted-foreground">Nenhuma permissão encontrada.</p>
       )}
 
-      {PERMISSION_AREAS.map((area) => {
-        const pages = visible.filter((page) => page.area === area.id);
+      {areasShown.map((section) => {
+        const pages = visible.filter((page) => page.area === section.id);
         if (pages.length === 0) return null;
         return (
-          <section key={area.id} className="space-y-2" aria-label={area.label}>
-            <h5 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{area.label}</h5>
+          <section key={section.id} className="space-y-2" aria-label={section.label}>
+            {searching && (
+              <h5 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{section.label}</h5>
+            )}
             {pages.map((page) => (
               <PagePermissionCard
                 key={page.id}

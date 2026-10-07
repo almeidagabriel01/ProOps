@@ -289,7 +289,7 @@ O backend usa os custom claims para autorização rápida sem precisar buscar o 
 | `create-member-section.tsx` | `CreateMemberSection` | Container do wizard de criação |
 | `member-card.tsx` | `MemberCard` | Card expansível com info, selo de suspenso, suspender/reativar, sair de todos os aparelhos e o editor de permissões |
 | `member-modals.tsx` | `EditMemberModal`, `DeleteMemberDialog` | Modais de edição e exclusão |
-| `permission-editor.tsx` | `PermissionEditor` | Páginas por área, com busca, as quatro ações e "Mais opções" (ações finas, dados sensíveis, alcance). Mostra o valor EFETIVO, com o fallback |
+| `permission-editor.tsx` | `PermissionEditor` | Uma aba por área (Geral, Comercial, Catálogo, Operação, Financeiro, com Notas Fiscais dentro do Financeiro), cada uma com quantas páginas o membro vê; a busca mostra o resultado de todas as áreas. As quatro ações e "Mais opções" (ações finas, dados sensíveis, alcance). Mostra o valor EFETIVO, com o fallback |
 | `apply-permissions-dialog.tsx` | `ApplyPermissionsDialog` | Aplicar perfil ou copiar de outro membro, com a prévia do que muda |
 | `member-audit-panel.tsx` | `MemberAuditPanel` | Aba Histórico: filtros por pessoa, ação e período |
 | `permission-toggle.tsx` | `PermissionToggle` | Toggle individual de permissão |
