@@ -10,10 +10,19 @@ type Doc = Record<string, unknown>;
 let store: Record<string, Record<string, Doc>>;
 let autoId = 0;
 const permissions = new Map<string, boolean>();
+// O mapa vira o doc da página e passa pelo catálogo: chave fina ausente vale o
+// fallback ("Ver preços" ausente é true), como no backend de verdade.
+const { resolvePermissionKey } = jest.requireActual("../../shared/permission-catalog");
 const hasPagePermission = jest.fn(
-  async (claims: { role?: string } | undefined, pageId: string, action: string) =>
-    ["MASTER", "ADMIN"].includes(String(claims?.role ?? "").toUpperCase()) ||
-    permissions.get(`${pageId}.${action}`) === true,
+  async (claims: { role?: string } | undefined, pageId: string, action: string) => {
+    if (["MASTER", "ADMIN"].includes(String(claims?.role ?? "").toUpperCase())) return true;
+    const doc: Record<string, boolean> = {};
+    for (const [key, value] of permissions) {
+      const [page, field] = key.split(".");
+      if (page === pageId) doc[field] = value;
+    }
+    return resolvePermissionKey(pageId, doc, action) as boolean;
+  },
 );
 const savedFiles: string[] = [];
 const deletedFiles: string[] = [];
@@ -366,6 +375,20 @@ describe("técnico", () => {
     await updateServiceOrder(req({ ...TECH, params: { id: "o1" }, body: { items } }), res);
     expect(res.statusCode).toBe(200);
     expect((store.service_orders.o1.items as Array<{ unitPrice: number }>)[0].unitPrice).toBe(45);
+  });
+
+  it("quem coordena sem 'Ver preços' não muda valor", async () => {
+    permissions.set("service_orders_all.canView", true);
+    permissions.set("service_orders.viewPrices", false);
+    const items = [
+      { id: "i1", kind: "product", refId: "p1", name: "Capacitor", quantity: 2, unitPrice: 45, fromStock: true },
+    ];
+    const res = mockRes();
+    await updateServiceOrder(req({ ...TECH, params: { id: "o1" }, body: { items } }), res);
+    expect(res.statusCode).toBe(200);
+    const saved = store.service_orders.o1.items as Array<{ unitPrice: number; quantity: number }>;
+    expect(saved[0].unitPrice).toBe(30);
+    expect(saved[0].quantity).toBe(2);
   });
 
   it("não reabre OS concluída", async () => {

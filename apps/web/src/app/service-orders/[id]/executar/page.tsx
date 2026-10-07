@@ -14,6 +14,7 @@ import { useAuth } from "@/providers/auth-provider";
 import { usePlanLimits } from "@/hooks/usePlanLimits";
 import { usePagePermission } from "@/hooks/usePagePermission";
 import { useServiceOrderScope } from "@/hooks/useServiceOrders";
+import { useSensitiveData } from "@/hooks/usePermission";
 import { toast } from "@/lib/toast";
 import { cn } from "@/lib/utils";
 import { FieldService } from "@/services/field-service-service";
@@ -40,6 +41,7 @@ export default function ExecuteServiceOrderPage() {
   const { isReadOnly } = useTenant();
   const { user } = useAuth();
   const scope = useServiceOrderScope();
+  const { canSeeServiceOrderPrices } = useSensitiveData();
   const { hasFieldService, isLoading: isPlanLoading } = usePlanLimits();
   const { canEdit } = usePagePermission("service_orders");
   const allowed = hasFieldService || user?.role === "superadmin";
@@ -213,6 +215,7 @@ export default function ExecuteServiceOrderPage() {
           onChange={(items) => execution.change("items", items)}
           disabled={!canWork}
           lockPrices={!scope.seesAll}
+          hidePrices={!canSeeServiceOrderPrices}
         />
       )}
       {step === 3 && <PhotosSection orderId={order.id} photos={order.photos} canEdit={canWork} />}

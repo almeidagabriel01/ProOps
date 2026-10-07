@@ -12,11 +12,22 @@ let store: Record<string, Record<string, Doc>>;
 let autoId = 0;
 const permissions = new Map<string, boolean>();
 
-jest.mock("../../lib/auth-helpers", () => ({
-  hasPagePermission: async (claims: { role?: string } | undefined, pageId: string, action: string) =>
-    ["MASTER", "ADMIN"].includes(String(claims?.role ?? "").toUpperCase()) ||
-    permissions.get(`${pageId}.${action}`) === true,
-}));
+jest.mock("../../lib/auth-helpers", () => {
+  // O mapa vira o doc da página e passa pelo catálogo, com o fallback das chaves
+  // finas: "Ver valores" ausente vale true, como no backend de verdade.
+  const { resolvePermissionKey } = jest.requireActual("../../shared/permission-catalog");
+  return {
+    hasPagePermission: async (claims: { role?: string } | undefined, pageId: string, action: string) => {
+      if (["MASTER", "ADMIN"].includes(String(claims?.role ?? "").toUpperCase())) return true;
+      const doc: Record<string, boolean> = {};
+      for (const [key, value] of permissions) {
+        const [page, field] = key.split(".");
+        if (page === pageId) doc[field] = value;
+      }
+      return resolvePermissionKey(pageId, doc, action);
+    },
+  };
+});
 let caps = { fieldService: true, financial: true };
 jest.mock("../../lib/tenant-capabilities", () => ({
   tenantHasCapability: async (_t: string, key: "fieldService" | "financial") => caps[key],
@@ -271,6 +282,30 @@ describe("criar e editar", () => {
       ok,
     );
     expect(ok.statusCode).toBe(201);
+  });
+
+  it("sem 'Ver valores', não cria contrato e a edição mantém as linhas gravadas", async () => {
+    permissions.set("contracts.canView", true);
+    permissions.set("contracts.canCreate", true);
+    permissions.set("contracts.canEdit", true);
+    permissions.set("contracts.viewValues", false);
+    const created = mockRes();
+    await createServiceContract(
+      req({ role: "MEMBER", uid: "m1", body: { clientId: "c1", title: "Suporte", type: "support", lines: LINES, billingDay: 5, wallet: "w1", issueNfse: false } }),
+      created,
+    );
+    expect(created.statusCode).toBe(403);
+
+    const id = await createContract();
+    const res = mockRes();
+    await updateServiceContract(
+      req({ role: "MEMBER", uid: "m1", params: { id }, body: { title: "Suporte novo", lines: [{ ...LINES[0], unitPrice: 0 }] } }),
+      res,
+    );
+    expect(res.statusCode).toBe(200);
+    expect(store.service_contracts[id].title).toBe("Suporte novo");
+    expect(store.service_contracts[id].monthlyAmount).toBe(129);
+    expect((store.service_contracts[id].lines as Doc[])[0].unitPrice).toBe(129);
   });
 
   it("outra empresa não enxerga o contrato", async () => {

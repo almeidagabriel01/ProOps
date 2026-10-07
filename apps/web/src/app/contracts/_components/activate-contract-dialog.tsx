@@ -24,13 +24,20 @@ interface ActivateContractDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   contract: ServiceContract;
+  /** "Ver valores" de Contratos: sem ela, a descrição não diz o valor. */
+  showValue?: boolean;
 }
 
 /**
  * Ativar é começar a cobrar: a empresa escolhe o início, e a primeira
  * mensalidade é o primeiro dia de vencimento a partir dele.
  */
-export function ActivateContractDialog({ open, onOpenChange, contract }: ActivateContractDialogProps) {
+export function ActivateContractDialog({
+  open,
+  onOpenChange,
+  contract,
+  showValue = true,
+}: ActivateContractDialogProps) {
   const [startDate, setStartDate] = React.useState(todayInBrazil());
   const [firstVisitDate, setFirstVisitDate] = React.useState("");
   const [saving, setSaving] = React.useState(false);
@@ -66,7 +73,7 @@ export function ActivateContractDialog({ open, onOpenChange, contract }: Activat
         <DialogHeader>
           <DialogTitle>Ativar {contract.code}</DialogTitle>
           <DialogDescription>
-            {formatCurrency(contract.monthlyAmount)} por mês para {contract.clientName}, com vencimento todo dia{" "}
+            {showValue ? `${formatCurrency(contract.monthlyAmount)} por mês` : "Mensalidade"} para {contract.clientName}, com vencimento todo dia{" "}
             {contract.billingDay}.
           </DialogDescription>
         </DialogHeader>

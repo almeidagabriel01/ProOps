@@ -195,6 +195,10 @@ export async function createServiceContract(req: Request, res: Response) {
   if (!parsed.success) return res.status(400).json({ message: firstIssue(parsed.error) });
   try {
     const { tenantId, uid } = await requireAccess(req, "canCreate");
+    // O contrato nasce com a mensalidade: quem não vê os valores não a monta.
+    if (!(await hasPagePermission(req.user, "contracts", "viewValues"))) {
+      throw new HttpError(403, "Criar contrato pede a permissão de ver os valores da mensalidade.");
+    }
     const input = parsed.data;
     const client = await loadClientSnapshot(input.clientId, tenantId);
     if (!client) return res.status(404).json({ message: "Contato não encontrado." });
@@ -268,6 +272,11 @@ export async function updateServiceContract(req: Request, res: Response) {
     const { ref, contract } = await loadContract(req, tenantId);
     if (contract.status === "ended") throw new HttpError(409, "Este contrato está encerrado.");
     const input = parsed.data;
+    // Quem não vê os valores recebe a tela sem preço: as linhas que ele
+    // reenviasse viriam sem o valor de verdade. Ficam as gravadas.
+    if (input.lines !== undefined && !(await hasPagePermission(req.user, "contracts", "viewValues"))) {
+      delete input.lines;
+    }
     // Num contrato que já cobra, mudar valor, dia, carteira ou NFS-e muda o que
     // é lançado daqui para a frente. No rascunho, a ativação confere.
     if (contract.status !== "draft") {

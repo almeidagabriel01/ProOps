@@ -18,6 +18,7 @@ import { PmocItemsEditor } from "@/components/features/field-service/pmoc-items-
 import { useTenant } from "@/providers/tenant-provider";
 import { useCurrentNicheConfig } from "@/hooks/useCurrentNicheConfig";
 import { usePlanLimits } from "@/hooks/usePlanLimits";
+import { useSensitiveData } from "@/hooks/usePermission";
 import { toast } from "@/lib/toast";
 import { FormContainer, FormHeader } from "@/components/ui/form-components";
 import { FormStepCard } from "@/components/ui/form-step-card";
@@ -145,6 +146,7 @@ export function ContractForm({ contract }: ContractFormProps) {
   const { tenant } = useTenant();
   const niche = useCurrentNicheConfig();
   const { hasFiscal } = usePlanLimits();
+  const { canSeeContractValues } = useSensitiveData();
   const defaults = React.useMemo(
     () => ({ type: niche.fieldService.defaultContractType, checklist: niche.fieldService.preventiveChecklist }),
     [niche.fieldService.defaultContractType, niche.fieldService.preventiveChecklist],
@@ -259,7 +261,9 @@ export function ContractForm({ contract }: ContractFormProps) {
       clientId: form.clientId,
       title: form.title.trim(),
       type: form.type,
-      lines: toLines(form.items),
+      // Sem "Ver valores" a tela não tem os preços para mandar: o backend
+      // mantém as linhas gravadas.
+      ...(canSeeContractValues ? { lines: toLines(form.items) } : {}),
       billingDay: form.billingDay,
       wallet: form.wallet,
       issueNfse: form.issueNfse,
@@ -373,7 +377,8 @@ export function ContractForm({ contract }: ContractFormProps) {
             <ItemsEditor
               items={form.items}
               onChange={(items) => set("items", items)}
-              disabled={saving}
+              disabled={saving || !canSeeContractValues}
+              hidePrices={!canSeeContractValues}
               stock={false}
               emptyText="Nenhum item na mensalidade."
               totalLabel="Mensalidade"

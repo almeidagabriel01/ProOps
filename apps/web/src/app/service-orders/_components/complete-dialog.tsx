@@ -35,7 +35,7 @@ interface CompleteDialogProps {
  * presente, o técnico registra o motivo. Depois de concluída a OS trava.
  */
 export function CompleteDialog({ open, onOpenChange, order, onCompleted }: CompleteDialogProps) {
-  const { canSeeStock } = useSensitiveData();
+  const { canSeeStock, canSeeServiceOrderPrices } = useSensitiveData();
   const padRef = React.useRef<SignaturePadHandle>(null);
   const [mode, setMode] = React.useState<"sign" | "absent">("sign");
   const [name, setName] = React.useState("");
@@ -97,7 +97,9 @@ export function CompleteDialog({ open, onOpenChange, order, onCompleted }: Compl
           <DialogTitle>Concluir {order.code}</DialogTitle>
           <DialogDescription>
             {order.items.length > 0
-              ? `${order.items.length} ${order.items.length === 1 ? "item lançado" : "itens lançados"}, total de ${formatCurrency(order.totals.total)}. `
+              ? `${order.items.length} ${order.items.length === 1 ? "item lançado" : "itens lançados"}${
+                  canSeeServiceOrderPrices ? `, total de ${formatCurrency(order.totals.total)}` : ""
+                }. `
               : ""}
             Depois de concluída, a OS não muda mais.
           </DialogDescription>

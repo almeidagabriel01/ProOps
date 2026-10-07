@@ -25,6 +25,7 @@ import { useTenant } from "@/providers/tenant-provider";
 import { useAuth } from "@/providers/auth-provider";
 import { usePlanLimits } from "@/hooks/usePlanLimits";
 import { usePagePermission } from "@/hooks/usePagePermission";
+import { useSensitiveData } from "@/hooks/usePermission";
 import { useServiceOrderScope } from "@/hooks/useServiceOrders";
 import { toast } from "@/lib/toast";
 import { formatCurrency } from "@/utils/format";
@@ -55,6 +56,7 @@ export default function ContractDetailPage() {
   const { hasFieldService, isLoading: isPlanLoading } = usePlanLimits();
   const { canEdit, canDelete } = usePagePermission("contracts");
   const financial = usePagePermission("transactions");
+  const { canSeeContractValues } = useSensitiveData();
   const scope = useServiceOrderScope();
   const allowed = hasFieldService || user?.role === "superadmin";
 
@@ -250,7 +252,9 @@ export default function ContractDetailPage() {
                     {line.quantity !== 1 && <span className="text-muted-foreground">{line.quantity}x </span>}
                     {line.name}
                   </span>
-                  <span className="shrink-0 font-medium">{formatCurrency(line.quantity * line.unitPrice)}</span>
+                  {canSeeContractValues && (
+                    <span className="shrink-0 font-medium">{formatCurrency(line.quantity * line.unitPrice)}</span>
+                  )}
                 </li>
               ))}
             </ul>
@@ -261,10 +265,12 @@ export default function ContractDetailPage() {
                 {contract.endDate ? `, até ${formatDay(contract.endDate)}` : ""}
                 {contract.issueNfse ? ". Emite nota de serviço ao receber." : "."}
               </span>
-              <span className="text-xl font-bold">
-                {formatCurrency(contract.monthlyAmount)}
-                <span className="text-sm font-normal text-muted-foreground">/mês</span>
-              </span>
+              {canSeeContractValues && (
+                <span className="text-xl font-bold">
+                  {formatCurrency(contract.monthlyAmount)}
+                  <span className="text-sm font-normal text-muted-foreground">/mês</span>
+                </span>
+              )}
             </div>
             {contract.notes && <p className="whitespace-pre-wrap text-sm text-muted-foreground">{contract.notes}</p>}
           </CardContent>
@@ -360,7 +366,12 @@ export default function ContractDetailPage() {
         </CardContent>
       </Card>
 
-      <ActivateContractDialog open={activateOpen} onOpenChange={setActivateOpen} contract={contract} />
+      <ActivateContractDialog
+        open={activateOpen}
+        onOpenChange={setActivateOpen}
+        contract={contract}
+        showValue={canSeeContractValues}
+      />
 
       <ConfirmDialog
         open={confirm === "suspend"}

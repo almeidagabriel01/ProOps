@@ -470,8 +470,11 @@ export async function updateServiceOrder(req: Request, res: Response) {
     if (input.items !== undefined) {
       let items = input.items as ServiceOrderItem[];
       // O técnico lança peças, mas o valor é de quem coordena: o total é o
-      // que o cliente assina e o que vai para o financeiro.
-      if (!found.seesAll) {
+      // que o cliente assina e o que vai para o financeiro. Quem não vê os
+      // preços ("Ver preços") também não os define: a tela dele não os mostra.
+      const setsPrices =
+        found.seesAll && (await hasPagePermission(req.user, "service_orders", "viewPrices"));
+      if (!setsPrices) {
         const current = (Array.isArray(found.data.items) ? found.data.items : []) as ServiceOrderItem[];
         const currentIds = new Set(current.map((item) => item.id));
         const added = items.filter((item) => !currentIds.has(item.id));

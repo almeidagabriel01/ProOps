@@ -669,7 +669,9 @@ nichos: chamado de alarme, manutenção de ar-condicionado, suporte de automaç�
   mantém o valor gravado, a nova do catálogo entra com o preço de venda do
   catálogo e a digitada à mão entra zerada (`lockTechnicianItemPrices`,
   `loadCatalogPrices`). O total é o que o cliente assina e o que vai para o
-  financeiro. As rules aplicam a mesma regra na leitura; a lista dele
+  financeiro. A mesma trava vale para quem coordena sem "Ver preços"
+  (`service_orders.viewPrices`, aberta por padrão), cuja tela não mostra
+  valor nenhum da OS. As rules aplicam a mesma regra na leitura; a lista dele
   filtra por `technicianUids` (índice `tenantId` + `technicianUids`). O preset
   "Técnico" da tela de Equipe nasce sem o escopo.
 - **Cliente copiado na OS** (nome, telefone, endereço): o técnico não tem acesso
@@ -741,6 +743,11 @@ capacidade `fieldService`, pageId `contracts`, rotas em `/v1/service-contracts`.
   regra; o formulário reenvia tudo, então vale o VALOR mudado
   (`billingChanges`), não a presença do campo. Suspender e encerrar só param
   de cobrar e seguem com "Editar" em Contratos.
+- **"Ver valores"** (`contracts.viewValues`, aberta por padrão): sem ela a tela
+  não mostra a mensalidade, o MRR nem o valor das linhas; criar contrato é
+  recusado (a mensalidade nasce na criação) e a edição descarta as `lines`
+  enviadas, mantendo as gravadas. O contrato é lido pelo SDK, então o valor
+  continua no documento: é a tela e a escrita que a chave cobre.
 - **A rotina diária cobra** (`processServiceContracts`, 06:00,
   `contract-billing-run.ts`): cada vencimento que entrou na janela de 10 dias
   vira um lançamento `pending` na categoria "Contratos", com id

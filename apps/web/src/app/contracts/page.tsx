@@ -13,6 +13,7 @@ import { useTenant } from "@/providers/tenant-provider";
 import { useAuth } from "@/providers/auth-provider";
 import { usePlanLimits } from "@/hooks/usePlanLimits";
 import { usePagePermission } from "@/hooks/usePagePermission";
+import { useSensitiveData } from "@/hooks/usePermission";
 import { useServiceContracts } from "@/hooks/useServiceContracts";
 import { formatCurrency } from "@/utils/format";
 import { filterContracts, monthlyRecurringRevenue, type ContractFilter } from "@/lib/field-service/contracts";
@@ -26,6 +27,7 @@ export default function ContractsPage() {
   const { user } = useAuth();
   const { hasFieldService, isLoading: isPlanLoading } = usePlanLimits();
   const { canCreate } = usePagePermission("contracts");
+  const { canSeeContractValues } = useSensitiveData();
   const allowed = hasFieldService || user?.role === "superadmin";
   const { contracts, loading, error } = useServiceContracts(tenant?.id, allowed);
   const [filter, setFilter] = React.useState<ContractFilter>("active");
@@ -48,7 +50,8 @@ export default function ContractsPage() {
   const visible = filterContracts(contracts, filter);
   const count = (f: ContractFilter) => filterContracts(contracts, f).length;
   const mrr = monthlyRecurringRevenue(contracts);
-  const canOpen = !isReadOnly && canCreate;
+  // O contrato nasce com a mensalidade: quem não vê os valores não o cria.
+  const canOpen = !isReadOnly && canCreate && canSeeContractValues;
 
   return (
     <div className="space-y-6">
@@ -56,7 +59,7 @@ export default function ContractsPage() {
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-foreground md:text-3xl">Contratos</h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            {mrr > 0
+            {mrr > 0 && canSeeContractValues
               ? `${formatCurrency(mrr)} por mês em contratos ativos.`
               : "A mensalidade de cada cliente, lançada no financeiro todo mês."}
           </p>
@@ -109,7 +112,7 @@ export default function ContractsPage() {
       ) : (
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
           {visible.map((contract) => (
-            <ContractCard key={contract.id} contract={contract} />
+            <ContractCard key={contract.id} contract={contract} showValue={canSeeContractValues} />
           ))}
         </div>
       )}

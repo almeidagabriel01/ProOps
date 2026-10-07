@@ -14,6 +14,7 @@ const m = vi.hoisted(() => ({
   seesAll: true,
   isMaster: true,
   perms: { canView: true, canCreate: true, canEdit: true, canDelete: true },
+  viewPrices: true,
 }));
 
 const NICHE = {
@@ -32,6 +33,9 @@ vi.mock("@/hooks/usePlanLimits", () => ({
   usePlanLimits: () => ({ hasFieldService: true, hasFinancial: true, isLoading: false }),
 }));
 vi.mock("@/hooks/usePagePermission", () => ({ usePagePermission: () => m.perms }));
+vi.mock("@/hooks/usePermission", () => ({
+  useSensitiveData: () => ({ isLoading: false, canSeeStock: true, canSeeServiceOrderPrices: m.viewPrices }),
+}));
 vi.mock("@/hooks/useServiceOrders", () => ({
   useServiceOrderScope: () => ({ seesAll: m.seesAll, uid: "diego", isLoading: false }),
 }));
@@ -105,6 +109,7 @@ beforeEach(() => {
   m.seesAll = true;
   m.isMaster = true;
   m.perms = { canView: true, canCreate: true, canEdit: true, canDelete: true };
+  m.viewPrices = true;
 });
 
 describe("detalhe da OS", () => {
@@ -163,6 +168,17 @@ describe("detalhe da OS", () => {
     );
     expect(screen.queryByRole("button", { name: /Lançar no financeiro/ })).not.toBeInTheDocument();
     expect(screen.getByRole("link", { name: /Ver lançamento/ })).toHaveAttribute("href", "/transactions/tx1");
+  });
+
+  it("sem 'Ver preços': nem o valor das peças nem o lançar no financeiro", () => {
+    m.viewPrices = false;
+    open({
+      status: "completed",
+      noSignatureReason: "Cliente ausente",
+      totals: { products: 0, services: 150, total: 150 },
+    });
+    expect(screen.queryByRole("button", { name: /Lançar no financeiro/ })).not.toBeInTheDocument();
+    expect(screen.queryByText(/150,00/)).not.toBeInTheDocument();
   });
 
   it("membro que não é dono não reabre OS concluída", () => {
