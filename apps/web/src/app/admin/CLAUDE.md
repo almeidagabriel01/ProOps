@@ -298,7 +298,8 @@ de toda request. O unico tempo que sobrou e antirrepeticao de 1 min no backend
   dela algo que foi seu, justamente nas empresas sob investigacao.
 - `/v1/session/ping` esta em `FREE_TIER_ALLOWED_PREFIXES`: sem isso a conta
   gratuita levaria 402 e o caso que originou o pedido nunca seria registrado.
-- Aparece no card e na tabela da Visao geral, destacado acima de 30 dias.
+- Aparece no card e na tabela da Visao geral, na linha "Acesso" junto com a
+  presenca (ver "Online agora"), destacado acima de 30 dias.
 
 ## Online agora (`/admin/online`)
 
@@ -327,8 +328,15 @@ pessoa continua lá: "entrou 10:15 e continua online" ou "entrou 10:15, saiu
   empresas). Uma sessão que acabou enquanto ninguém abria o painel entra na
   Atividade quando o painel abrir, com a hora certa de saída.
 - **Onde aparece:** a tela Online (empresas e pessoas de hoje, primeiro quem
-  está agora, atualiza a cada 30 s com a aba à vista), a linha "Agora:" do card
-  e a coluna de último acesso da Visão geral.
+  está agora, atualiza a cada 30 s com a aba à vista) e a linha "Acesso" do
+  card e da Visão geral.
+- **Uma linha só para acesso e presença** (`describeAccess` em
+  `lib/presence-format.ts`, desenhada por `AccessSummary`): "Online agora,
+  desde 17:16", "Ausente, entrou 17:16" ou, depois de sair, a hora da saída
+  com "há 2 h, ficou 4 min". Sem presença registrada, o último acesso de antes.
+  Eram duas linhas ("Último acesso" e "Agora"), e elas pareciam se contradizer:
+  o último acesso anda a cada volta para a aba (17:19) enquanto a sessão começa
+  na entrada (17:16).
 - **Super admin não conta**, nem no "Ver como membro" (`req.user.impersonation`).
 - `/v1/session/heartbeat` está em `FREE_TIER_ALLOWED_PREFIXES`, pelo mesmo
   motivo do ping: a conta gratuita também conta.

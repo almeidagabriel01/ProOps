@@ -5,6 +5,8 @@
  * Brasília, como o "Último acesso" (`last-seen-format.ts`).
  */
 
+import { daysSinceLastSeen, formatLastSeen, formatLastSeenExact } from "@/lib/last-seen-format";
+
 export type PresenceStatus = "online" | "away" | "offline";
 
 export interface PresenceInfo {
@@ -86,4 +88,65 @@ export function describePresence(info: PresenceInfo | null | undefined, now: num
   if (info.status === "away") return `Ausente, entrou ${started}`;
   const duration = formatSessionDuration(minutesBetween(info.sessionStartedAt, info.lastHeartbeatAt));
   return `Saiu ${formatPresenceTime(info.lastHeartbeatAt, now)}, ficou ${duration}`;
+}
+
+export interface AccessDescription {
+  /** Linha de cima: "Online agora", "Ausente" ou a data e hora do último acesso. */
+  primary: string;
+  /** Linha de baixo: "desde 17:16", "há 2 h, ficou 4 min"... ou vazio. */
+  secondary: string;
+  /** `null` quando não há presença registrada (só o último acesso antigo). */
+  status: PresenceStatus | null;
+  /** Nunca acessou, ou o último acesso tem 30 dias ou mais: o painel destaca. */
+  stale: boolean;
+}
+
+/**
+ * Uma linha só para "quando esta empresa usou o ERP", juntando o último acesso
+ * e a presença. Separados, eles pareciam se contradizer: "Último acesso 17:19"
+ * ao lado de "Online desde 17:16", porque o último acesso anda a cada volta
+ * para a aba e a sessão começa na entrada.
+ *
+ * - online ou ausente: o estado de agora, com o início da sessão;
+ * - saiu: a hora da saída (o último aviso), quanto tempo faz e quanto ficou;
+ * - sem presença registrada (dado anterior a ela): o último acesso de antes.
+ */
+export function describeAccess(
+  lastSeenAt: string | null | undefined,
+  presence: PresenceInfo | null | undefined,
+  now: number = Date.now(),
+): AccessDescription {
+  const hasPresence = Boolean(presence?.lastHeartbeatAt);
+  if (presence && hasPresence && presence.status !== "offline") {
+    const started = formatPresenceTime(presence.sessionStartedAt, now);
+    return presence.status === "online"
+      ? { primary: "Online agora", secondary: started ? `desde ${started}` : "", status: "online", stale: false }
+      : {
+          primary: "Ausente",
+          secondary: started ? `entrou ${started}, sem mexer` : "sem mexer",
+          status: "away",
+          stale: false,
+        };
+  }
+
+  // A saída da presença é mais precisa que o último acesso, que só anda quando
+  // a pessoa abre ou volta para a aba; vale o mais recente dos dois.
+  const lastPresence = hasPresence ? presence!.lastHeartbeatAt : null;
+  const lastSeenMs = Date.parse(String(lastSeenAt ?? ""));
+  const presenceMs = Date.parse(String(lastPresence ?? ""));
+  const usePresence = Number.isFinite(presenceMs) && (!Number.isFinite(lastSeenMs) || presenceMs >= lastSeenMs);
+  const reference = usePresence ? lastPresence : lastSeenAt;
+
+  const days = daysSinceLastSeen(reference, now);
+  const relative = formatLastSeen(reference, now);
+  const stayed =
+    usePresence && presence
+      ? `ficou ${formatSessionDuration(minutesBetween(presence.sessionStartedAt, presence.lastHeartbeatAt))}`
+      : "";
+  return {
+    primary: formatLastSeenExact(reference),
+    secondary: [relative, stayed].filter(Boolean).join(", "),
+    status: usePresence ? "offline" : null,
+    stale: days === null || days >= 30,
+  };
 }

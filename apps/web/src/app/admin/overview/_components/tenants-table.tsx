@@ -28,16 +28,11 @@ import { TenantBillingInfo } from "@/services/admin-service";
 import { m as motion } from "motion/react";
 
 import { UsageIndicator } from "./usage-indicator";
-import {
-  formatLastSeen,
-  formatLastSeenExact,
-  daysSinceLastSeen,
-} from "@/lib/last-seen-format";
 import { StatusBadge } from "./status-badge";
 import { PlanBadge } from "./plan-badge";
 import { CompanyAvatar } from "./company-avatar";
 import { TenantActionsMenu } from "./tenant-actions-menu";
-import { PresenceIndicator } from "@/components/admin/presence/presence-indicator";
+import { AccessSummary } from "@/components/admin/presence/access-summary";
 
 interface TenantsTableProps {
   filteredData: TenantBillingInfo[];
@@ -76,7 +71,6 @@ function TenantMobileRow({
   onManageModules?: (item: TenantBillingInfo) => void;
   onViewActivity?: (item: TenantBillingInfo) => void;
 }) {
-  const lastSeenDays = daysSinceLastSeen(item.tenant.lastSeenAt);
   return (
     <li className="px-4 py-3">
       <div className="flex items-start gap-3">
@@ -97,20 +91,10 @@ function TenantMobileRow({
         />
         <StatusBadge status={item.subscriptionStatus || "active"} />
       </div>
-      <p className="mt-2 text-xs text-muted-foreground">
-        Último acesso:{" "}
-        <span
-          className={
-            lastSeenDays === null || lastSeenDays >= 30
-              ? "font-medium text-amber-600 dark:text-amber-400"
-              : "font-medium text-foreground"
-          }
-        >
-          {formatLastSeenExact(item.tenant.lastSeenAt)}
-        </span>
-        {item.tenant.lastSeenAt && <> ({formatLastSeen(item.tenant.lastSeenAt)})</>}
-      </p>
-      <PresenceIndicator presence={item.tenant.presence} className="mt-1 text-xs" />
+      <div className="mt-2 flex items-start gap-1 text-xs">
+        <span className="text-muted-foreground">Acesso:</span>
+        <AccessSummary lastSeenAt={item.tenant.lastSeenAt} presence={item.tenant.presence} />
+      </div>
     </li>
   );
 }
@@ -123,7 +107,6 @@ interface TenantRowProps {
 }
 
 function TenantRow({ item, index, onManageModules, onViewActivity }: TenantRowProps) {
-  const lastSeenDays = daysSinceLastSeen(item.tenant.lastSeenAt);
   return (
     <motion.tr
       key={item.tenant.id}
@@ -173,24 +156,8 @@ function TenantRow({ item, index, onManageModules, onViewActivity }: TenantRowPr
           max={item.planFeatures?.maxProposals}
         />
       </TableCell>
-      <TableCell className="py-4 whitespace-nowrap">
-        <div className="flex flex-col">
-          <span
-            className={
-              lastSeenDays === null || lastSeenDays >= 30
-                ? "text-sm text-amber-600 dark:text-amber-400"
-                : "text-sm text-foreground"
-            }
-          >
-            {formatLastSeenExact(item.tenant.lastSeenAt)}
-          </span>
-          {item.tenant.lastSeenAt && (
-            <span className="text-xs text-muted-foreground">
-              {formatLastSeen(item.tenant.lastSeenAt)}
-            </span>
-          )}
-          <PresenceIndicator presence={item.tenant.presence} className="mt-0.5 text-xs" />
-        </div>
+      <TableCell className="py-4 whitespace-nowrap text-sm">
+        <AccessSummary lastSeenAt={item.tenant.lastSeenAt} presence={item.tenant.presence} />
       </TableCell>
       <TableCell className="py-4">
         <StatusBadge status={item.subscriptionStatus || "active"} />
@@ -308,7 +275,7 @@ export function TenantsTable({
                     </div>
                   </TableHead>
                   <TableHead className="py-4 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                    Último acesso
+                    Acesso
                   </TableHead>
                   <TableHead className="py-4 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                     Status
