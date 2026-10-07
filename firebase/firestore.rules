@@ -359,20 +359,39 @@ service cloud.firestore {
              || memberCanViewPage('kanban');
     }
 
+    // "Só os meus" (o alcance do catálogo de permissões, campo `scope` no doc
+    // da página): sem o doc, ou sem o campo, vale "all", o de sempre. Dono e
+    // administradores veem tudo. Quem tem "own" lê só o registro em que é o
+    // dono (`ownerField`), e a consulta dele precisa trazer esse filtro: regra
+    // não é filtro, e a lista sem o `where` é recusada inteira.
+    function memberScopeOf(pageId) {
+      let permissionPath = /databases/$(database)/documents/users/$(request.auth.uid)/permissions/$(pageId);
+      return exists(permissionPath) ? get(permissionPath).data.get('scope', 'all') : 'all';
+    }
+
+    function memberSeesAll(pageId) {
+      return hasTenantAdminRole() || memberScopeOf(pageId) == 'all';
+    }
+
+    function memberOwns(ownerField) {
+      return resource.data.get(ownerField, '') == request.auth.uid;
+    }
+
     match /proposals/{proposalId} {
       allow read: if isSuperAdmin()
                   || isDemoRead(resource.data.tenantId)
                   || (isAuthenticated()
                       && belongsToTenant(resource.data.tenantId)
                       && tenantSubscriptionAllowsRead(resource.data.tenantId)
-                      && canReadTenantProposals());
+                      && canReadTenantProposals()
+                      && (memberSeesAll('proposals') || memberOwns('sellerId')));
       allow write: if false; // Managed by Cloud Functions (limits, validation)
       allow delete: if isSuperAdmin(); // Super admin can delete for tenant cleanup
     }
 
     // CLIENTS
     match /clients/{clientId} {
-      allow read: if isSuperAdmin() || isDemoRead(resource.data.tenantId) || (isAuthenticated() && belongsToTenant(resource.data.tenantId) && tenantSubscriptionAllowsRead(resource.data.tenantId));
+      allow read: if isSuperAdmin() || isDemoRead(resource.data.tenantId) || (isAuthenticated() && belongsToTenant(resource.data.tenantId) && tenantSubscriptionAllowsRead(resource.data.tenantId) && (memberSeesAll('clients') || memberOwns('responsibleMemberId')));
       allow write: if false; // Managed by Cloud Functions (limits)
       allow delete: if isSuperAdmin(); // Super admin can delete for tenant cleanup
     }
@@ -414,16 +433,26 @@ service cloud.firestore {
              || memberCanViewPage('wallet');
     }
 
+    // Alcance de Lançamentos: "all" (o de sempre), "income" (só receitas) ou
+    // "mine" (os das vendas dele: `sellerId`, copiado da proposta).
+    function memberSeesTransaction() {
+      let scope = hasTenantAdminRole() ? 'all' : memberScopeOf('transactions');
+      return scope == 'all'
+             || (scope == 'income' && resource.data.get('type', '') == 'income')
+             || (scope == 'mine' && memberOwns('sellerId'));
+    }
+
     // TRANSACTIONS (Financial)
     match /transactions/{transactionId} {
-      allow read: if isSuperAdmin() || isDemoRead(resource.data.tenantId) || (isAuthenticated() && belongsToTenant(resource.data.tenantId) && tenantSubscriptionAllowsRead(resource.data.tenantId) && canReadTenantFinance());
+      allow read: if isSuperAdmin() || isDemoRead(resource.data.tenantId) || (isAuthenticated() && belongsToTenant(resource.data.tenantId) && tenantSubscriptionAllowsRead(resource.data.tenantId) && canReadTenantFinance() && memberSeesTransaction());
       allow write: if false; // Managed by Cloud Functions (calculations)
     }
 
     // TRANSACTION GROUPS (resumos desnormalizados da aba Agrupados —
     // 1 doc por grupo, mantidos pelo trigger onTransactionTotals)
+    // Agrupados soma lançamentos de todo alcance: só para quem vê tudo.
     match /transaction_groups/{groupDocId} {
-      allow read: if isSuperAdmin() || isDemoRead(resource.data.tenantId) || (isAuthenticated() && belongsToTenant(resource.data.tenantId) && tenantSubscriptionAllowsRead(resource.data.tenantId) && canReadTenantFinance());
+      allow read: if isSuperAdmin() || isDemoRead(resource.data.tenantId) || (isAuthenticated() && belongsToTenant(resource.data.tenantId) && tenantSubscriptionAllowsRead(resource.data.tenantId) && canReadTenantFinance() && memberSeesAll('transactions'));
       allow write: if false; // Admin SDK only (trigger)
     }
 
@@ -515,7 +544,7 @@ service cloud.firestore {
     // Leads e atividades do CRM (Onda 2): leitura direta pelo client, como o
     // resto do CRM; escrita so pela API (permissao kanban + capacidade crm).
     match /leads/{leadId} {
-      allow read: if isSuperAdmin() || isDemoRead(resource.data.tenantId) || (isAuthenticated() && belongsToTenant(resource.data.tenantId) && tenantSubscriptionAllowsRead(resource.data.tenantId));
+      allow read: if isSuperAdmin() || isDemoRead(resource.data.tenantId) || (isAuthenticated() && belongsToTenant(resource.data.tenantId) && tenantSubscriptionAllowsRead(resource.data.tenantId) && (memberSeesAll('kanban') || memberOwns('ownerId')));
       allow write: if false; // Managed by Cloud Functions
     }
 
@@ -527,7 +556,7 @@ service cloud.firestore {
     // Projetos de instalação (Onda 3): leitura direta pelo client, como o CRM;
     // escrita só pela API (permissão projects + capacidade projects).
     match /projects/{projectId} {
-      allow read: if isSuperAdmin() || isDemoRead(resource.data.tenantId) || (isAuthenticated() && belongsToTenant(resource.data.tenantId) && tenantSubscriptionAllowsRead(resource.data.tenantId));
+      allow read: if isSuperAdmin() || isDemoRead(resource.data.tenantId) || (isAuthenticated() && belongsToTenant(resource.data.tenantId) && tenantSubscriptionAllowsRead(resource.data.tenantId) && (memberSeesAll('projects') || memberOwns('assigneeId')));
       allow write: if false; // Managed by Cloud Functions
     }
 
@@ -722,7 +751,7 @@ service cloud.firestore {
 
     // SPREADSHEETS
     match /spreadsheets/{spreadsheetId} {
-      allow read: if isSuperAdmin() || isDemoRead(resource.data.get('tenantId', '')) || (isAuthenticated() && belongsToTenant(resource.data.get('tenantId', '')) && tenantSubscriptionAllowsRead(resource.data.get('tenantId', '')));
+      allow read: if isSuperAdmin() || isDemoRead(resource.data.get('tenantId', '')) || (isAuthenticated() && belongsToTenant(resource.data.get('tenantId', '')) && tenantSubscriptionAllowsRead(resource.data.get('tenantId', '')) && (memberSeesAll('spreadsheets') || memberOwns('createdById')));
       // Criacao so pelo backend (POST /v1/spreadsheets), que aplica o teto de
       // planilhas do plano. As rules nao conhecem plano: com create aberto ao
       // client, o limite se contornava com uma escrita direta.
