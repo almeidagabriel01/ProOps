@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { NICHE_LANDING_CONFIG } from "@/lib/landing/niches.config";
 import { NICHE_REGISTRY } from "@/lib/niches/registry";
 import { canonicalFor } from "@/lib/site/host-seo";
+import { OG_IMAGES_PADRAO } from "@/lib/site/og-image";
 import type { TenantNiche } from "@/types";
 
 /**
@@ -17,6 +18,6 @@ export function buildNicheLandingMetadata(niche: TenantNiche): Metadata {
     description: seo.metadataDescription,
     keywords: seo.keywords,
     alternates: { canonical: url },
-    openGraph: { title: seo.ogTitle, description: seo.ogDescription, url },
+    openGraph: { title: seo.ogTitle, description: seo.ogDescription, url, images: OG_IMAGES_PADRAO },
   };
 }

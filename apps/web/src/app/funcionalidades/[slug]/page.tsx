@@ -25,6 +25,7 @@ import {
 } from "@/lib/landing/funcionalidades";
 import { CAPTURAS_DAS_FUNCIONALIDADES } from "@/lib/landing/capturas";
 import { canonicalFor } from "@/lib/site/host-seo";
+import { OG_IMAGES_PADRAO } from "@/lib/site/og-image";
 
 import { CardDeFuncionalidade } from "../_components/card-de-funcionalidade";
 
@@ -52,7 +53,7 @@ export async function generateMetadata({ params }: PaginaProps): Promise<Metadat
     title: `${f.titulo} | Funcionalidades`,
     description: f.resumo,
     alternates: { canonical: url },
-    openGraph: { title: `${f.titulo} | ProOps`, description: f.resumo, url },
+    openGraph: { title: `${f.titulo} | ProOps`, description: f.resumo, url, images: OG_IMAGES_PADRAO },
   };
 }
 

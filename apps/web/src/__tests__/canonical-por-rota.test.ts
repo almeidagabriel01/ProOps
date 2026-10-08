@@ -164,6 +164,31 @@ describe("canonical", () => {
     expect(relativos).toEqual([]);
   });
 
+  it("vem com a imagem de compartilhamento quando a página declara openGraph", () => {
+    // O Next não mescla o `openGraph` da página com o do layout: substitui o
+    // objeto inteiro. Uma página que declarava só título e og:url perdia a
+    // imagem, e o link colado no WhatsApp saía sem prévia. Foi o caso das
+    // landings de nicho, de /funcionalidades, /contato e /agendar.
+    const arquivos: string[] = [path.resolve(APP_DIR, "..", "lib", "landing", "niche-landing-metadata.ts")];
+    const walk = (dir: string) => {
+      for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
+        const full = path.join(dir, e.name);
+        if (e.isDirectory()) walk(full);
+        else if (e.name === "page.tsx" || e.name === "layout.tsx") arquivos.push(full);
+      }
+    };
+    walk(APP_DIR);
+
+    const semImagem = arquivos
+      .filter((arquivo) => {
+        const fonte = fs.readFileSync(arquivo, "utf8");
+        return fonte.includes("openGraph:") && !fonte.includes("images");
+      })
+      .map((arquivo) => path.relative(APP_DIR, arquivo));
+
+    expect(semImagem).toEqual([]);
+  });
+
   it("aponta o page.tsx certo para cada raiz de superfície", () => {
     // Se o mapeamento acima quebrar, o teste de cima passa a ler o arquivo
     // errado e vira um guard que não guarda nada.
