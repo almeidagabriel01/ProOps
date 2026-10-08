@@ -1,10 +1,19 @@
 // @vitest-environment jsdom
 import "@testing-library/jest-dom/vitest";
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import { PresenceRefresh } from "../presence-refresh";
 
 describe("PresenceRefresh", () => {
+  // A hora sai sem o dia só quando a consulta é de hoje: o relógio fica fixo.
+  beforeEach(() => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-10-07T21:00:00.000Z"));
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   it("mostra a hora da última consulta, no fuso de Brasília", () => {
     render(<PresenceRefresh updatedAt="2026-10-07T20:20:00.000Z" isLoading={false} onRefresh={vi.fn()} />);
     expect(screen.getByText("Presença atualizada às 17:20")).toBeInTheDocument();

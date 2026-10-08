@@ -341,7 +341,11 @@ pessoa continua lá: "entrou 10:15 e continua online" ou "entrou 10:15, saiu
 - **Uma linha só para acesso e presença** (`describeAccess` em
   `lib/presence-format.ts`, desenhada por `AccessSummary`): "Online agora,
   desde 17:16", "Ausente, entrou 17:16" ou, depois de sair, a hora da saída
-  com "há 2 h, ficou 4 min". Sem presença registrada, o último acesso de antes.
+  com "saiu há 2 h, ficou 4 min". Quando o último acesso é mais novo que a
+  presença (aba sem presença, como uma aberta antes da publicação que a
+  trouxe), a hora é a da entrada, com "entrou há 9 min". A linha de baixo diz
+  qual das duas é: sem isso "há 9 min" e "há 19 h, ficou 1 min" pareciam o
+  mesmo dado, e na AWA em produção eram entrada e saída.
   Eram duas linhas ("Último acesso" e "Agora"), e elas pareciam se contradizer:
   o último acesso anda a cada volta para a aba (17:19) enquanto a sessão começa
   na entrada (17:16).

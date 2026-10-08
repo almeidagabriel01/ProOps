@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import "@testing-library/jest-dom/vitest";
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, within } from "@testing-library/react";
 import type { PresenceSnapshot } from "@/services/admin-service";
 
@@ -22,7 +22,15 @@ import AdminOnlinePage from "../page";
 
 const iso = (s: string) => `2026-10-07T${s}:00.000Z`;
 
+// Os horários do snapshot são de 07/10; com o relógio em outro dia a tela
+// escreveria "07/10 10:15" em vez de "10:15". Só o Date é fixado.
+afterEach(() => {
+  vi.useRealTimers();
+});
+
 beforeEach(() => {
+  vi.useFakeTimers({ toFake: ["Date"] });
+  vi.setSystemTime(new Date("2026-10-07T14:00:00.000Z"));
   snapshot = {
     now: iso("14:00"),
     since: iso("03:00"),
