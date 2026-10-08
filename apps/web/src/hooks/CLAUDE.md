@@ -11,6 +11,7 @@ hooks/
 ├── use-before-unload-warning.ts # Confirmação do navegador ao fechar a aba com trabalho não salvo
 ├── use-count-up.ts        # Animação de contagem numérica
 ├── use-horizontal-scroll-affordance.ts # Fileira de abas que rola: centra a ativa e diz de que lado há mais (esmaecido .scroll-fade-x)
+├── use-new-version.ts     # Aba numa versão antiga do ERP: recarrega na troca de tela ou mostra o aviso "Recarregar"
 ├── use-online-presence.ts # Tela "Online" do painel do super admin: consulta a presença a cada 30 s
 ├── use-prefers-reduced-motion.ts
 ├── use-presence-heartbeat.ts # Aviso de presença a cada minuto (em uso ou não), para o "Online agora" do super admin

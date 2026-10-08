@@ -89,21 +89,21 @@ describe("describeAccess: último acesso e presença numa linha só", () => {
     });
   });
 
-  it("saiu: a hora da saída, quanto tempo faz e quanto ficou", () => {
+  it("saiu: a hora da saída, dita como saída, e quanto ficou", () => {
     const saiu = { status: "offline" as const, sessionStartedAt: "2026-10-07T13:15:00.000Z", lastHeartbeatAt: "2026-10-07T13:20:00.000Z" };
     expect(describeAccess("2026-10-07T13:15:00.000Z", saiu, NOW)).toEqual({
       primary: "07/10/2026 às 10:20",
-      secondary: "há 40 min, ficou 5 min",
+      secondary: "saiu há 40 min, ficou 5 min",
       status: "offline",
       stale: false,
     });
   });
 
-  it("acesso mais novo que a última sessão (entrou de novo sem avisar presença): vale o acesso", () => {
+  it("acesso mais novo que a última sessão (aba sem presença): vale o acesso, dito como entrada", () => {
     const antiga = { status: "offline" as const, sessionStartedAt: "2026-10-01T13:00:00.000Z", lastHeartbeatAt: "2026-10-01T13:10:00.000Z" };
     expect(describeAccess("2026-10-07T13:50:00.000Z", antiga, NOW)).toMatchObject({
       primary: "07/10/2026 às 10:50",
-      secondary: "há 10 min",
+      secondary: "entrou há 10 min",
       status: null,
     });
   });
@@ -111,13 +111,20 @@ describe("describeAccess: último acesso e presença numa linha só", () => {
   it("empresa sem presença registrada continua com o último acesso de antes", () => {
     expect(describeAccess("2026-10-07T13:30:00.000Z", undefined, NOW)).toMatchObject({
       primary: "07/10/2026 às 10:30",
+      secondary: "entrou há 30 min",
       status: null,
       stale: false,
     });
   });
 
+  it("entrada ou saída de outro dia: \"entrou ontem\", \"saiu ontem\"", () => {
+    expect(describeAccess("2026-10-06T13:00:00.000Z", undefined, NOW).secondary).toBe("entrou ontem");
+    const ontem = { status: "offline" as const, sessionStartedAt: "2026-10-06T13:00:00.000Z", lastHeartbeatAt: "2026-10-06T13:30:00.000Z" };
+    expect(describeAccess("2026-10-06T13:00:00.000Z", ontem, NOW).secondary).toBe("saiu ontem, ficou 30 min");
+  });
+
   it("nunca acessou, ou há 30 dias ou mais, fica destacado", () => {
-    expect(describeAccess(undefined, undefined, NOW)).toMatchObject({ primary: "Nunca acessou", stale: true });
+    expect(describeAccess(undefined, undefined, NOW)).toMatchObject({ primary: "Nunca acessou", secondary: "", stale: true });
     expect(describeAccess("2026-09-01T13:00:00.000Z", undefined, NOW).stale).toBe(true);
   });
 });

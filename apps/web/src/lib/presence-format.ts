@@ -93,7 +93,7 @@ export function describePresence(info: PresenceInfo | null | undefined, now: num
 export interface AccessDescription {
   /** Linha de cima: "Online agora", "Ausente" ou a data e hora do último acesso. */
   primary: string;
-  /** Linha de baixo: "desde 17:16", "há 2 h, ficou 4 min"... ou vazio. */
+  /** Linha de baixo: "desde 17:16", "saiu há 2 h, ficou 4 min", "entrou há 9 min"... ou vazio. */
   secondary: string;
   /** `null` quando não há presença registrada (só o último acesso antigo). */
   status: PresenceStatus | null;
@@ -108,8 +108,8 @@ export interface AccessDescription {
  * para a aba e a sessão começa na entrada.
  *
  * - online ou ausente: o estado de agora, com o início da sessão;
- * - saiu: a hora da saída (o último aviso), quanto tempo faz e quanto ficou;
- * - sem presença registrada (dado anterior a ela): o último acesso de antes.
+ * - saiu: a hora da saída (o último aviso), "saiu há 2 h" e quanto ficou;
+ * - sem presença depois do último acesso: a hora da entrada, "entrou há 9 min".
  */
 export function describeAccess(
   lastSeenAt: string | null | undefined,
@@ -143,9 +143,13 @@ export function describeAccess(
     usePresence && presence
       ? `ficou ${formatSessionDuration(minutesBetween(presence.sessionStartedAt, presence.lastHeartbeatAt))}`
       : "";
+  // A hora grande é a SAÍDA quando vem da presença e a ENTRADA quando vem só
+  // do aviso de acesso (aba sem presença, como uma aberta antes da publicação
+  // que a trouxe). Sem dizer qual, as duas linhas pareciam o mesmo dado.
+  const when = relative ? `${usePresence ? "saiu" : "entrou"} ${relative}` : "";
   return {
     primary: formatLastSeenExact(reference),
-    secondary: [relative, stayed].filter(Boolean).join(", "),
+    secondary: [when, stayed].filter(Boolean).join(", "),
     status: usePresence ? "offline" : null,
     stale: days === null || days >= 30,
   };
