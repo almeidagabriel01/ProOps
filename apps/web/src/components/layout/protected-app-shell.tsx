@@ -17,6 +17,7 @@ import { useAuth } from "@/providers/auth-provider";
 import { useSessionPing } from "@/hooks/use-session-ping";
 import { usePresenceHeartbeat } from "@/hooks/use-presence-heartbeat";
 import { useActivityTracking } from "@/hooks/use-activity-tracking";
+import { useNewVersion } from "@/hooks/use-new-version";
 import { usePermission } from "@/hooks/usePermission";
 import { trackActivity } from "@/lib/activity/activity-tracker";
 import { useTenant } from "@/providers/tenant-provider";
@@ -27,6 +28,7 @@ import { SUPPORT_WHATSAPP_DIGITS, buildWhatsAppHref } from "@/lib/whatsapp-conta
 import { StripeService } from "@/services/stripe-service";
 import { AddonService } from "@/services/addon-service";
 import { useRouter } from "next/navigation";
+import { RefreshCw } from "lucide-react";
 import {
   ScrollContainerProvider,
   useRegisterScrollContainer,
@@ -54,6 +56,9 @@ function ProtectedShell({ children }: { children: React.ReactNode }) {
   usePresenceHeartbeat(user);
   // Telas abertas, para a atividade da empresa no painel do super admin.
   useActivityTracking(user);
+  // Aba aberta numa versão antiga: recarrega na troca de tela ou avisa. Ver
+  // hooks/use-new-version.ts.
+  const newVersion = useNewVersion();
 
   React.useEffect(() => {
     document.documentElement.dataset.shell = "locked";
@@ -142,6 +147,18 @@ function ProtectedShell({ children }: { children: React.ReactNode }) {
       >
         <div className="flex-1 flex flex-col bg-background overflow-hidden min-h-0">
           <Header sidebarWidth={0} />
+          {newVersion.showBanner && (
+            <BillingStateBanner
+              variant="info"
+              message="Saiu uma versão nova da ProOps. Recarregue para usar a mais recente."
+              ctaLabel="Recarregar"
+              onCta={newVersion.reload}
+              secondaryCtaLabel="Agora não"
+              onSecondaryCta={newVersion.dismiss}
+              icon={<RefreshCw className="h-4 w-4 shrink-0" aria-hidden />}
+              dataTestid="new-version-banner"
+            />
+          )}
           <PriceChangeBanner />
           <ApprovalNextStepsHost />
           {isDemo && (

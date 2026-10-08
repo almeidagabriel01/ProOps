@@ -82,6 +82,12 @@ const nextConfig: NextConfig = {
   // version-skew detection: on client/server deployment mismatch Next falls
   // back to a hard navigation instead of importing stale chunks (no-op locally)
   deploymentId: process.env.VERCEL_DEPLOYMENT_ID,
+  // A mesma versão embutida no JavaScript da aba, para ela perceber que saiu
+  // outra publicação mesmo sem trocar de tela (lib/app-version.ts). Vazia fora
+  // da Vercel, e aí a checagem não faz nada.
+  env: {
+    NEXT_PUBLIC_DEPLOYMENT_ID: process.env.VERCEL_DEPLOYMENT_ID ?? "",
+  },
   reactStrictMode: false,
   reactCompiler: true,
   // NAO reintroduzir `output: "standalone"`.

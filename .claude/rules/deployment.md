@@ -79,6 +79,17 @@ Dois detalhes que custam tempo quando esquecidos:
   `npm run dev`: com o servidor no ar a variável não é lida, e o sintoma é a
   funcionalidade sumir como se nunca tivesse sido configurada.
 
+**Exceção: `NEXT_PUBLIC_DEPLOYMENT_ID` não se cadastra.** O `next.config.ts`
+a deriva do `VERCEL_DEPLOYMENT_ID` (variável de sistema da Vercel) no build,
+e `GET /api/version` devolve a mesma variável em tempo de execução. A aba
+compara as duas para perceber que ficou numa versão antiga
+(`hooks/use-new-version.ts`): recarrega na próxima troca de tela, ou mostra o
+aviso "Recarregar" se a pessoa continuar na mesma tela. Fora da Vercel as duas
+ficam vazias e nada acontece. Existe porque o código de uma aba só muda quando
+ela recarrega: o dono de uma empresa passou um dia inteiro voltando para uma
+aba aberta antes da publicação do aviso de presença, e a empresa nunca
+apareceu online no painel.
+
 Quando a ausência da variável precisar degradar em vez de quebrar, gate a UI
 nela — o recurso some sozinho e o resto do módulo continua utilizável, em vez de
 a tela quebrar com um valor vazio.
