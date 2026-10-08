@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { canonicalFor } from "@/lib/site/host-seo";
+import { OG_IMAGES_PADRAO } from "@/lib/site/og-image";
 import { AgendarClient } from "./_components/agendar-client";
 
 export const metadata: Metadata = {
@@ -11,6 +12,7 @@ export const metadata: Metadata = {
     title: "Marcar demonstração | ProOps",
     description: "Escolha um dia e horário e veja a ProOps em uma demonstração.",
     url: canonicalFor("erp", "/agendar"),
+    images: OG_IMAGES_PADRAO,
   },
 };
 

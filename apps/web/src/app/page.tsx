@@ -6,6 +6,7 @@ import {
 } from "@/components/seo/json-ld";
 import { FAQS } from "@/components/landing/_shared/faq-data";
 import { canonicalFor } from "@/lib/site/host-seo";
+import { OG_IMAGES_PADRAO } from "@/lib/site/og-image";
 import { LandingPageClient } from "./_components/landing-page-client";
 
 export const metadata: Metadata = {
@@ -23,6 +24,7 @@ export const metadata: Metadata = {
     description:
       "CRM, propostas, financeiro e agenda integrados numa plataforma feita para empresas de serviço que querem crescer sem perder o controle.",
     url: canonicalFor("erp", "/"),
+    images: OG_IMAGES_PADRAO,
   },
 };
 

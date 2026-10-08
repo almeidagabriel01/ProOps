@@ -9,6 +9,7 @@ import { Providers } from "./providers";
 import { MotionProvider } from "@/providers/motion-provider";
 import { CookieConsentBanner } from "@/components/legal/cookie-consent-banner";
 import { ErrorReporterInstaller } from "@/components/observability/error-reporter-installer";
+import { OG_IMAGES_PADRAO } from "@/lib/site/og-image";
 
 // Fonts are self-hosted (latin subset, downloaded from Google Fonts) instead of
 // fetched by next/font/google at build time. Google rotates the hashed file URLs
@@ -159,14 +160,7 @@ export const metadata: Metadata = {
     type: "website",
     locale: "pt_BR",
     siteName: "ProOps",
-    images: [
-      {
-        url: "/opengraph-image.png",
-        width: 1200,
-        height: 630,
-        alt: "ProOps - ERP para gestão de serviços",
-      },
-    ],
+    images: OG_IMAGES_PADRAO,
   },
   twitter: {
     card: "summary_large_image",

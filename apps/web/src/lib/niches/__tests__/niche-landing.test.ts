@@ -41,6 +41,13 @@ describe.each([...TENANT_NICHES])("landing do nicho %s", (niche) => {
     );
   });
 
+  it("declara a imagem de compartilhamento", () => {
+    // O `openGraph` da página substitui o do layout inteiro, imagem junto: sem
+    // isto o link da landing colado no WhatsApp saía sem prévia.
+    const og = buildNicheLandingMetadata(niche).openGraph as { images?: unknown } | undefined;
+    expect(og?.images).toEqual([expect.objectContaining({ url: "/opengraph-image.png" })]);
+  });
+
   it("o caminho não colide com outra rota nem com o site da empresa", () => {
     const outrasRotas = PUBLIC_ROUTES.filter((rota) => rota !== landingPath);
     expect(outrasRotas).not.toContain(landingPath);

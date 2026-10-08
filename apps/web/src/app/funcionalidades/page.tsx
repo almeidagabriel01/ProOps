@@ -10,6 +10,7 @@ import { SmoothScroll } from "@/components/marketing/_shared/smooth-scroll";
 import { BreadcrumbJsonLd, FAQPageJsonLd, SoftwareApplicationJsonLd } from "@/components/seo/json-ld";
 import { FUNCIONALIDADES, GRUPOS_DE_FUNCIONALIDADES } from "@/lib/landing/funcionalidades";
 import { canonicalFor } from "@/lib/site/host-seo";
+import { OG_IMAGES_PADRAO } from "@/lib/site/og-image";
 
 import { CardDeFuncionalidade } from "./_components/card-de-funcionalidade";
 import { FAQ_FUNCIONALIDADES } from "./_content/faq";
@@ -25,6 +26,7 @@ export const metadata: Metadata = {
     title: "Funcionalidades do ERP | ProOps",
     description: DESCRICAO,
     url: canonicalFor("erp", "/funcionalidades"),
+    images: OG_IMAGES_PADRAO,
   },
 };
 

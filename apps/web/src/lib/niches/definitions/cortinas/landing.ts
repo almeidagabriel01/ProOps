@@ -142,7 +142,7 @@ export const nicheLanding: NicheLandingConfig = {
     },
   },
   seo: {
-    metadataTitle: "ERP para Persianas e Toldos: propostas por medida e gestão",
+    metadataTitle: "Sistema para loja de cortinas, persianas e toldos",
     metadataDescription:
       "ProOps para empresas de persianas, cortinas e toldos: preço por m², por largura ou por faixa de altura, proposta por ambiente, obra, CRM e financeiro.",
     breadcrumb: "Persianas e Toldos",
@@ -153,7 +153,7 @@ export const nicheLanding: NicheLandingConfig = {
       "orçamento de persianas por m²",
       "software proposta decoração",
     ],
-    ogTitle: "ERP para Persianas e Toldos | ProOps",
+    ogTitle: "Sistema para loja de cortinas, persianas e toldos | ProOps",
     ogDescription:
       "Propostas por ambiente com preço por medida, obra, CRM e financeiro para empresas de persianas, cortinas e toldos.",
   },
