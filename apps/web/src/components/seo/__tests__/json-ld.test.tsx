@@ -85,6 +85,16 @@ describe("dado estruturado", () => {
     });
   });
 
+  it("a empresa aponta para os perfis oficiais dela", () => {
+    const empresa = nos(<InstitucionalJsonLd />).find(
+      (n) => n["@type"] === "Organization",
+    );
+    expect(empresa?.sameAs).toEqual([
+      "https://www.instagram.com/proops.solutions/",
+      "https://www.linkedin.com/company/proops-solutions/",
+    ]);
+  });
+
   it("a empresa declara os dois produtos pelos seus hosts", () => {
     const empresa = nos(<InstitucionalJsonLd />).find(
       (n) => n["@type"] === "Organization",

@@ -1,4 +1,4 @@
-import { INSTAGRAM_HREF } from "@/components/landing/_shared/whatsapp";
+import { INSTAGRAM_HREF, LINKEDIN_HREF } from "@/components/landing/_shared/whatsapp";
 import { ORGANIZACAO_ID } from "@/components/seo/json-ld";
 import { APEX_URL, SITE_URLS } from "@/lib/site/surfaces";
 import { APP_NAME } from "@/lib/site/app-brand";
@@ -39,7 +39,7 @@ export function InstitucionalJsonLd() {
     logo: `${APEX_URL}/icons/icon-512.png`,
     description:
       "A ProOps constrói software de gestão para quem vende projeto: um ERP para a operação da empresa e um aplicativo para a vida financeira de cada pessoa.",
-    sameAs: [INSTAGRAM_HREF],
+    sameAs: [INSTAGRAM_HREF, LINKEDIN_HREF],
     owns: [
       {
         "@type": "SoftwareApplication",
