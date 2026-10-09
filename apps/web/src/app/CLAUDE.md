@@ -141,10 +141,19 @@ nota avulsa (remessa para conserto, devolução de compra, retorno), aberta pelo
 aberta pelo "Emitir NF" da proposta e pelo "Revisar e emitir" da janela
 "Proposta aprovada" (`invoiceEditorPath`, em `lib/fiscal/nfe-form.ts`). A tela
 não calcula nada da nota: a cada mudança ela pede a prévia ao backend e mostra
-CFOP, ICMS, IPI, total e lacunas de lá. Campo que a pessoa não tocou (IPI da
-linha, observação) não vai no corpo, para o padrão fiscal do contato valer.
-Mesmo `pageId` (`invoices`, criar) e mesma capacidade (`fiscal`) da lista. Regras
-no `apps/functions/src/api/services/fiscal/CLAUDE.md`.
+CFOP, impostos, total e lacunas de lá. Cada linha tem o painel "Impostos" (ICMS,
+IPI, PIS e COFINS, `line-taxes-panel.tsx`), recolhido com o resumo do que a
+prévia aplicou. Imposto que a pessoa não tocou não vai no corpo, para o padrão
+fiscal do contato valer; ao tocar, o campo parte do que a prévia aplicou, mas
+base e valores ficam em branco (calculados), senão trocar a alíquota manteria o
+valor antigo. Os códigos oferecidos vêm de `lib/fiscal/tax-codes.ts`, espelho do
+backend com paridade. A mensagem legal do crédito do Simples aparece abaixo da
+observação, sem edição. "Trazer da nota de origem" (`source-document-dialog.tsx`)
+lê o XML pelo backend ou usa uma nota recebida, e a pessoa escolhe os itens e
+as quantidades; a chave vai para a referência e, na devolução, o ICMS da compra
+vem junto com a base proporcional. Mesmo `pageId` (`invoices`, criar) e mesma
+capacidade (`fiscal`) da lista. Regras no
+`apps/functions/src/api/services/fiscal/CLAUDE.md`.
 
 O **portal do cliente** também tem duas pontas: o botão "Portal do cliente"
 na ficha do contato (`/contacts/[id]`, ao lado das abas) e a página pública em

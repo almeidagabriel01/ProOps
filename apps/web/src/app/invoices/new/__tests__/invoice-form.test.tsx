@@ -19,6 +19,7 @@ const m = vi.hoisted(() => ({
   previewFromProposalEdited: vi.fn(),
   issueManual: vi.fn(),
   issueFromProposal: vi.fn(),
+  parseSourceXml: vi.fn(),
   getProducts: vi.fn(async () => []),
   toastSuccess: vi.fn(),
 }));
@@ -34,6 +35,7 @@ vi.mock("@/services/fiscal-service", () => ({
     previewFromProposalEdited: m.previewFromProposalEdited,
     issueManual: m.issueManual,
     issueFromProposal: m.issueFromProposal,
+    parseSourceXml: m.parseSourceXml,
   },
 }));
 vi.mock("@/services/product-service", () => ({ ProductService: { getProducts: m.getProducts } }));
@@ -77,7 +79,7 @@ const NATUREZAS = [
     cfopForaEstado: "6915",
     tributada: false,
     finalidade: "normal",
-    referencia: "nao_se_aplica",
+    referencia: "opcional",
   },
   {
     id: "devolucao_compra",
@@ -90,14 +92,23 @@ const NATUREZAS = [
   },
 ];
 
+const PIS_ZERADO = { cst: "99", baseCalculo: 0, aliquota: 0, valor: 0 };
+
 function nfeView(overrides: Record<string, unknown> = {}) {
   return {
+    icmsKind: "csosn",
     naturezaOperacao: "Remessa para conserto ou reparo",
     finalidade: "normal",
     observacoes: "IPI destacado conforme pedido",
+    mensagensLegais: [],
     notasReferenciadas: [],
     valorProdutos: 2090,
     valorIpi: 104.5,
+    baseIcms: 0,
+    valorIcms: 0,
+    valorCreditoIcms: 0,
+    valorPis: 0,
+    valorCofins: 0,
     valorTotal: 2194.5,
     linhas: [
       {
@@ -109,7 +120,9 @@ function nfeView(overrides: Record<string, unknown> = {}) {
         quantidade: 1,
         valorUnitario: 2090,
         valorTotal: 2090,
-        situacaoTributaria: "900",
+        icms: { kind: "csosn", situacao: "900" },
+        pis: PIS_ZERADO,
+        cofins: PIS_ZERADO,
         ipi: { cst: "50", aliquota: 5 },
         ipiValor: 104.5,
       },
@@ -171,7 +184,7 @@ describe("nota avulsa", () => {
     await waitFor(() =>
       expect(screen.getByLabelText("Observações")).toHaveValue("IPI destacado conforme pedido"),
     );
-    expect(screen.getByText("IPI 5%: R$ 104,50")).toBeInTheDocument();
+    expect(screen.getByText(/ICMS CSOSN 900 · IPI: R\$ 104,50 · PIS\/COFINS 99/)).toBeInTheDocument();
   });
 
   it("emite e volta para a lista de notas", async () => {
@@ -232,7 +245,7 @@ describe("nota avulsa", () => {
 });
 
 describe("revisão da nota da proposta", () => {
-  it("mostra os itens da venda e manda só o IPI mexido", async () => {
+  it("mostra os itens da venda e manda só o imposto mexido", async () => {
     const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
     render(<InvoiceForm proposalId="p1" />);
     await flushPreview();
@@ -243,7 +256,7 @@ describe("revisão da nota da proposta", () => {
     );
     expect(await screen.findByText("Amplificador")).toBeInTheDocument();
 
-    await user.click(screen.getByRole("button", { name: /IPI 5%/ }));
+    await user.click(screen.getByRole("button", { name: /Impostos/ }));
     fireEvent.change(screen.getByLabelText("Situação do IPI (CST)"), { target: { value: "" } });
     await flushPreview();
     await waitFor(() => expect(screen.getByRole("button", { name: "Emitir nota" })).toBeEnabled());
@@ -282,5 +295,182 @@ describe("revisão da nota da proposta", () => {
 
     expect(await screen.findByText(/Junto sai a NFS-e da mão de obra/)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Emitir as 2 notas" })).toBeInTheDocument();
+  });
+});
+
+describe("impostos da linha (pedido da AWA)", () => {
+  function preview101() {
+    const linha = {
+      ...nfeView().linhas[0],
+      cfop: "5102",
+      icms: { kind: "csosn", situacao: "101", aliquotaCredito: 1.25, valorCredito: 26.13 },
+      ipi: undefined,
+      ipiValor: 0,
+    };
+    const mensagem =
+      "Permite o aproveitamento do crédito de ICMS no valor de R$ 26,13, correspondente à alíquota de 1,25%, nos termos do art. 23 da LC 123/2006.";
+    return preview({
+      documentos: [
+        {
+          type: "nfe",
+          valorTotal: 2090,
+          nfe: nfeView({ linhas: [linha], valorIpi: 0, valorTotal: 2090, valorCreditoIcms: 26.13, mensagensLegais: [mensagem] }),
+        },
+      ],
+    });
+  }
+
+  it("cliente 101: mostra o crédito e a frase do art. 23, e deixa trocar o CSOSN na linha", async () => {
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+    m.previewFromProposalEdited.mockResolvedValue(preview101());
+    render(<InvoiceForm proposalId="p1" />);
+    await flushPreview();
+
+    expect(await screen.findByTestId("mensagens-legais")).toHaveTextContent("art. 23 da LC 123/2006");
+    expect(screen.getByText("Crédito de ICMS")).toBeInTheDocument();
+    expect(screen.getByText(/ICMS CSOSN 101, crédito de R\$ 26,13/)).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: /Impostos/ }));
+    // O crédito vem das configurações: o campo começa com a alíquota aplicada.
+    expect(screen.getByLabelText("Crédito do Simples (%)")).toHaveValue("1,25");
+    fireEvent.change(screen.getByLabelText("Situação do ICMS (CSOSN)"), { target: { value: "102" } });
+    expect(screen.queryByLabelText("Crédito do Simples (%)")).not.toBeInTheDocument();
+    await flushPreview();
+    await waitFor(() => expect(screen.getByRole("button", { name: "Emitir nota" })).toBeEnabled());
+    await user.click(screen.getByRole("button", { name: "Emitir nota" }));
+
+    expect(m.issueFromProposal).toHaveBeenCalledWith(
+      "p1",
+      expect.objectContaining({
+        nfe: expect.objectContaining({ linhas: [{ index: 0, productId: "amp", icms: { situacao: "102" } }] }),
+      }),
+    );
+  });
+
+  it("CSOSN 900 aceita a base menor que o valor do produto, a alíquota e o PIS", async () => {
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+    render(<InvoiceForm />);
+    await user.click(await screen.findByRole("button", { name: "Escolher Audiofrahm" }));
+    await flushPreview();
+
+    await user.click(await screen.findByRole("button", { name: /Impostos/ }));
+    fireEvent.change(screen.getByLabelText("Base do ICMS"), { target: { value: "1500" } });
+    fireEvent.change(screen.getByLabelText("Alíquota do ICMS (%)"), { target: { value: "12" } });
+    fireEvent.change(screen.getByLabelText("CST do PIS"), { target: { value: "01" } });
+    fireEvent.change(screen.getByLabelText("Alíquota do PIS (%)"), { target: { value: "0,65" } });
+    await flushPreview();
+
+    const body = m.previewManual.mock.calls.at(-1)?.[0] as { linhas: Array<Record<string, unknown>> };
+    expect(body.linhas[0]).toMatchObject({
+      icms: { situacao: "900", baseCalculo: 1500, aliquota: 12 },
+      pis: { cst: "01", aliquota: 0.65 },
+    });
+    // O que não foi mexido (COFINS, IPI) segue o padrão do contato.
+    expect(body.linhas[0]).not.toHaveProperty("cofins");
+    expect(body.linhas[0]).not.toHaveProperty("ipi");
+  });
+
+  it("a quantidade digitada chega na prévia (o filtro do campo apagava os dígitos)", async () => {
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+    render(<InvoiceForm />);
+    await user.click(await screen.findByRole("button", { name: "Escolher Audiofrahm" }));
+    const quantidade = screen.getByLabelText("Quantidade");
+    await user.clear(quantidade);
+    await user.type(quantidade, "3,5");
+    expect(quantidade).toHaveValue("3,5");
+    await flushPreview();
+
+    const body = m.previewManual.mock.calls.at(-1)?.[0] as { linhas: Array<Record<string, unknown>> };
+    expect(body.linhas[0].quantidade).toBe(3.5);
+  });
+});
+
+describe("nota de origem (XML ou recebidas)", () => {
+  const CHAVE = "42251027133259000167550010000123451000123450";
+
+  beforeEach(() => {
+    m.parseSourceXml.mockResolvedValue({
+      chave: CHAVE,
+      numero: "12345",
+      emitente: { documento: "27133259000167", nome: "Audiofrahm Industria" },
+      valorTotal: 10750,
+      relacao: "recebida",
+      itens: [
+        {
+          numero: 1,
+          codigo: "AMP-5000",
+          descricao: "Amplificador 70V",
+          ncm: "85437019",
+          cfop: "6101",
+          unidade: "UN",
+          quantidade: 5,
+          valorUnitario: 2090,
+          valorTotal: 10450,
+          origem: 0,
+        },
+        {
+          numero: 2,
+          codigo: "CX-01",
+          descricao: "Caixa de som",
+          ncm: "85182100",
+          cfop: "6102",
+          unidade: "PC",
+          quantidade: 2,
+          valorUnitario: 150,
+          valorTotal: 300,
+        },
+      ],
+    });
+  });
+
+  it("remessa para conserto: a nota tem 5, mando 1, e a chave entra na referência", async () => {
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+    render(<InvoiceForm />);
+    await user.click(await screen.findByRole("button", { name: "Escolher Audiofrahm" }));
+    await user.click(screen.getByRole("button", { name: "Trazer da nota de origem" }));
+
+    const file = new File(["<nfeProc/>"], "nota.xml", { type: "text/xml" });
+    fireEvent.change(screen.getByTestId("source-xml-input"), { target: { files: [file] } });
+
+    expect(await screen.findByText("Amplificador 70V")).toBeInTheDocument();
+    expect(m.parseSourceXml).toHaveBeenCalledWith("<nfeProc/>");
+    await user.click(screen.getByRole("checkbox", { name: "Levar Caixa de som" }));
+    const quantidade = screen.getByLabelText("Quantidade de Amplificador 70V");
+    await user.clear(quantidade);
+    await user.type(quantidade, "6");
+    expect(screen.getByText("Entre 0 e 5.")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Usar 1 item" })).toBeDisabled();
+    await user.clear(quantidade);
+    await user.type(quantidade, "1");
+    await user.click(screen.getByRole("button", { name: "Usar 1 item" }));
+
+    expect(screen.getByLabelText("Chave da nota de origem (opcional)")).toHaveValue(CHAVE);
+    await flushPreview();
+    const body = m.previewManual.mock.calls.at(-1)?.[0] as {
+      linhas: Array<Record<string, unknown>>;
+      nfe: { notasReferenciadas: string[] };
+    };
+    // A linha em branco foi substituída pelo item da nota.
+    expect(body.linhas).toEqual([
+      expect.objectContaining({ codigo: "AMP-5000", descricao: "Amplificador 70V", ncm: "85437019", quantidade: 1, valorUnitario: 2090, origem: 0 }),
+    ]);
+    expect(body.nfe.notasReferenciadas).toEqual([CHAVE]);
+  });
+
+  it("XML recusado mostra o motivo do backend", async () => {
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+    const { ApiError } = await import("@/lib/api-client");
+    const erro = Object.assign(new ApiError(400, "Bad Request"), {
+      // O ApiError deste arquivo é o do mock, que não guarda o terceiro argumento.
+      data: { message: "O arquivo não é o XML de uma NF-e." },
+    });
+    m.parseSourceXml.mockRejectedValue(erro);
+    render(<InvoiceForm />);
+    await screen.findByText(/CFOP 5915/);
+    await user.click(screen.getByRole("button", { name: "Trazer da nota de origem" }));
+    fireEvent.change(screen.getByTestId("source-xml-input"), {
+      target: { files: [new File(["x"], "nfse.xml", { type: "text/xml" })] },
+    });
+    expect(await screen.findByText("O arquivo não é o XML de uma NF-e.")).toBeInTheDocument();
   });
 });

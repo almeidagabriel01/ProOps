@@ -55,6 +55,27 @@ export interface FiscalIpi {
   codigoEnquadramento?: string;
 }
 
+/** ICMS de uma linha como a prévia devolve: valores já calculados. */
+export interface FiscalIcms {
+  kind: "csosn" | "cst";
+  situacao: string;
+  baseCalculo?: number;
+  reducaoBase?: number;
+  aliquota?: number;
+  valor?: number;
+  /** Crédito do Simples (CSOSN 101, ou 900 quando pedido). */
+  aliquotaCredito?: number;
+  valorCredito?: number;
+}
+
+/** PIS ou COFINS de uma linha. Sem base no CST não tributado (04 a 09). */
+export interface FiscalPisCofins {
+  cst: string;
+  baseCalculo?: number;
+  aliquota?: number;
+  valor?: number;
+}
+
 export interface FiscalTransporte {
   modalidadeFrete: 0 | 1 | 2 | 3 | 4 | 9;
   transportadora?: {
@@ -75,29 +96,78 @@ export interface FiscalTransporte {
   }>;
 }
 
+/** Uma linha da NF-e como sairia. */
+export interface FiscalNfeLineView {
+  productId?: string;
+  descricao: string;
+  ncm: string;
+  cfop: string;
+  unidade: string;
+  quantidade: number;
+  valorUnitario: number;
+  valorTotal: number;
+  icms: FiscalIcms;
+  pis: FiscalPisCofins;
+  cofins: FiscalPisCofins;
+  ipi?: FiscalIpi;
+  ipiValor: number;
+}
+
 /** A NF-e como sairia: o que a tela de emissão mostra para revisar. */
 export interface FiscalNfeView {
+  /** CSOSN (Simples) ou CST (Regime Normal): decide a lista do seletor. */
+  icmsKind: "csosn" | "cst";
   naturezaOperacao: string;
   finalidade: "normal" | "devolucao";
   observacoes: string;
+  /** Textos que a lei manda constar (o do crédito do Simples): não se editam. */
+  mensagensLegais: string[];
   notasReferenciadas: string[];
   transporte?: FiscalTransporte;
   valorProdutos: number;
   valorIpi: number;
+  /** Destacados na nota; nenhum soma no total. */
+  baseIcms: number;
+  valorIcms: number;
+  valorCreditoIcms: number;
+  valorPis: number;
+  valorCofins: number;
   valorTotal: number;
-  linhas: Array<{
-    productId?: string;
-    descricao: string;
-    ncm: string;
-    cfop: string;
-    unidade: string;
-    quantidade: number;
-    valorUnitario: number;
-    valorTotal: number;
-    situacaoTributaria: string;
-    ipi?: FiscalIpi;
-    ipiValor: number;
-  }>;
+  linhas: FiscalNfeLineView[];
+}
+
+/** Um item da nota de origem, já no formato da linha da nota avulsa. */
+export interface FiscalSourceItem {
+  numero: number;
+  codigo: string;
+  descricao: string;
+  ncm: string;
+  cest?: string;
+  cfop: string;
+  unidade: string;
+  quantidade: number;
+  valorUnitario: number;
+  valorTotal: number;
+  origem?: number;
+  icms?: { situacao: string; baseCalculo?: number; reducaoBase?: number; aliquota?: number; valor?: number };
+  ipi?: { cst: string; baseCalculo?: number; aliquota?: number; valor?: number };
+}
+
+/**
+ * A nota que a nova referencia (a compra devolvida, a nota do aparelho que vai
+ * para o conserto), lida do XML ou das notas recebidas.
+ */
+export interface FiscalSourceDocument {
+  chave: string;
+  numero?: string;
+  serie?: string;
+  dataEmissao?: string;
+  emitente: { documento: string; nome: string };
+  destinatario?: { documento: string; nome: string };
+  valorTotal: number;
+  /** A nota em relação à empresa. `outra` quase sempre é o arquivo errado. */
+  relacao: "recebida" | "emitida" | "outra";
+  itens: FiscalSourceItem[];
 }
 
 /** Operação da nota (natureza): decide CFOP, finalidade e ICMS. */
@@ -149,6 +219,8 @@ export interface FiscalSettings {
   regimeTributario?: FiscalTaxRegime;
   /** `pTotTribSN` — alíquota efetiva do DAS, exigida de ME/EPP na NFS-e. */
   percentualTotalTributosSimplesNacional?: number;
+  /** `pCredSN`: crédito de ICMS que a empresa transfere no CSOSN 101. */
+  aliquotaCreditoIcmsSimples?: number;
   email?: string;
   telefone?: string;
   endereco?: FiscalAddress;
@@ -183,6 +255,8 @@ export interface SaveFiscalSettingsPayload {
   cnae?: string;
   regimeTributario: FiscalTaxRegime;
   percentualTotalTributosSimplesNacional?: number;
+  /** `null` apaga a gravada; ausente mantém. */
+  aliquotaCreditoIcmsSimples?: number | null;
   email: string;
   telefone?: string;
   endereco: FiscalAddress;
@@ -292,18 +366,6 @@ export interface NcmSuggestion {
   confianca: number;
 }
 
-export interface IssueInvoicePayload {
-  type: FiscalDocumentType;
-  valorTotal: number;
-  recipient: Record<string, unknown>;
-  products?: Array<Record<string, unknown>>;
-  service?: Record<string, unknown>;
-  naturezaOperacao?: string;
-  observacoes?: string;
-  transactionId?: string;
-  proposalId?: string;
-}
-
 export const FiscalService = {
   getSettings: () => callApi<FiscalSettings>("/v1/fiscal/settings", "GET"),
 
@@ -411,9 +473,9 @@ export const FiscalService = {
   issueManual: (payload: Record<string, unknown>) =>
     callApi<{ invoices: FiscalInvoice[] }>("/v1/fiscal/invoices/manual", "POST", payload),
 
-  /** Responde 202: a autorização é assíncrona e chega depois. */
-  issueInvoice: (payload: IssueInvoicePayload) =>
-    callApi<FiscalInvoice>("/v1/fiscal/invoices", "POST", payload),
+  /** Lê o XML de uma NF-e de origem (só leitura, nada é gravado). */
+  parseSourceXml: (xml: string) =>
+    callApi<FiscalSourceDocument>("/v1/fiscal/source-documents/xml", "POST", { xml }),
 
   /**
    * Emite a partir do documento de negócio — o caminho dos botões.
