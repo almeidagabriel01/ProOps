@@ -169,14 +169,43 @@ export interface FiscalProductItem {
   quantidade: number;
   valorUnitario: number;
   valorTotal: number;
-  /** Regime Normal uses CST; Simples Nacional uses CSOSN. Exactly one applies. */
-  cstIcms?: string;
-  csosn?: string;
-  aliquotaIcms?: number;
-  /** CST de PIS/COFINS — derivado do regime, obrigatório na NF-e 4.00. */
-  cstPisCofins: string;
+  /** Já resolvido (`line-taxes.ts`): o provedor só copia. */
+  icms: FiscalIcms;
+  /** Obrigatórios em todo item da NF-e 4.00, mesmo zerados (rejeição 745). */
+  pis: FiscalPisCofins;
+  cofins: FiscalPisCofins;
   /** Ausente = a linha sai sem grupo de IPI, que é o caso de quase toda nota. */
   ipi?: FiscalIpi;
+}
+
+/**
+ * ICMS de uma linha, com os valores já calculados.
+ *
+ * O Regime Normal informa CST e o Simples, CSOSN: `kind` diz qual, e os dois
+ * vão no mesmo campo do provedor. Os números só existem quando o código os
+ * aceita (`tax-codes.ts`).
+ */
+export interface FiscalIcms {
+  kind: "csosn" | "cst";
+  situacao: string;
+  baseCalculo?: number;
+  /** Percentual de redução da base. */
+  reducaoBase?: number;
+  aliquota?: number;
+  valor?: number;
+  /** `pCredSN`: alíquota do crédito que o destinatário aproveita (CSOSN 101 e 900). */
+  aliquotaCredito?: number;
+  /** `vCredICMSSN`. */
+  valorCredito?: number;
+}
+
+/** PIS ou COFINS de uma linha (o leiaute dos dois é o mesmo). */
+export interface FiscalPisCofins {
+  cst: string;
+  /** Ausentes no grupo de não tributado (CST 04 a 09). */
+  baseCalculo?: number;
+  aliquota?: number;
+  valor?: number;
 }
 
 /**
@@ -269,6 +298,13 @@ export interface FiscalInvoiceInput {
   service?: FiscalServiceItem;
   naturezaOperacao?: string;
   observacoes?: string;
+  /**
+   * NF-e: textos que a lei manda constar, como o do crédito do Simples
+   * (art. 23 da LC 123/2006). Ficam fora de `observacoes` de propósito: a
+   * observação é texto livre que a pessoa reescreve inteiro na tela, e a
+   * mensagem legal não pode sumir porque alguém apagou o campo.
+   */
+  mensagensLegais?: string[];
   dataEmissao: string;
   /** Na NF-e, inclui o IPI: o total da nota é produtos + IPI. */
   valorTotal: number;

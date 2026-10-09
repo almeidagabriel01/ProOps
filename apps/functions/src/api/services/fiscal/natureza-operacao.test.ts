@@ -159,7 +159,10 @@ describe("operações sem venda", () => {
     expect(naturezaFinalidade("devolucao_compra")).toBe("devolucao");
     expect(naturezaReferencia("devolucao_compra")).toBe("obrigatoria");
     expect(naturezaFinalidade("remessa_conserto")).toBe("normal");
-    expect(naturezaReferencia("remessa_conserto")).toBe("nao_se_aplica");
+    // A remessa aceita a chave da nota de compra do aparelho (pedido da AWA).
+    expect(naturezaReferencia("remessa_conserto")).toBe("opcional");
+    expect(naturezaReferencia("remessa_demonstracao")).toBe("opcional");
+    expect(naturezaReferencia("venda_mercadoria_terceiros")).toBe("nao_se_aplica");
     expect(naturezaReferencia("retorno_conserto")).toBe("opcional");
   });
 

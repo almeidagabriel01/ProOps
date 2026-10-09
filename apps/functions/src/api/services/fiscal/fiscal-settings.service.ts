@@ -68,6 +68,12 @@ export interface FiscalSettingsDocument {
   regimeApuracaoSimplesNacional?: 1 | 2 | 3;
   /** `pTotTribSN` — alíquota efetiva do DAS, exigida de ME/EPP. */
   percentualTotalTributosSimplesNacional?: number;
+  /**
+   * `pCredSN`: alíquota do crédito de ICMS que a ME/EPP transfere ao cliente
+   * no CSOSN 101 (art. 23 da LC 123/2006). Sai da faixa do Simples e muda com
+   * o faturamento, como o percentual acima: é da empresa, não de cada nota.
+   */
+  aliquotaCreditoIcmsSimples?: number;
   serieNfe?: number;
   proximoNumeroNfe?: number;
   serieNfse?: string;
@@ -147,6 +153,7 @@ export interface FiscalSettingsPublic {
   regimeApuracaoSimplesNacional?: 1 | 2 | 3;
   /** `pTotTribSN` — alíquota efetiva do DAS, exigida de ME/EPP. */
   percentualTotalTributosSimplesNacional?: number;
+  aliquotaCreditoIcmsSimples?: number;
   serieNfe?: number;
   proximoNumeroNfe?: number;
   serieNfse?: string;
@@ -236,6 +243,9 @@ export function toPublicSettings(
     publicView.percentualTotalTributosSimplesNacional =
       doc.percentualTotalTributosSimplesNacional;
   }
+  if (doc.aliquotaCreditoIcmsSimples !== undefined) {
+    publicView.aliquotaCreditoIcmsSimples = doc.aliquotaCreditoIcmsSimples;
+  }
   if (doc.serieNfe !== undefined) publicView.serieNfe = doc.serieNfe;
   if (doc.proximoNumeroNfe !== undefined) publicView.proximoNumeroNfe = doc.proximoNumeroNfe;
   if (doc.serieNfse) publicView.serieNfse = doc.serieNfse;
@@ -273,9 +283,17 @@ export async function getFiscalSettings(
 export interface SaveFiscalSettingsInput
   extends Omit<
     FiscalSettingsDocument,
-    "tenantId" | "status" | "certificadoSenhaEnc" | "createdAt" | "updatedAt" | "provider"
+    | "tenantId"
+    | "status"
+    | "certificadoSenhaEnc"
+    | "createdAt"
+    | "updatedAt"
+    | "provider"
+    | "aliquotaCreditoIcmsSimples"
   > {
   provider?: FiscalProviderId;
+  /** `""` apaga a alíquota gravada; ausente mantém. */
+  aliquotaCreditoIcmsSimples?: number | "";
   /** Plaintext, encrypted before it touches Firestore. Omit to keep the stored one. */
   certificadoSenha?: string;
   /** Devolvidos pelo provedor no registro da empresa. Cifrados antes de gravar. */
@@ -371,6 +389,7 @@ export async function saveFiscalSettings(
     // o Firestore recusa gravar `undefined`. Salvar a configuração sem este
     // campo devolvia 500 (a primeira gravação de toda empresa fora do Simples).
     ["percentualTotalTributosSimplesNacional", input.percentualTotalTributosSimplesNacional],
+    ["aliquotaCreditoIcmsSimples", input.aliquotaCreditoIcmsSimples],
   ];
   for (const [key, value] of optional) {
     // `undefined` means "not supplied, keep what is stored"; an empty string

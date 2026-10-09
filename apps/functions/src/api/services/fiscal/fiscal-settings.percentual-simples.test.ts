@@ -18,6 +18,7 @@ jest.mock("../../../lib/token-encryption", () => ({
   decryptToken: jest.fn(async (v: string) => v.replace("enc:", "")),
 }));
 
+import { FieldValue } from "firebase-admin/firestore";
 import { saveFiscalSettings, type SaveFiscalSettingsInput } from "./fiscal-settings.service";
 
 const INPUT = {
@@ -80,5 +81,25 @@ describe("saveFiscalSettings: percentual do Simples", () => {
     await saveFiscalSettings("t1", { ...INPUT, percentualTotalTributosSimplesNacional: undefined });
     expect(payload()).not.toHaveProperty("percentualTotalTributosSimplesNacional");
     expect(set.mock.calls[0]?.[1]).toEqual({ merge: true });
+  });
+});
+
+describe("saveFiscalSettings: alíquota do crédito de ICMS do Simples", () => {
+  it("ausente não entra na gravação (mantém o gravado)", async () => {
+    await saveFiscalSettings("t1", { ...INPUT });
+    expect(payload()).not.toHaveProperty("aliquotaCreditoIcmsSimples");
+  });
+
+  it("o valor informado é gravado, inclusive 0", async () => {
+    await saveFiscalSettings("t1", { ...INPUT, aliquotaCreditoIcmsSimples: 1.25 });
+    expect(payload().aliquotaCreditoIcmsSimples).toBe(1.25);
+    set.mockClear();
+    await saveFiscalSettings("t1", { ...INPUT, aliquotaCreditoIcmsSimples: 0 });
+    expect(payload().aliquotaCreditoIcmsSimples).toBe(0);
+  });
+
+  it("em branco apaga o gravado", async () => {
+    await saveFiscalSettings("t1", { ...INPUT, aliquotaCreditoIcmsSimples: "" });
+    expect(payload().aliquotaCreditoIcmsSimples).toEqual(FieldValue.delete());
   });
 });

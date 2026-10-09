@@ -9,7 +9,6 @@ import {
   retryFiscalWebhooksHandler,
   setFiscalEnvironmentHandler,
   suggestNcmHandler,
-  issueInvoiceHandler,
   cancelInvoiceHandler,
   listInvoicesHandler,
   previewFromProposalHandler,
@@ -94,7 +93,6 @@ router.post(
   validateFirebaseIdToken,
   refreshInvoiceHandler,
 );
-router.post("/fiscal/invoices", validateFirebaseIdToken, issueInvoiceHandler);
 router.post("/fiscal/invoices/:id/cancel", validateFirebaseIdToken, cancelInvoiceHandler);
 
 // Emissao a partir do documento de negocio — o caminho que os botoes usam.

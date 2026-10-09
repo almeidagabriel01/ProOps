@@ -56,7 +56,8 @@
   destacar declararia contribuicao que a empresa nao apura ali) e **49** no Regime Normal,
   que apura de verdade mas com aliquota dependente de ser cumulativo ou nao — dado que o
   cadastro nao tem. 49 com zeros nao inventa valor; e o primeiro campo a revisar quando
-  existir um tenant fora do Simples.
+  existir um tenant fora do Simples. Esse e o PADRAO: desde 2026-10 o CST e os valores se
+  editam por linha e no contato (ver "Impostos por linha").
 - **A inscricao municipal do prestador vai na DPS** (`inscricao_municipal_prestador`)
   sempre que existir. A exigencia e do MUNICIPIO, nao do leiaute: cada prefeitura registra
   no CNC da NFS-e se ela e obrigatoria, e Machado exige — rejeicao **E0116**. Mandar sempre
@@ -210,8 +211,8 @@
   `from-proposal`. O POST da previa NAO para em `FISCAL_NAO_PRONTO` (`ignoreReadiness`):
   e pela tela que sai a nota de teste que deixa o emitente pronto, e a previa avulsa
   tambem nao trava. Edicoes aceitas:
-  operacao, observacao, transporte, chaves referenciadas e, por linha, IPI e situacao do
-  ICMS. Os VALORES da linha nao se editam ali: a nota de uma venda bate com a venda. A
+  operacao, observacao, transporte, chaves referenciadas e, por linha, os impostos (ICMS,
+  IPI, PIS e COFINS). Os VALORES da linha nao se editam ali: a nota de uma venda bate com a venda. A
   edicao de linha vai por indice + `productId`; se a proposta mudou entre abrir e enviar,
   `NOTA_DESATUALIZADA` (409) em vez de por o IPI de um produto em outro.
 - **A operacao decide CFOP, finalidade, referencia e ICMS** (`natureza-operacao.ts`).
@@ -221,16 +222,49 @@
   e ICMS da devolucao variam por estado. Natureza desconhecida no corpo e 400, nunca a
   padrao: cair na venda em silencio poria uma remessa na rua tributada.
 - **Devolucao exige a chave da nota devolvida** (`finalidade_emissao` 4 +
-  `notas_referenciadas`); sem ela a SEFAZ recusa, entao vira lacuna antes do envio. Nos
-  retornos e em "outras saidas" a chave e opcional. Chave com tamanho errado e 400.
+  `notas_referenciadas`); sem ela a SEFAZ recusa, entao vira lacuna antes do envio. Nas
+  remessas (conserto, demonstracao), nos retornos e em "outras saidas" a chave e opcional:
+  na remessa para conserto e a nota de compra do aparelho, que a AWA pediu para poder
+  informar. Chave com tamanho errado e 400.
 - **IPI so sai quando alguem pediu** (`nfe-extras.ts`): nada e derivado do catalogo. CST
   de SAIDA apenas (50 a 55, 99); base padrao = valor da linha, valor = base x aliquota
   (valor digitado vence), `cEnq` padrao 999; CST nao tributado vai sem base e valor. O IPI
   **entra no total da nota** (`valorTotal` = produtos + IPI) e vai em `valor_ipi`.
-- **Padrao fiscal do contato** (`clients.fiscalDefaults`: observacao e IPI), so NF-e. A
-  nota para ele ja nasce com os dois, inclusive no convite e na emissao automatica; na
-  tela continuam editaveis (`ipi: null` na linha tira). A observacao do documento de
-  origem (descricao do lancamento) SOMA-SE a do contato; a da tela substitui as duas.
+- **Padrao fiscal do contato** (`clients.fiscalDefaults`: observacao, IPI, ICMS, PIS e
+  COFINS), so NF-e. A nota para ele ja nasce assim, inclusive no convite e na emissao
+  automatica; na tela continuam editaveis (`ipi: null` na linha tira o IPI). **ICMS, PIS e
+  COFINS do contato valem so nas operacoes tributadas** (a venda): o CSOSN 101 de um
+  cliente nao descreve a remessa para conserto que vai para ele. IPI e observacao valem
+  sempre, porque o cliente os exige em toda nota. Codigo do contato que nao e do regime da
+  empresa (CST num emitente do Simples) vira lacuna do CONTATO, nao troca silenciosa. A
+  observacao do documento de origem (descricao do lancamento) SOMA-SE a do contato; a da
+  tela substitui as duas.
+- **Impostos por linha** (`line-taxes.ts`, puro; codigos em `tax-codes.ts`). Precedencia
+  imposto a imposto, o objeto inteiro: edicao da linha > padrao do contato (so na venda) >
+  padrao (situacao do ICMS pela operacao, regime e produto; PIS/COFINS pelo regime,
+  zerados). Sem edicao nem contato a linha sai IDENTICA ao que saia antes (102 ou 900, PIS
+  e COFINS 99 zerados). A lista de codigos e FECHADA: so o que a nota sabe preencher
+  inteiro. CSOSN 201/202/203 e CST 10/30/70 exigem o grupo da substituicao tributaria (MVA,
+  base e valor do ST), que a nota nao tem onde declarar; oferece-los seria oferecer uma
+  rejeicao. Codigo fora da lista que venha do catalogo do produto continua passando so com
+  o codigo, como sempre passou. Base padrao = valor da linha (com a reducao, quando ha);
+  valor digitado vence o calculado. CST 00/20 sem aliquota e PIS/COFINS 01/02 sem aliquota
+  viram lacuna da linha. Os impostos destacados NAO somam no total da nota (so o IPI soma);
+  os totais do ICMS, PIS e COFINS ficam para o provedor somar das linhas.
+- **Credito do Simples (CSOSN 101)**: `pCredSN` e `vCredICMSSN`. A aliquota e da EMPRESA
+  (`aliquotaCreditoIcmsSimples` em `fiscal_settings`, campo em `/settings/fiscal` so no
+  Simples, sai da faixa do DAS como o `pTotTribSN`), sobrescrevivel na linha. 101 sem
+  aliquota em lugar nenhum vira lacuna do emitente. No 900 o credito so sai quando alguem o
+  pede: herdar a aliquota da empresa poria credito numa remessa. **A mensagem do art. 23 da
+  LC 123/2006** ("Permite o aproveitamento do credito de ICMS no valor de R$ X,
+  correspondente a aliquota de Y%...") e montada sozinha (`mensagensCreditoSimples`, uma
+  frase por aliquota) e vai em `mensagensLegais`, FORA de `observacoes`: a observacao se
+  reescreve inteira na tela, e a mensagem legal nao pode sumir porque alguem apagou o
+  campo. No payload as duas se juntam em `informacoes_adicionais_contribuinte`, a da
+  pessoa primeiro. Sem ela o cliente nao aproveita o credito, que e o motivo do 101.
+- **O endpoint antigo `POST /v1/fiscal/invoices` foi removido** (2026-10). Ele aceitava o
+  destinatario e os itens crus do corpo, sem o cadastro do contato, e nada o chamava desde
+  que a emissao passou a nascer da proposta, do lancamento ou da nota avulsa.
 - **Transporte**: sem `transporte`, "sem frete" (9) como sempre. Com ele vao modalidade,
   transportadora (CNPJ ou CPF pelo tamanho) e volumes com peso.
 - **Botoes e gatilhos automaticos chamam as MESMAS funcoes** (`invoice-issue.service.ts`),

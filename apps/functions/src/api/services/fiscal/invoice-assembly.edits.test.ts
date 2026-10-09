@@ -122,7 +122,7 @@ describe("venda pela proposta com o padrão fiscal do contato", () => {
     expect(nfe.valorTotal).toBe(3150);
     expect(nfe.input.valorTotal).toBe(3150);
     // A venda continua usando o código do produto (ST da caixa).
-    expect(nfe.input.products?.[1].csosn).toBe("500");
+    expect(nfe.input.products?.[1].icms.situacao).toBe("500");
   });
 
   it("a observação do documento de origem soma-se à do contato", async () => {
@@ -232,7 +232,8 @@ describe("nota avulsa", () => {
     const [nfe] = result.invoices;
     const [linha] = nfe.input.products!;
     expect(linha.cfop).toBe("5915");
-    expect(linha.csosn).toBe("900");
+    expect(linha.icms).toEqual({ kind: "csosn", situacao: "900" });
+    expect(linha.pis).toEqual({ cst: "99", baseCalculo: 0, aliquota: 0, valor: 0 });
     expect(linha.unidadeComercial).toBe("UN");
     expect(linha.codigo).toBe("AVULSO-1");
     expect(nfe.input.finalidade).toBe("normal");
@@ -363,7 +364,162 @@ describe("describeNfe", () => {
       valorIpi: 100,
       valorTotal: 2100,
     });
-    expect(view.linhas[0]).toMatchObject({ cfop: "5915", situacaoTributaria: "900", ipiValor: 100 });
+    expect(view.linhas[0]).toMatchObject({ cfop: "5915", icms: { situacao: "900" }, ipiValor: 100 });
+    expect(view).toMatchObject({ icmsKind: "csosn", mensagensLegais: [], valorIcms: 0, valorPis: 0 });
     expect(JSON.stringify(view)).not.toContain("53967423000141");
+  });
+});
+
+describe("impostos por linha (pedido da AWA, 08/10/2026)", () => {
+  const comCredito = { ...(settings as object), aliquotaCreditoIcmsSimples: 1.25 } as never;
+
+  beforeEach(() => {
+    docs["clients/cliente101"] = {
+      tenantId: TENANT,
+      name: "Cliente que aproveita crédito",
+      document: "27133259000167",
+      indicadorIe: "contribuinte",
+      inscricaoEstadual: "258248734",
+      enderecoFiscal: enderecoSc,
+      fiscalDefaults: { icms: { situacao: "101" } },
+    };
+  });
+
+  it("venda para o cliente 101: crédito em toda linha e a mensagem do art. 23", async () => {
+    const result = await assembleInvoices({
+      tenantId: TENANT,
+      settings: comCredito,
+      clientId: "cliente101",
+      items: linhasProposta,
+    });
+
+    expect(result.gaps).toEqual([]);
+    const nfe = result.invoices.find((invoice) => invoice.type === "nfe")!;
+    expect(nfe.input.products?.map((p) => p.icms)).toEqual([
+      { kind: "csosn", situacao: "101", aliquotaCredito: 1.25, valorCredito: 25 },
+      { kind: "csosn", situacao: "101", aliquotaCredito: 1.25, valorCredito: 12.5 },
+    ]);
+    expect(nfe.input.mensagensLegais).toEqual([
+      "Permite o aproveitamento do crédito de ICMS no valor de R$ 37,50, correspondente à alíquota de 1,25%, nos termos do art. 23 da LC 123/2006.",
+    ]);
+    // O crédito não muda o total da nota.
+    expect(nfe.valorTotal).toBe(3000);
+    expect(describeNfe(nfe.input)).toMatchObject({ valorCreditoIcms: 37.5 });
+  });
+
+  it("sem a alíquota de crédito na empresa, a nota avisa onde preencher", async () => {
+    const result = await assembleInvoices({
+      tenantId: TENANT,
+      settings,
+      clientId: "cliente101",
+      items: linhasProposta,
+    });
+    // Uma lacuna só, embora as duas linhas precisem do crédito.
+    expect(result.gaps).toEqual([
+      expect.objectContaining({ scope: "emitente", field: "aliquotaCreditoIcmsSimples" }),
+    ]);
+  });
+
+  it("a linha da nota troca o CSOSN e põe o PIS de uma linha só", async () => {
+    const result = await assembleInvoices({
+      tenantId: TENANT,
+      settings: comCredito,
+      clientId: "cliente101",
+      items: linhasProposta,
+      nfe: {
+        linhas: [
+          {
+            index: 1,
+            productId: "caixa",
+            icms: { situacao: "102" },
+            pis: { cst: "01", aliquota: 0.65 },
+          },
+        ],
+      },
+    });
+    const nfe = result.invoices.find((invoice) => invoice.type === "nfe")!;
+    expect(nfe.input.products?.[0].icms.situacao).toBe("101");
+    expect(nfe.input.products?.[1].icms).toEqual({ kind: "csosn", situacao: "102" });
+    expect(nfe.input.products?.[1].pis).toEqual({ cst: "01", baseCalculo: 1000, aliquota: 0.65, valor: 6.5 });
+    expect(nfe.input.mensagensLegais?.[0]).toContain("R$ 25,00");
+  });
+
+  it("numa remessa o CSOSN de venda do contato não vale", async () => {
+    const result = await assembleManualNfe({
+      tenantId: TENANT,
+      settings: comCredito,
+      clientId: "cliente101",
+      naturezaOperacao: "remessa_conserto",
+      linhas: [{ descricao: "Amplificador", ncm: "85437019", quantidade: 1, valorUnitario: 2090 }],
+    });
+    const [linha] = result.invoices[0].input.products!;
+    expect(linha.icms).toEqual({ kind: "csosn", situacao: "900" });
+    expect(result.invoices[0].input.mensagensLegais).toBeUndefined();
+  });
+
+  it("remessa para conserto aceita a chave da nota de compra, sem exigir", async () => {
+    const chave = "42261053967423000141550010000509361000509360";
+    const comChave = await assembleManualNfe({
+      tenantId: TENANT,
+      settings,
+      clientId: "semPadrao",
+      naturezaOperacao: "remessa_conserto",
+      linhas: [
+        {
+          codigo: "AMP-5000",
+          descricao: "Amplificador",
+          ncm: "85437019",
+          quantidade: 1,
+          valorUnitario: 2090,
+        },
+      ],
+      nfe: { notasReferenciadas: [chave] },
+    });
+    expect(comChave.gaps).toEqual([]);
+    expect(comChave.invoices[0].input.notasReferenciadas).toEqual([chave]);
+    // O código do item na nota de origem segue para a nova nota.
+    expect(comChave.invoices[0].input.products?.[0].codigo).toBe("AMP-5000");
+  });
+
+  it("código do contato que não é do regime da empresa vira lacuna do contato", async () => {
+    docs["clients/cliente101"] = {
+      ...docs["clients/cliente101"],
+      fiscalDefaults: { icms: { situacao: "00" } },
+    };
+    const result = await assembleInvoices({
+      tenantId: TENANT,
+      settings: comCredito,
+      clientId: "cliente101",
+      items: linhasProposta,
+    });
+    expect(result.gaps).toEqual([
+      expect.objectContaining({
+        scope: "cliente",
+        entityId: "cliente101",
+        field: "fiscalDefaults.icms.situacao",
+      }),
+    ]);
+  });
+
+  it("a linha avulsa com destaque de ICMS e base reduzida", async () => {
+    const result = await assembleManualNfe({
+      tenantId: TENANT,
+      settings,
+      clientId: "semPadrao",
+      naturezaOperacao: "devolucao_compra",
+      linhas: [
+        {
+          descricao: "Amplificador",
+          ncm: "85437019",
+          quantidade: 1,
+          valorUnitario: 1000,
+          icms: { situacao: "900", baseCalculo: 800, aliquota: 12 },
+        },
+      ],
+      nfe: { notasReferenciadas: ["42261053967423000141550010000509361000509360"] },
+    });
+    expect(result.gaps).toEqual([]);
+    const view = describeNfe(result.invoices[0].input);
+    expect(view).toMatchObject({ baseIcms: 800, valorIcms: 96, valorTotal: 1000 });
   });
 });

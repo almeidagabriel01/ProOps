@@ -20,8 +20,6 @@ import { toBrasiliaIso } from "./fiscal-datetime";
 import {
   DEFAULT_NATUREZA,
   deriveCfop,
-  derivePisCofinsCst,
-  deriveSituacaoTributariaOperacao,
   deriveUnidadeComercial,
   describeNatureza,
   naturezaFinalidade,
@@ -29,13 +27,29 @@ import {
   normalizeOrigem,
   type NaturezaOperacao,
 } from "./natureza-operacao";
-import { parseIpi, resolveIpi, totalIpi } from "./nfe-extras";
+import {
+  parseIcmsEdit,
+  parseIpi,
+  parsePisCofinsEdit,
+  resolveIpi,
+  totalIpi,
+} from "./nfe-extras";
+import {
+  mensagensCreditoSimples,
+  resolveLineTaxes,
+  taxTotals,
+  type LineTaxEdits,
+  type TaxProblem,
+} from "./line-taxes";
+import { icmsKindForRegime, type IcmsKind } from "./tax-codes";
 import type { FiscalSettingsDocument } from "./fiscal-settings.service";
 import type {
   FiscalDocumentType,
+  FiscalIcms,
   FiscalIeIndicator,
   FiscalInvoiceInput,
   FiscalIpi,
+  FiscalPisCofins,
   FiscalProductItem,
   FiscalRecipient,
   FiscalServiceItem,
@@ -47,11 +61,15 @@ import type {
  * Padrão fiscal guardado no contato (`clients.fiscalDefaults`).
  *
  * Nasceu de um cliente industrial que exige o IPI informado, e repetido na
- * observação, em toda nota que recebe. Guardar no contato resolve uma vez: a
- * nota para ele já nasce com os dois, e continua editável na emissão.
- * Vale só para a NF-e: IPI não existe na nota de serviço.
+ * observação, em toda nota que recebe; depois veio o cliente que compra com
+ * crédito de ICMS (CSOSN 101). Guardar no contato resolve uma vez: a nota para
+ * ele já nasce assim, e continua editável na emissão. Vale só para a NF-e.
+ *
+ * ICMS, PIS e COFINS do contato valem só nas operações tributadas (a venda):
+ * numa remessa para conserto o CSOSN de venda dele não descreve a nota. O IPI e
+ * a observação valem sempre, porque o cliente os exige em toda nota.
  */
-export interface ClientFiscalDefaults {
+export interface ClientFiscalDefaults extends LineTaxEdits {
   observacoes?: string;
   ipi?: FiscalIpi;
 }
@@ -76,7 +94,8 @@ interface ClientDocument {
     uf?: string;
     cep?: string;
   };
-  fiscalDefaults?: ClientFiscalDefaults;
+  /** Lido como veio do banco; `clientDefaults` valida. */
+  fiscalDefaults?: Record<string, unknown>;
 }
 
 export interface CatalogItemDocument {
@@ -174,47 +193,110 @@ export function resolveLineTotal(item: ProposalItem): number {
   return quantity * unitPrice * (1 + markup / 100);
 }
 
+/** O que a linha precisa saber da nota para calcular os impostos. */
+export interface LineTaxContext {
+  regime: FiscalTaxRegime;
+  natureza?: NaturezaOperacao;
+  /** Padrão fiscal do contato (já validado). */
+  contato?: ClientFiscalDefaults;
+  /** Alíquota de crédito do Simples das configurações da empresa. */
+  aliquotaCreditoSimples?: number;
+}
+
+export interface BuiltProductLine {
+  item: FiscalProductItem;
+  /** O que falta para os impostos da linha; vira lacuna em `taxGaps`. */
+  problemas: TaxProblem[];
+}
+
+/** Completa uma linha com ICMS, PIS e COFINS (`line-taxes.ts`). */
+function withTaxes(
+  base: Omit<FiscalProductItem, "icms" | "pis" | "cofins">,
+  context: LineTaxContext,
+  catalogSituacao: string | undefined,
+  impostos: LineTaxEdits | undefined,
+): BuiltProductLine {
+  const { icms, pis, cofins, problemas } = resolveLineTaxes({
+    regime: context.regime,
+    natureza: context.natureza ?? DEFAULT_NATUREZA,
+    valorLinha: base.valorTotal,
+    descricao: base.descricao,
+    catalogSituacao,
+    edits: impostos,
+    contato: context.contato,
+    aliquotaCreditoSimples: context.aliquotaCreditoSimples,
+  });
+  return { item: { ...base, icms, pis, cofins }, problemas };
+}
+
 export function buildProductItem(
   item: ProposalItem,
   catalog: CatalogItemDocument | undefined,
-  regime: FiscalTaxRegime,
+  context: LineTaxContext,
   cfop: string,
   options: {
-    natureza?: NaturezaOperacao;
-    /** Situação do ICMS escolhida na própria nota. */
-    situacaoTributaria?: string;
+    /** Impostos escritos na própria nota (vencem o padrão do contato). */
+    impostos?: LineTaxEdits;
     ipi?: FiscalIpi;
   } = {},
-): FiscalProductItem {
+): BuiltProductLine {
   const quantidade = Number(item.quantity) || 1;
   const valorTotal = resolveLineTotal(item);
-  const { kind, codigo } = deriveSituacaoTributariaOperacao(
-    regime,
-    options.natureza ?? DEFAULT_NATUREZA,
-    catalog?.situacaoTributaria,
-    options.situacaoTributaria,
-  );
 
-  return {
-    ...(options.ipi ? { ipi: options.ipi } : {}),
-    codigo: item.productId,
-    descricao: text(item.productName) || text(item.name) || "Item",
-    cstPisCofins: derivePisCofinsCst(regime),
-    ncm: text(catalog?.ncm).replace(/\D/g, ""),
-    cest: text(catalog?.cest).replace(/\D/g, "") || undefined,
-    cfop,
-    origem: normalizeOrigem(catalog?.origem),
-    unidadeComercial: deriveUnidadeComercial(
-      catalog?.inventoryUnit,
-      catalog?.pricingModel?.mode,
-    ),
-    quantidade,
-    // A SEFAZ valida quantidade × unitário contra o total da linha, então o
-    // unitário é derivado do total e não o contrário.
-    valorUnitario: quantidade > 0 ? valorTotal / quantidade : valorTotal,
-    valorTotal,
-    ...(kind === "csosn" ? { csosn: codigo } : { cstIcms: codigo }),
-  };
+  return withTaxes(
+    {
+      ...(options.ipi ? { ipi: options.ipi } : {}),
+      codigo: item.productId,
+      descricao: text(item.productName) || text(item.name) || "Item",
+      ncm: text(catalog?.ncm).replace(/\D/g, ""),
+      cest: text(catalog?.cest).replace(/\D/g, "") || undefined,
+      cfop,
+      origem: normalizeOrigem(catalog?.origem),
+      unidadeComercial: deriveUnidadeComercial(
+        catalog?.inventoryUnit,
+        catalog?.pricingModel?.mode,
+      ),
+      quantidade,
+      // A SEFAZ valida quantidade × unitário contra o total da linha, então o
+      // unitário é derivado do total e não o contrário.
+      valorUnitario: quantidade > 0 ? valorTotal / quantidade : valorTotal,
+      valorTotal,
+    },
+    context,
+    catalog?.situacaoTributaria,
+    options.impostos,
+  );
+}
+
+/**
+ * Lacunas dos impostos de uma linha, cada uma no lugar onde se corrige: a
+ * linha da nota, o cadastro do contato ou as configurações da empresa.
+ */
+function taxGaps(
+  problemas: TaxProblem[],
+  linha: { index: number; descricao: string },
+  client: ClientDocument,
+): FiscalGap[] {
+  return problemas.map((problema): FiscalGap => {
+    if (problema.origem === "contato") {
+      return {
+        scope: "cliente",
+        entityId: client.id,
+        entityName: text(client.name),
+        field: `fiscalDefaults.${problema.campo}`,
+        message: `${problema.message} O valor vem do padrão fiscal do contato.`,
+      };
+    }
+    if (problema.origem === "emitente") {
+      return { scope: "emitente", field: "aliquotaCreditoIcmsSimples", message: problema.message };
+    }
+    return {
+      scope: "nota",
+      entityName: linha.descricao,
+      field: `linhas.${linha.index}.${problema.campo}`,
+      message: problema.message,
+    };
+  });
 }
 
 /** Agrupa as linhas de serviço numa única NFS-e — o padrão do documento. */
@@ -313,16 +395,16 @@ export interface AssemblyResult {
  *
  * Os valores da linha são os da venda e não mudam aqui: a nota de uma venda
  * tem que bater com a venda. O que a pessoa ajusta é o que a proposta não
- * sabe: o IPI e a situação do ICMS.
+ * sabe: os impostos (ICMS, IPI, PIS e COFINS). Imposto ausente = não mexeu,
+ * vale o padrão do contato ou o da operação.
  */
-export interface NfeLineEdit {
+export interface NfeLineEdit extends LineTaxEdits {
   /** Posição entre as linhas de MERCADORIA ativas da proposta. */
   index: number;
   /** Confere que a linha é a mesma que a tela mostrou. */
   productId: string;
   /** `null` tira o IPI que viria do padrão do contato. */
   ipi?: FiscalIpi | null;
-  situacaoTributaria?: string;
 }
 
 /** O que o formulário de emissão muda na NF-e. Tudo opcional. */
@@ -334,9 +416,14 @@ export interface NfeEdits {
   linhas?: NfeLineEdit[];
 }
 
-/** Uma linha da nota avulsa: do catálogo (`productId`) ou digitada. */
-export interface ManualNfeLine {
+/**
+ * Uma linha da nota avulsa: do catálogo (`productId`), digitada, ou trazida
+ * de uma nota de origem (`codigo` é o código do item lá).
+ */
+export interface ManualNfeLine extends LineTaxEdits {
   productId?: string;
+  /** Código do item; padrão: o `productId`, ou `AVULSO-n`. */
+  codigo?: string;
   descricao: string;
   /** Vence o NCM do catálogo; obrigatório na linha digitada. */
   ncm?: string;
@@ -347,7 +434,6 @@ export interface ManualNfeLine {
   quantidade: number;
   valorUnitario: number;
   ipi?: FiscalIpi | null;
-  situacaoTributaria?: string;
 }
 
 /**
@@ -361,17 +447,43 @@ function mergeObservacoes(...parts: Array<string | undefined>): string | undefin
   return joined || undefined;
 }
 
-/** O padrão fiscal do contato, já validado. Dado ruim no cadastro é ignorado. */
-function clientDefaults(client: ClientDocument): { observacoes?: string; ipi?: FiscalIpi } {
+/**
+ * O padrão fiscal do contato, já validado.
+ *
+ * A gravação passa pelo schema de `clients.controller.ts`, então dado ruim aqui
+ * só vem de escrita fora da API: é ignorado, imposto a imposto, em vez de
+ * derrubar a nota inteira.
+ */
+function clientDefaults(client: ClientDocument): ClientFiscalDefaults {
   const raw = client.fiscalDefaults;
   if (!raw) return {};
-  let ipi: FiscalIpi | undefined;
-  try {
-    ipi = parseIpi(raw.ipi);
-  } catch {
-    ipi = undefined;
+  const safe = <T>(parse: () => T | undefined): T | undefined => {
+    try {
+      return parse();
+    } catch {
+      return undefined;
+    }
+  };
+  // Valores da nota (base, valor, crédito em reais) não são padrão de contato.
+  const icms = safe(() => parseIcmsEdit(raw.icms));
+  const pis = safe(() => parsePisCofinsEdit(raw.pis));
+  const cofins = safe(() => parsePisCofinsEdit(raw.cofins));
+  const defaults: ClientFiscalDefaults = {};
+  const observacoes = text(raw.observacoes);
+  if (observacoes) defaults.observacoes = observacoes;
+  const ipi = safe(() => parseIpi(raw.ipi));
+  if (ipi) defaults.ipi = ipi;
+  if (icms) {
+    defaults.icms = {
+      ...(icms.situacao ? { situacao: icms.situacao } : {}),
+      ...(icms.reducaoBase !== undefined ? { reducaoBase: icms.reducaoBase } : {}),
+      ...(icms.aliquota !== undefined ? { aliquota: icms.aliquota } : {}),
+      ...(icms.aliquotaCredito !== undefined ? { aliquotaCredito: icms.aliquotaCredito } : {}),
+    };
   }
-  return { observacoes: text(raw.observacoes) || undefined, ipi };
+  if (pis) defaults.pis = { cst: pis.cst, ...(pis.aliquota !== undefined ? { aliquota: pis.aliquota } : {}) };
+  if (cofins) defaults.cofins = { cst: cofins.cst, ...(cofins.aliquota !== undefined ? { aliquota: cofins.aliquota } : {}) };
+  return defaults;
 }
 
 /**
@@ -395,9 +507,9 @@ function noteGaps(natureza: NaturezaOperacao, notasReferenciadas: string[]): Fis
 /**
  * Monta a NF-e a partir de linhas já resolvidas.
  *
- * Ponto único das duas origens (proposta e nota avulsa): CFOP pela operação e
- * pelas UFs, situação do ICMS pela operação, total com IPI, finalidade e
- * referência. Assim a nota avulsa não vira uma segunda implementação da regra.
+ * Ponto único das duas origens (proposta e nota avulsa): total com IPI,
+ * finalidade, referência e as mensagens legais que os impostos das linhas
+ * pedem. Assim a nota avulsa não vira uma segunda implementação da regra.
  */
 function buildNfe(params: {
   settings: FiscalSettingsDocument;
@@ -411,6 +523,7 @@ function buildNfe(params: {
 }): AssembledInvoice {
   const valorProdutos = params.products.reduce((sum, item) => sum + item.valorTotal, 0);
   const valorTotal = Math.round((valorProdutos + totalIpi(params.products)) * 100) / 100;
+  const mensagensLegais = mensagensCreditoSimples(params.products);
   return {
     type: "nfe",
     valorTotal,
@@ -422,6 +535,7 @@ function buildNfe(params: {
       products: params.products,
       naturezaOperacao: describeNatureza(params.natureza),
       observacoes: params.observacoes,
+      ...(mensagensLegais.length > 0 ? { mensagensLegais } : {}),
       dataEmissao: params.dataEmissao,
       valorTotal,
       finalidade: naturezaFinalidade(params.natureza),
@@ -431,6 +545,20 @@ function buildNfe(params: {
       ...(params.transporte ? { transporte: params.transporte } : {}),
     },
   };
+}
+
+/**
+ * Lacunas do emitente e do contato aparecem uma vez por documento ou por
+ * linha: deduplicar evita uma checklist com o mesmo item repetido.
+ */
+function dedupeGaps(gaps: FiscalGap[]): FiscalGap[] {
+  const seen = new Set<string>();
+  return gaps.filter((gap) => {
+    const key = `${gap.scope}:${gap.entityId ?? ""}:${gap.field}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
 }
 
 function cfopFor(settings: FiscalSettingsDocument, natureza: NaturezaOperacao, recipient: FiscalRecipient): string {
@@ -453,20 +581,32 @@ export interface NfeLineView {
   quantidade: number;
   valorUnitario: number;
   valorTotal: number;
-  situacaoTributaria: string;
+  icms: FiscalIcms;
+  pis: FiscalPisCofins;
+  cofins: FiscalPisCofins;
   ipi?: FiscalIpi;
   ipiValor: number;
 }
 
 /** O que a tela precisa para revisar a NF-e antes de enviar. */
 export interface NfeView {
+  /** CSOSN (Simples) ou CST (Regime Normal): decide a lista do seletor. */
+  icmsKind: IcmsKind;
   naturezaOperacao: string;
   finalidade: "normal" | "devolucao";
   observacoes: string;
+  /** Textos que a lei manda constar; a tela mostra, mas não edita. */
+  mensagensLegais: string[];
   notasReferenciadas: string[];
   transporte?: FiscalTransporte;
   valorProdutos: number;
   valorIpi: number;
+  /** Destacados na nota; nenhum soma no total. */
+  baseIcms: number;
+  valorIcms: number;
+  valorCreditoIcms: number;
+  valorPis: number;
+  valorCofins: number;
   valorTotal: number;
   linhas: NfeLineView[];
 }
@@ -482,19 +622,24 @@ export function describeNfe(input: FiscalInvoiceInput): NfeView {
     quantidade: item.quantidade,
     valorUnitario: Math.round(item.valorUnitario * 100) / 100,
     valorTotal: Math.round(item.valorTotal * 100) / 100,
-    situacaoTributaria: item.csosn ?? item.cstIcms ?? "",
+    icms: item.icms,
+    pis: item.pis,
+    cofins: item.cofins,
     ...(item.ipi ? { ipi: item.ipi } : {}),
     ipiValor: item.ipi ? resolveIpi(item.ipi, item.valorTotal).valor ?? 0 : 0,
   }));
   const valorProdutos = Math.round(products.reduce((sum, item) => sum + item.valorTotal, 0) * 100) / 100;
   return {
+    icmsKind: icmsKindForRegime(input.issuer.regimeTributario),
     naturezaOperacao: input.naturezaOperacao ?? "",
     finalidade: input.finalidade ?? "normal",
     observacoes: input.observacoes ?? "",
+    mensagensLegais: input.mensagensLegais ?? [],
     notasReferenciadas: input.notasReferenciadas ?? [],
     ...(input.transporte ? { transporte: input.transporte } : {}),
     valorProdutos,
     valorIpi: totalIpi(products),
+    ...taxTotals(products),
     valorTotal: input.valorTotal,
     linhas,
   };
@@ -552,14 +697,22 @@ export async function assembleInvoices(params: {
       }
     }
 
+    const context: LineTaxContext = {
+      regime: settings.regimeTributario,
+      natureza,
+      contato: defaults,
+      aliquotaCreditoSimples: settings.aliquotaCreditoIcmsSimples,
+    };
+    const lineGaps: FiscalGap[] = [];
     const productItems = products.map((item, index) => {
       const edit = editsByIndex.get(index);
       const ipi = edit && edit.ipi !== undefined ? edit.ipi ?? undefined : defaults.ipi;
-      return buildProductItem(item, catalogs.get(item.productId), settings.regimeTributario, cfop, {
-        natureza,
-        situacaoTributaria: edit?.situacaoTributaria,
+      const built = buildProductItem(item, catalogs.get(item.productId), context, cfop, {
+        impostos: edit,
         ipi,
       });
+      lineGaps.push(...taxGaps(built.problemas, { index, descricao: built.item.descricao }, client));
+      return built.item;
     });
 
     const notasReferenciadas = edits.notasReferenciadas ?? [];
@@ -573,7 +726,7 @@ export async function assembleInvoices(params: {
         ncm: item.ncm,
       })),
     });
-    gaps.push(...readiness.gaps, ...noteGaps(natureza, notasReferenciadas));
+    gaps.push(...readiness.gaps, ...lineGaps, ...noteGaps(natureza, notasReferenciadas));
 
     invoices.push(
       buildNfe({
@@ -636,19 +789,9 @@ export async function assembleInvoices(params: {
     });
   }
 
-  // Lacunas do emitente aparecem uma vez por documento — deduplicar evita uma
-  // checklist com o mesmo item repetido.
-  const seen = new Set<string>();
-  const dedupedGaps = gaps.filter((gap) => {
-    const key = `${gap.scope}:${gap.entityId ?? ""}:${gap.field}`;
-    if (seen.has(key)) return false;
-    seen.add(key);
-    return true;
-  });
-
   return {
     invoices,
-    gaps: dedupedGaps,
+    gaps: dedupeGaps(gaps),
     client: { id: client.id, nome: recipient.nome },
   };
 }
@@ -685,6 +828,13 @@ export async function assembleManualNfe(params: {
     .filter((id): id is string => Boolean(id));
   const catalogs = await loadCatalog(catalogIds.map((productId) => ({ productId })), params.tenantId);
 
+  const context: LineTaxContext = {
+    regime: settings.regimeTributario,
+    natureza,
+    contato: defaults,
+    aliquotaCreditoSimples: settings.aliquotaCreditoIcmsSimples,
+  };
+
   const gaps: FiscalGap[] = [];
   const products: FiscalProductItem[] = params.linhas.map((linha, index) => {
     const catalog = linha.productId ? catalogs.get(linha.productId) : undefined;
@@ -692,12 +842,6 @@ export async function assembleManualNfe(params: {
     const quantidade = Number(linha.quantidade) || 0;
     const valorUnitario = Number(linha.valorUnitario) || 0;
     const ncm = (text(linha.ncm) || text(catalog?.ncm)).replace(/\D/g, "");
-    const { kind, codigo } = deriveSituacaoTributariaOperacao(
-      settings.regimeTributario,
-      natureza,
-      catalog?.situacaoTributaria,
-      linha.situacaoTributaria,
-    );
 
     if (ncm.length !== 8) {
       gaps.push({
@@ -721,21 +865,26 @@ export async function assembleManualNfe(params: {
       text(linha.unidade).toUpperCase().slice(0, 6) ||
       deriveUnidadeComercial(catalog?.inventoryUnit, catalog?.pricingModel?.mode);
 
-    return {
-      codigo: linha.productId || `AVULSO-${index + 1}`,
-      descricao,
-      cstPisCofins: derivePisCofinsCst(settings.regimeTributario),
-      ncm,
-      cest: (text(linha.cest) || text(catalog?.cest)).replace(/\D/g, "") || undefined,
-      cfop,
-      origem: normalizeOrigem(linha.origem ?? catalog?.origem),
-      unidadeComercial: unidade,
-      quantidade,
-      valorUnitario,
-      valorTotal: Math.round(quantidade * valorUnitario * 100) / 100,
-      ...(kind === "csosn" ? { csosn: codigo } : { cstIcms: codigo }),
-      ...(ipi ? { ipi } : {}),
-    };
+    const built = withTaxes(
+      {
+        codigo: text(linha.codigo) || linha.productId || `AVULSO-${index + 1}`,
+        descricao,
+        ncm,
+        cest: (text(linha.cest) || text(catalog?.cest)).replace(/\D/g, "") || undefined,
+        cfop,
+        origem: normalizeOrigem(linha.origem ?? catalog?.origem),
+        unidadeComercial: unidade,
+        quantidade,
+        valorUnitario,
+        valorTotal: Math.round(quantidade * valorUnitario * 100) / 100,
+        ...(ipi ? { ipi } : {}),
+      },
+      context,
+      catalog?.situacaoTributaria,
+      linha,
+    );
+    gaps.push(...taxGaps(built.problemas, { index, descricao }, client));
+    return built.item;
   });
 
   const notasReferenciadas = edits.notasReferenciadas ?? [];
@@ -768,7 +917,7 @@ export async function assembleManualNfe(params: {
 
   return {
     invoices: settings.habilitaNfe && products.length > 0 ? [invoice] : [],
-    gaps,
+    gaps: dedupeGaps(gaps),
     client: { id: client.id, nome: recipient.nome },
   };
 }

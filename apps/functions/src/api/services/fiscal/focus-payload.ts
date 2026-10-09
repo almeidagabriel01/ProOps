@@ -19,6 +19,7 @@ import type {
   FiscalIssuerConfig,
   FiscalEnvironment,
   FiscalNfsePadrao,
+  FiscalPisCofins,
   FiscalProductItem,
 } from "./fiscal-types";
 
@@ -223,6 +224,18 @@ function buildRecipientAddress(endereco: FiscalAddress): Record<string, unknown>
   return address;
 }
 
+function applyPisCofins(
+  line: Record<string, unknown>,
+  prefix: "pis" | "cofins",
+  tax: FiscalPisCofins,
+): void {
+  line[`${prefix}_situacao_tributaria`] = trimmed(tax.cst);
+  if (tax.baseCalculo === undefined) return;
+  line[`${prefix}_base_calculo`] = round(tax.baseCalculo, 2);
+  line[`${prefix}_aliquota_porcentual`] = round(tax.aliquota ?? 0, 4);
+  line[`${prefix}_valor`] = round(tax.valor ?? 0, 2);
+}
+
 function buildProductLine(item: FiscalProductItem, index: number): Record<string, unknown> {
   const line: Record<string, unknown> = {
     numero_item: index + 1,
@@ -248,30 +261,30 @@ function buildProductLine(item: FiscalProductItem, index: number): Record<string
   const cest = digits(item.cest);
   if (cest) line.cest = cest;
 
-  // CST and CSOSN are mutually exclusive: Regime Normal uses one, Simples the other.
-  const csosn = trimmed(item.csosn);
-  const cstIcms = trimmed(item.cstIcms);
-  if (csosn) {
-    line.icms_situacao_tributaria = csosn;
-  } else if (cstIcms) {
-    line.icms_situacao_tributaria = cstIcms;
+  // CST (Regime Normal) e CSOSN (Simples) vão no mesmo campo. Os valores já
+  // chegam calculados (`line-taxes.ts`) e só existem quando o código os aceita.
+  const icms = item.icms;
+  line.icms_situacao_tributaria = trimmed(icms.situacao);
+  if (icms.baseCalculo !== undefined) {
+    // 3 = valor da operação, a única modalidade que a nota oferece.
+    line.icms_modalidade_base_calculo = 3;
+    line.icms_base_calculo = round(icms.baseCalculo, 2);
+    line.icms_aliquota = round(icms.aliquota ?? 0, 4);
+    line.icms_valor = round(icms.valor ?? 0, 2);
+    if (icms.reducaoBase !== undefined) {
+      line.icms_reducao_base_calculo = round(icms.reducaoBase, 4);
+    }
+  }
+  if (icms.aliquotaCredito !== undefined) {
+    line.icms_aliquota_credito_simples = round(icms.aliquotaCredito, 4);
+    line.icms_valor_credito_simples = round(icms.valorCredito ?? 0, 2);
   }
 
   // A NF-e 4.00 exige os grupos PIS e COFINS em todo item — sem eles a SEFAZ
-  // rejeita com 745. No Simples os valores vão zerados: o recolhimento é
-  // unificado no DAS e destacar aqui declararia contribuição que não existe.
-  line.pis_situacao_tributaria = item.cstPisCofins;
-  line.pis_base_calculo = 0;
-  line.pis_aliquota_porcentual = 0;
-  line.pis_valor = 0;
-  line.cofins_situacao_tributaria = item.cstPisCofins;
-  line.cofins_base_calculo = 0;
-  line.cofins_aliquota_porcentual = 0;
-  line.cofins_valor = 0;
-
-  if (typeof item.aliquotaIcms === "number") {
-    line.icms_aliquota = round(item.aliquotaIcms, 4);
-  }
+  // rejeita com 745. O padrão do Simples é 99 zerado (recolhimento no DAS);
+  // CST não tributado (04 a 09) vai só com o código.
+  applyPisCofins(line, "pis", item.pis);
+  applyPisCofins(line, "cofins", item.cofins);
 
   // O grupo do XML (IPITrib ou IPINT) sai do CST no provedor; base, alíquota e
   // valor só existem no tributado.
@@ -423,8 +436,13 @@ export function buildNfePayload(
   const telefone = digits(recipient.telefone);
   if (telefone) payload.telefone_destinatario = telefone;
 
-  const observacoes = trimmed(input.observacoes);
-  if (observacoes) payload.informacoes_adicionais_contribuinte = observacoes;
+  // A mensagem legal vem depois do texto da pessoa e nunca depende dele: a
+  // observação se reescreve inteira na tela, a mensagem do crédito não.
+  const complementares = [input.observacoes, ...(input.mensagensLegais ?? [])]
+    .map((parte) => trimmed(parte))
+    .filter(Boolean)
+    .join(" | ");
+  if (complementares) payload.informacoes_adicionais_contribuinte = complementares;
 
   const inscricaoEstadualEmitente = trimmed(issuer.inscricaoEstadual);
   if (inscricaoEstadualEmitente) {
