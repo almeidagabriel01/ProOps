@@ -21,6 +21,7 @@ const FORM: FiscalFormState = {
   cnae: "6209100",
   regimeTributario: 1,
   percentualSimplesNacional: "6",
+  aliquotaCreditoIcmsSimples: "",
   email: "fiscal@exemplo.com.br",
   telefone: "",
   endereco: {
@@ -109,6 +110,28 @@ describe("buildFiscalSettingsPayload", () => {
     // String vazia aqui apagaria a senha guardada em KMS e o emitente pararia
     // de assinar, sem nada na tela dizendo por quê.
     expect(buildFiscalSettingsPayload(FORM).certificadoSenha).toBeUndefined();
+  });
+});
+
+describe("alíquota do crédito de ICMS do Simples (CSOSN 101)", () => {
+  it("vai digitada, com vírgula, e zero é valor", () => {
+    expect(
+      buildFiscalSettingsPayload({ ...FORM, aliquotaCreditoIcmsSimples: "1,25" }).aliquotaCreditoIcmsSimples,
+    ).toBe(1.25);
+    expect(
+      buildFiscalSettingsPayload({ ...FORM, aliquotaCreditoIcmsSimples: "0" }).aliquotaCreditoIcmsSimples,
+    ).toBe(0);
+  });
+
+  it("em branco vai null, que apaga a gravada", () => {
+    expect(buildFiscalSettingsPayload(FORM).aliquotaCreditoIcmsSimples).toBeNull();
+  });
+
+  it("fora do Simples vai null: o CSOSN 101 não existe no Regime Normal", () => {
+    expect(
+      buildFiscalSettingsPayload({ ...FORM, regimeTributario: 3, aliquotaCreditoIcmsSimples: "1,25" })
+        .aliquotaCreditoIcmsSimples,
+    ).toBeNull();
   });
 });
 

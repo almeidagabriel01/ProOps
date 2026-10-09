@@ -15,7 +15,13 @@ import {
   EMPTY_FISCAL_DEFAULTS,
   type FiscalDefaultsValues,
 } from "@/lib/fiscal/client-fiscal-defaults";
-import { IPI_CST_OPCOES, IPI_CST_TRIBUTADOS } from "@/lib/fiscal/nfe-form";
+import { decimalInput, IPI_CST_OPCOES, IPI_CST_TRIBUTADOS } from "@/lib/fiscal/nfe-form";
+import {
+  findIcmsSituacao,
+  findPisCofinsCst,
+  ICMS_SITUACOES,
+  PIS_COFINS_CSTS,
+} from "@/lib/fiscal/tax-codes";
 
 /**
  * Endereço fiscal e indicador de IE do destinatário.
@@ -101,6 +107,7 @@ export function ClientFiscalFields({
 
   const setField = (field: keyof ClientFiscalValues, value: string) =>
     onChange({ ...values, [field]: value });
+  const icmsDef = findIcmsSituacao(values.icmsSituacao);
 
   /**
    * O código IBGE não é digitável — vem daqui. É uma das rejeições mais comuns
@@ -295,15 +302,113 @@ export function ClientFiscalFields({
       </FormGroup>
 
       {/* Padrão das notas: o cliente industrial que exige o IPI informado em
-          toda nota resolve aqui uma vez. Na emissão continua editável. */}
+          toda nota, ou o que compra com crédito de ICMS (CSOSN 101), resolve
+          aqui uma vez. Na emissão continua editável. */}
       <div className="space-y-4 rounded-xl border border-dashed p-4">
         <div>
           <p className="text-sm font-medium">Padrão para as notas deste contato</p>
           <p className="text-xs text-muted-foreground">
-            Opcional. A nota de produto para ele já sai com o IPI e a observação daqui, e você
-            ainda pode mudar na hora de emitir.
+            Opcional. A nota de produto para ele já sai com os impostos e a observação daqui, e
+            você ainda pode mudar na hora de emitir. ICMS, PIS e COFINS valem nas vendas; numa
+            remessa ou devolução vale o padrão da operação.
           </p>
         </div>
+        <FormGroup cols={3}>
+          <FormItem label="Situação do ICMS" htmlFor="cliente-icms-situacao">
+            <Select
+              id="cliente-icms-situacao"
+              value={values.icmsSituacao}
+              disabled={disabled}
+              disableSort
+              onChange={(e) => setField("icmsSituacao", e.target.value)}
+            >
+              <option value="">O padrão da empresa</option>
+              {ICMS_SITUACOES.map((opcao) => (
+                <option key={opcao.codigo} value={opcao.codigo}>
+                  {opcao.kind === "csosn" ? "CSOSN" : "CST"} {opcao.codigo}: {opcao.descricao}
+                </option>
+              ))}
+            </Select>
+            <p className="text-xs text-muted-foreground">
+              No Simples Nacional é um CSOSN; no Regime Normal, um CST.
+            </p>
+          </FormItem>
+          {icmsDef && icmsDef.destaque !== "nenhum" && (
+            <FormItem label="Alíquota do ICMS (%)" htmlFor="cliente-icms-aliquota">
+              <Input
+                id="cliente-icms-aliquota"
+                inputMode="decimal"
+                value={values.icmsAliquota}
+                disabled={disabled}
+                onChange={(e) => setField("icmsAliquota", decimalInput(e.target.value))}
+              />
+            </FormItem>
+          )}
+          {icmsDef && icmsDef.destaque !== "nenhum" && (
+            <FormItem label="Redução da base do ICMS (%)" htmlFor="cliente-icms-reducao">
+              <Input
+                id="cliente-icms-reducao"
+                inputMode="decimal"
+                value={values.icmsReducaoBase}
+                disabled={disabled}
+                onChange={(e) => setField("icmsReducaoBase", decimalInput(e.target.value))}
+              />
+            </FormItem>
+          )}
+          {icmsDef && icmsDef.credito !== "nenhum" && (
+            <FormItem label="Crédito do Simples (%)" htmlFor="cliente-icms-credito">
+              <Input
+                id="cliente-icms-credito"
+                inputMode="decimal"
+                placeholder="Das configurações"
+                value={values.icmsAliquotaCredito}
+                disabled={disabled}
+                onChange={(e) => setField("icmsAliquotaCredito", decimalInput(e.target.value))}
+              />
+              <p className="text-xs text-muted-foreground">
+                Em branco: a alíquota das configurações fiscais da empresa.
+              </p>
+            </FormItem>
+          )}
+        </FormGroup>
+        <FormGroup cols={2}>
+          {(
+            [
+              ["pis", "do PIS", values.pisCst, values.pisAliquota, "pisCst", "pisAliquota"],
+              ["cofins", "da COFINS", values.cofinsCst, values.cofinsAliquota, "cofinsCst", "cofinsAliquota"],
+            ] as const
+          ).map(([chave, de, cst, aliquota, campoCst, campoAliquota]) => (
+            <div key={chave} className="flex flex-col gap-3 sm:flex-row">
+              <FormItem label={`CST ${de}`} htmlFor={`cliente-${chave}-cst`} className="flex-1">
+                <Select
+                  id={`cliente-${chave}-cst`}
+                  value={cst}
+                  disabled={disabled}
+                  disableSort
+                  onChange={(e) => setField(campoCst, e.target.value)}
+                >
+                  <option value="">O padrão da empresa</option>
+                  {PIS_COFINS_CSTS.map((opcao) => (
+                    <option key={opcao.codigo} value={opcao.codigo}>
+                      {opcao.codigo}: {opcao.descricao}
+                    </option>
+                  ))}
+                </Select>
+              </FormItem>
+              {cst && findPisCofinsCst(cst)?.grupo !== "nao_tributado" && (
+                <FormItem label={`Alíquota ${de} (%)`} htmlFor={`cliente-${chave}-aliquota`} className="sm:w-40">
+                  <Input
+                    id={`cliente-${chave}-aliquota`}
+                    inputMode="decimal"
+                    value={aliquota}
+                    disabled={disabled}
+                    onChange={(e) => setField(campoAliquota, decimalInput(e.target.value))}
+                  />
+                </FormItem>
+              )}
+            </div>
+          ))}
+        </FormGroup>
         <FormGroup cols={3}>
           <FormItem label="IPI (CST)" htmlFor="cliente-ipi-cst">
             <Select
