@@ -14,6 +14,15 @@ import {
 } from "../../lib/tenant-resolution";
 import { z } from "zod";
 import { IPI_CST_SAIDA } from "../services/fiscal/fiscal-types";
+import { ICMS_SITUACOES, PIS_COFINS_CSTS } from "../services/fiscal/tax-codes";
+
+const ICMS_CODIGOS = ICMS_SITUACOES.map((item) => item.codigo) as [string, ...string[]];
+const PIS_COFINS_CODIGOS = PIS_COFINS_CSTS.map((item) => item.codigo) as [string, ...string[]];
+const percentual = z.number().min(0).max(100);
+const pisCofinsDefault = z
+  .object({ cst: z.enum(PIS_COFINS_CODIGOS), aliquota: percentual.optional() })
+  .nullable()
+  .optional();
 import { sanitizeText, sanitizeRichText } from "../../utils/sanitize";
 import { buildClientSearchTokens } from "../../lib/search-tokens";
 import { cpf, cnpj } from "cpf-cnpj-validator";
@@ -65,8 +74,9 @@ export const ClientFiscalFields = {
   indicadorIe: z.enum(["contribuinte", "isento", "nao_contribuinte"]).optional(),
   consumidorFinal: z.boolean().optional(),
   /**
-   * Padrão da NF-e para este contato: observação e IPI que já vêm preenchidos
-   * ao emitir para ele. `null` apaga. Ver `ClientFiscalDefaults`.
+   * Padrão da NF-e para este contato: observação e impostos que já vêm
+   * preenchidos ao emitir para ele. `null` apaga, no todo ou por imposto.
+   * Ver `ClientFiscalDefaults`: ICMS, PIS e COFINS só valem na venda.
    */
   fiscalDefaults: z
     .object({
@@ -79,17 +89,46 @@ export const ClientFiscalFields = {
         })
         .nullable()
         .optional(),
+      icms: z
+        .object({
+          situacao: z.enum(ICMS_CODIGOS),
+          reducaoBase: percentual.optional(),
+          aliquota: percentual.optional(),
+          aliquotaCredito: percentual.optional(),
+        })
+        .nullable()
+        .optional(),
+      pis: pisCofinsDefault,
+      cofins: pisCofinsDefault,
     })
     .nullable()
     .optional(),
 };
+
+interface FiscalDefaultsInput {
+  observacoes?: string;
+  ipi?: { cst: string; aliquota?: number; codigoEnquadramento?: string } | null;
+  icms?: { situacao: string; reducaoBase?: number; aliquota?: number; aliquotaCredito?: number } | null;
+  pis?: { cst: string; aliquota?: number } | null;
+  cofins?: { cst: string; aliquota?: number } | null;
+}
+
+/** Copia só os números informados: o Firestore recusa `undefined`. */
+function definedNumbers<T extends Record<string, unknown>>(value: T, keys: Array<keyof T>): Record<string, number> {
+  const out: Record<string, number> = {};
+  for (const key of keys) {
+    const item = value[key];
+    if (typeof item === "number") out[key as string] = item;
+  }
+  return out;
+}
 
 /**
  * Padrão fiscal do contato sem campo vazio. `undefined` = nada a guardar, e
  * o chamador apaga o campo.
  */
 export function compactFiscalDefaults(
-  value: { observacoes?: string; ipi?: { cst: string; aliquota?: number; codigoEnquadramento?: string } | null } | null | undefined,
+  value: FiscalDefaultsInput | null | undefined,
 ): Record<string, unknown> | undefined {
   if (!value) return undefined;
   const out: Record<string, unknown> = {};
@@ -101,6 +140,16 @@ export function compactFiscalDefaults(
       ...(typeof value.ipi.aliquota === "number" ? { aliquota: value.ipi.aliquota } : {}),
       ...(value.ipi.codigoEnquadramento ? { codigoEnquadramento: value.ipi.codigoEnquadramento } : {}),
     };
+  }
+  if (value.icms?.situacao) {
+    out.icms = {
+      situacao: value.icms.situacao,
+      ...definedNumbers(value.icms, ["reducaoBase", "aliquota", "aliquotaCredito"]),
+    };
+  }
+  for (const nome of ["pis", "cofins"] as const) {
+    const tax = value[nome];
+    if (tax?.cst) out[nome] = { cst: tax.cst, ...definedNumbers(tax, ["aliquota"]) };
   }
   return Object.keys(out).length > 0 ? out : undefined;
 }

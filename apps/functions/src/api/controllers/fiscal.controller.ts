@@ -36,23 +36,10 @@ import {
   refundAiMessage,
 } from "../../ai/usage-tracker";
 import { sanitizeText } from "../../utils/sanitize";
-import { checkIssueReadiness } from "../services/fiscal/fiscal-readiness";
-import {
-  DEFAULT_NATUREZA,
-  deriveCfop,
-  deriveSituacaoTributaria,
-  deriveUnidadeComercial,
-  describeNatureza,
-  listNaturezas,
-  normalizeOrigem,
-  type NaturezaOperacao,
-  derivePisCofinsCst,
-} from "../services/fiscal/natureza-operacao";
+import { listNaturezas } from "../services/fiscal/natureza-operacao";
 import {
   cancelInvoice,
-  createInvoice,
   getInvoice,
-  issueInvoice,
   listInvoices,
   listInvoicesByClient,
   correctInvoice,
@@ -66,7 +53,6 @@ import { resolveTenantCapabilities } from "../../lib/tenant-capabilities";
 import {
   InvoiceQuotaError,
   getInvoiceQuota,
-  assertInvoiceQuota,
 } from "../services/fiscal/invoice-quota.service";
 import {
   issueFromProposal,
@@ -84,25 +70,19 @@ import {
 } from "../services/fiscal/nfe-request";
 import { registerFiscalWebhooks } from "../services/fiscal/fiscal-webhook-registration.service";
 import {
+  SOURCE_DOCUMENT_ERRORS,
+  parseSourceDocumentXml,
+} from "../services/fiscal/source-document";
+import {
   CANCELLATION_JUSTIFICATION_MAX_LENGTH,
   CANCELLATION_JUSTIFICATION_MIN_LENGTH,
   CORRECTION_TEXT_MAX_LENGTH,
   CORRECTION_TEXT_MIN_LENGTH,
 } from "../services/fiscal/fiscal-provider";
-import type { FiscalDocumentType } from "../services/fiscal/fiscal-types";
 import { recordMemberAudit } from "../../lib/member-audit";
 
 /** Sugestao por IA segue o mesmo gate dos demais recursos de IA. */
 const NCM_AI_PLANS = new Set<string>(["pro", "enterprise"]);
-
-/** CST e CSOSN sao mutuamente exclusivos — o regime decide qual campo vai. */
-function buildSituacaoTributaria(
-  regime: FiscalTaxRegime,
-  override: string,
-): Record<string, string> {
-  const { kind, codigo } = deriveSituacaoTributaria(regime, override);
-  return kind === "csosn" ? { csosn: codigo } : { cstIcms: codigo };
-}
 
 /**
  * Traduz o codigo interno para o que a pessoa precisa FAZER.
@@ -382,6 +362,25 @@ export const saveFiscalSettingsHandler = async (
       return;
     }
 
+    // Ausente mantém o gravado; em branco apaga. Zero é alíquota válida, então
+    // o branco não pode virar 0.
+    let aliquotaCreditoIcmsSimples: number | "" | undefined;
+    if ("aliquotaCreditoIcmsSimples" in body) {
+      const raw = body.aliquotaCreditoIcmsSimples;
+      if (raw === null || raw === "") {
+        aliquotaCreditoIcmsSimples = "";
+      } else {
+        const parsed = Number(raw);
+        if (!Number.isFinite(parsed) || parsed < 0 || parsed > 100) {
+          res.status(400).json({
+            message: "A alíquota do crédito de ICMS precisa estar entre 0 e 100%.",
+          });
+          return;
+        }
+        aliquotaCreditoIcmsSimples = parsed;
+      }
+    }
+
     const rawAddress = body.endereco as AddressInput;
 
     const existing = await getFiscalSettings(ctx.tenantId);
@@ -442,6 +441,7 @@ export const saveFiscalSettingsHandler = async (
         body.percentualTotalTributosSimplesNacional === ""
           ? undefined
           : Number(body.percentualTotalTributosSimplesNacional),
+      aliquotaCreditoIcmsSimples,
       serieNfe: body.serieNfe === undefined ? undefined : Number(body.serieNfe),
       proximoNumeroNfe:
         body.proximoNumeroNfe === undefined ? undefined : Number(body.proximoNumeroNfe),
@@ -709,131 +709,6 @@ export const suggestNcmHandler = async (req: Request, res: Response): Promise<vo
     const err = error as Error;
     logger.error("Falha ao sugerir NCM", { tenantId: user.tenantId, error: err.message });
     res.status(502).json({ message: "Não foi possível sugerir o NCM agora.", code: "AI_ERROR" });
-  }
-};
-
-// POST /v1/fiscal/invoices
-//
-// Responde 202: a emissão é assíncrona — o provedor valida o payload de forma
-// síncrona e depois enfileira para a SEFAZ ou a prefeitura. O desfecho chega
-// pelo webhook ou, se ele se perder, pelo cron processInvoiceRetries.
-export const issueInvoiceHandler = async (req: Request, res: Response): Promise<void> => {
-  try {
-    const ctx = await requireInvoiceAccess(req, res, "canCreate");
-    if (!ctx) return;
-
-    const body = req.body as Record<string, unknown>;
-    const type = text(body.type) as FiscalDocumentType;
-    if (type !== "nfe" && type !== "nfse") {
-      res.status(400).json({ message: "Tipo de nota deve ser nfe ou nfse" });
-      return;
-    }
-
-    const settings = await getFiscalSettings(ctx.tenantId);
-    if (!settings) {
-      res.status(422).json({
-        message: "Configure os dados fiscais antes de emitir.",
-        code: "FISCAL_NAO_CONFIGURADO",
-      });
-      return;
-    }
-
-    if ((type === "nfe" && !settings.habilitaNfe) || (type === "nfse" && !settings.habilitaNfse)) {
-      res.status(422).json({
-        message: `Emissão de ${type === "nfe" ? "NF-e" : "NFS-e"} não está habilitada na sua configuração fiscal.`,
-        code: "TIPO_NAO_HABILITADO",
-      });
-      return;
-    }
-
-    const recipient = (body.recipient ?? {}) as Record<string, unknown>;
-    const products = Array.isArray(body.products)
-      ? (body.products as Array<Record<string, unknown>>)
-      : [];
-    const service = body.service as Record<string, unknown> | undefined;
-
-    // Barrar aqui é muito mais barato que na SEFAZ: nota rejeitada pode
-    // consumir número da série e uma unidade do pacote mensal do provedor.
-    const readiness = checkIssueReadiness({
-      type,
-      issuer: settings,
-      recipient: recipient as never,
-      products: products as never,
-      service: service as never,
-    });
-
-    if (!readiness.ready) {
-      res.status(422).json({
-        message: "Faltam dados fiscais para emitir esta nota.",
-        code: "FISCAL_INCOMPLETO",
-        gaps: readiness.gaps,
-      });
-      return;
-    }
-
-    await assertInvoiceQuota(ctx.tenantId, 1);
-
-    const invoice = await createInvoice({
-      tenantId: ctx.tenantId,
-      type,
-      environment: settings.environment,
-      valorTotal: Number(body.valorTotal) || 0,
-      clientId: text(recipient.id) || undefined,
-      clientName: text(recipient.nome) || undefined,
-      transactionId: text(body.transactionId) || undefined,
-      proposalId: text(body.proposalId) || undefined,
-      createdBy: req.user?.uid,
-      provider: settings.provider,
-    });
-
-    const ufDestinatario = text(
-      (recipient.endereco as Record<string, unknown> | undefined)?.uf,
-    );
-    const natureza = (text(body.naturezaOperacao) || DEFAULT_NATUREZA) as NaturezaOperacao;
-
-    const issued = await issueInvoice(invoice.id, {
-      type,
-      ref: invoice.ref,
-      // O certificado não é persistido: já está sob custódia do provedor desde
-      // o registro do emitente, então não precisa acompanhar a emissão.
-      issuer: buildIssuerConfig(settings, "", ""),
-      recipient: recipient as never,
-      products: products.map((item) => ({
-        codigo: text(item.codigo) || text(item.id),
-        descricao: text(item.descricao) || text(item.name),
-        // Derivado do regime como o CSOSN: a NF-e 4.00 exige o grupo em todo
-        // item, e a rejeicao 745 nao diz qual item nem o que falta.
-        cstPisCofins: derivePisCofinsCst(settings.regimeTributario),
-        ncm: text(item.ncm),
-        cest: text(item.cest) || undefined,
-        quantidade: Number(item.quantidade) || 0,
-        valorUnitario: Number(item.valorUnitario) || 0,
-        valorTotal: Number(item.valorTotal) || 0,
-        // CFOP é da operação, não do produto: a mesma cortina é 5102 dentro do
-        // estado e 6102 fora. Por isso é derivado aqui, na emissão.
-        cfop:
-          type === "nfe" ? deriveCfop(natureza, settings.endereco.uf, ufDestinatario) : "",
-        origem: normalizeOrigem(item.origem),
-        unidadeComercial: deriveUnidadeComercial(
-          text(item.inventoryUnit),
-          text(item.pricingMode),
-        ),
-        ...buildSituacaoTributaria(settings.regimeTributario, text(item.situacaoTributaria)),
-      })),
-      service: service as never,
-      naturezaOperacao: describeNatureza(natureza),
-      observacoes: text(body.observacoes) || undefined,
-      dataEmissao: new Date().toISOString(),
-      valorTotal: Number(body.valorTotal) || 0,
-    });
-
-    res.status(202).json(issued);
-  } catch (error) {
-    const err = error as Error;
-    logger.error("Falha ao emitir nota fiscal", { error: err.message });
-    res
-      .status(mapFiscalErrorStatus(err))
-      .json(fiscalErrorBody(err));
   }
 };
 
@@ -1209,6 +1084,37 @@ export const previewManualNfeHandler = async (req: Request, res: Response): Prom
   } catch (error) {
     const err = error as Error;
     logger.warn("Falha na prévia da nota avulsa", { error: err.message });
+    res.status(mapFiscalErrorStatus(err)).json(fiscalErrorBody(err));
+  }
+};
+
+/**
+ * POST /v1/fiscal/source-documents/xml
+ *
+ * Lê o XML de uma NF-e de origem (a compra devolvida, a nota do aparelho que
+ * vai para o conserto) e devolve chave e itens, para a tela montar a nota
+ * avulsa a partir deles. Só leitura: nada é gravado.
+ */
+export const parseSourceDocumentHandler = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const ctx = await requireInvoiceAccess(req, res, "canCreate");
+    if (!ctx) return;
+    const body = (req.body ?? {}) as Record<string, unknown>;
+    const xml = typeof body.xml === "string" ? body.xml : "";
+    if (!xml.trim()) {
+      res.status(400).json({ message: "Envie o XML da nota.", code: "XML_AUSENTE" });
+      return;
+    }
+    const settings = await getFiscalSettings(ctx.tenantId);
+    res.status(200).json(parseSourceDocumentXml(xml, settings?.cnpj ?? ""));
+  } catch (error) {
+    const err = error as Error;
+    const message = SOURCE_DOCUMENT_ERRORS[err.message];
+    if (message) {
+      res.status(400).json({ message, code: err.message });
+      return;
+    }
+    logger.error("Falha ao ler o XML da nota de origem", { error: err.message });
     res.status(mapFiscalErrorStatus(err)).json(fiscalErrorBody(err));
   }
 };

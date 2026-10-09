@@ -103,7 +103,9 @@ const NATUREZAS: Record<NaturezaOperacao, NaturezaDefinition> = {
     descricao: "Remessa para conserto ou reparo",
     tributada: false,
     finalidade: "normal",
-    referencia: "nao_se_aplica",
+    // A nota de compra do aparelho que vai para o conserto: não é exigida, mas
+    // amarra a saída à entrada, e é o que a pessoa costuma ter à mão.
+    referencia: "opcional",
   },
   retorno_conserto: {
     dentroEstado: "5916",
@@ -119,7 +121,7 @@ const NATUREZAS: Record<NaturezaOperacao, NaturezaDefinition> = {
     descricao: "Remessa para demonstração",
     tributada: false,
     finalidade: "normal",
-    referencia: "nao_se_aplica",
+    referencia: "opcional",
   },
   retorno_demonstracao: {
     dentroEstado: "5913",
@@ -181,6 +183,11 @@ export function listNaturezas(): NaturezaResumo[] {
 
 export function naturezaFinalidade(natureza: NaturezaOperacao): FinalidadeNota {
   return NATUREZAS[natureza].finalidade;
+}
+
+/** Venda é tributada; remessa, retorno e devolução não (ver `tributada`). */
+export function isNaturezaTributada(natureza: NaturezaOperacao): boolean {
+  return NATUREZAS[natureza]?.tributada !== false;
 }
 
 export function naturezaReferencia(natureza: NaturezaOperacao): ReferenciaNota {

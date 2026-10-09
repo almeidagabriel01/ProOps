@@ -25,6 +25,8 @@ export interface FiscalFormState {
   cnae: string;
   regimeTributario: FiscalTaxRegime;
   percentualSimplesNacional: string;
+  /** `pCredSN` do CSOSN 101, em percentual. Só no Simples. */
+  aliquotaCreditoIcmsSimples: string;
   email: string;
   telefone: string;
   endereco: FiscalAddress;
@@ -69,6 +71,12 @@ export function buildFiscalSettingsPayload(
     percentualTotalTributosSimplesNacional: optionalNumber(
       form.percentualSimplesNacional,
     ),
+    // Vai sempre: em branco (ou fora do Simples, onde o CSOSN não existe)
+    // apaga a gravada, em vez de deixar valendo uma alíquota que sumiu da tela.
+    aliquotaCreditoIcmsSimples:
+      form.regimeTributario === 1 || form.regimeTributario === 2
+        ? (optionalNumber(form.aliquotaCreditoIcmsSimples) ?? null)
+        : null,
     email: form.email.trim(),
     telefone: form.telefone.trim(),
     endereco: {

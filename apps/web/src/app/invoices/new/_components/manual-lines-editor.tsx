@@ -8,22 +8,24 @@ import { CurrencyInput } from "@/components/ui/currency-input";
 import { SearchableSelect } from "@/components/ui/searchable-select";
 import { formatCurrency } from "@/utils/format";
 import {
-  ipiFromApi,
+  decimalInput,
   newManualLine,
   parseDecimal,
   type ManualLineForm,
 } from "@/lib/fiscal/nfe-form";
+import type { IcmsKind } from "@/lib/fiscal/tax-codes";
 import type { FiscalNfeView } from "@/services/fiscal-service";
 import type { Product } from "@/services/product-service";
 import { Field } from "./field";
-import { IpiFields } from "./ipi-fields";
+import { LineTaxesPanel } from "./line-taxes-panel";
 
 interface ManualLinesEditorProps {
   lines: ManualLineForm[];
   onChange: (lines: ManualLineForm[]) => void;
   products: Product[];
-  /** Linhas como a prévia devolveu: CFOP, situação do ICMS e o IPI aplicado. */
+  /** Linhas como a prévia devolveu: CFOP e os impostos aplicados. */
   previewLines?: FiscalNfeView["linhas"];
+  icmsKind: IcmsKind;
   disabled?: boolean;
 }
 
@@ -43,6 +45,7 @@ export function ManualLinesEditor({
   onChange,
   products,
   previewLines,
+  icmsKind,
   disabled,
 }: ManualLinesEditorProps) {
   const productOptions = React.useMemo(
@@ -66,6 +69,7 @@ export function ManualLinesEditor({
     }
     update(key, {
       productId: product.id,
+      codigo: undefined,
       descricao: product.name,
       ncm: product.ncm ?? "",
       unidade: unidadeDoProduto(product),
@@ -77,9 +81,6 @@ export function ManualLinesEditor({
     <div className="flex flex-col gap-4">
       {lines.map((line, index) => {
         const preview = previewLines?.[index];
-        // Sem mexer no IPI, a linha mostra o que a prévia aplicou (o padrão
-        // do contato); ao mexer, passa a valer o que a pessoa escolheu.
-        const ipiValue = line.ipiTouched ? line.ipi : ipiFromApi(preview?.ipi);
         const total = (parseDecimal(line.quantidade) ?? 0) * line.valorUnitario;
         return (
           <div key={line.key} className="flex flex-col gap-3 rounded-xl border p-3 sm:p-4">
@@ -88,7 +89,7 @@ export function ManualLinesEditor({
               <div className="flex items-center gap-2">
                 {preview && (
                   <span className="text-xs text-muted-foreground">
-                    CFOP {preview.cfop || "a definir"}, ICMS {preview.situacaoTributaria}
+                    CFOP {preview.cfop || "a definir"}
                   </span>
                 )}
                 <Button
@@ -159,7 +160,7 @@ export function ManualLinesEditor({
                   value={line.quantidade}
                   disabled={disabled}
                   onChange={(e) =>
-                    update(line.key, { quantidade: e.target.value.replace(/[^d.,]/g, "") })
+                    update(line.key, { quantidade: decimalInput(e.target.value) })
                   }
                 />
               </Field>
@@ -178,12 +179,13 @@ export function ManualLinesEditor({
 
             <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
               <div className="min-w-0 flex-1">
-                <IpiFields
+                <LineTaxesPanel
                   id={line.key}
-                  value={ipiValue}
-                  valorIpi={preview?.ipiValor}
+                  value={line.impostos}
+                  preview={preview}
+                  icmsKind={icmsKind}
                   disabled={disabled}
-                  onChange={(ipi) => update(line.key, { ipi, ipiTouched: true })}
+                  onChange={(impostos) => update(line.key, { impostos })}
                 />
               </div>
               <p className="text-sm sm:pt-2">

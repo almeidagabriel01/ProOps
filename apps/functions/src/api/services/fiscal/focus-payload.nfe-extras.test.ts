@@ -62,8 +62,9 @@ const amplificador: FiscalProductItem = {
   quantidade: 1,
   valorUnitario: 2090,
   valorTotal: 2090,
-  csosn: "900",
-  cstPisCofins: "99",
+  icms: { kind: "csosn", situacao: "900" },
+  pis: { cst: "99", baseCalculo: 0, aliquota: 0, valor: 0 },
+  cofins: { cst: "99", baseCalculo: 0, aliquota: 0, valor: 0 },
 };
 
 function input(overrides: Partial<FiscalInvoiceInput> = {}): FiscalInvoiceInput {

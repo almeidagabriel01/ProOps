@@ -38,6 +38,15 @@ interface InvoiceReviewSummaryProps {
 export function InvoiceReviewSummary({ preview, gaps, clientId, loading }: InvoiceReviewSummaryProps) {
   const nfe = preview?.documentos.find((doc) => doc.type === "nfe")?.nfe;
   const nfse = preview?.documentos.find((doc) => doc.type === "nfse");
+  const destacados = nfe
+    ? [
+        { label: "Base do ICMS", valor: nfe.baseIcms },
+        { label: "ICMS", valor: nfe.valorIcms },
+        { label: "Crédito de ICMS", valor: nfe.valorCreditoIcms },
+        { label: "PIS", valor: nfe.valorPis },
+        { label: "COFINS", valor: nfe.valorCofins },
+      ].filter((item) => item.valor > 0)
+    : [];
   const grupos = React.useMemo(() => {
     const map = new Map<FiscalGap["scope"], FiscalGap[]>();
     for (const gap of gaps ?? preview?.gaps ?? []) {
@@ -49,7 +58,7 @@ export function InvoiceReviewSummary({ preview, gaps, clientId, loading }: Invoi
   return (
     <div className="flex flex-col gap-4" aria-busy={loading}>
       {nfe && (
-        <dl className="grid grid-cols-3 gap-2 rounded-xl bg-muted/40 p-3 text-sm">
+        <dl className="grid grid-cols-2 gap-2 rounded-xl bg-muted/40 p-3 text-sm sm:grid-cols-4">
           <div>
             <dt className="text-muted-foreground">Produtos</dt>
             <dd className="font-medium">{formatCurrency(nfe.valorProdutos)}</dd>
@@ -58,6 +67,13 @@ export function InvoiceReviewSummary({ preview, gaps, clientId, loading }: Invoi
             <dt className="text-muted-foreground">IPI</dt>
             <dd className="font-medium">{formatCurrency(nfe.valorIpi)}</dd>
           </div>
+          {/* Destacados: informam, mas não somam no total. */}
+          {destacados.map((item) => (
+            <div key={item.label}>
+              <dt className="text-muted-foreground">{item.label}</dt>
+              <dd className="font-medium">{formatCurrency(item.valor)}</dd>
+            </div>
+          ))}
           <div>
             <dt className="text-muted-foreground">Total da nota</dt>
             <dd className="font-semibold">{formatCurrency(nfe.valorTotal)}</dd>
@@ -102,8 +118,11 @@ export function InvoiceReviewSummary({ preview, gaps, clientId, loading }: Invoi
           </p>
           <div className="mt-2 flex flex-col gap-3">
             {grupos.map(([scope, itens]) => {
+              // Na nota da proposta o destinatário não foi escolhido na tela: o
+              // id vem da própria lacuna.
+              const destinatario = clientId ?? itens.find((gap) => gap.entityId)?.entityId;
               const href =
-                scope === "cliente" && clientId ? `/contacts/${clientId}` : SCOPE_HREF[scope];
+                scope === "cliente" && destinatario ? `/contacts/${destinatario}` : SCOPE_HREF[scope];
               return (
                 <div key={scope}>
                   <p className="font-medium">

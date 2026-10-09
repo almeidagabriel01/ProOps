@@ -47,15 +47,43 @@ describe("parseNfeEdits", () => {
     );
   });
 
-  it("aceita situação do ICMS só com 2 ou 3 dígitos", () => {
+  it("lê ICMS, PIS e COFINS da linha", () => {
     const edits = parseNfeEdits({
       linhas: [
-        { index: 0, productId: "p1", situacaoTributaria: "400" },
-        { index: 1, productId: "p2", situacaoTributaria: "4" },
+        {
+          index: 0,
+          productId: "p1",
+          icms: { situacao: "101", aliquotaCredito: 1.25 },
+          pis: { cst: "01", aliquota: 0.65 },
+          cofins: { cst: "01", aliquota: 3 },
+        },
+        { index: 1, productId: "p2" },
       ],
     });
-    expect(edits?.linhas?.[0].situacaoTributaria).toBe("400");
-    expect(edits?.linhas?.[1].situacaoTributaria).toBeUndefined();
+    expect(edits?.linhas?.[0]).toEqual({
+      index: 0,
+      productId: "p1",
+      icms: { situacao: "101", aliquotaCredito: 1.25 },
+      pis: { cst: "01", aliquota: 0.65 },
+      cofins: { cst: "01", aliquota: 3 },
+    });
+    // Linha sem imposto: nada a mexer, vale o padrão.
+    expect(edits?.linhas?.[1]).toEqual({ index: 1, productId: "p2" });
+  });
+
+  it("recusa código de imposto fora da lista e alíquota fora de 0 a 100", () => {
+    expect(() => parseNfeEdits({ linhas: [{ index: 0, productId: "p", icms: { situacao: "201" } }] })).toThrow(
+      "ICMS_SITUACAO_INVALIDA",
+    );
+    expect(() => parseNfeEdits({ linhas: [{ index: 0, productId: "p", icms: { aliquota: 101 } }] })).toThrow(
+      "ICMS_ALIQUOTA_INVALIDA",
+    );
+    expect(() => parseNfeEdits({ linhas: [{ index: 0, productId: "p", pis: { cst: "03" } }] })).toThrow(
+      "PIS_COFINS_CST_INVALIDO",
+    );
+    expect(() => parseManualLines([{ descricao: "x", cofins: { cst: "01", aliquota: -1 } }])).toThrow(
+      "PIS_COFINS_ALIQUOTA_INVALIDA",
+    );
   });
 
   it("propaga erro de chave inválida", () => {

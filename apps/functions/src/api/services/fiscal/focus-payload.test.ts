@@ -75,8 +75,9 @@ function buildInput(overrides: Partial<FiscalInvoiceInput> = {}): FiscalInvoiceI
         quantidade: 2,
         valorUnitario: 1250,
         valorTotal: 2500,
-        csosn: "102",
-      cstPisCofins: "99",
+        icms: { kind: "csosn", situacao: "102" },
+        pis: { cst: "99", baseCalculo: 0, aliquota: 0, valor: 0 },
+        cofins: { cst: "99", baseCalculo: 0, aliquota: 0, valor: 0 },
       },
     ],
     ...overrides,
@@ -244,7 +245,7 @@ describe("buildNfePayload", () => {
     const normal = buildNfePayload(
       buildInput({
         products: [
-          { ...buildInput().products![0], csosn: undefined, cstIcms: "00" },
+          { ...buildInput().products![0], icms: { kind: "cst", situacao: "00" } },
         ],
       }),
     );

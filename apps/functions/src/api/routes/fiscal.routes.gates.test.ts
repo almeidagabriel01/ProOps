@@ -83,6 +83,9 @@ describe("gates das rotas fiscais", () => {
   it("emissao e franquia passam so pelo gate fiscal", async () => {
     expect(await gatesFor("POST", "/fiscal/invoices/from-proposal/p1")).toEqual(["fiscal"]);
     expect(await gatesFor("GET", "/fiscal/invoices/quota")).toEqual(["fiscal"]);
+    expect(await gatesFor("POST", "/fiscal/invoices/manual")).toEqual(["fiscal"]);
+    // Ler o XML da nota de origem serve a nota avulsa: mesmo gate, sem a recepcao.
+    expect(await gatesFor("POST", "/fiscal/source-documents/xml")).toEqual(["fiscal"]);
   });
 
   it.each([

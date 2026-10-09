@@ -64,12 +64,16 @@ export type Client = {
   indicadorIe?: "contribuinte" | "isento" | "nao_contribuinte";
   consumidorFinal?: boolean;
   /**
-   * Padrão da NF-e para este contato: a observação e o IPI que já vêm
-   * preenchidos ao emitir para ele (editáveis na emissão).
+   * Padrão da NF-e para este contato: observação e impostos que já vêm
+   * preenchidos ao emitir para ele (editáveis na emissão). ICMS, PIS e COFINS
+   * valem só na venda; IPI e observação, em toda nota.
    */
   fiscalDefaults?: {
     observacoes?: string;
     ipi?: { cst: string; aliquota?: number; codigoEnquadramento?: string };
+    icms?: { situacao: string; reducaoBase?: number; aliquota?: number; aliquotaCredito?: number };
+    pis?: { cst: string; aliquota?: number };
+    cofins?: { cst: string; aliquota?: number };
   } | null;
   /**
    * Percentual de comissao padrao deste parceiro, usado para pre-preencher a

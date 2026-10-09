@@ -95,7 +95,17 @@ describe("FocusFiscalProvider — base de URL por tipo de operação", () => {
         valorTotal: 100,
         issuer: ISSUER,
         recipient: { nome: "Cliente", documento: "12345678909" },
-        products: [{ descricao: "Item", quantidade: 1, valorUnitario: 100, ncm: "85444900" }],
+        products: [
+          {
+            descricao: "Item",
+            quantidade: 1,
+            valorUnitario: 100,
+            ncm: "85444900",
+            icms: { kind: "csosn", situacao: "102" },
+            pis: { cst: "99" },
+            cofins: { cst: "99" },
+          },
+        ],
       } as never,
       "homologacao",
       "token-da-empresa",

@@ -180,6 +180,35 @@ export function EmpresaStep({
             </p>
           </FormItem>
         )}
+
+        {/* O crédito que o cliente aproveita quando a nota sai com o CSOSN
+            101. Sai da faixa do Simples, como a alíquota acima, então fica
+            aqui e não em cada nota (onde ainda dá para trocar por linha). */}
+        {isSimples && (
+          <FormItem
+            label="Alíquota do crédito de ICMS (%)"
+            htmlFor="fiscal-credito-icms"
+          >
+            <Input
+              id="fiscal-credito-icms"
+              type="number"
+              inputMode="decimal"
+              min="0"
+              max="100"
+              step="0.01"
+              placeholder="1,25"
+              value={form.aliquotaCreditoIcmsSimples}
+              onChange={(e) =>
+                setField("aliquotaCreditoIcmsSimples", e.target.value)
+              }
+            />
+            <p className="text-xs text-muted-foreground">
+              Só para cliente que compra com crédito (CSOSN 101). É o percentual
+              de ICMS da sua faixa do Simples; a nota leva o valor do crédito e
+              a frase do art. 23 da LC 123/2006 sozinha.
+            </p>
+          </FormItem>
+        )}
       </div>
 
       <StepNavigation onBeforeNext={onBeforeNext} />

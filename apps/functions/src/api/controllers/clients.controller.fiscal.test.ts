@@ -120,3 +120,41 @@ describe("padrão fiscal do contato (fiscalDefaults)", () => {
     expect(compactFiscalDefaults(null)).toBeUndefined();
   });
 });
+
+describe("padrão fiscal do contato: ICMS, PIS e COFINS (cliente 101 da AWA)", () => {
+  it("aceita CSOSN 101 e PIS/COFINS com alíquota", () => {
+    const parsed = ClientFiscalFieldsSchema.safeParse({
+      fiscalDefaults: {
+        icms: { situacao: "101" },
+        pis: { cst: "01", aliquota: 0.65 },
+        cofins: { cst: "01", aliquota: 3 },
+      },
+    });
+    expect(parsed.success).toBe(true);
+  });
+
+  it("recusa código fora da lista (ST não tem onde ser declarado) e alíquota acima de 100", () => {
+    for (const fiscalDefaults of [
+      { icms: { situacao: "201" } },
+      { icms: { situacao: "10" } },
+      { icms: { situacao: "101", aliquotaCredito: 120 } },
+      { pis: { cst: "03" } },
+      { cofins: { cst: "01", aliquota: -1 } },
+    ]) {
+      expect(ClientFiscalFieldsSchema.safeParse({ fiscalDefaults }).success).toBe(false);
+    }
+  });
+
+  it("guarda só o que foi informado, e null num imposto o tira", () => {
+    expect(
+      compactFiscalDefaults({
+        icms: { situacao: "101" },
+        pis: { cst: "07" },
+        cofins: null,
+      }),
+    ).toEqual({ icms: { situacao: "101" }, pis: { cst: "07" } });
+    expect(
+      compactFiscalDefaults({ icms: { situacao: "00", aliquota: 17, reducaoBase: 10 } }),
+    ).toEqual({ icms: { situacao: "00", aliquota: 17, reducaoBase: 10 } });
+  });
+});

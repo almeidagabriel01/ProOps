@@ -15,7 +15,10 @@ import { notifyIssueError } from "@/hooks/use-issue-invoice";
 import { usePlanLimits } from "@/hooks/usePlanLimits";
 import { useTenant } from "@/providers/tenant-provider";
 import {
+  addChave,
   EMPTY_TRANSPORTE,
+  isBlankLine,
+  linesFromSource,
   manualRequest,
   newManualLine,
   parseChaves,
@@ -29,14 +32,15 @@ import {
   type FiscalGap,
   type FiscalIssuePreview,
   type FiscalNatureza,
+  type FiscalSourceDocument,
 } from "@/services/fiscal-service";
 import { ProductService, type Product } from "@/services/product-service";
-import type { ReceivedInvoice } from "@/services/received-invoice-service";
 import { Field } from "./field";
 import { InvoiceReviewSummary } from "./invoice-review-summary";
 import { ManualLinesEditor } from "./manual-lines-editor";
 import { ProposalLinesReview } from "./proposal-lines-review";
 import { ReferencedKeysField } from "./referenced-keys-field";
+import { SourceDocumentDialog, type SourceSelection } from "./source-document-dialog";
 import { TransportFields } from "./transport-fields";
 
 interface InvoiceFormProps {
@@ -77,6 +81,7 @@ export function InvoiceForm({ proposalId }: InvoiceFormProps) {
   const [lines, setLines] = React.useState<ManualLineForm[]>(() => [newManualLine()]);
   const [proposalEdits, setProposalEdits] = React.useState<ProposalLineForm[]>([]);
   const [products, setProducts] = React.useState<Product[]>([]);
+  const [sourceOpen, setSourceOpen] = React.useState(false);
 
   const [preview, setPreview] = React.useState<FiscalIssuePreview | null>(null);
   const [previewError, setPreviewError] = React.useState<string | null>(null);
@@ -137,29 +142,26 @@ export function InvoiceForm({ proposalId }: InvoiceFormProps) {
   }, [requestKey, proposalId]);
 
   const nfeView = preview?.documentos.find((doc) => doc.type === "nfe")?.nfe;
+  // Antes da primeira prévia o seletor não sabe o regime; o painel de
+  // impostos fica travado até ela chegar, então o padrão aqui não chega a valer.
+  const icmsKind = nfeView?.icmsKind ?? "csosn";
   const natureza = naturezas.find((item) => item.id === form.naturezaOperacao);
   const chavesInvalidas = parseChaves(form.chavesTexto).invalidas.length > 0;
 
-  const pickReceived = (invoice: ReceivedInvoice) => {
-    if (isProposal || !invoice.itens?.length) return;
-    const vazias = lines.every((line) => !line.descricao.trim() && !line.productId);
-    if (!vazias) {
-      toast.info("Chave acrescentada", {
-        description: "Os itens que você já digitou foram mantidos.",
-      });
-      return;
-    }
-    setLines(
-      invoice.itens.map((item) =>
-        newManualLine({
-          descricao: item.descricao,
-          ncm: item.ncm ?? "",
-          unidade: (item.unidade ?? "UN").toUpperCase().slice(0, 6),
-          quantidade: String(item.quantidade).replace(".", ","),
-          valorUnitario: item.valorUnitario,
-        }),
-      ),
-    );
+  /**
+   * A nota de origem escolhida: a chave entra na referência e, na nota
+   * avulsa, os itens escolhidos viram linhas (somando às que a pessoa já
+   * digitou, ou no lugar da linha em branco).
+   */
+  const applySource = (doc: FiscalSourceDocument, escolhidos: SourceSelection[]) => {
+    setForm((prev) => ({ ...prev, chavesTexto: addChave(prev.chavesTexto, doc.chave) }));
+    if (isProposal || escolhidos.length === 0) return;
+    const novas = linesFromSource(doc, escolhidos, {
+      devolucao: natureza?.finalidade === "devolucao",
+      icmsKind,
+    });
+    setLines((prev) => [...prev.filter((line) => !isBlankLine(line)), ...novas]);
+    toast.success(novas.length === 1 ? "1 item trazido da nota" : `${novas.length} itens trazidos da nota`);
   };
 
   const submit = async () => {
@@ -262,10 +264,9 @@ export function InvoiceForm({ proposalId }: InvoiceFormProps) {
           <ReferencedKeysField
             value={form.chavesTexto}
             required={natureza.referencia === "obrigatoria"}
-            canPickReceived={hasFiscalReceiving}
             disabled={submitting}
             onChange={(chavesTexto) => setForm((prev) => ({ ...prev, chavesTexto }))}
-            onPickReceived={pickReceived}
+            onOpenSource={() => setSourceOpen(true)}
           />
         )}
       </FormSection>
@@ -274,8 +275,8 @@ export function InvoiceForm({ proposalId }: InvoiceFormProps) {
         title="Itens"
         description={
           isProposal
-            ? "Os itens e valores são os da proposta. Aqui você ajusta o IPI de cada um."
-            : "Do catálogo ou digitados na hora."
+            ? "Os itens e valores são os da proposta. Aqui você ajusta os impostos de cada um."
+            : "Do catálogo, digitados na hora ou trazidos da nota de origem."
         }
         icon={Package}
       >
@@ -285,6 +286,7 @@ export function InvoiceForm({ proposalId }: InvoiceFormProps) {
               previewLines={nfeView.linhas}
               edits={proposalEdits}
               onChange={setProposalEdits}
+              icmsKind={icmsKind}
               disabled={submitting}
             />
           ) : preview ? (
@@ -302,6 +304,7 @@ export function InvoiceForm({ proposalId }: InvoiceFormProps) {
             onChange={setLines}
             products={products}
             previewLines={nfeView?.linhas}
+            icmsKind={icmsKind}
             disabled={submitting}
           />
         )}
@@ -339,8 +342,24 @@ export function InvoiceForm({ proposalId }: InvoiceFormProps) {
               onChange={(e) => setForm((prev) => ({ ...prev, observacoes: e.target.value }))}
             />
           </Field>
+          {(nfeView?.mensagensLegais.length ?? 0) > 0 && (
+            <div className="rounded-lg bg-muted/40 p-3 text-sm" data-testid="mensagens-legais">
+              <p className="font-medium">Vai junto, depois da observação</p>
+              <ul className="mt-1 flex flex-col gap-1 text-muted-foreground">
+                {nfeView?.mensagensLegais.map((mensagem) => <li key={mensagem}>{mensagem}</li>)}
+              </ul>
+            </div>
+          )}
         </FormSection>
       )}
+
+      <SourceDocumentDialog
+        open={sourceOpen}
+        onOpenChange={setSourceOpen}
+        canPickReceived={hasFiscalReceiving}
+        selectItems={!isProposal}
+        onConfirm={applySource}
+      />
 
       <div className="flex flex-col gap-4 rounded-2xl border bg-card p-4 sm:p-6">
         {previewError && <p className="text-sm text-destructive">{previewError}</p>}

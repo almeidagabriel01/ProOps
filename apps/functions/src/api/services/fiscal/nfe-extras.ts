@@ -1,6 +1,6 @@
 /**
- * O que a NF-e leva além dos itens: IPI por linha, transporte e notas
- * referenciadas.
+ * O que a NF-e leva além dos itens: IPI e os demais impostos editáveis por
+ * linha, transporte e notas referenciadas.
  *
  * Tudo aqui é opcional e nada é derivado do catálogo. Até a nota avulsa, a
  * emissão mandava sempre "sem frete", sem IPI e sem referência, e quem
@@ -20,6 +20,8 @@ import {
   type FiscalTransporte,
   type FiscalVolume,
 } from "./fiscal-types";
+import type { IcmsEdit, LineTaxEdits, PisCofinsEdit } from "./line-taxes";
+import { findIcmsSituacao, findPisCofinsCst } from "./tax-codes";
 
 /** `cEnq` quando não há enquadramento específico (valor da própria norma). */
 export const IPI_ENQUADRAMENTO_PADRAO = "999";
@@ -115,6 +117,86 @@ export function parseIpi(value: unknown): FiscalIpi | undefined {
   const enquadramento = text(raw.codigoEnquadramento, 3).replace(/\D/g, "");
   if (enquadramento) ipi.codigoEnquadramento = enquadramento;
   return ipi;
+}
+
+/** Percentual entre 0 e 100; fora disso a SEFAZ recusa. */
+function percentual(value: unknown, erro: string): number | undefined {
+  const parsed = finiteNumber(value);
+  if (parsed === undefined) return undefined;
+  if (parsed < 0 || parsed > 100) throw new Error(erro);
+  return parsed;
+}
+
+function valorMonetario(value: unknown, erro: string): number | undefined {
+  const parsed = finiteNumber(value);
+  if (parsed === undefined) return undefined;
+  if (parsed < 0) throw new Error(erro);
+  return parsed;
+}
+
+/**
+ * ICMS de uma linha vindo da tela ou do cadastro do contato.
+ *
+ * O código precisa estar na lista de `tax-codes.ts`; se ele é do regime da
+ * empresa (CSOSN ou CST) é conferido no cálculo, que conhece o regime.
+ * Objeto sem nada aproveitável vira `undefined` (= não mexeu).
+ *
+ * @throws `ICMS_SITUACAO_INVALIDA`, `ICMS_ALIQUOTA_INVALIDA`, `ICMS_VALOR_INVALIDO`.
+ */
+export function parseIcmsEdit(value: unknown): IcmsEdit | undefined {
+  if (!value || typeof value !== "object") return undefined;
+  const raw = value as Record<string, unknown>;
+  const edit: IcmsEdit = {};
+  const situacao = text(raw.situacao, 3).replace(/\D/g, "");
+  if (situacao) {
+    if (!findIcmsSituacao(situacao)) throw new Error("ICMS_SITUACAO_INVALIDA");
+    edit.situacao = situacao;
+  }
+  const percentuais = ["reducaoBase", "aliquota", "aliquotaCredito"] as const;
+  for (const key of percentuais) {
+    const parsed = percentual(raw[key], "ICMS_ALIQUOTA_INVALIDA");
+    if (parsed !== undefined) edit[key] = parsed;
+  }
+  const valores = ["baseCalculo", "valor", "valorCredito"] as const;
+  for (const key of valores) {
+    const parsed = valorMonetario(raw[key], "ICMS_VALOR_INVALIDO");
+    if (parsed !== undefined) edit[key] = parsed;
+  }
+  return Object.keys(edit).length > 0 ? edit : undefined;
+}
+
+/**
+ * PIS ou COFINS de uma linha. Sem CST não há o que aplicar: `undefined`.
+ *
+ * @throws `PIS_COFINS_CST_INVALIDO`, `PIS_COFINS_ALIQUOTA_INVALIDA`,
+ * `PIS_COFINS_VALOR_INVALIDO`.
+ */
+export function parsePisCofinsEdit(value: unknown): PisCofinsEdit | undefined {
+  if (!value || typeof value !== "object") return undefined;
+  const raw = value as Record<string, unknown>;
+  const cst = text(raw.cst, 2).replace(/\D/g, "");
+  if (!cst) return undefined;
+  if (!findPisCofinsCst(cst)) throw new Error("PIS_COFINS_CST_INVALIDO");
+  const edit: PisCofinsEdit = { cst };
+  const aliquota = percentual(raw.aliquota, "PIS_COFINS_ALIQUOTA_INVALIDA");
+  if (aliquota !== undefined) edit.aliquota = aliquota;
+  const baseCalculo = valorMonetario(raw.baseCalculo, "PIS_COFINS_VALOR_INVALIDO");
+  if (baseCalculo !== undefined) edit.baseCalculo = baseCalculo;
+  const valor = valorMonetario(raw.valor, "PIS_COFINS_VALOR_INVALIDO");
+  if (valor !== undefined) edit.valor = valor;
+  return edit;
+}
+
+/** Os três impostos editáveis de uma linha (o IPI tem o seu, `parseIpi`). */
+export function parseLineTaxEdits(raw: Record<string, unknown>): LineTaxEdits {
+  const edits: LineTaxEdits = {};
+  const icms = parseIcmsEdit(raw.icms);
+  if (icms) edits.icms = icms;
+  const pis = parsePisCofinsEdit(raw.pis);
+  if (pis) edits.pis = pis;
+  const cofins = parsePisCofinsEdit(raw.cofins);
+  if (cofins) edits.cofins = cofins;
+  return edits;
 }
 
 const MODALIDADES: readonly FiscalModalidadeFrete[] = [0, 1, 2, 3, 4, 9];

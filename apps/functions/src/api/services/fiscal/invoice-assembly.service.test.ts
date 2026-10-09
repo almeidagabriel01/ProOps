@@ -62,10 +62,10 @@ describe("buildProductItem: unidade comercial", () => {
   const linha = { productId: "p1", productName: "Persiana", quantity: 6, total: 900 };
 
   it("produto por área (m²) sai em M2", () => {
-    const item = buildProductItem(
+    const { item } = buildProductItem(
       linha,
       { inventoryUnit: "meter", pricingModel: { mode: "curtain_meter" } },
-      "simples_nacional" as never,
+      { regime: 1 },
       "5102",
     );
     expect(item.unidadeComercial).toBe("M2");
@@ -74,17 +74,25 @@ describe("buildProductItem: unidade comercial", () => {
   });
 
   it("produto por largura sai em M", () => {
-    const item = buildProductItem(
+    const { item } = buildProductItem(
       linha,
       { inventoryUnit: "meter", pricingModel: { mode: "curtain_width" } },
-      "simples_nacional" as never,
+      { regime: 1 },
       "5102",
     );
     expect(item.unidadeComercial).toBe("M");
   });
 
   it("produto comum sai em UN", () => {
-    const item = buildProductItem(linha, { inventoryUnit: "unit" }, "simples_nacional" as never, "5102");
+    const { item } = buildProductItem(linha, { inventoryUnit: "unit" }, { regime: 1 }, "5102");
     expect(item.unidadeComercial).toBe("UN");
+  });
+
+  it("sem padrão nem edição, sai como sempre saiu: CSOSN 102 e PIS/COFINS 99 zerados", () => {
+    const { item, problemas } = buildProductItem(linha, { inventoryUnit: "unit" }, { regime: 1 }, "5102");
+    expect(item.icms).toEqual({ kind: "csosn", situacao: "102" });
+    expect(item.pis).toEqual({ cst: "99", baseCalculo: 0, aliquota: 0, valor: 0 });
+    expect(item.cofins).toEqual({ cst: "99", baseCalculo: 0, aliquota: 0, valor: 0 });
+    expect(problemas).toEqual([]);
   });
 });

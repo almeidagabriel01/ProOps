@@ -77,6 +77,7 @@ const INITIAL_FORM: FormState = {
   cnae: "",
   regimeTributario: 1,
   percentualSimplesNacional: "",
+  aliquotaCreditoIcmsSimples: "",
   email: "",
   telefone: "",
   endereco: { ...EMPTY_ADDRESS },
@@ -135,6 +136,10 @@ function hydrate(settings: FiscalSettings): FormState {
       settings.percentualTotalTributosSimplesNacional === null
         ? ""
         : String(settings.percentualTotalTributosSimplesNacional),
+    aliquotaCreditoIcmsSimples:
+      typeof settings.aliquotaCreditoIcmsSimples === "number"
+        ? String(settings.aliquotaCreditoIcmsSimples)
+        : "",
     email: settings.email ?? "",
     telefone: settings.telefone ?? "",
     endereco: settings.endereco ?? { ...EMPTY_ADDRESS },
