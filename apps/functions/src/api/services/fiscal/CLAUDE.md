@@ -262,6 +262,18 @@
   reescreve inteira na tela, e a mensagem legal nao pode sumir porque alguem apagou o
   campo. No payload as duas se juntam em `informacoes_adicionais_contribuinte`, a da
   pessoa primeiro. Sem ela o cliente nao aproveita o credito, que e o motivo do 101.
+- **Nota de origem** (`source-document.ts`, `POST /v1/fiscal/source-documents/xml`): le o
+  XML de uma NF-e (o `nfeProc` baixado da SEFAZ ou do emissor, ou so o `NFe`) e devolve
+  chave, itens (codigo, NCM, CFOP, unidade, quantidade, valores, origem, ICMS e IPI) e a
+  relacao com a empresa (`recebida` | `emitida` | `outra`, que a tela so avisa). A tela
+  escolhe os itens e as quantidades ("a nota tem 5, mando 1") e poe a chave na referencia.
+  So leitura, mesma permissao de emitir (`invoices`, criar) e o gate `fiscal`, sem a
+  recepcao. O XML vem do usuario: DOCTYPE/ENTITY recusado antes do parser (entidade externa
+  e expansao), 900 mil caracteres no maximo, chave conferida pelo digito verificador (modulo
+  11), tudo lido como texto (NCM, CFOP e CST tem zero a esquerda). A outra fonte, as notas
+  RECEBIDAS, nao passa por aqui: o front mapeia os `itens` que a lista ja traz para o mesmo
+  formato. O XML da recebida nao e arquivado hoje (`storageXmlPath` existe no tipo e nada o
+  grava), entao dela vem so o que o mapeador guarda, sem origem nem impostos.
 - **O endpoint antigo `POST /v1/fiscal/invoices` foi removido** (2026-10). Ele aceitava o
   destinatario e os itens crus do corpo, sem o cadastro do contato, e nada o chamava desde
   que a emissao passou a nascer da proposta, do lancamento ou da nota avulsa.

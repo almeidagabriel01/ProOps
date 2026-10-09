@@ -33,6 +33,7 @@
     "cpf-cnpj-validator": "^2.1.0",
     "evlog": "^2.19.1",
     "express": "^5.2.1",
+    "fast-xml-parser": "5.7.2",
     "firebase-admin": "^13.6.1",
     "firebase-functions": "^7.2.5",
     "groq-sdk": "^1.1.2",

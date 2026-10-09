@@ -20,6 +20,7 @@ import {
   listNaturezasHandler,
   previewManualNfeHandler,
   issueManualNfeHandler,
+  parseSourceDocumentHandler,
   disconnectFiscalHandler,
   getInvoiceQuotaHandler,
 } from "../controllers/fiscal.controller";
@@ -86,6 +87,7 @@ router.post(
 // com `:id`, pelo mesmo motivo da prévia.
 router.post("/fiscal/invoices/preview/manual", validateFirebaseIdToken, previewManualNfeHandler);
 router.post("/fiscal/invoices/manual", validateFirebaseIdToken, issueManualNfeHandler);
+router.post("/fiscal/source-documents/xml", validateFirebaseIdToken, parseSourceDocumentHandler);
 // Consulta sob demanda: o cron so olha 15 min depois, e quem esta na tela nao
 // deveria precisar abrir o painel do provedor para saber o estado da propria nota.
 router.post(

@@ -70,6 +70,10 @@ import {
 } from "../services/fiscal/nfe-request";
 import { registerFiscalWebhooks } from "../services/fiscal/fiscal-webhook-registration.service";
 import {
+  SOURCE_DOCUMENT_ERRORS,
+  parseSourceDocumentXml,
+} from "../services/fiscal/source-document";
+import {
   CANCELLATION_JUSTIFICATION_MAX_LENGTH,
   CANCELLATION_JUSTIFICATION_MIN_LENGTH,
   CORRECTION_TEXT_MAX_LENGTH,
@@ -1080,6 +1084,37 @@ export const previewManualNfeHandler = async (req: Request, res: Response): Prom
   } catch (error) {
     const err = error as Error;
     logger.warn("Falha na prévia da nota avulsa", { error: err.message });
+    res.status(mapFiscalErrorStatus(err)).json(fiscalErrorBody(err));
+  }
+};
+
+/**
+ * POST /v1/fiscal/source-documents/xml
+ *
+ * Lê o XML de uma NF-e de origem (a compra devolvida, a nota do aparelho que
+ * vai para o conserto) e devolve chave e itens, para a tela montar a nota
+ * avulsa a partir deles. Só leitura: nada é gravado.
+ */
+export const parseSourceDocumentHandler = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const ctx = await requireInvoiceAccess(req, res, "canCreate");
+    if (!ctx) return;
+    const body = (req.body ?? {}) as Record<string, unknown>;
+    const xml = typeof body.xml === "string" ? body.xml : "";
+    if (!xml.trim()) {
+      res.status(400).json({ message: "Envie o XML da nota.", code: "XML_AUSENTE" });
+      return;
+    }
+    const settings = await getFiscalSettings(ctx.tenantId);
+    res.status(200).json(parseSourceDocumentXml(xml, settings?.cnpj ?? ""));
+  } catch (error) {
+    const err = error as Error;
+    const message = SOURCE_DOCUMENT_ERRORS[err.message];
+    if (message) {
+      res.status(400).json({ message, code: err.message });
+      return;
+    }
+    logger.error("Falha ao ler o XML da nota de origem", { error: err.message });
     res.status(mapFiscalErrorStatus(err)).json(fiscalErrorBody(err));
   }
 };
