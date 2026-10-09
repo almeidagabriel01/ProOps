@@ -15,3 +15,5 @@ export const WHATSAPP_HREF = buildWhatsAppHref(
 );
 
 export const INSTAGRAM_HREF = "https://www.instagram.com/proops.solutions/";
+
+export const LINKEDIN_HREF = "https://www.linkedin.com/company/proops-solutions/";
